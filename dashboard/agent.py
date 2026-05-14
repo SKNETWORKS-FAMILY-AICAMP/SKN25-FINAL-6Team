@@ -1,17 +1,45 @@
 from deepagents import create_deep_agent
 
+from config import settings
+from dashboard.insight_agent.prompts import (
+    ALERT_SUBAGENT_PROMPT,
+    DASHBOARD_SYSTEM_PROMPT,
+    INSIGHT_SUBAGENT_PROMPT,
+    METRIC_SUBAGENT_PROMPT,
+)
+from dashboard.insight_agent.tools import (
+    aggregate_operation_metrics,
+    create_insight_record,
+    detect_alert_conditions,
+    load_operation_outputs,
+)
 
-def load_observability_context(ticket_id: int | None = None) -> str:
-    """Load analysis, safety, and final outcome data for STEP3."""
-    return f"ticket_id={ticket_id}"
+
+dashboard_subagents = [
+    {
+        "name": "metric-aggregator",
+        "description": "Aggregates STEP3 observability metrics from operation outputs.",
+        "system_prompt": METRIC_SUBAGENT_PROMPT,
+        "tools": [load_operation_outputs, aggregate_operation_metrics],
+    },
+    {
+        "name": "insight-generator",
+        "description": "Creates insight records from ticket_analysis, safety_results, and final outcomes.",
+        "system_prompt": INSIGHT_SUBAGENT_PROMPT,
+        "tools": [load_operation_outputs, create_insight_record],
+    },
+    {
+        "name": "alert-router",
+        "description": "Evaluates metrics and decides Slack or Discord alert conditions.",
+        "system_prompt": ALERT_SUBAGENT_PROMPT,
+        "tools": [aggregate_operation_metrics, detect_alert_conditions],
+    },
+]
 
 
 agent = create_deep_agent(
-    model="openai:gpt-5.4",
-    tools=[load_observability_context],
-    system_prompt=(
-        "You are the dashboard agent for STEP3 observability. "
-        "Summarize operational insights, metric trends, and alert conditions. "
-        "Do not draft replies or handle approval gates."
-    ),
+    model=settings.openai_model,
+    tools=[load_operation_outputs],
+    system_prompt=DASHBOARD_SYSTEM_PROMPT,
+    subagents=dashboard_subagents,
 )

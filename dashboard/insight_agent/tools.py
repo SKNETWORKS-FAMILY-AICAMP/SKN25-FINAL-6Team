@@ -1,114 +1,73 @@
-"""
-우선 공식문서 예시 복사만 해온 거고, 여기 이렇게 툴 선언하면 된다는 것을 확인하였다.
-"""
+import json
+import sys
+from pathlib import Path
 
-import httpx
-from langchain_core.tools import InjectedToolArg, tool
-from markdownify import markdownify
-from tavily import TavilyClient
-from typing_extensions import Annotated, Literal
-
-tavily_client = TavilyClient()
+from langchain_core.tools import tool
 
 
-def fetch_webpage_content(url: str, timeout: float = 10.0) -> str:
-    """Fetch and convert webpage content to markdown.
+ROOT_DIR = Path(__file__).resolve().parents[2]
+root_str = str(ROOT_DIR)
+if root_str not in sys.path:
+    sys.path.insert(0, root_str)
 
-    Args:
-        url: URL to fetch
-        timeout: Request timeout in seconds
+from config import settings
+from data.seed_payload import (
+    SEED_ALERT,
+    SEED_DASHBOARD_INPUTS,
+    SEED_INSIGHT,
+    SEED_METRICS,
+    clone_payload,
+)
 
-    Returns:
-        Webpage content as markdown
-    """
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-    }
 
-    try:
-        response = httpx.get(url, headers=headers, timeout=timeout)
-        response.raise_for_status()
-        return markdownify(response.text)
-    except Exception as e:
-        return f"Error fetching content from {url}: {str(e)}"
+def _json(data: dict) -> str:
+    return json.dumps(data, ensure_ascii=True, indent=2)
 
 
 @tool(parse_docstring=True)
-def tavily_search(
-    query: str,
-    max_results: Annotated[int, InjectedToolArg] = 1,
-    topic: Annotated[
-        Literal["general", "news", "finance"], InjectedToolArg
-    ] = "general",
-) -> str:
-    """Search the web for information on a given query.
-
-    Uses Tavily to discover relevant URLs, then fetches and returns full webpage content as markdown.
+def load_operation_outputs(ticket_id: int | None = None) -> str:
+    """Load STEP1, STEP2, safety, and final outcome records created by operation.
 
     Args:
-        query: Search query to execute
-        max_results: Maximum number of results to return (default: 1)
-        topic: Topic filter - 'general', 'news', or 'finance' (default: 'general')
-
-    Returns:
-        Formatted search results with full webpage content
+        ticket_id: Optional QA_ticket.ticket_id filter.
     """
-    # Use Tavily to discover URLs
-    search_results = tavily_client.search(
-        query,
-        max_results=max_results,
-        topic=topic,
-    )
-
-    # Fetch full content for each URL
-    result_texts = []
-    for result in search_results.get("results", []):
-        url = result["url"]
-        title = result["title"]
-
-        # Fetch webpage content
-        content = fetch_webpage_content(url)
-
-        result_text = f"""## {title}
-**URL:** {url}
-
-{content}
-
----
-"""
-        result_texts.append(result_text)
-
-    # Format final response
-    response = f"""🔍 Found {len(result_texts)} result(s) for '{query}':
-
-{chr(10).join(result_texts)}"""
-
-    return response
+    if settings.use_seed_payload:
+        return _json(clone_payload(SEED_DASHBOARD_INPUTS))
+    raise NotImplementedError("DB-backed load_operation_outputs is not implemented yet.")
 
 
 @tool(parse_docstring=True)
-def think_tool(reflection: str) -> str:
-    """Tool for strategic reflection on research progress and decision-making.
-
-    Use this tool after each search to analyze results and plan next steps systematically.
-    This creates a deliberate pause in the research workflow for quality decision-making.
-
-    When to use:
-    - After receiving search results: What key information did I find?
-    - Before deciding next steps: Do I have enough to answer comprehensively?
-    - When assessing research gaps: What specific information am I still missing?
-    - Before concluding research: Can I provide a complete answer now?
-
-    Reflection should address:
-    1. Analysis of current findings - What concrete information have I gathered?
-    2. Gap assessment - What crucial information is still missing?
-    3. Quality evaluation - Do I have sufficient evidence/examples for a good answer?
-    4. Strategic decision - Should I continue searching or provide my answer?
+def aggregate_operation_metrics(window: str = "daily") -> str:
+    """Aggregate observability metrics for STEP3.
 
     Args:
-        reflection: Your detailed reflection on research progress, findings, gaps, and next steps
-
-    Returns:
-        Confirmation that reflection was recorded for decision-making
+        window: Aggregation window such as daily, weekly, or monthly.
     """
-    return f"Reflection recorded: {reflection}"
+    if settings.use_seed_payload:
+        return _json(clone_payload(SEED_METRICS))
+    raise NotImplementedError("DB-backed aggregate_operation_metrics is not implemented yet.")
+
+
+@tool(parse_docstring=True)
+def create_insight_record(ticket_id: int, pattern_risk_level: str = "CRITICAL") -> str:
+    """Create the insight row from STEP3 analysis.
+
+    Args:
+        ticket_id: QA_ticket.ticket_id.
+        pattern_risk_level: Pattern-level risk derived from aggregate metrics.
+    """
+    if settings.use_seed_payload:
+        return _json(clone_payload(SEED_INSIGHT))
+    raise NotImplementedError("DB-backed create_insight_record is not implemented yet.")
+
+
+@tool(parse_docstring=True)
+def detect_alert_conditions(metric_name: str = "payment_delivery_failure_rate") -> str:
+    """Evaluate observability metrics and decide whether to alert operators.
+
+    Args:
+        metric_name: Metric to evaluate for Slack or Discord alerting.
+    """
+    if settings.use_seed_payload:
+        return _json(clone_payload(SEED_ALERT))
+    raise NotImplementedError("DB-backed detect_alert_conditions is not implemented yet.")
