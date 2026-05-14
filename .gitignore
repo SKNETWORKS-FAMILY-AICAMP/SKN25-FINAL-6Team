@@ -1,0 +1,36 @@
+## Environment
+.env
+.env.local
+.env.*.local
+.venv
+
+## Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+
+## Node / frontend
+node_modules/
+dist/
+build/
+.next/
+coverage/
+
+## OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+## Logs
+*.log
+
+## Local data
+data/*
+!data/.gitkeep
+*.sqlite3
