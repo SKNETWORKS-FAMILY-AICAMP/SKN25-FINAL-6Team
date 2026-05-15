@@ -7,7 +7,7 @@ ensure_project_root_on_path()
 
 import json
 
-from data.seed_payload import FIRST_INPUT_PAYLOAD
+from seed_payload import FIRST_INPUT_PAYLOAD
 from operation.agent import agent as operation_agent
 
 
