@@ -123,8 +123,8 @@ RAG 질의는 사용자 원문만 복사하지 않고 운영 맥락까지 포함
 
 ## 현재 상태
 
-- `agent.py`는 엔트리포인트 스켈레톤이다.
-- `tools.py`는 BM25, 설정, seed payload import 정도만 존재한다.
-- `prompts.py`는 실질 로직이 아직 비어 있다.
+- `prompts.py`: STEP1_SYSTEM, STEP2_SYSTEM, STEP2_CONTEXT_TEMPLATE 구현 완료
+- `tools.py`: BM25 / vector similarity / hybrid retrieval, `record_ticket_analysis` @tool, `make_retrieve_evidence_tool` 팩토리 구현 완료
+- `agent.py`: Step12State, step1_node, step2_node, StateGraph(START→step1→step2→END) 구현 완료
 
-즉 역할과 payload는 정리되어 있지만 STEP1/STEP2 구현은 아직 본격화 전 단계다.
+STEP1/STEP2 베이스라인 구현이 완료된 상태다. 실행 진입점은 `runners/run_operation.py`다.
