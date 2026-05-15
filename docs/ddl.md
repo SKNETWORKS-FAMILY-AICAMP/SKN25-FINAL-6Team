@@ -4,7 +4,7 @@
 
 - DDL
     
-    ```mermaid
+    ```smalltalk
     Table community_users {
       user_id int [pk]
       email varchar
@@ -253,7 +253,7 @@ https://dbdiagram.io/d/RDBMS-6a02741e7a923b947283d7bf
 
 - DDL
     
-    ```mermaid
+    ```smalltalk
     
     Table documents {
       documents_id varchar [pk]

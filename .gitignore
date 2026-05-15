@@ -31,6 +31,6 @@ Thumbs.db
 *.log
 
 ## Local data
-data/*
+
 !data/.gitkeep
 *.sqlite3
