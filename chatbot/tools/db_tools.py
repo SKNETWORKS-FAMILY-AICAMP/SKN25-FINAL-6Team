@@ -88,7 +88,7 @@ def write_ticket_analysis(payload: dict) -> str:
     """Write ticket analysis result.
 
     Args:
-        payload: Analysis fields including ticket_id, category, risk_level.
+        payload: Analysis fields including ticket_id and category.
     """
     if settings.use_seed_payload:
         return _json({"status": "ok", "ticket_id": payload.get("ticket_id")})

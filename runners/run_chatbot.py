@@ -50,8 +50,6 @@ def run(
         "ticket_id": ticket_id,
         "category": "",
         "routing_target": "",
-        "risk_level": "",
-        "sentiment": "",
         "draft_id": None,
         "answer_draft": None,
         "safety_passed": None,

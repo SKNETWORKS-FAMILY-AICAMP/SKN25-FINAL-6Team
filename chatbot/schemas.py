@@ -19,8 +19,6 @@ class ChatbotState(AgentState):
     ticket_id: NotRequired[int]
     category: NotRequired[str]
     routing_target: NotRequired[str]
-    risk_level: NotRequired[str]
-    sentiment: NotRequired[str]
 
     draft_id: NotRequired[int | None]
     answer_draft: NotRequired[str | None]
