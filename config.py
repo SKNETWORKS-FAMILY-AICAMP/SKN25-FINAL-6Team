@@ -26,6 +26,13 @@ def _get_int(name: str, default: int) -> int:
         return default
 
 
+def _get_bool(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in ("1", "true", "yes")
+
+
 @dataclass(frozen=True)
 class Settings:
     database_url: str = _get_str("DATABASE_URL")
@@ -33,6 +40,7 @@ class Settings:
     openai_model: str = _get_str("OPENAI_MODEL")
     embedding_model: str = _get_str("EMBEDDING_MODEL")
     retrieval_top_k: int = _get_int("RETRIEVAL_TOP_K", 3)
+    use_seed_payload: bool = _get_bool("USE_SEED_PAYLOAD", True)
 
 
 settings = Settings()
