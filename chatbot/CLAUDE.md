@@ -1,55 +1,49 @@
 # Chatbot 모듈 개요
 
-게임 CS 자동화 챗봇. 고객 문의를 카테고리별로 분류하고 LangGraph 워크플로우로 처리한다.
+게임 CS 고객 응대 챗봇이다. 현재 메인 실행 경로는 LangGraph 수동
+`StateGraph`가 아니라 LangChain `create_agent` 기반이다.
 
-## 전체 흐름
+## 실행 흐름
 
+```text
+runners/run_chatbot.py
+  -> chatbot.agent.agent
+  -> create_agent(...)
+  -> db/vector/cache tools
 ```
-사용자 문의
-    → orchestrator (Toxic Filter + LLM 분류)
-    → [결제|인게임버그|FAQ|VOC] Agent
-    → safety_layer (안전성 검사)
-    → 통과 시 종료 / 실패 시 Agent 재시도 (최대 MAX_SAFETY_RETRY)
-```
 
-## 디렉터리 구조
+## 주요 파일
 
 | 경로 | 역할 |
 |------|------|
-| `schemas.py` | LangGraph 상태(`ChatbotState`) + Agent I/O 페이로드 정의 |
-| `constants.py` | 임계값·카테고리 등 전역 상수 |
-| `agents/` | 카테고리별 Agent 노드 함수 |
-| `safety/` | Safety Layer 노드 함수 |
-| `tools/` | DB·Vector·Cache 도구 |
-| `graph/workflow.py` | StateGraph 조립 및 `graph` 인스턴스 |
+| `agent.py` | `create_agent` 기반 메인 챗봇 agent |
+| `schemas.py` | `AgentState` 확장 `ChatbotState` |
+| `tools/` | DB, Vector, Cache tool |
+| `agents/` | 기존 StateGraph 노드 구현체 |
+| `graph/workflow.py` | 기존 StateGraph 워크플로우, 현재 runner 기본 경로 아님 |
 
-## 주요 상수 (constants.py)
-
-- `MAX_SAFETY_RETRY = 2` — Safety 실패 시 최대 재시도 횟수
-- `FACTUALITY_THRESHOLD = 0.8` — 사실성 통과 기준
-- `HALLUCINATION_THRESHOLD = 0.3` — 환각 통과 기준
-- `TOXICITY_THRESHOLD = 0.7` — 독성 통과 기준
-
-## 실행 방법
+## 실행 예시
 
 ```python
-from chatbot.graph.workflow import graph
+from chatbot.agent import agent
 
-result = graph.invoke({
-    "messages": [],
+result = agent.invoke({
+    "messages": [
+        {
+            "role": "user",
+            "content": "ticket_id=1001\naccount_id=101\n\nCustomer inquiry:\n결제했는데 아이템이 안 들어왔어요.",
+        }
+    ],
     "ticket_id": 1001,
-    "user_message": "결제는 완료됐는데 아이템이 안 왔어요",
     "account_id": 101,
-    "category": "",
-    "routing_target": "",
-    "draft_id": None,
-    "answer_draft": None,
-    "safety_passed": None,
-    "retry_count": 0,
+    "raw_content": "결제했는데 아이템이 안 들어왔어요.",
+    "cleaned_content": "결제했는데 아이템이 안 들어왔어요.",
 })
-print(result["answer_draft"])
 ```
 
-## 시드 페이로드
+CLI 실행은 `python runners/run_chatbot.py`를 사용한다.
 
-`USE_SEED_PAYLOAD=true` (기본값)이면 DB 없이 `data/seed_payload.py` 데이터로 동작한다.
+## 저장 정책
+
+현재 `db_tools.py`는 `USE_SEED_PAYLOAD=true`일 때 실제 DB 저장 대신 mock
+응답을 반환한다. 실제 DB 저장은 이후 공통 DB access layer로 분리한다.

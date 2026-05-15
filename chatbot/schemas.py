@@ -1,33 +1,31 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Annotated, Any
+from typing import Any
 
-from langgraph.graph import add_messages
-from typing_extensions import TypedDict
+from langchain.agents import AgentState
+from typing_extensions import NotRequired
 
 
-class ChatbotState(TypedDict):
-    messages: Annotated[list[Any], add_messages]
+class ChatbotState(AgentState):
+    user_id: NotRequired[str]
+    session_id: NotRequired[str]
+    account_id: NotRequired[int | None]
+    source_type: NotRequired[str]
 
-    user_id: str
-    session_id: str
-    account_id: int | None
-    source_type: str
+    raw_content: NotRequired[str]
+    cleaned_content: NotRequired[str]
 
-    raw_content: str
-    cleaned_content: str
+    ticket_id: NotRequired[int]
+    category: NotRequired[str]
+    routing_target: NotRequired[str]
+    risk_level: NotRequired[str]
+    sentiment: NotRequired[str]
 
-    ticket_id: int
-    category: str
-    routing_target: str
-    risk_level: str
-    sentiment: str
-
-    draft_id: int | None
-    answer_draft: str | None
-    safety_passed: bool | None
-    retry_count: int
+    draft_id: NotRequired[int | None]
+    answer_draft: NotRequired[str | None]
+    safety_passed: NotRequired[bool | None]
+    retry_count: NotRequired[int]
 
 
 @dataclass
