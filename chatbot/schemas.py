@@ -17,6 +17,8 @@ class ChatbotState(TypedDict):
     draft_id: int | None
     answer_draft: str | None
     safety_passed: bool | None
+    final_decision: str | None  # AUTO_RESPONSE / SAFE_FALLBACK / MASKING / BLOCK_RESPONSE / REVIEW_QUEUE
+    pii_detected: bool | None
     retry_count: int
 
 
