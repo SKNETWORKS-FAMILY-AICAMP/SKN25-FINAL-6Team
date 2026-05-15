@@ -469,7 +469,7 @@ def build_first_input_payload(
 
 FIRST_INPUT_PAYLOAD: dict[str, Any] = build_first_input_payload(ticket_id=1001)
 
-SEED_DASHBOARD_INPUTS: dict[str, Any] = {
+SEED_OPERATION_OUTPUTS: dict[str, Any] = {
     "ticket_analysis": [
         {
             "analysis_id": 5001,
@@ -477,13 +477,71 @@ SEED_DASHBOARD_INPUTS: dict[str, Any] = {
             "user_id": 1,
             "account_id": 101,
             "category": "payment",
-            "sentiment": "negative",
+            "responder_type": "AI",
+            "content": "결제는 완료되었지만 스타터 패키지 아이템이 지급되지 않았다는 문의다.",
             "risk_level": "HIGH",
+            "sentiment": "negative",
+            "relevance_score": 0.97,
             "routing_target": "urgent_alert",
             "summary": "결제는 성공했지만 아이템 지급이 실패한 문의다.",
+            "analyzed_at": "2026-05-11T10:03:00",
             "inquiry_created_at": "2026-05-11T10:00:00",
         }
     ],
+    "answer_draft": [
+        {
+            "draft_id": 3001,
+            "ticket_id": 1001,
+            "analysis_id": 5001,
+            "draft_text": (
+                "결제 내역은 정상적으로 확인되었지만 아이템 지급 로그가 실패 상태로 보여 "
+                "운영팀의 추가 확인이 필요합니다. 지급 기록 검토 후 재지급 또는 후속 안내가 진행될 예정입니다."
+            ),
+            "prompt_version": "v2_payment_prompt",
+            "created_at": "2026-05-11T10:05:00",
+        }
+    ],
+    "evidence_docs": [
+        {
+            "evidence_id": 4001,
+            "draft_id": 3001,
+            "source_type": "FAQ",
+            "source_id": "FAQ-101",
+            "evidence_text": "결제 보상은 구매 성공 후 최대 5분 이내에 지급될 수 있습니다.",
+            "relevance_score": 0.94,
+            "retrieval_rank": 1,
+        },
+        {
+            "evidence_id": 4002,
+            "draft_id": 3001,
+            "source_type": "POLICY",
+            "source_id": "POLICY-204",
+            "evidence_text": "지급 로그가 실패 상태라면 운영자는 환불이나 재지급 전에 지급 기록을 수동 검토해야 합니다.",
+            "relevance_score": 0.97,
+            "retrieval_rank": 2,
+        },
+        {
+            "evidence_id": 4003,
+            "draft_id": 3001,
+            "source_type": "NOTICE",
+            "source_id": "NOTICE-330",
+            "evidence_text": "유료 아이템 미지급이 반복되면 해당 문의는 긴급 검토 대상으로 라우팅해야 합니다.",
+            "relevance_score": 0.92,
+            "retrieval_rank": 3,
+        },
+    ],
+}
+
+SEED_APPROVAL_INPUT_PAYLOAD: dict[str, Any] = {
+    "qa_ticket": deepcopy(FIRST_INPUT_PAYLOAD["qa_ticket"]),
+    "account_context": deepcopy(FIRST_INPUT_PAYLOAD["account_context"]),
+    "operation_logs": deepcopy(FIRST_INPUT_PAYLOAD["operation_logs"]),
+    "ticket_analysis": deepcopy(SEED_OPERATION_OUTPUTS["ticket_analysis"]),
+    "answer_draft": deepcopy(SEED_OPERATION_OUTPUTS["answer_draft"]),
+    "evidence_docs": deepcopy(SEED_OPERATION_OUTPUTS["evidence_docs"]),
+}
+
+SEED_APPROVAL_OUTPUT_PAYLOAD: dict[str, Any] = {
     "safety_results": [
         {
             "safety_id": 6001,
@@ -492,16 +550,30 @@ SEED_DASHBOARD_INPUTS: dict[str, Any] = {
             "toxicity_score": 0.0,
             "policy_violation_score": 0.01,
             "factuality_score": 0.98,
+            "checked_at": "2026-05-11T10:06:00",
         }
     ],
-    "final_outcomes": [
-        {
-            "ticket_id": 1001,
-            "status": "closed",
-            "approval_result": "human_review",
-            "operator_action": "manual_delivery_review",
-        }
-    ],
+    "approval_result": "human_review",
+    "human_review_request": {
+        "ticket_id": 1001,
+        "draft_id": 3001,
+        "review_reason": "결제는 성공했지만 유료 아이템 지급 실패가 확인되어 운영자 수동 검토가 필요합니다.",
+        "recommended_action": "manual_delivery_review",
+        "priority": "urgent",
+        "requested_at": "2026-05-11T10:06:30",
+    },
+    "final_outcome": {
+        "ticket_id": 1001,
+        "status": "closed",
+        "approval_result": "human_review",
+        "operator_action": "manual_delivery_review",
+    },
+}
+
+SEED_DASHBOARD_INPUTS: dict[str, Any] = {
+    "ticket_analysis": deepcopy(SEED_OPERATION_OUTPUTS["ticket_analysis"]),
+    "safety_results": deepcopy(SEED_APPROVAL_OUTPUT_PAYLOAD["safety_results"]),
+    "final_outcomes": [deepcopy(SEED_APPROVAL_OUTPUT_PAYLOAD["final_outcome"])],
 }
 
 SEED_METRICS: dict[str, Any] = {
