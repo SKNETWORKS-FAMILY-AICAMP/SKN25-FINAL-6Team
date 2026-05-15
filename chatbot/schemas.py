@@ -9,11 +9,21 @@ from typing_extensions import TypedDict
 
 class ChatbotState(TypedDict):
     messages: Annotated[list[Any], add_messages]
-    ticket_id: int
-    user_message: str
+
+    user_id: str
+    session_id: str
     account_id: int | None
-    category: str           # 결제 / 인게임버그 / FAQ / VOC
-    routing_target: str     # rag_reply / urgent_alert
+    source_type: str
+
+    raw_content: str
+    cleaned_content: str
+
+    ticket_id: int
+    category: str
+    routing_target: str
+    risk_level: str
+    sentiment: str
+
     draft_id: int | None
     answer_draft: str | None
     safety_passed: bool | None
