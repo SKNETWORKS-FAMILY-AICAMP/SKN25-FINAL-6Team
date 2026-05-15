@@ -15,45 +15,22 @@ from chatbot.agents.faq_agent import faq_agent_node
 from chatbot.agents.orchestrator import orchestrator_node
 from chatbot.agents.payment_agent import payment_agent_node
 from chatbot.agents.voc_agent import voc_agent_node
-from chatbot.constants import (
-    FINAL_DECISION_AUTO,
-    FINAL_DECISION_BLOCK,
-    FINAL_DECISION_REVIEW,
-    MAX_SAFETY_RETRY,
-)
+from chatbot.constants import MAX_SAFETY_RETRY
 from chatbot.safety.safety_layer import safety_layer_node
 from chatbot.schemas import ChatbotState
 
-
-# ── HITL 노드 ─────────────────────────────────────────────────────────────────
-
-def hitl_node(state: ChatbotState) -> dict:
-    """BLOCK_RESPONSE / REVIEW_QUEUE → 운영 대시보드 에스컬레이션 기록."""
-    return {"safety_passed": False}
-
-
-# ── 라우팅 함수 ───────────────────────────────────────────────────────────────
 
 def _route_by_category(state: ChatbotState) -> str:
     return state.get("category", "FAQ")
 
 
 def _route_after_safety(state: ChatbotState) -> str:
-    decision = state.get("final_decision", "")
-
-    if decision == FINAL_DECISION_AUTO:
+    if state.get("safety_passed"):
         return END
-
-    if decision in (FINAL_DECISION_BLOCK, FINAL_DECISION_REVIEW):
-        return "hitl"
-
-    # SAFE_FALLBACK / MASKING — 재시도 or 고정 안내문으로 종료
     if state.get("retry_count", 0) >= MAX_SAFETY_RETRY:
         return END
     return state.get("category", "FAQ")
 
-
-# ── 그래프 조립 ───────────────────────────────────────────────────────────────
 
 workflow = StateGraph(ChatbotState)
 
@@ -63,7 +40,6 @@ workflow.add_node("bug_agent", bug_agent_node)
 workflow.add_node("faq_agent", faq_agent_node)
 workflow.add_node("voc_agent", voc_agent_node)
 workflow.add_node("safety_layer", safety_layer_node)
-workflow.add_node("hitl", hitl_node)
 
 workflow.set_entry_point("orchestrator")
 
@@ -89,11 +65,8 @@ workflow.add_conditional_edges(
         "인게임버그": "bug_agent",
         "FAQ": "faq_agent",
         "VOC": "voc_agent",
-        "hitl": "hitl",
         END: END,
     },
 )
-
-workflow.add_edge("hitl", END)
 
 graph = workflow.compile()
