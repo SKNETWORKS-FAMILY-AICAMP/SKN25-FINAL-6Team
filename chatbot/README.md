@@ -1,13 +1,13 @@
 # Chatbot
 
-게임 CS 고객 응대를 담당하는 챗봇 모듈입니다.
+게임 CS 고객 문의를 접수하고, 문의 유형을 분류한 뒤 필요한 근거를 조회해 답변 초안을 생성하는 챗봇 데모 베이스라인입니다.
 
-현재 챗봇의 메인 구현은 `create_agent` 기반이며, 고객 문의를 받아 필요한 tool을 호출하고 답변을 생성합니다.
+현재 챗봇의 메인 구현은 LangGraph 노드를 세분화한 구조가 아니라 LangChain `create_agent` 기반의 단일 agent 구조입니다. 아키텍처의 layer 개념은 `CHATBOT_SYSTEM_PROMPT`, `ChatbotState`, tools 조합으로 반영합니다.
 
 ## 역할
 
 - 고객 문의 접수
-- 문의 카테고리 판단
+- 문의 카테고리 및 라우팅 대상 판단
 - 결제/환불/지급/가챠 로그 조회
 - FAQ/정책 문서 검색
 - 답변 초안 생성
@@ -39,24 +39,114 @@ chatbot/
 | `tools/vector_tools.py` | 문서 embedding/search/rerank tool |
 | `tools/cache_tools.py` | FAQ 답변 캐시 tool |
 
-## 실행 흐름
+## Baseline Flow
 
 ```text
-사용자 문의
-  -> runners/run_chatbot.py
-  -> chatbot.agent.agent
-  -> create_agent
-  -> 필요한 tool 호출
-  -> 답변 생성
+Access/Input
+  -> Orchestration
+  -> Intelligence
+  -> Draft/Evidence Persistence
+  -> Safety
+  -> Final Response
 ```
 
-`create_agent`는 사용자 메시지를 보고 필요한 tool을 선택합니다. 결제 문의면 결제/지급 로그를 조회하고, FAQ성 문의면 문서 검색 또는 캐시를 사용할 수 있습니다.
+### 1. Access/Input Layer
+
+사용자 입력과 세션 정보를 `ChatbotState`로 받습니다. 실제 화면, 로그인, 권한 관리는 이 모듈의 책임이 아니며 상위 인터페이스에서 처리한다고 가정합니다.
+
+주요 state 필드:
+
+```text
+user_id
+session_id
+account_id
+source_type
+raw_content
+cleaned_content
+```
+
+### 2. Orchestration Layer
+
+문의 내용을 정리하고, 문의 유형과 라우팅 대상을 결정합니다.
+
+분류 값:
+
+```text
+category: 결제 / 인게임버그 / FAQ / VOC
+routing_target: rag_reply / urgent_alert
+```
+
+기본 규칙:
+
+```text
+rag_reply: 단순 FAQ, 일반 안내, 단순 게임 플레이 문의, 낮은 위험의 VOC
+urgent_alert: 결제 분쟁, 환불, 유료 아이템 미지급, 복잡 버그, 정책 민감 이슈, 운영자 검토 필요 케이스
+```
+
+관련 tools:
+
+```text
+write_qa_ticket
+write_ticket_analysis
+```
+
+### 3. Intelligence Layer
+
+분류된 category에 맞는 tools를 사용해 근거를 조회하고 답변을 생성합니다.
+
+```text
+결제:
+  read_payments
+  read_refunds
+  read_item_delivery_logs
+
+인게임버그:
+  read_gacha_logs
+  read_item_delivery_logs
+
+FAQ:
+  get_cache
+  embed_query
+  search_documents
+  rerank_documents
+  set_cache
+
+VOC:
+  고정 접수형 응답 생성
+```
+
+### 4. Draft And Evidence Persistence
+
+생성된 답변과 근거를 저장합니다. 현재는 `USE_SEED_PAYLOAD=true`일 때 실제 DB 저장 대신 mock 응답을 반환합니다.
+
+관련 tools:
+
+```text
+write_answer_draft
+write_evidence_docs
+```
+
+### 5. Safety Layer
+
+최종 응답 전 아래 항목을 점검하는 것을 baseline 정책으로 둡니다.
+
+```text
+hallucination / factuality
+toxicity / hate / violence / harassment
+PII 포함 여부
+```
+
+관련 tool:
+
+```text
+write_safety_results
+```
+
+현재 safety는 별도 LangGraph 노드가 아니라 agent prompt 정책과 tool 호출로 표현합니다. 향후 LangGraph로 분리할 경우 `AUTO_RESPONSE`, `MASKING`, `SAFE_FALLBACK`, `BLOCK_RESPONSE`, `REVIEW_QUEUE` 같은 분기를 별도 노드로 구현할 수 있습니다.
 
 ## State
 
 `schemas.py`의 `ChatbotState`는 agent 실행 중 필요한 상태값을 정의합니다.
-
-주요 값:
 
 | 필드 | 설명 |
 |------|------|
@@ -77,6 +167,30 @@ chatbot/
 
 현재 state 자체는 영구 저장하지 않습니다. DB에 남길 데이터는 tool을 통해 별도로 저장합니다.
 
+## State Example
+
+```python
+from chatbot.agent import agent
+
+result = agent.invoke({
+    "messages": [
+        {
+            "role": "user",
+            "content": "결제했는데 아이템이 안 들어왔어요.",
+        }
+    ],
+    "ticket_id": 1001,
+    "user_id": "user_001",
+    "session_id": "session_001",
+    "account_id": 101,
+    "source_type": "chatbot",
+    "raw_content": "결제했는데 아이템이 안 들어왔어요.",
+    "cleaned_content": "결제했는데 아이템이 안 들어왔어요.",
+})
+
+print(result["messages"][-1].content)
+```
+
 ## 저장 정책
 
 현재 `USE_SEED_PAYLOAD=true`이면 `db_tools.py`의 write tool은 실제 DB 저장 대신 mock 응답을 반환합니다.
@@ -86,7 +200,7 @@ chatbot/
 | 대상 | 내용 |
 |------|------|
 | `QA_ticket` | 문의 원문 및 Q/A 누적 기록 |
-| `ticket_analysis` | 카테고리, 위험도, 감정, 라우팅 결과 |
+| `ticket_analysis` | 카테고리 및 라우팅 결과 |
 | `answer_draft` | 생성된 답변 초안 |
 | `evidence_docs` | 답변에 사용된 근거 문서/로그 |
 | `safety_results` | safety 평가 결과 |
@@ -97,9 +211,17 @@ chatbot/
 
 프로젝트 루트에서 실행합니다.
 
+```bash
+python3 runners/run_chatbot.py
+```
+
+Windows PowerShell에서는 아래처럼 실행할 수 있습니다.
+
 ```powershell
 python runners\run_chatbot.py
 ```
+
+또는 Python 코드에서 직접 `chatbot.agent.agent`를 import해 호출할 수 있습니다.
 
 ## 환경 변수
 
@@ -114,8 +236,27 @@ USE_SEED_PAYLOAD=true
 DATABASE_URL=postgresql://...
 ```
 
+`USE_SEED_PAYLOAD=true`이면 `data/seed_payload.py`의 seed 데이터를 사용하고, DB write tools는 실제 저장 대신 mock 결과를 반환합니다.
+
 ## 현재 한계
 
+```text
+- LangGraph 기반 layer별 node 분리는 아직 적용하지 않았습니다.
 - 실제 DB access layer는 아직 구현 전입니다.
-- `USE_SEED_PAYLOAD=false`이면 DB-backed tool은 `NotImplementedError`를 발생시킵니다.
-- safety 5종 분기, HITL, 운영 대시보드 적재는 별도 구현이 필요합니다.
+- USE_SEED_PAYLOAD=false이면 DB-backed tool은 NotImplementedError를 발생시킵니다.
+- Operator Dashboard 적재는 실제 화면 연동 전 단계입니다.
+- Safety Layer는 별도 decision graph가 아니라 agent prompt 정책으로 표현합니다.
+- FAQ cache는 in-memory 방식이라 프로세스 재시작 시 초기화됩니다.
+```
+
+## Next Step
+
+데모 베이스라인 이후에는 아래 순서로 확장할 수 있습니다.
+
+```text
+1. Orchestration, Intelligence, Safety를 LangGraph node로 분리
+2. routing_target 기반 urgent_alert 처리 경로 추가
+3. Safety final_decision 분기 구현
+4. Operator Dashboard 연동
+5. 실제 DB access layer 연결
+```
