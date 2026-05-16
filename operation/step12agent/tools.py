@@ -9,11 +9,19 @@ from rank_bm25 import BM25Okapi
 
 from config import settings
 
+try:
+    from kiwipiepy import Kiwi as _Kiwi
+    _kiwi = _Kiwi()
+except Exception:
+    _kiwi = None
+
 
 # ── BM25 유틸 ─────────────────────────────────────────────────────────────────
 
 def _tokenize(text: str) -> list[str]:
-    """공백 기준으로 텍스트를 토큰 리스트로 분리한다."""
+    """한국어 형태소 분석(kiwipiepy) 기반 토크나이저. 설치 안 된 경우 공백 분리로 폴백한다."""
+    if _kiwi is not None:
+        return [token.form for token in _kiwi.tokenize(text)]
     return text.split()
 
 
@@ -84,6 +92,7 @@ def _chroma_score_map(query: str, n_results: int) -> dict[str, float]:
         distances = results["distances"][0]
         return {cid: 1.0 - dist for cid, dist in zip(ids, distances)}
     except Exception:
+        # 컬렉션 미존재 / CHROMA_PERSIST_DIR 경로 오류 / 임베딩 API 실패 모두 빈 dict로 폴백한다
         return {}
 
 
@@ -107,6 +116,7 @@ def _vector_retrieve(
         chunk_id = chunk.get("chunk_id", "")
         vec = chunk_vec_map.get(chunk_id)
         if vec is None:
+            # documents_embeddings에 해당 chunk_id 항목이 없으면 점수 계산 불가 — 건너뛴다
             continue
         scores[chunk_id] = _cosine_similarity(query_vector, vec)
     return scores
@@ -218,6 +228,7 @@ def make_retrieve_evidence_tool(knowledge_base: dict[str, Any]):
                 "source_type": doc.get("source_type", ""),
                 "source_id": doc_id,
                 "evidence_text": chunk["chunk_text"],
+                # RRF score (0~1/k 수준); 0~1 cosine similarity가 아님에 주의
                 "relevance_score": round(float(score), 4),
                 "retrieval_rank": rank,
             })

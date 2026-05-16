@@ -73,6 +73,7 @@ def step1_node(state: Step12State) -> dict:
 
     return {
         "messages": result["messages"],
+        # raw가 None이면 LLM이 도구를 호출하지 않은 것; _route_after_step1에서 빈 dict로 폴백한다
         "ticket_analysis": json.loads(raw) if raw else None,
         "knowledge_base": payload.get("knowledge_base", {}),
     }
@@ -137,7 +138,8 @@ def step2_node(state: Step12State) -> dict:
 
     return {
         "messages": result["messages"],
-        "evidence_docs": json.loads(raw) if raw else None,
+        # raw가 None이면 LLM이 retrieve_evidence를 호출하지 않은 것; urgent_node와 동일하게 [] 반환
+        "evidence_docs": json.loads(raw) if raw else [],
         "answer_draft": last_ai.content if last_ai else "",
     }
 
