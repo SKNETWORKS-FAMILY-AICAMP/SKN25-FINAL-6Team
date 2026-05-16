@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 try:
     from rootsetting import ensure_project_root_on_path
 except ModuleNotFoundError:
@@ -86,6 +88,12 @@ def run(
         session_id=session_id,
         source_type=source_type,
     ))
+    if os.getenv("CHATBOT_DEBUG_ROUTING", "").lower() in ("1", "true", "yes"):
+        print("[routing_debug]")
+        print(f"category: {result.get('category')}")
+        print(f"routing_target: {result.get('routing_target')}")
+        print(f"classification_method: {result.get('classification_method')}")
+        print(f"classification_reason: {result.get('classification_reason')}")
     return _last_message_text(result)
 
 

@@ -1,153 +1,203 @@
-# Chatbot LangGraph Workflow
+# Chatbot Workflow Mermaid
 
-이 폴더는 챗봇을 LangGraph node 기반 구조로 전환하기 위한 workflow를 담습니다.
+이 문서는 챗봇의 최종 workflow를 Mermaid 기준으로 정리합니다.
 
-현재 메인 실행 경로는 `chatbot/graph/workflow.py`의 LangGraph `StateGraph`입니다. Category node 안에서 `chatbot.agent.invoke_chatbot_agent`를 호출해 공통 `create_agent` reasoning unit을 사용합니다.
+현재 메인 실행 경로는 `chatbot/agent.py`의 LangChain `create_agent`이며, 이 폴더의 `workflow.py`는 LangGraph `StateGraph` 전환을 위한 실험 경로입니다. 최종 설계에서는 `StateGraph`가 전체 처리 순서와 분기를 관리하고, 각 node 내부에서 tools 또는 agent 로직을 사용합니다.
 
-## 현재 그래프 구조
+## Workflow
+
+```mermaid
+flowchart TD
+    USER([User]) --> ACCESS
+
+    subgraph ACCESS["Step 1. Access Layer"]
+        A1["Chatbot Interface<br/>사용자 문의 입력"]
+        A2["Session Manager<br/>user_id, session_id, 대화 이력 관리"]
+        A3["Input Payload 생성<br/>raw_content, source_type, account_id"]
+        A1 --> A2 --> A3
+    end
+
+    ACCESS --> ORCH
+
+    subgraph ORCH["Step 2. Orchestration Layer"]
+        O1["Toxic Filter<br/>욕설 / 위협 / 유해표현 1차 감지"]
+        O2["Input Normalize<br/>cleaned_content 생성"]
+        O3["Query Enrichment<br/>분류 힌트 보강"]
+        O4["Classifier<br/>category, routing_target 결정"]
+        O5["QA_ticket WRITE"]
+        O6["ticket_analysis WRITE"]
+        O7{"Category Routing"}
+
+        O1 --> O2 --> O3 --> O4 --> O5 --> O6 --> O7
+    end
+
+    O7 -->|"FAQ"| FAQ
+    O7 -->|"인게임버그"| BUG
+    O7 -->|"결제"| PAY
+    O7 -->|"VOC"| VOC
+
+    subgraph INTEL["Step 3. Intelligence Layer"]
+        subgraph FAQ["FAQ Agent"]
+            F1{"Cache Hit?"}
+            F2["Cache Answer<br/>answer_draft WRITE"]
+            F3["RAG Search<br/>Embed → Search → Rerank"]
+            F4["Answer Generation<br/>answer_draft WRITE<br/>evidence_docs WRITE"]
+            F5{"답변 가능?"}
+            F6["failed_queries WRITE<br/>FAQ/RAG 실패 사유 저장"]
+
+            F1 -->|"Hit"| F2
+            F1 -->|"Miss"| F3 --> F4
+            F2 --> F5
+            F4 --> F5
+            F5 -->|"가능"| SAFETY
+            F5 -->|"불가"| F6 --> OPDATA
+        end
+
+        subgraph BUG["Bug Agent"]
+            B1["Data Lookup<br/>gacha_logs / item_delivery_logs READ"]
+            B2{"버그 유형 판단"}
+            B3["단순 버그<br/>answer_draft WRITE"]
+            B4["복잡 버그<br/>operator_queue WRITE"]
+            B5["미지급 의심<br/>Payment Agent로 전달"]
+
+            B1 --> B2
+            B2 -->|"단순"| B3 --> SAFETY
+            B2 -->|"복잡"| B4 --> OPDATA
+            B2 -->|"미지급"| B5 --> PAY
+        end
+
+        subgraph PAY["Payment Agent"]
+            P1["Data Lookup<br/>payments / refunds / item_delivery_logs READ"]
+            P2{"routing_target"}
+            P3["rag_reply<br/>answer_draft WRITE<br/>evidence_docs WRITE"]
+            P4["urgent_alert<br/>operator_queue WRITE<br/>answer_draft WRITE"]
+
+            P1 --> P2
+            P2 -->|"rag_reply"| P3 --> SAFETY
+            P2 -->|"urgent_alert"| P4 --> OPDATA
+        end
+
+        subgraph VOC["VOC Agent"]
+            V1["VOC Type Classifier<br/>건의 / 불만 / 칭찬 / 기타"]
+            V2["VOC_DB WRITE"]
+            V3["고정 접수 답변<br/>answer_draft WRITE"]
+
+            V1 --> V2 --> OPDATA
+            V2 --> V3 --> FINAL
+        end
+    end
+
+    subgraph SAFETY["Step 4. Safety Layer"]
+        S1["Safety Checks<br/>PII Detection<br/>Response Validation<br/>Moderation"]
+        S2["safety_results WRITE<br/>decision_type, factuality, hallucination,<br/>toxicity, pii_detected, reason"]
+        S3{"final_decision"}
+
+        S4["AUTO_RESPONSE<br/>답변 승인"]
+        S5["MASKING<br/>개인정보 마스킹 후 재검사"]
+        S6["SAFE_FALLBACK<br/>고정 안내문 또는 재생성 요청"]
+        S7["BLOCK_RESPONSE<br/>차단 안내 답변"]
+        S8["REVIEW_QUEUE<br/>operator_queue WRITE"]
+
+        S1 --> S2 --> S3
+        S3 -->|"AUTO_RESPONSE"| S4 --> FINAL
+        S3 -->|"MASKING"| S5 --> S1
+        S3 -->|"SAFE_FALLBACK"| S6 --> FINAL
+        S3 -->|"BLOCK_RESPONSE"| S7 --> FINAL
+        S3 -->|"REVIEW_QUEUE"| S8 --> OPDATA
+    end
+
+    subgraph FINAL_LAYER["Final Response Layer"]
+        FINAL["final_answer 생성<br/>QA_ticket.raw_content에<br/>Q/A 형식으로 append"]
+    end
+
+    FINAL --> OPDATA
+
+    subgraph OPDATA["Step 5. Operational Data Logging"]
+        D1["QA_ticket<br/>raw_content, final_answer, status"]
+        D2["ticket_analysis<br/>category, routing_target"]
+        D3["answer_draft<br/>draft_id, content"]
+        D4["evidence_docs<br/>근거 로그 / 문서"]
+        D5["safety_results<br/>decision_type, scores, reason"]
+        D6["failed_queries<br/>FAQ/RAG 실패 전용"]
+        D7["VOC_DB<br/>VOC 유형 / 키워드"]
+        D8["operator_queue<br/>urgent_alert / review_queue"]
+    end
+
+    OPDATA --> DASH["Operator Dashboard / Analytics<br/>운영 대시보드에서 분석 및 처리"]
+```
+
+## Layer Summary
+
+| Layer | 책임 |
+|------|------|
+| Access Layer | 사용자 문의 입력, 세션 식별, 입력 payload 생성 |
+| Orchestration Layer | 입력 정제, 문의 분류, 라우팅 결정, 티켓/분석 결과 저장 |
+| Intelligence Layer | FAQ, Bug, Payment, VOC별 근거 조회 및 답변 초안 생성 |
+| Safety Layer | 답변 초안 검증, `decision_type` 저장, 안전성 분기 결정 |
+| Final Response Layer | 사용자에게 나갈 최종 답변 생성 및 Q/A 누적 준비 |
+| Operational Data Logging | 운영 대시보드가 소비할 데이터 적재 |
+
+## Storage Policy
+
+챗봇은 운영 인사이트를 직접 계산하지 않고, 운영 대시보드가 분석할 수 있는 데이터를 남기는 역할까지만 담당합니다.
+
+```text
+QA_ticket
+  -> 사용자 문의 원문, 최종 답변, 상태 저장
+
+ticket_analysis
+  -> category, routing_target 저장
+
+answer_draft
+  -> agent가 생성한 답변 초안 저장
+
+evidence_docs
+  -> 답변 근거가 된 로그 또는 문서 저장
+
+safety_results
+  -> decision_type, safety score, reason 저장
+
+failed_queries
+  -> FAQ/RAG에서 답변 근거를 찾지 못한 질문만 저장
+
+VOC_DB
+  -> VOC 유형, 키워드, 원문/정규화 질의 저장
+
+operator_queue
+  -> urgent_alert, review_queue 등 운영자 확인 대상 저장
+```
+
+## Current Implementation Note
+
+현재 코드의 LangGraph 실험 경로는 아래 흐름까지 구현되어 있습니다.
 
 ```text
 orchestrator
-  -> payment_agent
-  -> bug_agent
-  -> faq_agent
-  -> voc_agent
-
-각 category agent
+  -> category agent
   -> safety_layer
   -> final_response
   -> END
 ```
 
-Mermaid로 표현하면 다음과 같습니다.
+현재 구현은 seed/mock tool 기반 baseline입니다. 실제 RAG/ChromaDB 검색, 운영 대시보드 연동, `QA_ticket.raw_content` append DB tool은 후속 작업으로 연결합니다.
 
-```mermaid
-flowchart TD
-    START([START]) --> ORCH[orchestrator]
-    ORCH --> ROUTE{category}
-    ROUTE -->|결제| PAY[payment_agent]
-    ROUTE -->|인게임버그| BUG[bug_agent]
-    ROUTE -->|FAQ| FAQ[faq_agent]
-    ROUTE -->|VOC| VOC[voc_agent]
-    PAY --> SAFETY[safety_layer]
-    BUG --> SAFETY
-    FAQ --> SAFETY
-    VOC --> SAFETY
-    SAFETY --> DECISION{safety_passed?}
-    DECISION -->|true| FINAL[final_response]
-    DECISION -->|false and retry_count < MAX_SAFETY_RETRY| ROUTE
-    DECISION -->|false and retry_count >= MAX_SAFETY_RETRY| FINAL
-    FINAL --> END([END])
-```
+## Run
 
-## 주요 파일
-
-| 파일 | 역할 |
-|------|------|
-| `workflow.py` | `StateGraph(ChatbotState)` 조립 및 `graph` export |
-| `__init__.py` | graph package marker |
-
-## Routing
-
-`workflow.py`에는 두 개의 routing 함수가 있습니다.
-
-```text
-_route_by_category(state)
-```
-
-역할:
-
-```text
-category = 결제       -> payment_agent
-category = 인게임버그 -> bug_agent
-category = VOC        -> voc_agent
-그 외                -> faq_agent
-```
-
-```text
-_route_after_safety(state)
-```
-
-역할:
-
-```text
-safety_passed = True
-  -> final_response
-
-safety_passed = False and retry_count >= MAX_SAFETY_RETRY
-  -> final_response
-
-safety_passed = False and retry_count < MAX_SAFETY_RETRY
-  -> 기존 category agent로 재시도
-```
-
-## 실행 예시
-
-프로젝트 루트에서 실행합니다.
+현재 `runners/run_chatbot.py`는 LangGraph `StateGraph` 경로를 실행합니다.
 
 ```bash
-/opt/anaconda3/bin/python3 - <<'PY'
-from chatbot.graph.workflow import graph
-
-result = graph.invoke({
-    "messages": [],
-    "ticket_id": 1001,
-    "user_id": "seed-user",
-    "session_id": "seed-session",
-    "account_id": 101,
-    "source_type": "chatbot",
-    "raw_content": "결제는 정상적으로 완료됐는데 구매한 스타터 패키지 아이템이 아직 들어오지 않았습니다.",
-    "cleaned_content": "",
-    "category": "",
-    "routing_target": "",
-    "draft_id": None,
-    "answer_draft": None,
-    "safety_passed": None,
-    "retry_count": 0,
-})
-
-print(result["category"])
-print(result["routing_target"])
-print(result["draft_id"])
-print(result["safety_passed"])
-print(result["safety_action"])
-print(result["final_answer"])
-print(result["answer_draft"])
-PY
+python3 runners/run_chatbot.py
 ```
 
-예상 결과:
+현재 공식 챗봇 실행 runner는 `chatbot.graph.workflow.graph`를 호출합니다.
 
 ```text
-결제
-urgent_alert
-6001
-True
-AUTO_RESPONSE
-...
+runners/run_chatbot.py
+  -> chatbot.graph.workflow.graph
+  -> orchestrator
+  -> category agent
+  -> safety_layer
+  -> final_response
 ```
 
-## 현재 한계
-
-```text
-- runners/run_chatbot.py는 workflow.py의 graph 경로를 사용한다.
-- workflow.py는 현재 chatbot baseline의 메인 실행 경로다.
-- category 분류는 LLM이 아니라 keyword baseline이다.
-- FAQ Agent는 현재 cache 기반 baseline이며 실제 RAG/ChromaDB 검색은 아직 연결되지 않았다.
-- failed_queries는 FAQ/RAG 답변 근거 미발견 케이스 전용으로 둔다.
-- safety 5종 분기 결과는 safety_results.decision_type에 저장하는 방향이다.
-- BLOCK_RESPONSE / REVIEW_QUEUE / SAFE_FALLBACK도 final_response에서 사용자-facing 고정 답변으로 변환한다.
-- 현재 final_response는 final_answer를 state에 남기는 baseline이며 QA_ticket.raw_content append는 아직 mock 자리만 있다.
-- routing_target 기반 Operator Dashboard 분기는 아직 없다.
-- safety retry는 feedback 기반 재생성이 아니라 동일 category agent 재호출 구조다.
-```
-
-## 다음 작업
-
-```text
-1. workflow 실행 runner 추가
-2. routing_target = urgent_alert일 때 Operator Dashboard 큐 분기 추가
-3. safety_action 기반 분기 추가
-4. QA_ticket.raw_content append tool 추가 및 final_response에 연결
-5. create_agent baseline과 LangGraph workflow 중 최종 메인 경로 결정
-```
+주의할 점은 category agent 내부에서 공통 `create_agent` reasoning을 호출할 수 있다는 점입니다. 따라서 graph runtime 검증은 OpenAI API 연결이 가능한 환경에서 실행해야 합니다.
