@@ -1,3 +1,5 @@
+# prompt에 머메이드 구조를 넣는다. 이를 통해 llm이 STEP에 대해 이해할 수 있도록 한다.
+
 MERMAID_STEPS = """
 flowchart TB
   INPUT["1. answer_draft + evidence_docs"]
@@ -16,6 +18,8 @@ Return only the schema fields requested.
 Approval flow follows this Mermaid:
 {steps}
 """.strip()
+
+#=============operation\approvalagent\chain.py에서 import하는 부분
 
 APPROVAL_SYSTEM_PROMPT = BASE.format(steps=MERMAID_STEPS)
 
