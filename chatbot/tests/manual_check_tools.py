@@ -58,13 +58,15 @@ def check_db_tools() -> None:
     _print_json(
         "voc feedback write",
         write_voc_feedback.invoke({
-            "ticket_id": 1005,
-            "user_id": 1,
-            "account_id": 101,
-            "voc_type": "complaint",
-            "sentiment": "negative",
-            "raw_content": "이번 이벤트 보상이 너무 적어서 불만이에요.",
-            "summary": "이벤트 보상 수준에 대한 불만",
+            "payload": {
+                "ticket_id": 1005,
+                "user_id": 1,
+                "account_id": 101,
+                "voc_type": "complaint",
+                "sentiment": "negative",
+                "raw_content": "이번 이벤트 보상이 너무 적어서 불만이에요.",
+                "summary": "이벤트 보상 수준에 대한 불만",
+            },
         }),
     )
 
