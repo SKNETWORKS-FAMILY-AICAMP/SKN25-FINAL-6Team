@@ -6,7 +6,7 @@ from langchain.agents import AgentState
 from pydantic import BaseModel
 from typing_extensions import NotRequired
 
-Category = Literal["결제", "게임서버버그", "FAQ", "VOC"]
+Category = Literal["결제", "인게임버그", "FAQ", "VOC"]
 RoutingTarget = Literal["rag_reply", "urgent_alert"]
 SafetyAction = Literal[
     "AUTO_RESPONSE",
