@@ -2,12 +2,21 @@
 
 MERMAID_STEPS = """
 flowchart TB
-  INPUT["1. answer_draft + evidence_docs"]
-  CHECK["2. evidence alignment / hallucination / policy / harmful check"]
-  SAFETY["3. safety_results"]
-  DECISION{"4. approved | human_review | urgent_alert"}
-  FINAL["5. human review request or final outcome"]
-  INPUT --> CHECK --> SAFETY --> DECISION --> FINAL
+  DRAFT["answer_draft"]
+  EVIDENCE["evidence_docs"]
+  CHECK["evidence alignment / hallucination / policy / harmful check"]
+  SAFETY["safety_results"]
+  RESULT{"approved | human_review | urgent_alert"}
+  HUMAN["human review"]
+  EMAIL["urgent alert email"]
+  FINAL["final outcome"]
+  DRAFT --> CHECK
+  EVIDENCE --> CHECK
+  CHECK --> SAFETY
+  SAFETY --> RESULT
+  RESULT -->|approved| FINAL
+  RESULT -->|human_review| HUMAN
+  RESULT -->|urgent_alert| EMAIL
 """.strip()
 
 BASE = """
@@ -25,15 +34,15 @@ APPROVAL_SYSTEM_PROMPT = BASE.format(steps=MERMAID_STEPS)
 
 EVIDENCE_ALIGNMENT_PROMPT = (
     BASE
-    + "\nCheck whether answer_draft is supported by evidence_docs and return supported_claims, unsupported_claims, risk_notes, needs_human_review."
+    + "\nThis is the CHECK step. Check whether answer_draft is supported by evidence_docs and return supported_claims, unsupported_claims, risk_notes, needs_human_review."
 ).format(steps=MERMAID_STEPS)
 
 SAFETY_SCORING_PROMPT = (
     BASE
-    + "\nUse evidence_alignment if present in the payload. Return one safety_results row shape matching DDL: safety_id, draft_id, hallucination_score, toxicity_score, policy_violation_score, factuality_score, checked_at."
+    + "\nThis is the SAFETY step. Use evidence_alignment if present in the payload. Return one safety_results row shape matching DDL: safety_id, draft_id, hallucination_score, toxicity_score, policy_violation_score, factuality_score, checked_at."
 ).format(steps=MERMAID_STEPS)
 
 APPROVAL_DECISION_PROMPT = (
     BASE
-    + "\nUse evidence_alignment and safety_results already present in the payload. Decide exactly one of approved, human_review, urgent_alert. Be conservative for payment success plus item_delivery_logs fail."
+    + "\nThis is the RESULT step. Use evidence_alignment and safety_results already present in the payload. Decide exactly one of approved, human_review, urgent_alert. Be conservative for payment success plus item_delivery_logs fail."
 ).format(steps=MERMAID_STEPS)
