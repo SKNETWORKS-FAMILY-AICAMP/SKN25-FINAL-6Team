@@ -7,7 +7,50 @@ except ModuleNotFoundError:
 
 ensure_project_root_on_path()
 
-from chatbot.agent import agent
+from chatbot.agent import invoke_chatbot_agent
+
+
+def build_state(
+    ticket_id: int,
+    user_message: str,
+    account_id: int | None = None,
+    user_id: str = "seed-user",
+    session_id: str = "seed-session",
+    source_type: str = "chatbot",
+    previous_messages: list[dict[str, str]] | None = None,
+) -> dict:
+    messages = list(previous_messages or [])
+    messages.append({
+        "role": "user",
+        "content": (
+            f"ticket_id={ticket_id}\n"
+            f"account_id={account_id}\n"
+            f"source_type={source_type}\n\n"
+            f"Customer inquiry:\n{user_message}"
+        ),
+    })
+
+    return {
+        "messages": messages,
+        "user_id": user_id,
+        "session_id": session_id,
+        "account_id": account_id,
+        "source_type": source_type,
+        "raw_content": user_message,
+        "cleaned_content": user_message,
+        "ticket_id": ticket_id,
+        "category": "",
+        "routing_target": "",
+        "draft_id": None,
+        "answer_draft": None,
+        "safety_passed": None,
+        "safety_action": None,
+        "safety_reason": None,
+        "review_required": None,
+        "retry_count": 0,
+        "conversation_summary": None,
+        "turn_count": len([m for m in messages if m.get("role") == "user"]),
+    }
 
 
 def _last_message_text(result: dict) -> str:
@@ -29,33 +72,37 @@ def run(
     session_id: str = "seed-session",
     source_type: str = "chatbot",
 ) -> str:
-    result = agent.invoke({
-        "messages": [
-            {
-                "role": "user",
-                "content": (
-                    f"ticket_id={ticket_id}\n"
-                    f"account_id={account_id}\n"
-                    f"source_type={source_type}\n\n"
-                    f"Customer inquiry:\n{user_message}"
-                ),
-            }
-        ],
-        "user_id": user_id,
-        "session_id": session_id,
-        "account_id": account_id,
-        "source_type": source_type,
-        "raw_content": user_message,
-        "cleaned_content": user_message,
-        "ticket_id": ticket_id,
-        "category": "",
-        "routing_target": "",
-        "draft_id": None,
-        "answer_draft": None,
-        "safety_passed": None,
-        "retry_count": 0,
-    })
+    result = invoke_chatbot_agent(build_state(
+        ticket_id=ticket_id,
+        user_message=user_message,
+        account_id=account_id,
+        user_id=user_id,
+        session_id=session_id,
+        source_type=source_type,
+    ))
     return _last_message_text(result)
+
+
+def run_multiturn_demo() -> list[str]:
+    """Run a two-turn smoke scenario while preserving prior messages."""
+    history: list[dict[str, str]] = []
+    answers: list[str] = []
+    turns = [
+        (1001, "결제했는데 아이템이 안 들어왔어요."),
+        (1001, "방금 말한 결제 건은 환불도 가능한가요?"),
+    ]
+
+    for ticket_id, user_message in turns:
+        state = build_state(
+            ticket_id=ticket_id,
+            user_message=user_message,
+            account_id=101,
+            previous_messages=history,
+        )
+        result = invoke_chatbot_agent(state)
+        answers.append(_last_message_text(result))
+        history = result.get("messages", history)
+    return answers
 
 
 def main() -> None:
