@@ -5,10 +5,12 @@ from langchain.agents import create_agent
 from chatbot.schemas import ChatbotState
 from chatbot.tools.cache_tools import get_cache, set_cache
 from chatbot.tools.db_tools import (
+    append_qa_ticket_message,
     read_gacha_logs,
     read_item_delivery_logs,
     read_payments,
     read_refunds,
+    write_failed_query,
     write_answer_draft,
     write_evidence_docs,
     write_qa_ticket,
@@ -43,16 +45,20 @@ Use the following baseline flow:
 - For 결제: use read_payments, read_refunds, and read_item_delivery_logs before answering.
 - For 인게임버그: use read_gacha_logs and read_item_delivery_logs before answering when account_id is available.
 - For FAQ: use get_cache first. On cache miss, use embed_query, search_documents, and rerank_documents.
+- If FAQ search returns no reliable evidence, call write_failed_query and return the fixed fallback response:
+  "현재 문의는 자동 답변만으로 정확히 안내드리기 어렵습니다. 담당자가 확인 후 다시 안내드리겠습니다."
+- A fixed FAQ fallback response does not need LLM safety validation. Record decision_type as SAFE_FALLBACK when persisting safety metadata.
 - For VOC: acknowledge the feedback with a fixed reception-style response and avoid inventing unsupported details.
 
 4. Draft and evidence persistence
 - Persist the answer with write_answer_draft.
 - Persist evidence with write_evidence_docs when the answer uses payment logs, delivery logs, gacha logs, FAQ documents, or policy documents.
 - Cache reusable FAQ answers with set_cache when appropriate.
+- Append the final customer-facing answer to QA_ticket.raw_content with append_qa_ticket_message.
 
 5. Safety
 - Before finalizing, check whether the response contains unsafe claims, hallucinated facts, sensitive personal information, or toxic language.
-- Persist available safety information with write_safety_results.
+- Persist available safety information with write_safety_results, including decision_type when known.
 - If the answer is uncertain or high risk, respond conservatively and mention that an operator may review the ticket.
 
 6. Final response
@@ -78,6 +84,8 @@ agent = create_agent(
         write_answer_draft,
         write_evidence_docs,
         write_safety_results,
+        append_qa_ticket_message,
+        write_failed_query,
     ],
     system_prompt=CHATBOT_SYSTEM_PROMPT,
     state_schema=ChatbotState,
