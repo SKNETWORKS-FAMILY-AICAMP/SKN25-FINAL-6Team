@@ -193,6 +193,7 @@ write_evidence_docs
 호출 tools:
 
 ```text
+write_voc_feedback
 write_answer_draft
 write_evidence_docs
 ```
@@ -200,12 +201,14 @@ write_evidence_docs
 현재 동작:
 
 ```text
-1. 고정 접수형 답변 생성
-2. answer_draft 저장
-3. VOC 접수 evidence 저장
+1. VOC 유형/감정/요약 분류
+2. VOC_DB 성격의 저장소에 VOC 내용 저장
+3. 완전 고정 접수형 답변 생성
+4. answer_draft 저장
+5. VOC 접수 evidence 저장
 ```
 
-고정 접수형 답변이므로 현재는 복잡한 RAG나 safety 검사를 전제로 하지 않습니다. 다만 workflow상 safety_layer를 지나도록 연결되어 있어, 이후 정책에 따라 VOC만 Final로 바로 보내거나 Operator Dashboard에도 적재할 수 있습니다.
+고정 접수형 답변이므로 현재는 복잡한 RAG나 LLM safety 검사를 전제로 하지 않습니다. workflow에서도 VOC는 `safety_layer`를 거치지 않고 `final_response`로 바로 이동합니다. VOC는 실패 케이스가 아니라 정상적인 고객 의견 접수이므로 `failed_query`에는 저장하지 않습니다.
 
 ## 개발 규칙
 

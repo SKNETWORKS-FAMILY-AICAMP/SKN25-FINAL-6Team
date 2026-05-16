@@ -55,8 +55,9 @@ workflow.add_conditional_edges(
     },
 )
 
-for node_name in ("payment_agent", "bug_agent", "faq_agent", "voc_agent"):
+for node_name in ("payment_agent", "bug_agent", "faq_agent"):
     workflow.add_edge(node_name, "safety_layer")
+workflow.add_edge("voc_agent", "final_response")
 
 workflow.add_conditional_edges(
     "safety_layer",

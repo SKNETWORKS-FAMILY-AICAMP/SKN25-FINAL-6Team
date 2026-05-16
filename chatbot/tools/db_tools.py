@@ -179,3 +179,21 @@ def write_failed_query(payload: dict) -> str:
             "reason": payload.get("reason"),
         })
     raise NotImplementedError("DB-backed write_failed_query is not implemented yet.")
+
+
+@tool(parse_docstring=True)
+def write_voc_feedback(payload: dict) -> str:
+    """Write a VOC feedback record for analysis and follow-up.
+
+    Args:
+        payload: VOC fields including ticket_id, user_id, account_id, voc_type,
+            sentiment, raw_content, and summary.
+    """
+    if settings.use_seed_payload:
+        return _json({
+            "status": "ok",
+            "ticket_id": payload.get("ticket_id"),
+            "voc_type": payload.get("voc_type"),
+            "stored": True,
+        })
+    raise NotImplementedError("DB-backed write_voc_feedback is not implemented yet.")

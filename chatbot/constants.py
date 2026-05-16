@@ -6,3 +6,4 @@ CATEGORY = ["결제", "인게임버그", "FAQ", "VOC"]
 FACTUALITY_THRESHOLD = 0.8
 HALLUCINATION_THRESHOLD = 0.3
 TOXICITY_THRESHOLD = 0.7
+VOC_FIXED_RESPONSE = "지금은 이해할 수 없는 내용이에요.\n홈페이지 참고하시거나 추후 안내드리겠습니다."

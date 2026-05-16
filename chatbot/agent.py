@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from chatbot.constants import CATEGORY, ROUTING_TARGET
+from chatbot.constants import CATEGORY, ROUTING_TARGET, VOC_FIXED_RESPONSE
 from chatbot.schemas import ChatbotState
 from chatbot.tools.cache_tools import get_cache, set_cache
 from chatbot.tools.db_tools import (
@@ -12,6 +12,7 @@ from chatbot.tools.db_tools import (
     read_payments,
     read_refunds,
     write_failed_query,
+    write_voc_feedback,
     write_answer_draft,
     write_evidence_docs,
     write_qa_ticket,
@@ -61,7 +62,11 @@ Use the following baseline flow:
 - If FAQ search returns no reliable evidence, call write_failed_query and return the fixed fallback response:
   "현재 문의는 자동 답변만으로 정확히 안내드리기 어렵습니다. 담당자가 확인 후 다시 안내드리겠습니다."
 - A fixed FAQ fallback response does not need LLM safety validation. Record decision_type as SAFE_FALLBACK when persisting safety metadata.
-- For VOC: acknowledge the feedback with a fixed reception-style response and avoid inventing unsupported details.
+- For VOC: classify the VOC type only as one of suggestion, complaint, praise, multi_intent, or other.
+- For VOC: call write_voc_feedback with the VOC type, sentiment, raw_content, and summary when ticket metadata is available.
+- For VOC: always return exactly this fixed response and do not generate a custom response:
+  "{VOC_FIXED_RESPONSE}"
+- A fixed VOC response does not need LLM safety validation. Do not write VOC content to failed_queries because VOC is a normal feedback intake, not a failed FAQ/RAG query.
 
 4. Draft and evidence persistence
 - Persist the answer with write_answer_draft.
@@ -97,6 +102,7 @@ CHATBOT_TOOLS = [
     write_safety_results,
     append_qa_ticket_message,
     write_failed_query,
+    write_voc_feedback,
 ]
 
 

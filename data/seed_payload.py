@@ -630,6 +630,19 @@ SEED_DASHBOARD_INPUTS: dict[str, Any] = {
             "operator_action": "manual_delivery_review",
         }
     ],
+    "voc_feedbacks": [
+        {
+            "voc_id": 7001,
+            "ticket_id": None,
+            "user_id": 1,
+            "account_id": 101,
+            "voc_type": "complaint",
+            "sentiment": "negative",
+            "raw_content": "이번 이벤트 보상이 너무 적어서 불만이에요.",
+            "summary": "이벤트 보상 수준에 대한 불만",
+            "created_at": "2026-05-14T12:00:00",
+        }
+    ],
 }
 
 SEED_METRICS: dict[str, Any] = {

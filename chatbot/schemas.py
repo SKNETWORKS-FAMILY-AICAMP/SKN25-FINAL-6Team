@@ -46,6 +46,9 @@ class ChatbotState(AgentState):
     safety_action: NotRequired[SafetyAction | str | None]
     safety_reason: NotRequired[str | None]
     review_required: NotRequired[bool | None]
+    voc_type: NotRequired[str | None]
+    voc_sentiment: NotRequired[str | None]
+    voc_summary: NotRequired[str | None]
 
     # Multi-turn bookkeeping.
     retry_count: NotRequired[int]

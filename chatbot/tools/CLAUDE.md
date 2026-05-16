@@ -16,6 +16,12 @@
 | `write_answer_draft(payload)` | 답변 초안 저장 → `draft_id` 반환 |
 | `write_evidence_docs(payload)` | 근거 문서 참조 저장 |
 | `write_safety_results(payload)` | Safety 평가 결과 저장 |
+| `append_qa_ticket_message(payload)` | `QA_ticket.raw_content`에 Q/A 메시지 누적 |
+| `write_failed_query(payload)` | FAQ 검색 실패 또는 근거 부족 query 저장 |
+| `write_voc_feedback(payload)` | VOC 유형, 감정, 원문, 요약 저장 |
+
+VOC는 정상적인 고객 의견 접수이므로 `failed_query`에 저장하지 않는다.  
+현재 baseline의 VOC 응답은 완전 고정 문구이므로 LLM Safety 검사를 생략할 수 있다.
 
 ## vector_tools.py — 임베딩·검색
 

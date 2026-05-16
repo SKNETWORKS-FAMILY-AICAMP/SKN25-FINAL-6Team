@@ -63,6 +63,10 @@ RDB 기반 조회/저장 역할을 담당합니다.
 | `write_safety_results(payload)` | safety 평가 결과 저장 |
 | `append_qa_ticket_message(payload)` | `QA_ticket.raw_content`에 Q/A 메시지 누적 |
 | `write_failed_query(payload)` | FAQ 검색 실패 또는 근거 부족 query 저장 |
+| `write_voc_feedback(payload)` | VOC 유형, 감정, 원문, 요약을 VOC_DB 성격의 저장소에 적재 |
+
+VOC는 정상적인 고객 의견 접수 흐름입니다. VOC 고정 응답은 `answer_draft`에 저장하고 `QA_ticket.raw_content`에 append하지만, `failed_query`에는 저장하지 않습니다.
+현재 baseline에서는 VOC 응답 문구가 완전 고정이므로 LLM safety 검사를 생략할 수 있습니다.
 
 ## vector_tools.py
 

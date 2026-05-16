@@ -174,12 +174,12 @@ operator_queue
 ```text
 orchestrator
   -> category agent
-  -> safety_layer
-  -> final_response
+     -> VOC이면 final_response
+     -> 결제/인게임버그/FAQ이면 safety_layer -> final_response
   -> END
 ```
 
-현재 구현은 seed/mock tool 기반 baseline입니다. 실제 RAG/ChromaDB 검색, 운영 대시보드 연동, `QA_ticket.raw_content` append DB tool은 후속 작업으로 연결합니다.
+현재 구현은 seed/mock tool 기반 baseline입니다. 실제 RAG/ChromaDB 검색과 운영 대시보드 연동은 후속 작업으로 연결합니다. `QA_ticket.raw_content` append는 `append_qa_ticket_message` tool 계약으로 준비되어 있습니다.
 
 ## Run
 
@@ -196,7 +196,8 @@ runners/run_chatbot.py
   -> chatbot.graph.workflow.graph
   -> orchestrator
   -> category agent
-  -> safety_layer
+  -> VOC이면 final_response
+  -> 결제/인게임버그/FAQ이면 safety_layer
   -> final_response
 ```
 

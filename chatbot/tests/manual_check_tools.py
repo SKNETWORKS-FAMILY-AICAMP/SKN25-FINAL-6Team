@@ -11,7 +11,7 @@ if root_str not in sys.path:
     sys.path.insert(0, root_str)
 
 from chatbot.tools.cache_tools import get_cache, set_cache
-from chatbot.tools.db_tools import read_gacha_logs, read_item_delivery_logs
+from chatbot.tools.db_tools import read_gacha_logs, read_item_delivery_logs, write_voc_feedback
 from chatbot.tools.vector_tools import rerank_documents, search_documents
 from data.seed_payload import SEED_DOCUMENT_EMBEDDINGS
 
@@ -54,6 +54,19 @@ def check_db_tools() -> None:
         read_item_delivery_logs.invoke({"account_id": 102}),
     )
     _print_json("gacha logs account_id=999", read_gacha_logs.invoke({"account_id": 999}))
+
+    _print_json(
+        "voc feedback write",
+        write_voc_feedback.invoke({
+            "ticket_id": 1005,
+            "user_id": 1,
+            "account_id": 101,
+            "voc_type": "complaint",
+            "sentiment": "negative",
+            "raw_content": "이번 이벤트 보상이 너무 적어서 불만이에요.",
+            "summary": "이벤트 보상 수준에 대한 불만",
+        }),
+    )
 
 
 def check_vector_tools() -> None:
