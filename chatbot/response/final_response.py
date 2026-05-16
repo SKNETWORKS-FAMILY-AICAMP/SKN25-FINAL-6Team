@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from chatbot.schemas import ChatbotState
+from chatbot.tools.db_tools import append_qa_ticket_message
 
 
 def _fallback_answer() -> str:
@@ -34,7 +35,14 @@ def final_response_node(state: ChatbotState) -> dict:
     else:
         final_answer = answer_draft or _fallback_answer()
 
-    # Future DB-backed implementation should append this final Q/A to QA_ticket.raw_content.
+    append_qa_ticket_message.invoke({
+        "payload": {
+            "ticket_id": state.get("ticket_id"),
+            "role": "assistant",
+            "content": final_answer,
+        },
+    })
+
     return {
         "final_answer": final_answer,
     }

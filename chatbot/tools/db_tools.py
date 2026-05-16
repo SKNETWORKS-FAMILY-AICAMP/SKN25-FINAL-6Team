@@ -19,6 +19,10 @@ def _json(data: object) -> str:
     return json.dumps(data, ensure_ascii=False, indent=2)
 
 
+def _read_response(rows: list[dict]) -> str:
+    return _json({"status": "ok", "data": rows, "count": len(rows)})
+
+
 @tool(parse_docstring=True)
 def read_payments(account_id: int) -> str:
     """Read payment records for the given account.
@@ -28,7 +32,8 @@ def read_payments(account_id: int) -> str:
     """
     if settings.use_seed_payload:
         logs = clone_payload(SEED_OPERATION_LOGS)
-        return _json([p for p in logs["payments"] if p["account_id"] == account_id])
+        rows = [p for p in logs["payments"] if p["account_id"] == account_id]
+        return _read_response(rows)
     raise NotImplementedError("DB-backed read_payments is not implemented yet.")
 
 
@@ -41,7 +46,8 @@ def read_refunds(payment_id: int) -> str:
     """
     if settings.use_seed_payload:
         logs = clone_payload(SEED_OPERATION_LOGS)
-        return _json([r for r in logs["refunds"] if r["payment_id"] == payment_id])
+        rows = [r for r in logs["refunds"] if r["payment_id"] == payment_id]
+        return _read_response(rows)
     raise NotImplementedError("DB-backed read_refunds is not implemented yet.")
 
 
@@ -54,7 +60,8 @@ def read_item_delivery_logs(account_id: int) -> str:
     """
     if settings.use_seed_payload:
         logs = clone_payload(SEED_OPERATION_LOGS)
-        return _json([d for d in logs["item_delivery_logs"] if d["account_id"] == account_id])
+        rows = [d for d in logs["item_delivery_logs"] if d["account_id"] == account_id]
+        return _read_response(rows)
     raise NotImplementedError("DB-backed read_item_delivery_logs is not implemented yet.")
 
 
@@ -67,7 +74,8 @@ def read_gacha_logs(account_id: int) -> str:
     """
     if settings.use_seed_payload:
         logs = clone_payload(SEED_OPERATION_LOGS)
-        return _json([g for g in logs["gacha_logs"] if g.get("account_id") == account_id])
+        rows = [g for g in logs["gacha_logs"] if g.get("account_id") == account_id]
+        return _read_response(rows)
     raise NotImplementedError("DB-backed read_gacha_logs is not implemented yet.")
 
 
@@ -125,8 +133,49 @@ def write_safety_results(payload: dict) -> str:
     """Write safety evaluation results for an answer draft.
 
     Args:
-        payload: Safety fields including draft_id, factuality, hallucination, toxicity scores.
+        payload: Safety fields including draft_id, ticket_id, hallucination_score,
+            toxicity_score, policy_violation_score, factuality_score,
+            decision_type, and reason.
     """
     if settings.use_seed_payload:
-        return _json({"status": "ok", "draft_id": payload.get("draft_id")})
+        return _json({
+            "status": "ok",
+            "draft_id": payload.get("draft_id"),
+            "decision_type": payload.get("decision_type"),
+        })
     raise NotImplementedError("DB-backed write_safety_results is not implemented yet.")
+
+
+@tool(parse_docstring=True)
+def append_qa_ticket_message(payload: dict) -> str:
+    """Append a user or assistant message to QA_ticket.raw_content.
+
+    Args:
+        payload: Message fields including ticket_id, role, and content.
+    """
+    if settings.use_seed_payload:
+        return _json({
+            "status": "ok",
+            "ticket_id": payload.get("ticket_id"),
+            "role": payload.get("role"),
+            "appended": True,
+        })
+    raise NotImplementedError("DB-backed append_qa_ticket_message is not implemented yet.")
+
+
+@tool(parse_docstring=True)
+def write_failed_query(payload: dict) -> str:
+    """Write a failed FAQ or low-evidence query for later analysis.
+
+    Args:
+        payload: Failed query fields including ticket_id, query, category, and reason.
+    """
+    if settings.use_seed_payload:
+        return _json({
+            "status": "ok",
+            "ticket_id": payload.get("ticket_id"),
+            "query": payload.get("query"),
+            "category": payload.get("category"),
+            "reason": payload.get("reason"),
+        })
+    raise NotImplementedError("DB-backed write_failed_query is not implemented yet.")

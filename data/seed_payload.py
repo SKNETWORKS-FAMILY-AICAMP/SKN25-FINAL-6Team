@@ -12,6 +12,22 @@ SEED_COMMUNITY_USERS: list[dict[str, Any]] = [
         "nickname": "불꽃술사",
         "user_status": "active",
         "last_login_at": "2026-05-11T22:10:00",
+    },
+    {
+        "table": "community_users",
+        "user_id": 2,
+        "email": "user2@game.com",
+        "nickname": "별빛기사",
+        "user_status": "active",
+        "last_login_at": "2026-05-12T21:40:00",
+    },
+    {
+        "table": "community_users",
+        "user_id": 3,
+        "email": "user3@game.com",
+        "nickname": "바람수집가",
+        "user_status": "active",
+        "last_login_at": "2026-05-13T18:25:00",
     }
 ]
 
@@ -24,6 +40,26 @@ SEED_GAME_ACCOUNTS: list[dict[str, Any]] = [
         "uid": "8123456",
         "server_region": "KR",
         "progression_level": 57,
+        "account_status": "active",
+    },
+    {
+        "table": "game_accounts",
+        "account_id": 102,
+        "user_id": 2,
+        "game_name": "원신",
+        "uid": "8234567",
+        "server_region": "KR",
+        "progression_level": 48,
+        "account_status": "active",
+    },
+    {
+        "table": "game_accounts",
+        "account_id": 103,
+        "user_id": 3,
+        "game_name": "원신",
+        "uid": "8345678",
+        "server_region": "KR",
+        "progression_level": 51,
         "account_status": "active",
     }
 ]
@@ -79,10 +115,101 @@ SEED_OPERATION_LOGS: dict[str, list[dict[str, Any]]] = {
             "delivery_status": "fail",
             "expected_at": "2026-05-11T10:01:00",
             "delivered_at": None,
+        },
+        {
+            "delivery_id": 8002,
+            "payment_id": None,
+            "account_id": 102,
+            "source_type": "gacha_reward",
+            "item_name": "아스트라",
+            "quantity": 1,
+            "delivery_status": "success",
+            "expected_at": "2026-05-12T20:10:05",
+            "delivered_at": "2026-05-12T20:10:05",
+        },
+        {
+            "delivery_id": 8003,
+            "payment_id": None,
+            "account_id": 103,
+            "source_type": "gacha_reward",
+            "item_name": "바람의 검",
+            "quantity": 1,
+            "delivery_status": "fail",
+            "expected_at": "2026-05-13T19:05:05",
+            "delivered_at": None,
         }
     ],
-    "gacha_logs": [],
+    "gacha_logs": [
+        {
+            "gacha_id": 9001,
+            "account_id": 102,
+            "banner_name": "별빛 소환",
+            "item_name": "아스트라",
+            "item_type": "character",
+            "rarity": 5,
+            "result_status": "success",
+            "pulled_at": "2026-05-12T20:10:00",
+        },
+        {
+            "gacha_id": 9002,
+            "account_id": 103,
+            "banner_name": "바람의 무기 픽업",
+            "item_name": "바람의 검",
+            "item_type": "weapon",
+            "rarity": 4,
+            "result_status": "success",
+            "pulled_at": "2026-05-13T19:05:00",
+        },
+    ],
 }
+
+SEED_CHAT_SCENARIOS: list[dict[str, Any]] = [
+    {
+        "scenario_id": "payment_missing_delivery",
+        "user_id": 1,
+        "account_id": 101,
+        "message": "결제는 완료됐는데 구매한 스타터 패키지 아이템이 아직 들어오지 않았어요.",
+        "expected_category": "결제",
+        "expected_routing_target": "urgent_alert",
+        "description": "결제 성공 + 아이템 지급 실패 케이스",
+    },
+    {
+        "scenario_id": "faq_event_reward_delay",
+        "user_id": 1,
+        "account_id": 101,
+        "message": "이벤트 보상은 언제 지급되나요?",
+        "expected_category": "FAQ",
+        "expected_routing_target": "rag_reply",
+        "description": "FAQ/RAG 문서 검색 케이스",
+    },
+    {
+        "scenario_id": "gacha_delivery_success",
+        "user_id": 2,
+        "account_id": 102,
+        "message": "가챠에서 뽑은 캐릭터가 정상 지급됐는지 확인해주세요.",
+        "expected_category": "인게임버그",
+        "expected_routing_target": "rag_reply",
+        "description": "가챠 로그 존재 + 아이템 정상 지급 케이스",
+    },
+    {
+        "scenario_id": "gacha_delivery_missing",
+        "user_id": 3,
+        "account_id": 103,
+        "message": "가챠에서 아이템을 뽑았는데 인벤토리에 안 보여요.",
+        "expected_category": "인게임버그",
+        "expected_routing_target": "urgent_alert",
+        "description": "가챠 로그는 있으나 지급 누락 의심 케이스",
+    },
+    {
+        "scenario_id": "voc_event_complaint",
+        "user_id": 1,
+        "account_id": 101,
+        "message": "이번 이벤트 보상이 너무 적어서 불만이에요.",
+        "expected_category": "VOC",
+        "expected_routing_target": "rag_reply",
+        "description": "VOC 불만 접수 케이스",
+    },
+]
 
 SEED_DOCUMENTS: list[dict[str, Any]] = [
     {
@@ -492,6 +619,7 @@ SEED_DASHBOARD_INPUTS: dict[str, Any] = {
             "toxicity_score": 0.0,
             "policy_violation_score": 0.01,
             "factuality_score": 0.98,
+            "decision_type": "AUTO_RESPONSE",
         }
     ],
     "final_outcomes": [
