@@ -22,7 +22,7 @@ def _review_answer() -> str:
 
 
 def final_response_node(state: ChatbotState) -> dict:
-    decision = state.get("final_decision") or "AUTO_RESPONSE"
+    decision = state.get("safety_action") or "AUTO_RESPONSE"
     answer_draft = state.get("answer_draft") or ""
 
     if decision == "BLOCK_RESPONSE":

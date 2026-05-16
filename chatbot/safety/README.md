@@ -29,7 +29,7 @@ retry_count
 ```python
 {
     "safety_passed": bool,
-    "final_decision": "AUTO_RESPONSE | BLOCK_RESPONSE",
+    "safety_action": "AUTO_RESPONSE | BLOCK_RESPONSE",
     "retry_count": int,
 }
 ```
@@ -124,7 +124,7 @@ REVIEW_QUEUE
 ## 권장 확장 순서
 
 ```text
-1. safety_passed bool 유지한 상태에서 final_decision 필드 추가
+1. safety_passed bool 유지한 상태에서 safety_action 필드 추가
 2. PII Detection / Response Validation / Moderation 점수 필드 추가
 3. MASKING 후 재검사 경로 구현
 4. SAFE_FALLBACK retry feedback 구현

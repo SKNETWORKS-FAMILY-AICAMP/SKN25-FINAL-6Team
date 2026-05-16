@@ -2,13 +2,13 @@
 
 게임 CS 고객 문의를 접수하고, 문의 유형을 분류한 뒤 필요한 근거를 조회해 답변 초안을 생성하는 챗봇 데모 베이스라인입니다.
 
-현재 챗봇의 메인 구현은 LangGraph 노드를 세분화한 구조가 아니라 LangChain `create_agent` 기반의 단일 agent 구조입니다. 아키텍처의 layer 개념은 `CHATBOT_SYSTEM_PROMPT`, `ChatbotState`, tools 조합으로 반영합니다.
+현재 챗봇의 메인 실행 경로는 LangGraph `StateGraph` 기반 workflow입니다. Category별 node는 공통 `create_agent` reasoning unit을 호출하고, Graph가 routing, safety, final response 흐름을 제어합니다.
 
 ## Architecture Direction
 
-현재 베이스라인은 `create_agent`로 계속 실행되지만, 다음 단계의 `StateGraph`와 연결될 수 있도록 agent 인터페이스와 state/schema 계약을 분리합니다.
+현재 베이스라인은 `StateGraph`가 전체 workflow를 제어하고, `create_agent`는 category node 안에서 reasoning과 답변 초안 생성을 담당합니다.
 
-현재 baseline 단계에서는 단일 `create_agent` 기반 reasoning agent를 사용합니다.
+현재 baseline 단계에서는 category별 specialized agent가 아니라 단일 `create_agent` 기반 reasoning agent를 공유합니다.
 향후 LangGraph workflow 내부에서 category별 specialized agent로 점진 분리할 수 있습니다.
 `PaymentAgentInput`, `SafetyInput`, `SafetyDecision`은 현재 runtime 필수 입력이 아니라 future graph-ready contract입니다.
 

@@ -38,8 +38,8 @@ class ChatbotState(AgentState):
     # Drafting, safety, and review state.
     draft_id: NotRequired[int | None]
     answer_draft: NotRequired[str | None]
-    final_decision: NotRequired[str | None]
     final_answer: NotRequired[str | None]
+    reasoning_node: NotRequired[str | None]
     safety_passed: NotRequired[bool | None]
     safety_action: NotRequired[SafetyAction | str | None]
     safety_reason: NotRequired[str | None]

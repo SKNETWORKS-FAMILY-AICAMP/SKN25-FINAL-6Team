@@ -2,7 +2,7 @@
 
 이 폴더는 LangGraph 전환을 위한 category별 node 구현을 담습니다.
 
-현재 프로젝트의 메인 실행 경로는 `chatbot/agent.py`의 LangChain `create_agent`입니다. 이 폴더의 node들은 기존 데모 실행을 대체하지 않고, 다음 단계에서 `chatbot/graph/workflow.py`가 사용할 LangGraph 실험 경로입니다.
+현재 프로젝트의 메인 실행 경로는 `chatbot/graph/workflow.py`의 LangGraph workflow입니다. 이 폴더의 category node들은 공통 `create_agent` reasoning unit을 호출해 `answer_draft`를 만들고, 이후 safety/final response node로 넘깁니다.
 
 ## 전체 역할
 
@@ -13,10 +13,9 @@ orchestrator_node
   -> write_ticket_analysis
 
 category agent node
-  -> category별 seed/mock tool 조회
+  -> invoke_chatbot_agent(state)
   -> answer_draft 생성
-  -> write_answer_draft
-  -> write_evidence_docs
+  -> draft/evidence baseline persistence
 ```
 
 ## 파일별 책임

@@ -26,6 +26,8 @@ def safety_layer_node(state: ChatbotState) -> dict:
 
     return {
         "safety_passed": safety_passed,
-        "final_decision": decision_type,
+        "safety_action": decision_type,
+        "safety_reason": "baseline keyword safety check",
+        "review_required": decision_type == "REVIEW_QUEUE",
         "retry_count": state.get("retry_count", 0) + (1 if is_blocked else 0),
     }

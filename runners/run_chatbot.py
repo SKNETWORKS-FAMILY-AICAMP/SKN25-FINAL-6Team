@@ -7,7 +7,7 @@ except ModuleNotFoundError:
 
 ensure_project_root_on_path()
 
-from chatbot.agent import invoke_chatbot_agent
+from chatbot.graph.workflow import graph
 
 
 def build_state(
@@ -43,6 +43,8 @@ def build_state(
         "routing_target": "",
         "draft_id": None,
         "answer_draft": None,
+        "final_answer": None,
+        "reasoning_node": None,
         "safety_passed": None,
         "safety_action": None,
         "safety_reason": None,
@@ -54,6 +56,10 @@ def build_state(
 
 
 def _last_message_text(result: dict) -> str:
+    if result.get("final_answer"):
+        return str(result["final_answer"])
+    if result.get("answer_draft"):
+        return str(result["answer_draft"])
     messages = result.get("messages", [])
     if not messages:
         return ""
@@ -72,7 +78,7 @@ def run(
     session_id: str = "seed-session",
     source_type: str = "chatbot",
 ) -> str:
-    result = invoke_chatbot_agent(build_state(
+    result = graph.invoke(build_state(
         ticket_id=ticket_id,
         user_message=user_message,
         account_id=account_id,
@@ -99,7 +105,7 @@ def run_multiturn_demo() -> list[str]:
             account_id=101,
             previous_messages=history,
         )
-        result = invoke_chatbot_agent(state)
+        result = graph.invoke(state)
         answers.append(_last_message_text(result))
         history = result.get("messages", history)
     return answers

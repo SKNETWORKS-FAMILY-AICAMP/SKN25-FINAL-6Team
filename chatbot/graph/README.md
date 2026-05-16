@@ -2,7 +2,7 @@
 
 이 폴더는 챗봇을 LangGraph node 기반 구조로 전환하기 위한 workflow를 담습니다.
 
-현재 메인 실행 경로는 아직 `chatbot/agent.py`의 LangChain `create_agent`입니다. 이 폴더의 `workflow.py`는 기존 데모를 깨지 않고 LangGraph 구조를 실험하기 위한 별도 경로입니다.
+현재 메인 실행 경로는 `chatbot/graph/workflow.py`의 LangGraph `StateGraph`입니다. Category node 안에서 `chatbot.agent.invoke_chatbot_agent`를 호출해 공통 `create_agent` reasoning unit을 사용합니다.
 
 ## 현재 그래프 구조
 
@@ -110,7 +110,7 @@ print(result["category"])
 print(result["routing_target"])
 print(result["draft_id"])
 print(result["safety_passed"])
-print(result["final_decision"])
+print(result["safety_action"])
 print(result["final_answer"])
 print(result["answer_draft"])
 PY
@@ -130,8 +130,8 @@ AUTO_RESPONSE
 ## 현재 한계
 
 ```text
-- 기존 runners/run_chatbot.py는 아직 create_agent 경로를 사용한다.
-- workflow.py는 별도 실험 경로이며 메인 서비스 경로가 아니다.
+- runners/run_chatbot.py는 workflow.py의 graph 경로를 사용한다.
+- workflow.py는 현재 chatbot baseline의 메인 실행 경로다.
 - category 분류는 LLM이 아니라 keyword baseline이다.
 - FAQ Agent는 현재 cache 기반 baseline이며 실제 RAG/ChromaDB 검색은 아직 연결되지 않았다.
 - failed_queries는 FAQ/RAG 답변 근거 미발견 케이스 전용으로 둔다.
@@ -147,7 +147,7 @@ AUTO_RESPONSE
 ```text
 1. workflow 실행 runner 추가
 2. routing_target = urgent_alert일 때 Operator Dashboard 큐 분기 추가
-3. safety final_decision 기반 분기 추가
+3. safety_action 기반 분기 추가
 4. QA_ticket.raw_content append tool 추가 및 final_response에 연결
 5. create_agent baseline과 LangGraph workflow 중 최종 메인 경로 결정
 ```

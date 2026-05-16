@@ -1,23 +1,23 @@
 # Chatbot 모듈 개요
 
-게임 CS 고객 응대 챗봇이다. 현재 메인 실행 경로는 LangChain `create_agent`
-기반 baseline이며, 향후 LangGraph `StateGraph` 안에서 reasoning node로 재사용될
-수 있도록 인터페이스를 분리한다.
+게임 CS 고객 응대 챗봇이다. 현재 메인 실행 경로는 LangGraph `StateGraph`
+workflow이며, category node 안에서 LangChain `create_agent` 기반 reasoning unit을
+호출한다.
 
 ## 실행 흐름
 
 ```text
 runners/run_chatbot.py
-  -> chatbot.agent.invoke_chatbot_agent(state)
-  -> chatbot.agent.agent
-  -> create_agent(...)
+  -> chatbot.graph.workflow.graph
+  -> orchestrator/category/safety/final_response nodes
+  -> category node에서 chatbot.agent.invoke_chatbot_agent(state)
   -> db/vector/cache tools
 ```
 
 기존 호환성을 위해 `chatbot.agent.agent`는 유지한다. 새 코드나 graph node에서는
 `invoke_chatbot_agent(state)`를 우선 사용한다.
 
-현재 baseline 단계에서는 단일 `create_agent` 기반 reasoning agent를 사용한다.
+현재 baseline 단계에서는 category별 specialized agent가 아니라 단일 `create_agent` 기반 reasoning agent를 공유한다.
 향후 LangGraph workflow 내부에서 category별 specialized agent로 점진 분리할 수
 있다. `PaymentAgentInput`, `SafetyInput`, `SafetyDecision`은 현재 runtime 필수
 입력이 아니라 future graph-ready contract다.
