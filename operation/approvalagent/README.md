@@ -5,7 +5,62 @@
 이 디렉터리의 구현은 항상 아래 두 문서를 기준으로 맞춘다.
 
 - `docs/ddl.md`
-- `docs/operation_dashboard.md`
+
+flowchart TB
+
+DRAFT["RDBMS · answer_draft"]
+
+EVIDENCE["RDBMS · evidence_docs"]
+
+CHECK["답변 안전성 검사<br/><br/>
+근거 문서 일치 여부<br/>
+Hallucination 여부<br/>
+정책 위반 여부<br/>
+욕설 / 유해 표현 여부"]
+
+SAFETY["RDBMS · safety_results<br/><br/>
+hallucination_score<br/>
+toxicity_score<br/>
+policy_violation_score<br/>
+factuality_score"]
+
+RESULT{"승인 결과"}
+
+HUMAN["운영자 검수<br/><br/>
+답변 수정<br/>
+수동 지급<br/>
+환불 처리"]
+
+EMAIL["긴급 알림 이메일 발송<br/><br/>
+수신자: 운영 담당자 / 관리자<br/>
+내용: ticket_id, risk_level, risk_reason, 문의 원문 요약"]
+
+FINAL["최종 응답 게시<br/><br/>
+QA_ticket.status = closed"]
+
+DRAFT --> CHECK
+EVIDENCE --> CHECK
+
+CHECK --> SAFETY
+SAFETY --> RESULT
+
+RESULT -->|"바로 게시"| FINAL
+RESULT -->|"사람수정 필요"| HUMAN
+RESULT -->|"담당자 즉시 알림"| EMAIL
+
+HUMAN --> FINAL
+
+classDef db fill:#e8f0ff,stroke:#5b8def,color:#000,stroke-width:1.5px;
+classDef step fill:#f5f5f5,stroke:#888,color:#000;
+classDef gate fill:#fff4cc,stroke:#c9a400,color:#000,stroke-width:2px;
+classDef alert fill:#ffe8e8,stroke:#d64545,color:#000,stroke-width:2px;
+
+class DRAFT,EVIDENCE,SAFETY db;
+class CHECK,HUMAN,FINAL step;
+class RESULT gate;
+class EMAIL alert;
+```
+
 
 즉 코드 안의 payload, 판단 단계, 테이블 필드명, 상태 전이는 이 두 문서에 없는 임의 구조로 만들지 않는다.
 

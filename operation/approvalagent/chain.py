@@ -79,6 +79,7 @@ class ApprovalPayload(BaseModel):
     approval_decision: dict[str, Any] | None = None
     approval_result: Literal["approved", "human_review", "urgent_alert"] | None = None
     human_review_request: dict[str, Any] | None = None
+    human_review_resolution: dict[str, Any] | None = None
     final_outcome: dict[str, Any] | None = None
 
 
@@ -167,13 +168,14 @@ def build_final_outcome(payload: dict[str, Any]) -> dict:
     base = _payload(payload)
     decision = _decision(base)
     ticket = _first(base["qa_ticket"])
+    resolution = base.get("human_review_resolution") or {}
     return _merge(
         base,
         final_outcome=FinalOutcomeResult(
             ticket_id=ticket["ticket_id"],
             status="closed",
             approval_result=decision.approval_result,
-            operator_action=decision.recommended_action,
+            operator_action=resolution.get("operator_action", decision.recommended_action),
         ).model_dump(),
     )
 
@@ -199,6 +201,36 @@ def mark_answer_draft_approved(
     )
 
 
+def apply_human_review_resolution(
+    payload: dict[str, Any],
+    operator_action: str,
+    review_note: str,
+    edited_draft_text: str | None = None,
+) -> dict:
+    # Human 단계의 실제 처리 결과를 기록하고 FINAL 단계에 전달한다.
+    base = _payload(payload)
+    merged = clone_payload(base)
+
+    if edited_draft_text:
+        draft = _first(merged["answer_draft"])
+        draft["draft_text"] = edited_draft_text
+
+    merged["human_review_resolution"] = {
+        "operator_action": operator_action,
+        "review_note": review_note,
+        "resolved_at": datetime.now(timezone.utc).isoformat(),
+    }
+    return merged
+
+
+def run_approval_gate(payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    # RESULT 노드에서 분기해 approved는 FINAL로, 나머지는 HUMAN 요청으로 보낸다.
+    state = approval_core_chain.invoke(payload or {})
+    if state["approval_result"] == "approved":
+        return build_final_outcome(state)
+    return build_human_review_request(state)
+
+
 # 각 함수를 LangChain Runnable로 감싸 파이프라인으로 조합한다.
 load_chain = RunnableLambda(load_approval_payload)
 alignment_chain = RunnableLambda(check_evidence_alignment)
@@ -212,4 +244,4 @@ approval_core_chain = load_chain | alignment_chain | safety_chain | decision_cha
 # 판단 결과에 따라 사람 검토 요청 생성까지 포함한 경로
 approval_review_chain = approval_core_chain | review_request_chain
 # 최종 결과 생성까지 포함한 전체 승인 체인
-approval_chain = approval_review_chain | final_outcome_chain
+approval_chain = RunnableLambda(run_approval_gate)
