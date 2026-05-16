@@ -34,6 +34,8 @@ class ChatbotState(AgentState):
     ticket_id: NotRequired[int]
     category: NotRequired[Category | str]
     routing_target: NotRequired[RoutingTarget | str]
+    classification_method: NotRequired[str | None]
+    classification_reason: NotRequired[str | None]
 
     # Drafting, safety, and review state.
     draft_id: NotRequired[int | None]
