@@ -22,6 +22,8 @@ class ChatbotState(AgentState):
 
     draft_id: NotRequired[int | None]
     answer_draft: NotRequired[str | None]
+    final_decision: NotRequired[str | None]
+    final_answer: NotRequired[str | None]
     safety_passed: NotRequired[bool | None]
     retry_count: NotRequired[int]
 
