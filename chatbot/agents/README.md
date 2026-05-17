@@ -26,7 +26,7 @@ category agent node
 | `payment_agent.py` | `payment_agent_node` | 결제/환불/아이템 지급 로그 조회, 결제 문의 답변 초안 생성 |
 | `bug_agent.py` | `bug_agent_node` | 가챠/아이템 지급 로그 조회, 인게임 버그 문의 답변 초안 생성 |
 | `faq_agent.py` | `faq_agent_node` | FAQ cache 조회/저장, 일반 FAQ 답변 초안 생성 |
-| `voc_agent.py` | `voc_agent_node` | VOC 접수형 고정 답변 초안 생성 |
+| `voc_agent.py` | `voc_agent_node` | LLM 기반 VOC 유형 분류 및 유형별 접수형 답변 초안 생성 |
 
 ## State 입력
 
@@ -188,7 +188,7 @@ write_evidence_docs
 
 ## VOC Agent
 
-`voc_agent_node`는 VOC 접수형 baseline입니다.
+`voc_agent_node`는 VOC 접수형 baseline입니다. VOC 세부 유형/감정/요약은 LLM으로 먼저 분류하고, LLM 호출이 실패하면 keyword fallback을 사용합니다.
 
 호출 tools:
 
@@ -201,14 +201,14 @@ write_evidence_docs
 현재 동작:
 
 ```text
-1. VOC 유형/감정/요약 분류
+1. LLM으로 VOC 유형/감정/요약 분류
 2. VOC_DB 성격의 저장소에 VOC 내용 저장
-3. 완전 고정 접수형 답변 생성
+3. VOC 유형별 접수형 답변 생성
 4. answer_draft 저장
 5. VOC 접수 evidence 저장
 ```
 
-고정 접수형 답변이므로 현재는 복잡한 RAG나 LLM safety 검사를 전제로 하지 않습니다. workflow에서도 VOC는 `safety_layer`를 거치지 않고 `final_response`로 바로 이동합니다. VOC는 실패 케이스가 아니라 정상적인 고객 의견 접수이므로 `failed_query`에는 저장하지 않습니다.
+응답 문구는 LLM 자유 생성이 아니라 VOC 유형별 deterministic template입니다. workflow에서도 VOC는 `safety_layer`를 거치지 않고 `final_response`로 바로 이동합니다. VOC는 실패 케이스가 아니라 정상적인 고객 의견 접수이므로 `failed_query`에는 저장하지 않습니다.
 
 ## 개발 규칙
 
@@ -216,6 +216,6 @@ write_evidence_docs
 - 기존 chatbot/agent.py create_agent 실행 경로를 깨지 않는다.
 - 각 node는 ChatbotState를 받아 dict를 반환한다.
 - tools 호출은 seed/mock mode에서 동작해야 한다.
-- 외부 LLM 호출은 다음 단계에서 붙인다.
+- VOC 세부 유형 분류에는 외부 LLM 호출을 사용하되, 실패 시 keyword fallback을 유지한다.
 - 파일별 책임을 넘는 큰 분기는 graph/workflow.py에서 처리한다.
 ```

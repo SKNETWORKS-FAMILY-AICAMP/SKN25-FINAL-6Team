@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from chatbot.constants import CATEGORY, ROUTING_TARGET, VOC_FIXED_RESPONSE
+from chatbot.constants import CATEGORY, ROUTING_TARGET
 from chatbot.schemas import ChatbotState
 from chatbot.tools.cache_tools import get_cache, set_cache
 from chatbot.tools.db_tools import (
@@ -64,9 +64,9 @@ Use the following baseline flow:
 - A fixed FAQ fallback response does not need LLM safety validation. Record decision_type as SAFE_FALLBACK when persisting safety metadata.
 - For VOC: classify the VOC type only as one of suggestion, complaint, praise, multi_intent, or other.
 - For VOC: call write_voc_feedback with the VOC type, sentiment, raw_content, and summary when ticket metadata is available.
-- For VOC: always return exactly this fixed response and do not generate a custom response:
-  "{VOC_FIXED_RESPONSE}"
-- A fixed VOC response does not need LLM safety validation. Do not write VOC content to failed_queries because VOC is a normal feedback intake, not a failed FAQ/RAG query.
+- For VOC: draft a concise receipt-style response that matches the VOC type and sentiment.
+- For VOC: do not promise immediate fixes, compensation, policy changes, or completed processing unless evidence exists.
+- A deterministic VOC receipt response does not need LLM safety validation. Do not write VOC content to failed_queries because VOC is a normal feedback intake, not a failed FAQ/RAG query.
 
 4. Draft and evidence persistence
 - Persist the answer with write_answer_draft.
