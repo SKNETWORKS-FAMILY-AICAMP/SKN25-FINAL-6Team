@@ -145,8 +145,9 @@ seed 기준 목표 형태는 `data.seed_payload.SEED_APPROVAL_OUTPUT_PAYLOAD`다
 - `SafetyScoreResult`
 - `ApprovalDecisionResult`
 - `HumanReviewRequestResult`
+- `UrgentAlertPayloadResult`
 - `FinalOutcomeResult`
-- `ApprovalGateResult`
+- `ApprovalPayload` (전체 입력 payload 래퍼)
 
 각 schema는 DDL 또는 Approval Gate 단계와 연결되어야 한다.
 
@@ -358,32 +359,25 @@ seed 기준 목표 형태는 `data.seed_payload.SEED_APPROVAL_OUTPUT_PAYLOAD`다
 
 ### 승인 입력 형식
 
-현재 runner에서 사람 입력은 아래 셋 중 하나다.
+현재 runner에서 사람 입력은 아래 형식이다.
 
-- `approve`
-- `reject`
-- `edit`
-
-`edit`일 때는 수정된 JSON 결과를 직접 입력한다.
+- `operator_action`: `answer_edit`, `manual_payout`, `refund_process`, `urgent_response`, `approve_as_is` 중 하나 (기본값: `approve_as_is`)
+- `review_note`: 검토 메모 (자유 텍스트)
+- `edited_answer_draft`: `operator_action == "answer_edit"`일 때만 입력받는 수정된 초안 텍스트
 
 현재 기준에서 운영자가 검토하는 대상은 함수 args가 아니라 생성된 아래 결과다.
 
 - `human_review_request`
 - `final_outcome`
 
-## 현재 구현 리스크
+## 현재 구현 상태와 잔여 리스크
 
-현재 구현은 뼈대와 책임 분리에는 맞지만, 아래 이유로 아직 "안정적으로 끝까지 도는 Approval runner"라고 보기는 어렵다.
+`chain.py`와 `runners/run_approval.py` 구현이 완료된 상태다. `approval_core_chain`(LCEL)이 `load → alignment → safety → decision` 순서를 강제하고, human review 입력은 runner에서 처리한다.
 
-1. 실행 계층이 순서를 강제하지 않으면 Approval 단계 일관성이 쉽게 깨진다.
-2. `build_human_review_request`, `build_final_outcome`는 선행 단계 산출물이 payload에 있다고 가정한다.
-3. 따라서 runner가 순서를 강제하지 않으면 `approval_decision` 누락 같은 runtime 오류가 발생할 수 있다.
-4. `approval_chain`은 direct LCEL path로 두고, 사람 입력은 runner에서 처리하는 편이 맞다.
+다만 아래 구조적 리스크는 여전히 유효하다.
 
-즉 현재 문서 기준의 권장 구현은 아래 두 가지다.
-
-- runner에서 `load -> check -> safety -> decision -> human/final`을 고정
-- HITL은 "생성된 review payload / final outcome 결과"를 검토하는 방향으로 유지
+1. `build_human_review_request`, `build_final_outcome`는 선행 단계 산출물(`approval_decision`)이 payload에 있다고 가정한다. 순서를 지키지 않고 단독 호출하면 runtime 오류가 발생할 수 있다.
+2. `approval_chain`을 우회해 단계 함수를 직접 호출하면 단계 일관성이 깨진다. 항상 `approval_core_chain` 또는 `approval_chain`을 통해 실행해야 한다.
 
 ## 구현 순서
 
@@ -393,7 +387,7 @@ seed 기준 목표 형태는 `data.seed_payload.SEED_APPROVAL_OUTPUT_PAYLOAD`다
 2. `chain.py`의 Pydantic schema와 단계 책임 고정
 3. `prompts.py`에 심사형 프롬프트 분리
 4. `runners/run_approval.py`에서 순차 실행 흐름 고정
-5. runner에서 `approve / reject / edit` 입력 처리
+5. runner에서 `operator_action` 입력 처리 (`answer_edit`, `manual_payout`, `refund_process`, `urgent_response`, `approve_as_is`)
 
 즉 문서 없는 임의 구현보다, DDL과 머메이드 단계에 맞는 책임 분리부터 먼저 고정해야 한다.
 
