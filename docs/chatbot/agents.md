@@ -41,7 +41,7 @@ session_id
 account_id
 source_type
 raw_content
-cleaned_content
+cleaned_content  # orchestrator가 raw_content에서 생성
 category
 routing_target
 draft_id
@@ -52,27 +52,7 @@ retry_count
 
 ## Orchestrator
 
-`orchestrator_node`는 현재 LLM 없이 keyword 기반 baseline으로 동작합니다.
-
-현재 분류 규칙:
-
-```text
-결제 / 환불 / 미지급 / 아이템 포함
-  -> category = 결제
-  -> routing_target = urgent_alert
-
-버그 / 오류 / 튕김 / 끼임 포함
-  -> category = 인게임버그
-  -> routing_target = rag_reply
-
-건의 / 불만 / 칭찬 / 의견 포함
-  -> category = VOC
-  -> routing_target = rag_reply
-
-그 외
-  -> category = FAQ
-  -> routing_target = rag_reply
-```
+`orchestrator_node`는 `ticket_id`와 `raw_content`를 필수 입력으로 직접 참조하고, `raw_content`에서 `cleaned_content`를 한 번 생성합니다. 이후 LLM structured output으로 `category`, `routing_target`, `classification_reason`을 결정합니다. 입력 누락, LLM 설정 오류, 호출 오류, 파싱 오류는 fallback으로 숨기지 않고 그대로 드러나게 둡니다.
 
 호출 tools:
 
@@ -84,7 +64,6 @@ write_ticket_analysis
 향후 개선:
 
 ```text
-- LLM classifier 연결
 - Query Enrichment 추가
 - routing_target을 keyword가 아니라 정책 기반으로 세분화
 - urgent_alert일 때 Operator Dashboard로 보내는 분기 추가
@@ -188,7 +167,7 @@ write_evidence_docs
 
 ## VOC Agent
 
-`voc_agent_node`는 VOC 접수형 baseline입니다. VOC 세부 유형/감정/요약은 LLM으로 먼저 분류하고, LLM 호출이 실패하면 keyword fallback을 사용합니다.
+`voc_agent_node`는 VOC 접수형 baseline입니다. VOC 세부 유형/감정/요약은 LLM structured output으로 분류합니다. LLM 설정/호출/파싱 오류는 숨기지 않고 그대로 드러나게 둡니다.
 
 호출 tools:
 
@@ -216,6 +195,6 @@ write_evidence_docs
 - 기존 chatbot/agent.py create_agent 실행 경로를 깨지 않는다.
 - 각 node는 ChatbotState를 받아 dict를 반환한다.
 - tools 호출은 seed/mock mode에서 동작해야 한다.
-- VOC 세부 유형 분류에는 외부 LLM 호출을 사용하되, 실패 시 keyword fallback을 유지한다.
+- VOC 세부 유형 분류에는 외부 LLM 호출을 사용하고, 실패 시 broad exception으로 숨기지 않는다.
 - 파일별 책임을 넘는 큰 분기는 graph/workflow.py에서 처리한다.
 ```

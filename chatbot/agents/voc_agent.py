@@ -21,19 +21,7 @@ class VocClassification(BaseModel):
 
 
 def _active_text(state: ChatbotState) -> str:
-    return state.get("cleaned_content") or state.get("raw_content") or ""
-
-
-def _keyword_classify_voc(text: str) -> tuple[str, str, str]:
-    if any(keyword in text for keyword in ("불만", "별로", "너무 안", "화나", "짜증")):
-        return "complaint", "negative", "불만성 VOC"
-    if any(keyword in text for keyword in ("건의", "제안", "추가", "개선", "바꿔")):
-        return "suggestion", "neutral", "건의성 VOC"
-    if any(keyword in text for keyword in ("칭찬", "좋아", "재밌", "감사")):
-        return "praise", "positive", "칭찬성 VOC"
-    if "?" in text and any(keyword in text for keyword in ("불만", "건의", "제안", "칭찬")):
-        return "multi_intent", "neutral", "다중 의도 VOC"
-    return "other", "neutral", "기타 VOC"
+    return state["cleaned_content"]
 
 
 def _classify_voc_with_llm(text: str) -> VocClassification:
@@ -65,11 +53,8 @@ def _classify_voc_with_llm(text: str) -> VocClassification:
 
 
 def _classify_voc(text: str) -> tuple[str, str, str]:
-    try:
-        result = _classify_voc_with_llm(text)
-        return result.voc_type, result.sentiment, result.summary
-    except Exception:
-        return _keyword_classify_voc(text)
+    result = _classify_voc_with_llm(text)
+    return result.voc_type, result.sentiment, result.summary
 
 
 def _build_voc_response(voc_type: str) -> str:
@@ -96,20 +81,20 @@ def _build_voc_response(voc_type: str) -> str:
             "보내주신 내용은 담당 부서에서 참고할 수 있도록 접수하겠습니다."
         ),
     }
-    return responses.get(voc_type, responses["other"])
+    return responses[voc_type]
 
 
 def voc_agent_node(state: ChatbotState) -> dict:
     raw_content = _active_text(state)
     voc_type, sentiment, summary = _classify_voc(raw_content)
-    ticket_id = state.get("ticket_id") or 0
+    ticket_id = state["ticket_id"]
     answer = _build_voc_response(voc_type)
 
     write_voc_feedback.invoke({
         "payload": {
             "ticket_id": ticket_id,
-            "user_id": state.get("user_id"),
-            "account_id": state.get("account_id"),
+            "user_id": state["user_id"],
+            "account_id": state["account_id"],
             "voc_type": voc_type,
             "sentiment": sentiment,
             "raw_content": raw_content,
@@ -120,7 +105,7 @@ def voc_agent_node(state: ChatbotState) -> dict:
     draft_result = write_answer_draft.invoke({
         "payload": {"ticket_id": ticket_id, "content": answer},
     })
-    draft_id = json.loads(draft_result).get("draft_id")
+    draft_id = json.loads(draft_result)["draft_id"]
 
     write_evidence_docs.invoke({
         "payload": {"draft_id": draft_id, "source": f"VOC template response: {voc_type}"},
@@ -129,9 +114,9 @@ def voc_agent_node(state: ChatbotState) -> dict:
     return {
         "answer_draft": answer,
         "draft_id": draft_id,
-        "retry_count": state.get("retry_count", 0),
+        "retry_count": state["retry_count"],
         "category": "VOC",
-        "routing_target": state.get("routing_target", "rag_reply"),
+        "routing_target": state["routing_target"],
         "reasoning_node": "voc_agent",
         "safety_passed": True,
         "safety_action": "AUTO_RESPONSE",

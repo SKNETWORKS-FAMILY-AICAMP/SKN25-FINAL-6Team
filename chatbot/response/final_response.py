@@ -23,8 +23,8 @@ def _review_answer() -> str:
 
 
 def final_response_node(state: ChatbotState) -> dict:
-    decision = state.get("safety_action") or "AUTO_RESPONSE"
-    answer_draft = state.get("answer_draft") or ""
+    decision = state["safety_action"]
+    answer_draft = state["answer_draft"]
 
     if decision == "BLOCK_RESPONSE":
         final_answer = _block_answer()
@@ -33,11 +33,11 @@ def final_response_node(state: ChatbotState) -> dict:
     elif decision == "REVIEW_QUEUE":
         final_answer = _review_answer()
     else:
-        final_answer = answer_draft or _fallback_answer()
+        final_answer = answer_draft
 
     append_qa_ticket_message.invoke({
         "payload": {
-            "ticket_id": state.get("ticket_id"),
+            "ticket_id": state["ticket_id"],
             "role": "assistant",
             "content": final_answer,
         },

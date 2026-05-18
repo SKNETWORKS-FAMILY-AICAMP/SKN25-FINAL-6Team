@@ -39,7 +39,6 @@ def build_state(
         "account_id": account_id,
         "source_type": source_type,
         "raw_content": user_message,
-        "cleaned_content": user_message,
         "ticket_id": ticket_id,
         "category": "",
         "routing_target": "",

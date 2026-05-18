@@ -5,9 +5,9 @@ from chatbot.tools.db_tools import write_safety_results
 
 
 def safety_layer_node(state: ChatbotState) -> dict:
-    answer_draft = state.get("answer_draft") or ""
-    draft_id = state.get("draft_id")
-    ticket_id = state.get("ticket_id")
+    answer_draft = state["answer_draft"]
+    draft_id = state["draft_id"]
+    ticket_id = state["ticket_id"]
     is_blocked = any(keyword in answer_draft for keyword in ("욕설", "혐오", "폭력"))
     safety_passed = not is_blocked
     decision_type = "AUTO_RESPONSE" if safety_passed else "BLOCK_RESPONSE"
@@ -29,5 +29,5 @@ def safety_layer_node(state: ChatbotState) -> dict:
         "safety_action": decision_type,
         "safety_reason": "baseline keyword safety check",
         "review_required": decision_type == "REVIEW_QUEUE",
-        "retry_count": state.get("retry_count", 0) + (1 if is_blocked else 0),
+        "retry_count": state["retry_count"] + (1 if is_blocked else 0),
     }

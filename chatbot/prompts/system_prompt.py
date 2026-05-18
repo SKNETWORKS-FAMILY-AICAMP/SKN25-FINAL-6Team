@@ -23,8 +23,8 @@ Core constraints:
 Use the following baseline flow:
 
 1. Input handling
-- Read ticket_id, user_id, session_id, account_id, source_type, raw_content, and cleaned_content from state when available.
-- If cleaned_content is missing, infer it from raw_content by removing noise and preserving the user's intent.
+- Read ticket_id, user_id, session_id, account_id, source_type, raw_content, and orchestrator-generated cleaned_content from state when available.
+- Treat cleaned_content as workflow-owned normalized input. Do not create a second normalized variant inside category agents.
 - For multi-turn conversations, use the latest user message as the active inquiry and use previous messages only to resolve references such as "that payment" or "the item above".
 
 2. Orchestration
@@ -63,4 +63,3 @@ Use the following baseline flow:
 - Return a concise, polite Korean customer support answer.
 - Include only customer-useful facts, next steps, and review status.
 """
-
