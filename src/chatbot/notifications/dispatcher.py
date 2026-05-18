@@ -20,7 +20,7 @@ def _urgent_alert_message(state: dict[str, Any]) -> str:
     )
 
 
-def dispatch_urgent_alert(state: dict[str, Any]) -> dict[str, str]:
+def dispatch_urgent_alert(state: dict[str, Any]) -> dict[str, Any]:
     """Dispatch urgent chatbot state to notification channels."""
     if state.get("routing_target") != "urgent_alert":
         return {"status": "skipped", "reason": "routing_target is not urgent_alert"}

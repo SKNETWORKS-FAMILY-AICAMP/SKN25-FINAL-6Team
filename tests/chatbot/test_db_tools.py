@@ -8,8 +8,10 @@ import pytest
 pytest.importorskip("langchain_core")
 
 from chatbot.notifications.dispatcher import dispatch_urgent_alert
+from chatbot.notifications.slack import send_slack_alert
 from chatbot.observability.error_classifier import classify_error
 from chatbot.observability.logger import EVENT_DB_WRITE_FAILED, build_log_event, log_event
+from chatbot.response.final_response import final_response_node
 from chatbot.tools.db_tools import read_payments, write_answer_draft, write_failed_query, write_voc_feedback
 
 
@@ -105,6 +107,64 @@ def test_urgent_alert_dispatcher_returns_mock_without_webhook(monkeypatch: pytes
     })
 
     assert result["status"] == "mock"
+
+
+def test_urgent_alert_dispatcher_skips_non_urgent_target() -> None:
+    result = dispatch_urgent_alert({
+        "ticket_id": 1002,
+        "session_id": "seed-session",
+        "category": "FAQ",
+        "routing_target": "rag_reply",
+        "raw_content": "공월 축복이 뭐예요?",
+    })
+
+    assert result == {"status": "skipped", "reason": "routing_target is not urgent_alert"}
+
+
+def test_slack_alert_failure_returns_classified_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    def _raise_timeout(*args, **kwargs):
+        raise TimeoutError("request timed out")
+
+    monkeypatch.setenv("SLACK_WEBHOOK_URL", "https://example.invalid/webhook")
+    monkeypatch.setattr("chatbot.notifications.slack.request.urlopen", _raise_timeout)
+
+    result = send_slack_alert("긴급 문의 테스트")
+
+    assert result["status"] == "error"
+    assert result["error"] == "TimeoutError"
+    assert result["error_category"] == "timeout"
+
+
+def test_final_response_dispatches_urgent_alert_without_webhook(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("SLACK_WEBHOOK_URL", raising=False)
+
+    result = final_response_node({
+        "ticket_id": 1001,
+        "session_id": "seed-session",
+        "category": "결제",
+        "routing_target": "urgent_alert",
+        "raw_content": "결제했는데 아이템이 안 들어왔어요.",
+        "answer_draft": "담당자가 확인할 수 있도록 접수했습니다.",
+        "safety_action": "AUTO_RESPONSE",
+    })
+
+    assert result["final_answer"] == "담당자가 확인할 수 있도록 접수했습니다."
+    assert result["notification_result"]["status"] == "mock"
+
+
+def test_final_response_skips_notification_for_non_urgent_target() -> None:
+    result = final_response_node({
+        "ticket_id": 1002,
+        "session_id": "seed-session",
+        "category": "FAQ",
+        "routing_target": "rag_reply",
+        "raw_content": "공월 축복이 뭐예요?",
+        "answer_draft": "공월 축복 안내입니다.",
+        "safety_action": "AUTO_RESPONSE",
+    })
+
+    assert result["final_answer"] == "공월 축복 안내입니다."
+    assert result["notification_result"]["status"] == "skipped"
 
 
 def test_error_classifier_covers_common_infra_failures() -> None:
