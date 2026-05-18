@@ -11,6 +11,8 @@ if root_str not in sys.path:
     sys.path.insert(0, root_str)
 
 from chatbot.tools.cache_tools import get_cache, set_cache
+from chatbot.notifications.dispatcher import dispatch_urgent_alert
+from chatbot.repositories.base import safe_read, safe_write
 from chatbot.tools.db_tools import read_gacha_logs, read_item_delivery_logs, write_voc_feedback
 from chatbot.tools.vector_tools import rerank_documents, search_documents
 from data.seed_payload import SEED_DOCUMENT_EMBEDDINGS
@@ -65,7 +67,7 @@ def check_db_tools() -> None:
                 "voc_type": "complaint",
                 "sentiment": "negative",
                 "raw_content": "이번 이벤트 보상이 너무 적어서 불만이에요.",
-                "summary": "이벤트 보상 수준에 대한 불만",
+                "topic_keywords": ["이벤트", "보상", "불만"],
             },
         }),
     )
@@ -98,10 +100,45 @@ def check_vector_tools() -> None:
     )
 
 
+def check_observability_logs() -> None:
+    print("\n=== Observability Logs ===")
+    print("\n[forced db read failure log]")
+    result = safe_read(
+        operation="read_payments",
+        ticket_id=1998,
+        reader=lambda: (_ for _ in ()).throw(
+            TimeoutError("payment DB read timed out")
+        ),
+    )
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+
+    print("\n[forced db write failure log]")
+    result = safe_write(
+        operation="write_answer_draft",
+        payload={"ticket_id": 1999},
+        writer=lambda: (_ for _ in ()).throw(
+            RuntimeError("could not connect to server: Connection refused")
+        ),
+    )
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+
+    print("\n[urgent alert notification mock log]")
+    result = dispatch_urgent_alert({
+        "ticket_id": 2001,
+        "session_id": "manual-session",
+        "category": "결제",
+        "routing_target": "urgent_alert",
+        "raw_content": "결제했는데 아이템이 안 들어왔어요.",
+        "final_answer": "문의가 접수되었습니다. 담당자가 확인 후 안내드리겠습니다.",
+    })
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+
+
 def main() -> None:
     check_cache_tools()
     check_db_tools()
     check_vector_tools()
+    check_observability_logs()
 
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from chatbot.observability.logger import EVENT_SAFETY_CHECKED, log_event
 from chatbot.schemas import ChatbotState
 from chatbot.tools.db_tools import write_safety_results
 
@@ -23,6 +24,21 @@ def safety_layer_node(state: ChatbotState) -> dict:
             "reason": "baseline keyword safety check",
         },
     })
+
+    log_event(
+        EVENT_SAFETY_CHECKED,
+        ticket_id=ticket_id,
+        session_id=state.get("session_id"),
+        node_name="safety_layer",
+        category=state.get("category"),
+        routing_target=state.get("routing_target"),
+        status="ok",
+        metadata={
+            "safety_passed": safety_passed,
+            "safety_action": decision_type,
+            "draft_id": draft_id,
+        },
+    )
 
     return {
         "safety_passed": safety_passed,

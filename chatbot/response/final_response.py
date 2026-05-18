@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from chatbot.notifications.dispatcher import dispatch_urgent_alert
+from chatbot.observability.logger import EVENT_FINAL_RESPONSE_CREATED, log_event
 from chatbot.schemas import ChatbotState
 from chatbot.tools.db_tools import append_qa_ticket_message
 
@@ -43,6 +45,20 @@ def final_response_node(state: ChatbotState) -> dict:
         },
     })
 
+    log_event(
+        EVENT_FINAL_RESPONSE_CREATED,
+        ticket_id=state.get("ticket_id"),
+        session_id=state.get("session_id"),
+        node_name="final_response",
+        category=state.get("category"),
+        routing_target=state.get("routing_target"),
+        status="ok",
+        metadata={"safety_action": decision},
+    )
+
+    notification_result = dispatch_urgent_alert({**state, "final_answer": final_answer})
+
     return {
         "final_answer": final_answer,
+        "notification_result": notification_result,
     }

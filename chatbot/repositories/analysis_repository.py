@@ -1,7 +1,16 @@
 from __future__ import annotations
 
-from chatbot.tools.db_tools import write_ticket_analysis
+from typing import Any
+
+from config import settings
+
+from chatbot.repositories.base import safe_write
 
 
-__all__ = ["write_ticket_analysis"]
+def save_ticket_analysis(payload: dict[str, Any]) -> dict[str, Any]:
+    def _write() -> dict[str, Any]:
+        if settings.use_seed_payload:
+            return {"status": "ok", "ticket_id": payload.get("ticket_id")}
+        raise NotImplementedError("DB-backed write_ticket_analysis is not implemented yet.")
 
+    return safe_write(operation="write_ticket_analysis", payload=payload, writer=_write)

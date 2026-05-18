@@ -17,7 +17,7 @@ VocSentiment = Literal["positive", "neutral", "negative"]
 class VocClassification(BaseModel):
     voc_type: VocType
     sentiment: VocSentiment
-    summary: str
+    topic_keywords: list[str]
 
 
 def _active_text(state: ChatbotState) -> str:
@@ -42,7 +42,8 @@ def _classify_voc_with_llm(text: str) -> VocClassification:
             "Return only the requested structured output. "
             "voc_type must be one of suggestion, complaint, praise, multi_intent, other. "
             "sentiment must be one of positive, neutral, negative. "
-            "summary must be a concise Korean phrase.",
+            "topic_keywords must contain 2 to 5 normalized Korean noun keywords. "
+            "Do not return a summary.",
         ),
         (
             "user",
@@ -98,7 +99,7 @@ def voc_agent_node(state: ChatbotState) -> dict:
             "voc_type": voc_type,
             "sentiment": sentiment,
             "raw_content": raw_content,
-            "summary": summary,
+            "topic_keywords": topic_keywords,
         },
     })
 
@@ -123,5 +124,5 @@ def voc_agent_node(state: ChatbotState) -> dict:
         "safety_reason": "VOC template response skips LLM safety validation.",
         "voc_type": voc_type,
         "voc_sentiment": sentiment,
-        "voc_summary": summary,
+        "voc_topic_keywords": topic_keywords,
     }

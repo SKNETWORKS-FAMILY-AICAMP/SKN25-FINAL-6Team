@@ -48,7 +48,7 @@ class ChatbotState(AgentState):
     review_required: NotRequired[bool | None]
     voc_type: NotRequired[str | None]
     voc_sentiment: NotRequired[str | None]
-    voc_summary: NotRequired[str | None]
+    voc_topic_keywords: NotRequired[list[str]]
 
     # Multi-turn bookkeeping.
     retry_count: NotRequired[int]

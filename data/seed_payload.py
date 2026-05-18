@@ -639,7 +639,7 @@ SEED_DASHBOARD_INPUTS: dict[str, Any] = {
             "voc_type": "complaint",
             "sentiment": "negative",
             "raw_content": "이번 이벤트 보상이 너무 적어서 불만이에요.",
-            "summary": "이벤트 보상 수준에 대한 불만",
+            "topic_keywords": ["이벤트", "보상", "불만"],
             "created_at": "2026-05-14T12:00:00",
         }
     ],
