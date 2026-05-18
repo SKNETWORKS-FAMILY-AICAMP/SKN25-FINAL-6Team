@@ -7,6 +7,7 @@ from chatbot.agents.faq_agent import faq_agent_node
 from chatbot.agents.orchestrator import orchestrator_node
 from chatbot.agents.payment_agent import payment_agent_node
 from chatbot.agents.voc_agent import voc_agent_node
+from chatbot.graph.persistence import draft_persistence_node
 from chatbot.graph.routing import route_after_safety, route_by_category
 from chatbot.response.final_response import final_response_node
 from chatbot.safety.safety_layer import safety_layer_node
@@ -20,6 +21,7 @@ workflow.add_node("payment_agent", payment_agent_node)
 workflow.add_node("bug_agent", bug_agent_node)
 workflow.add_node("faq_agent", faq_agent_node)
 workflow.add_node("voc_agent", voc_agent_node)
+workflow.add_node("draft_persistence", draft_persistence_node)
 workflow.add_node("safety_layer", safety_layer_node)
 workflow.add_node("final_response", final_response_node)
 
@@ -37,7 +39,8 @@ workflow.add_conditional_edges(
 )
 
 for node_name in ("payment_agent", "bug_agent", "faq_agent"):
-    workflow.add_edge(node_name, "safety_layer")
+    workflow.add_edge(node_name, "draft_persistence")
+workflow.add_edge("draft_persistence", "safety_layer")
 workflow.add_edge("voc_agent", "final_response")
 
 workflow.add_conditional_edges(
