@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from langchain.agents import AgentState
 from pydantic import BaseModel
@@ -49,6 +49,7 @@ class ChatbotState(AgentState):
     voc_type: NotRequired[str | None]
     voc_sentiment: NotRequired[str | None]
     voc_topic_keywords: NotRequired[list[str]]
+    notification_result: NotRequired[dict[str, Any] | None]
 
     # Multi-turn bookkeeping.
     retry_count: NotRequired[int]
