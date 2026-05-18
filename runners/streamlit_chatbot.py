@@ -14,7 +14,7 @@ load_dotenv(ROOT_DIR / ".env", override=True)
 import streamlit as st
 
 from chatbot.graph.workflow import graph
-from run_chatbot import _last_message_text, build_state
+from runners.run_chatbot import _last_message_text, build_state
 
 
 def _reset_chat_state(ticket_start: int = 1000) -> None:

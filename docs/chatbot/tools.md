@@ -34,7 +34,7 @@ tools/
 ├─ db_tools.py
 ├─ vector_tools.py
 ├─ cache_tools.py
-└─ README.md
+└─ registry.py
 ```
 
 ## db_tools.py
@@ -120,14 +120,14 @@ FAQ성 응답 재사용을 위한 인메모리 TTL 캐시입니다.
 tools baseline 테스트는 아래 명령으로 실행합니다.
 
 ```bash
-PYTHONPATH=. pytest -q chatbot/tests/test_cache_tools.py
-PYTHONPATH=. pytest -q chatbot/tests/test_vector_tools.py
+PYTHONPATH=. pytest -q tests/chatbot/test_cache_tools.py
+PYTHONPATH=. pytest -q tests/chatbot/test_vector_tools.py
 ```
 
 전체 tools 관련 테스트를 한 번에 실행하려면:
 
 ```bash
-PYTHONPATH=. pytest -q chatbot/tests
+PYTHONPATH=. pytest -q tests/chatbot
 ```
 
 ## 향후 변경 방향

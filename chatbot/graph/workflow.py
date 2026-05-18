@@ -7,29 +7,10 @@ from chatbot.agents.faq_agent import faq_agent_node
 from chatbot.agents.orchestrator import orchestrator_node
 from chatbot.agents.payment_agent import payment_agent_node
 from chatbot.agents.voc_agent import voc_agent_node
-from chatbot.constants import MAX_SAFETY_RETRY
+from chatbot.graph.routing import route_after_safety, route_by_category
 from chatbot.response.final_response import final_response_node
 from chatbot.safety.safety_layer import safety_layer_node
 from chatbot.schemas import ChatbotState
-
-
-def _route_by_category(state: ChatbotState) -> str:
-    category = state.get("category") or "FAQ"
-    if category == "결제":
-        return "payment_agent"
-    if category == "인게임버그":
-        return "bug_agent"
-    if category == "VOC":
-        return "voc_agent"
-    return "faq_agent"
-
-
-def _route_after_safety(state: ChatbotState) -> str:
-    if state.get("safety_passed"):
-        return "final_response"
-    if state.get("retry_count", 0) >= MAX_SAFETY_RETRY:
-        return "final_response"
-    return _route_by_category(state)
 
 
 workflow = StateGraph(ChatbotState)
@@ -46,7 +27,7 @@ workflow.set_entry_point("orchestrator")
 
 workflow.add_conditional_edges(
     "orchestrator",
-    _route_by_category,
+    route_by_category,
     {
         "payment_agent": "payment_agent",
         "bug_agent": "bug_agent",
@@ -61,7 +42,7 @@ workflow.add_edge("voc_agent", "final_response")
 
 workflow.add_conditional_edges(
     "safety_layer",
-    _route_after_safety,
+    route_after_safety,
     {
         "payment_agent": "payment_agent",
         "bug_agent": "bug_agent",
