@@ -21,5 +21,6 @@ STEP3 운영 인사이트와 observability 전용 에이전트다.
 ## 구현 메모
 
 - 에이전트 엔트리포인트는 `agent.py`
-- `create_agent`를 사용한다
+- `deepagents`의 `create_deep_agent`를 사용한다 (supervisor + 3개 subagent 구조)
+- subagent: `metric-aggregator`, `insight-generator`, `alert-router`
 - 입력 데이터는 `ticket_analysis`, `safety_results`, `final answer outcomes`를 중심으로 한다
