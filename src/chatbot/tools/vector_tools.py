@@ -7,6 +7,7 @@ from pathlib import Path
 
 from langchain_core.tools import tool
 from langchain_openai import OpenAIEmbeddings
+from rank_bm25 import BM25Okapi
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 root_str = str(ROOT_DIR)
@@ -31,6 +32,33 @@ def _cosine(a: list[float], b: list[float]) -> float:
     return dot / (mag_a * mag_b)
 
 
+def _bm25_scores(chunks: list[dict], query_text: str) -> dict[str, float]:
+    texts = [c["chunk_text"] for c in chunks]
+    tokenized = [t.lower().split() for t in texts]
+    bm25 = BM25Okapi(tokenized)
+    scores = bm25.get_scores(query_text.lower().split())
+    return {c["chunk_id"]: float(s) for c, s in zip(chunks, scores)}
+
+
+def _rrf_fuse(
+    cosine_ranked: list[tuple[float, dict]],
+    bm25_ranked: list[tuple[float, dict]],
+    k: int = 60,
+) -> list[tuple[float, dict]]:
+    chunk_by_id = {c["chunk_id"]: c for _, c in cosine_ranked}
+    cosine_rank = {c["chunk_id"]: i for i, (_, c) in enumerate(cosine_ranked)}
+    bm25_rank = {c["chunk_id"]: i for i, (_, c) in enumerate(bm25_ranked)}
+    fused = []
+    for cid in set(cosine_rank) | set(bm25_rank):
+        rrf = (
+            1 / (k + cosine_rank.get(cid, len(cosine_rank)) + 1)
+            + 1 / (k + bm25_rank.get(cid, len(bm25_rank)) + 1)
+        )
+        fused.append((rrf, chunk_by_id[cid]))
+    fused.sort(key=lambda x: x[0], reverse=True)
+    return fused
+
+
 @tool(parse_docstring=True)
 def embed_query(text: str) -> str:
     """Generate an embedding vector for the given query text.
@@ -47,11 +75,12 @@ def embed_query(text: str) -> str:
 
 
 @tool(parse_docstring=True)
-def search_documents(embedding_json: str, top_k: int | None = None) -> str:
-    """Search document chunks by cosine similarity to the given embedding.
+def search_documents(embedding_json: str, query_text: str = "", top_k: int | None = None) -> str:
+    """Search document chunks using hybrid BM25 + cosine similarity (RRF fusion).
 
     Args:
         embedding_json: JSON-encoded float list produced by embed_query.
+        query_text: Original query text for BM25 keyword search. If empty, uses cosine only.
         top_k: Number of top results to return. Defaults to RETRIEVAL_TOP_K.
     """
     k = top_k or settings.retrieval_top_k
@@ -66,15 +95,26 @@ def search_documents(embedding_json: str, top_k: int | None = None) -> str:
         if row.get("embedding_vector")
     }
 
-    scored = []
+    cosine_scored = []
     for chunk in chunks:
         cid = chunk["chunk_id"]
         if cid in vec_by_chunk:
             score = _cosine(query_vec, vec_by_chunk[cid])
-            scored.append((score, chunk))
+            cosine_scored.append((score, chunk))
+    cosine_scored.sort(key=lambda x: x[0], reverse=True)
 
-    scored.sort(key=lambda x: x[0], reverse=True)
-    results = [{"score": round(s, 4), **c} for s, c in scored[:k]]
+    if query_text:
+        bm25_raw = _bm25_scores(chunks, query_text)
+        bm25_scored = sorted(
+            [(bm25_raw.get(c["chunk_id"], 0.0), c) for c in chunks],
+            key=lambda x: x[0],
+            reverse=True,
+        )
+        final = _rrf_fuse(cosine_scored, bm25_scored)
+    else:
+        final = cosine_scored
+
+    results = [{"score": round(s, 4), **c} for s, c in final[:k]]
     return json.dumps(results, ensure_ascii=False, indent=2)
 
 
