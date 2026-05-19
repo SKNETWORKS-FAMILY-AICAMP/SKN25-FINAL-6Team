@@ -2,52 +2,81 @@ from __future__ import annotations
 
 from typing import Any
 
-from chatbot.prompts.system_prompt import CHATBOT_SYSTEM_PROMPT
+from collections.abc import Sequence
+
+from chatbot.agents.policies import BUG_POLICY, FAQ_POLICY, PAYMENT_POLICY
 from chatbot.schemas import ChatbotState
-from chatbot.tools.registry import CHATBOT_TOOLS
 from config import settings
 
 
-def build_chatbot_agent() -> Any:
-    """Build the create_agent baseline so it can also be mounted in graph nodes."""
+def build_chatbot_agent(
+    *,
+    system_prompt: str,
+    tools: Sequence[Any],
+) -> Any:
+    """Build a create_agent instance for one StateGraph category node policy."""
     from langchain.agents import create_agent
 
     return create_agent(
         model=settings.openai_model,
-        tools=CHATBOT_TOOLS,
-        system_prompt=CHATBOT_SYSTEM_PROMPT,
+        tools=list(tools),
+        system_prompt=system_prompt,
         state_schema=ChatbotState,
     )
 
 
-_agent_instance: Any | None = None
-
-
-def get_chatbot_agent() -> Any:
-    """Return the shared chatbot agent, building it only when it is first invoked."""
-    global _agent_instance
-    if _agent_instance is None:
-        _agent_instance = build_chatbot_agent()
-    return _agent_instance
-
-
-class LazyChatbotAgent:
-    """Backward-compatible lazy proxy for code that imports chatbot.agent.agent."""
-
-    def invoke(self, state: ChatbotState | dict[str, Any]) -> dict[str, Any]:
-        return get_chatbot_agent().invoke(state)
-
-    def __getattr__(self, name: str) -> Any:
-        return getattr(get_chatbot_agent(), name)
-
-
-def invoke_chatbot_agent(
+def _build_and_invoke_agent(
     state: ChatbotState | dict[str, Any],
+    *,
+    system_prompt: str,
+    tools: Sequence[Any],
     agent_instance: Any | None = None,
 ) -> dict[str, Any]:
-    """Invoke the chatbot agent through a stable graph-ready interface."""
-    runtime_agent = agent_instance or get_chatbot_agent()
+    """Build a create_agent instance when needed, then invoke it with state."""
+    runtime_agent = agent_instance or build_chatbot_agent(
+        system_prompt=system_prompt,
+        tools=tools,
+    )
     return runtime_agent.invoke(state)
 
 
-agent = LazyChatbotAgent()
+def invoke_payment_agent(
+    state: ChatbotState | dict[str, Any],
+    *,
+    agent_instance: Any | None = None,
+) -> dict[str, Any]:
+    """Invoke the payment-specific create_agent instance."""
+    return _build_and_invoke_agent(
+        state,
+        system_prompt=PAYMENT_POLICY.system_prompt,
+        tools=PAYMENT_POLICY.tools,
+        agent_instance=agent_instance,
+    )
+
+
+def invoke_faq_agent(
+    state: ChatbotState | dict[str, Any],
+    *,
+    agent_instance: Any | None = None,
+) -> dict[str, Any]:
+    """Invoke the FAQ/RAG-specific create_agent instance."""
+    return _build_and_invoke_agent(
+        state,
+        system_prompt=FAQ_POLICY.system_prompt,
+        tools=FAQ_POLICY.tools,
+        agent_instance=agent_instance,
+    )
+
+
+def invoke_bug_agent(
+    state: ChatbotState | dict[str, Any],
+    *,
+    agent_instance: Any | None = None,
+) -> dict[str, Any]:
+    """Invoke the bug-specific create_agent instance."""
+    return _build_and_invoke_agent(
+        state,
+        system_prompt=BUG_POLICY.system_prompt,
+        tools=BUG_POLICY.tools,
+        agent_instance=agent_instance,
+    )

@@ -11,6 +11,7 @@ from chatbot.notifications.dispatcher import dispatch_urgent_alert
 from chatbot.notifications.slack import send_slack_alert
 from chatbot.observability.error_classifier import classify_error
 from chatbot.observability.logger import EVENT_DB_WRITE_FAILED, build_log_event, log_event
+from chatbot.agents.policies import BUG_POLICY, FAQ_POLICY, PAYMENT_POLICY
 from chatbot.response.final_response import final_response_node
 from chatbot.tools.db_tools import (
     read_payments,
@@ -117,6 +118,31 @@ def test_write_failure_returns_error_payload(monkeypatch: pytest.MonkeyPatch) ->
     assert result["stored"] is False
     assert result["error"] == "NotImplementedError"
     assert result["error_category"] == "not_implemented"
+
+
+def test_agent_policies_limit_tools_by_node() -> None:
+    payment_tool_names = {tool.name for tool in PAYMENT_POLICY.tools}
+    faq_tool_names = {tool.name for tool in FAQ_POLICY.tools}
+    bug_tool_names = {tool.name for tool in BUG_POLICY.tools}
+
+    assert "read_payments" in payment_tool_names
+    assert "read_refunds" in payment_tool_names
+    assert "search_documents" not in payment_tool_names
+    assert "write_voc_feedback" not in payment_tool_names
+    assert "write_answer_draft" not in payment_tool_names
+    assert "write_evidence_docs" not in payment_tool_names
+
+    assert "search_documents" in faq_tool_names
+    assert "write_failed_query" in faq_tool_names
+    assert "read_payments" not in faq_tool_names
+    assert "write_answer_draft" not in faq_tool_names
+    assert "write_evidence_docs" not in faq_tool_names
+
+    assert "read_gacha_logs" in bug_tool_names
+    assert "read_item_delivery_logs" in bug_tool_names
+    assert "read_refunds" not in bug_tool_names
+    assert "write_answer_draft" not in bug_tool_names
+    assert "write_evidence_docs" not in bug_tool_names
 
 
 def test_urgent_alert_dispatcher_returns_mock_without_webhook(monkeypatch: pytest.MonkeyPatch) -> None:

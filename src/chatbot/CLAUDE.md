@@ -10,16 +10,18 @@ workflow이며, category node 안에서 LangChain `create_agent` 기반 reasonin
 runners/run_chatbot.py
   -> chatbot.graph.workflow.graph
   -> orchestrator/category/safety/final_response nodes
-  -> category node에서 chatbot.agent.invoke_chatbot_agent(state)
+  -> category node에서 invoke_payment_agent / invoke_faq_agent / invoke_bug_agent
   -> db/vector/cache tools
 ```
 
-기존 호환성을 위해 `chatbot.agent.agent`는 유지한다. 새 코드나 graph node에서는
-`invoke_chatbot_agent(state)`를 우선 사용한다.
+`chatbot.agent`는 payment/faq/bug policy가 넘긴 prompt/tools로 category별
+`create_agent`를 생성한다. 내부 공통 실행 함수는 private helper로만 두고,
+외부 호출 인터페이스는 `invoke_payment_agent`, `invoke_faq_agent`,
+`invoke_bug_agent` 세 가지로 제한한다.
 
-현재 baseline 단계에서는 category별 specialized agent가 아니라 단일 `create_agent` 기반 reasoning agent를 공유한다.
-향후 LangGraph workflow 내부에서 category별 specialized agent로 점진 분리할 수
-있다. `PaymentAgentInput`, `SafetyInput`, `SafetyDecision`은 현재 runtime 필수
+현재 baseline 단계에서는 category별 prompt/tool policy를 분리해 `create_agent` 기반 reasoning unit을 실행한다.
+향후 LangGraph workflow 내부에서 직접 tool 호출 node로 점진 전환할 수 있다.
+`PaymentAgentInput`, `SafetyInput`, `SafetyDecision`은 현재 runtime 필수
 입력이 아니라 future graph-ready contract다.
 
 ## 역할 분리
@@ -66,9 +68,9 @@ VOC 이해
 ## 실행 예시
 
 ```python
-from chatbot.agent import invoke_chatbot_agent
+from chatbot.agent import invoke_payment_agent
 
-result = invoke_chatbot_agent({
+result = invoke_payment_agent({
     "messages": [
         {
             "role": "user",
@@ -77,8 +79,8 @@ result = invoke_chatbot_agent({
     ],
     "ticket_id": 1001,
     "account_id": 101,
-    "raw_content": "결제했는데 아이템이 안 들어왔어요",
-    "cleaned_content": "결제했는데 아이템이 안 들어왔어요",
+    "raw_query": "결제했는데 아이템이 안 들어왔어요",
+    "enriched_query": "결제했는데 아이템이 안 들어왔어요",
 })
 ```
 
@@ -86,7 +88,7 @@ CLI 실행은 `python runners/run_chatbot.py`를 사용한다.
 
 멀티턴 smoke 확인은 `runners.run_chatbot.run_multiturn_demo()`를 사용한다. 이전
 `messages`를 다음 호출 state에 넘겨 같은 세션 문맥을 유지하되, `ticket_id`,
-`account_id`, `raw_content`는 현재 턴 기준으로 둔다.
+`account_id`, `raw_query`는 현재 턴 기준으로 둔다.
 
 ## 저장 정책
 

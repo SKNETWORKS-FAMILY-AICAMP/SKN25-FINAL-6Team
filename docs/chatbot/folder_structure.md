@@ -18,7 +18,7 @@ SKN25-FINAL-6Team/
     ├── constants.py          # 공통 상수
     ├── prompts/              # 시스템/노드별 프롬프트
     ├── graph/                # StateGraph workflow와 routing
-    ├── agents/               # orchestrator, category agent, drafting agent
+    ├── agents/               # orchestrator, payment/faq/bug/voc nodes, drafting helper
     ├── retrieval/            # cache/vector/embedding/retriever wrapper
     ├── repositories/         # DB 저장/조회 책임 분리 예정 영역
     ├── tools/                # LangChain tool wrapper와 registry
@@ -34,17 +34,14 @@ SKN25-FINAL-6Team/
 
 ```text
 agent.py
-  -> prompts.system_prompt.CHATBOT_SYSTEM_PROMPT
-  -> tools.registry.CHATBOT_TOOLS
-  -> create_agent 생성만 담당
+  -> payment/faq/bug policy가 넘긴 prompt/tools로 create_agent 생성
 
 graph/workflow.py
   -> StateGraph 구성
   -> graph/routing.py의 route 함수를 사용
 
 agents/drafting_agent.py
-  -> 기존 reasoning.py의 역할을 더 명확한 이름으로 분리
-  -> reasoning.py는 기존 import 보호용 alias
+  -> concrete agent 실행 결과를 StateGraph update로 변환
 
 repositories/
   -> 현재는 db_tools wrapper를 re-export하는 단계

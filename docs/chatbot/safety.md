@@ -1,6 +1,6 @@
 # Chatbot Safety Layer
 
-현재 Safety Layer는 category agent가 생성한 `answer_draft`를 검사하고, 결과를
+현재 Safety Layer는 payment/bug/faq node가 생성한 `draft_text`를 검사하고, 결과를
 `write_safety_results`로 저장한 뒤 다음 분기를 결정하는 노드입니다.
 
 ## 현재 구현
@@ -8,7 +8,7 @@
 `safety_layer_node`는 다음 순서로 동작합니다.
 
 ```text
-answer_draft 입력
+draft_text 입력
 → OpenAI Moderation API 검사
 → safety_action 결정
 → safety_results 저장
@@ -31,7 +31,7 @@ client.moderations.create(
 ```text
 ticket_id
 draft_id
-answer_draft
+draft_text
 retry_count
 ```
 

@@ -5,7 +5,7 @@ from chatbot.schemas import ChatbotState
 
 
 def route_by_category(state: ChatbotState) -> str:
-    """Route to the category agent selected by the orchestrator."""
+    """Route to the concrete category node selected by the orchestrator."""
     category = state["category"]
     if category == "결제":
         return "payment_agent"
@@ -17,7 +17,7 @@ def route_by_category(state: ChatbotState) -> str:
 
 
 def route_after_safety(state: ChatbotState) -> str:
-    """Return to the category agent on retry, or finish when safety passes/exhausts."""
+    """Return to the concrete category node on retry, or finish when safety passes/exhausts."""
     if state["safety_passed"]:
         return "final_response"
     if state["retry_count"] >= MAX_SAFETY_RETRY:
