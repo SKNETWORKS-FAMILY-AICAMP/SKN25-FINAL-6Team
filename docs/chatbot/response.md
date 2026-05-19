@@ -50,13 +50,6 @@ REVIEW_QUEUE
 
 ## 저장 정책
 
-현재 baseline은 `final_answer`를 state에 남기는 단계까지만 구현합니다.
+현재 baseline은 `final_answer`를 state에 남기고, `write_final_response`를 통해 실제 사용자 응답 본문을 `final_response.final_text`에 저장합니다.
 
-향후 실제 DB 연동 시에는 아래 형태로 `QA_ticket.raw_content`에 append합니다.
-
-```text
-Q: {raw_content}
-A: {final_answer}
-```
-
-Safety Layer의 `decision_type`은 `safety_results`에 저장하고, 사용자에게 실제로 나간 답변 본문은 Final Response 단계에서 `QA_ticket.raw_content`에 누적하는 방향입니다.
+Safety Layer의 `safety_action`은 `safety_results`에 저장하고, 사용자에게 실제로 나간 답변 본문은 Final Response 단계에서 `final_response`에 별도로 저장합니다.

@@ -16,7 +16,7 @@
 | `write_answer_draft(payload)` | 답변 초안 저장 → `draft_id` 반환 |
 | `write_evidence_docs(payload)` | 근거 문서 참조 저장 |
 | `write_safety_results(payload)` | Safety 평가 결과 저장 |
-| `append_qa_ticket_message(payload)` | `QA_ticket.raw_content`에 Q/A 메시지 누적 |
+| `write_final_response(payload)` | 최종 고객 응답을 `final_response`에 저장 |
 | `write_failed_query(payload)` | FAQ 검색 실패 또는 근거 부족 query 저장 |
 | `write_voc_feedback(payload)` | VOC 유형, 감정, 원문, 요약 저장 |
 

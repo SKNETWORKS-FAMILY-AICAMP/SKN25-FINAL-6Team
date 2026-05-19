@@ -7,6 +7,7 @@ from langchain_core.tools import tool
 from chatbot.repositories.analysis_repository import save_ticket_analysis
 from chatbot.repositories.draft_repository import save_answer_draft, save_evidence_docs
 from chatbot.repositories.failed_query_repository import save_failed_query
+from chatbot.repositories.final_response_repository import save_final_response
 from chatbot.repositories.operation_log_repository import (
     read_gacha_logs_by_account,
     read_item_delivery_logs_by_account,
@@ -14,7 +15,7 @@ from chatbot.repositories.operation_log_repository import (
     read_refunds_by_payment,
 )
 from chatbot.repositories.safety_repository import save_safety_results
-from chatbot.repositories.ticket_repository import append_qa_message, save_qa_ticket
+from chatbot.repositories.ticket_repository import save_qa_ticket
 from chatbot.repositories.voc_repository import save_voc_feedback
 
 
@@ -67,7 +68,7 @@ def write_qa_ticket(payload: dict) -> str:
     """Write a new QA ticket record.
 
     Args:
-        payload: Ticket fields to persist.
+        payload: QA_ticket fields including ticket_id, user_id, account_id, session_id, and raw_query.
     """
     return _json(save_qa_ticket(payload))
 
@@ -77,7 +78,7 @@ def write_ticket_analysis(payload: dict) -> str:
     """Write ticket analysis result.
 
     Args:
-        payload: Analysis fields including ticket_id and category.
+        payload: ticket_analysis fields including ticket_id, category, enriched_query, routing_target, and summary.
     """
     return _json(save_ticket_analysis(payload))
 
@@ -87,7 +88,7 @@ def write_answer_draft(payload: dict) -> str:
     """Write an answer draft for a ticket.
 
     Args:
-        payload: Draft fields including ticket_id and content.
+        payload: answer_draft fields including ticket_id, analysis_id, draft_text, and prompt_version.
     """
     return _json(save_answer_draft(payload))
 
@@ -97,7 +98,8 @@ def write_evidence_docs(payload: dict) -> str:
     """Write evidence document references tied to an answer draft.
 
     Args:
-        payload: Evidence fields including draft_id and source description.
+        payload: evidence_docs fields including draft_id, source_type, source_id, evidence_text,
+            relevance_score, and retrieval_rank.
     """
     return _json(save_evidence_docs(payload))
 
@@ -107,19 +109,20 @@ def write_safety_results(payload: dict) -> str:
     """Write safety evaluation results for an answer draft.
 
     Args:
-        payload: Safety fields including draft_id, ticket_id, scores, decision_type, and reason.
+        payload: safety_results fields including draft_id, scores, safety_action, safety_reason,
+            and retry_count.
     """
     return _json(save_safety_results(payload))
 
 
 @tool(parse_docstring=True)
-def append_qa_ticket_message(payload: dict) -> str:
-    """Append a user or assistant message to QA_ticket.raw_content.
+def write_final_response(payload: dict) -> str:
+    """Write the final customer-facing answer.
 
     Args:
-        payload: Message fields including ticket_id, role, and content.
+        payload: Final response fields including ticket_id, draft_id, final_text, and safety_action.
     """
-    return _json(append_qa_message(payload))
+    return _json(save_final_response(payload))
 
 
 @tool(parse_docstring=True)

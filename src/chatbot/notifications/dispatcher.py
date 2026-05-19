@@ -7,8 +7,8 @@ from chatbot.observability.logger import EVENT_NOTIFICATION_DISPATCHED, log_even
 
 
 def _urgent_alert_message(state: dict[str, Any]) -> str:
-    content = state.get("cleaned_content") or state.get("raw_content") or ""
-    final_answer = state.get("final_answer") or ""
+    content = state.get("enriched_query") or state.get("raw_query") or ""
+    final_text = state.get("final_text") or ""
     return (
         "[긴급 문의 알림]\n"
         f"ticket_id: {state.get('ticket_id')}\n"
@@ -16,7 +16,7 @@ def _urgent_alert_message(state: dict[str, Any]) -> str:
         f"category: {state.get('category')}\n"
         f"routing_target: {state.get('routing_target')}\n"
         f"content: {content}\n"
-        f"final_answer: {final_answer}"
+        f"final_text: {final_text}"
     )
 
 

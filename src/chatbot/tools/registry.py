@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from chatbot.tools.cache_tools import get_cache, set_cache
 from chatbot.tools.db_tools import (
-    append_qa_ticket_message,
     read_gacha_logs,
     read_item_delivery_logs,
     read_payments,
@@ -10,6 +9,7 @@ from chatbot.tools.db_tools import (
     write_answer_draft,
     write_evidence_docs,
     write_failed_query,
+    write_final_response,
     write_qa_ticket,
     write_safety_results,
     write_ticket_analysis,
@@ -33,8 +33,7 @@ CHATBOT_TOOLS = [
     write_answer_draft,
     write_evidence_docs,
     write_safety_results,
-    append_qa_ticket_message,
+    write_final_response,
     write_failed_query,
     write_voc_feedback,
 ]
-

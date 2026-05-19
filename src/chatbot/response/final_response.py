@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import json
+
 from chatbot.notifications.dispatcher import dispatch_urgent_alert
 from chatbot.observability.logger import EVENT_FINAL_RESPONSE_CREATED, log_event
 from chatbot.schemas import ChatbotState
-from chatbot.tools.db_tools import append_qa_ticket_message
+from chatbot.tools.db_tools import write_final_response
 
 
 def _fallback_answer() -> str:
@@ -26,24 +28,27 @@ def _review_answer() -> str:
 
 def final_response_node(state: ChatbotState) -> dict:
     decision = state["safety_action"]
-    answer_draft = state["answer_draft"]
+    draft_text = state["draft_text"]
 
     if decision == "BLOCK_RESPONSE":
-        final_answer = _block_answer()
+        final_text = _block_answer()
     elif decision in ("SAFE_FALLBACK", "MASKING"):
-        final_answer = _fallback_answer()
+        final_text = _fallback_answer()
     elif decision == "REVIEW_QUEUE":
-        final_answer = _review_answer()
+        final_text = _review_answer()
     else:
-        final_answer = answer_draft
+        final_text = draft_text
 
-    append_qa_ticket_message.invoke({
+    notification_result = dispatch_urgent_alert({**state, "final_text": final_text})
+
+    final_response_result = json.loads(write_final_response.invoke({
         "payload": {
             "ticket_id": state["ticket_id"],
-            "role": "assistant",
-            "content": final_answer,
+            "draft_id": state.get("draft_id"),
+            "final_text": final_text,
+            "safety_action": decision,
         },
-    })
+    }))
 
     log_event(
         EVENT_FINAL_RESPONSE_CREATED,
@@ -53,12 +58,14 @@ def final_response_node(state: ChatbotState) -> dict:
         category=state.get("category"),
         routing_target=state.get("routing_target"),
         status="ok",
-        metadata={"safety_action": decision},
+        metadata={
+            "safety_action": decision,
+            "notification_status": notification_result.get("status"),
+        },
     )
 
-    notification_result = dispatch_urgent_alert({**state, "final_answer": final_answer})
-
     return {
-        "final_answer": final_answer,
+        "final_text": final_text,
+        "final_response_result": final_response_result,
         "notification_result": notification_result,
     }

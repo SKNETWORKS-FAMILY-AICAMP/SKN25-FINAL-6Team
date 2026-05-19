@@ -21,7 +21,7 @@ class VocClassification(BaseModel):
 
 
 def _active_text(state: ChatbotState) -> str:
-    return state["cleaned_content"]
+    return state["enriched_query"]
 
 
 def _classify_voc_with_llm(text: str) -> VocClassification:
@@ -53,9 +53,9 @@ def _classify_voc_with_llm(text: str) -> VocClassification:
     ])
 
 
-def _classify_voc(text: str) -> tuple[str, str, str]:
+def _classify_voc(text: str) -> tuple[str, str, list[str]]:
     result = _classify_voc_with_llm(text)
-    return result.voc_type, result.sentiment, result.summary
+    return result.voc_type, result.sentiment, result.topic_keywords
 
 
 def _build_voc_response(voc_type: str) -> str:
@@ -87,7 +87,7 @@ def _build_voc_response(voc_type: str) -> str:
 
 def voc_agent_node(state: ChatbotState) -> dict:
     raw_content = _active_text(state)
-    voc_type, sentiment, summary = _classify_voc(raw_content)
+    voc_type, sentiment, topic_keywords = _classify_voc(raw_content)
     ticket_id = state["ticket_id"]
     answer = _build_voc_response(voc_type)
 
@@ -104,16 +104,23 @@ def voc_agent_node(state: ChatbotState) -> dict:
     })
 
     draft_result = write_answer_draft.invoke({
-        "payload": {"ticket_id": ticket_id, "content": answer},
+        "payload": {"ticket_id": ticket_id, "draft_text": answer},
     })
     draft_id = json.loads(draft_result)["draft_id"]
 
     write_evidence_docs.invoke({
-        "payload": {"draft_id": draft_id, "source": f"VOC template response: {voc_type}"},
+        "payload": {
+            "draft_id": draft_id,
+            "source_type": "voc_template",
+            "source_id": voc_type,
+            "evidence_text": f"VOC template response: {voc_type}",
+            "relevance_score": 1.0,
+            "retrieval_rank": 1,
+        },
     })
 
     return {
-        "answer_draft": answer,
+        "draft_text": answer,
         "draft_id": draft_id,
         "retry_count": state["retry_count"],
         "category": "VOC",
@@ -123,6 +130,6 @@ def voc_agent_node(state: ChatbotState) -> dict:
         "safety_action": "AUTO_RESPONSE",
         "safety_reason": "VOC template response skips LLM safety validation.",
         "voc_type": voc_type,
-        "voc_sentiment": sentiment,
-        "voc_topic_keywords": topic_keywords,
+        "sentiment": sentiment,
+        "topic_keywords": topic_keywords,
     }

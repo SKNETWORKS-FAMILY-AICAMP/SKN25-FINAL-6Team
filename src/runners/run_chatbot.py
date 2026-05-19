@@ -38,13 +38,13 @@ def build_state(
         "session_id": session_id,
         "account_id": account_id,
         "source_type": source_type,
-        "raw_content": user_message,
+        "raw_query": user_message,
         "ticket_id": ticket_id,
         "category": "",
         "routing_target": "",
         "draft_id": None,
-        "answer_draft": None,
-        "final_answer": None,
+        "draft_text": None,
+        "final_text": None,
         "reasoning_node": None,
         "safety_passed": None,
         "safety_action": None,
@@ -57,10 +57,10 @@ def build_state(
 
 
 def _last_message_text(result: dict) -> str:
-    if result.get("final_answer"):
-        return str(result["final_answer"])
-    if result.get("answer_draft"):
-        return str(result["answer_draft"])
+    if result.get("final_text"):
+        return str(result["final_text"])
+    if result.get("draft_text"):
+        return str(result["draft_text"])
     messages = result.get("messages", [])
     if not messages:
         return ""

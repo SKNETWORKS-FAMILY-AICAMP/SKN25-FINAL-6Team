@@ -89,7 +89,7 @@ flowchart TD
 
     subgraph SAFETY["Step 4. Safety Layer"]
         S1["Safety Checks<br/>PII Detection<br/>Response Validation<br/>Moderation"]
-        S2["safety_results WRITE<br/>decision_type, factuality, hallucination,<br/>toxicity, pii_detected, reason"]
+        S2["safety_results WRITE<br/>safety_action, factuality, hallucination,<br/>toxicity, safety_reason"]
         S3{"final_decision"}
 
         S4["AUTO_RESPONSE<br/>답변 승인"]
@@ -107,17 +107,17 @@ flowchart TD
     end
 
     subgraph FINAL_LAYER["Final Response Layer"]
-        FINAL["final_answer 생성<br/>QA_ticket.raw_content에<br/>Q/A 형식으로 append"]
+        FINAL["final_answer 생성<br/>final_response에<br/>최종 응답 저장"]
     end
 
     FINAL --> OPDATA
 
     subgraph OPDATA["Step 5. Operational Data Logging"]
-        D1["QA_ticket<br/>raw_content, final_answer, status"]
+        D1["QA_ticket<br/>raw_query, status"]
         D2["ticket_analysis<br/>category, routing_target"]
-        D3["answer_draft<br/>draft_id, content"]
+        D3["answer_draft<br/>draft_id, draft_text"]
         D4["evidence_docs<br/>근거 로그 / 문서"]
-        D5["safety_results<br/>decision_type, scores, reason"]
+        D5["safety_results<br/>safety_action, scores, safety_reason"]
         D6["failed_queries<br/>FAQ/RAG 실패 전용"]
         D7["VOC_DB<br/>VOC 유형 / 키워드"]
         D8["operator_queue<br/>urgent_alert / review_queue"]
@@ -133,8 +133,8 @@ flowchart TD
 | Access Layer | 사용자 문의 입력, 세션 식별, 입력 payload 생성 |
 | Orchestration Layer | 입력 정제, 문의 분류, 라우팅 결정, 티켓/분석 결과 저장 |
 | Intelligence Layer | FAQ, Bug, Payment, VOC별 근거 조회 및 답변 초안 생성 |
-| Safety Layer | 답변 초안 검증, `decision_type` 저장, 안전성 분기 결정 |
-| Final Response Layer | 사용자에게 나갈 최종 답변 생성 및 Q/A 누적 준비 |
+| Safety Layer | 답변 초안 검증, `safety_action` 저장, 안전성 분기 결정 |
+| Final Response Layer | 사용자에게 나갈 최종 답변 생성 및 final_response 저장 |
 | Operational Data Logging | 운영 대시보드가 소비할 데이터 적재 |
 
 ## Storage Policy
@@ -143,7 +143,7 @@ flowchart TD
 
 ```text
 QA_ticket
-  -> 사용자 문의 원문, 최종 답변, 상태 저장
+  -> 사용자 문의 원문, 상태 저장
 
 ticket_analysis
   -> category, routing_target 저장
@@ -155,7 +155,7 @@ evidence_docs
   -> 답변 근거가 된 로그 또는 문서 저장
 
 safety_results
-  -> decision_type, safety score, reason 저장
+  -> safety_action, safety score, safety_reason 저장
 
 failed_queries
   -> FAQ/RAG에서 답변 근거를 찾지 못한 질문만 저장
@@ -179,7 +179,7 @@ orchestrator
   -> END
 ```
 
-현재 구현은 seed/mock tool 기반 baseline입니다. 실제 RAG/ChromaDB 검색과 운영 대시보드 연동은 후속 작업으로 연결합니다. `QA_ticket.raw_content` append는 `append_qa_ticket_message` tool 계약으로 준비되어 있습니다.
+현재 구현은 seed/mock tool 기반 baseline입니다. 실제 RAG/ChromaDB 검색과 운영 대시보드 연동은 후속 작업으로 연결합니다. 최종 고객 응답은 `write_final_response` tool 계약으로 `final_response`에 저장합니다.
 
 ## Run
 

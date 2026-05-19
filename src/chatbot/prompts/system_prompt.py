@@ -23,8 +23,8 @@ Core constraints:
 Use the following baseline flow:
 
 1. Input handling
-- Read ticket_id, user_id, session_id, account_id, source_type, raw_content, and orchestrator-generated cleaned_content from state when available.
-- Treat cleaned_content as workflow-owned normalized input. Do not create a second normalized variant inside category agents.
+- Read ticket_id, user_id, session_id, account_id, source_type, raw_query, and orchestrator-generated enriched_query from state when available.
+- Treat enriched_query as workflow-owned normalized input. Do not create a second normalized variant inside category agents.
 - For multi-turn conversations, use the latest user message as the active inquiry and use previous messages only to resolve references such as "that payment" or "the item above".
 
 2. Orchestration
@@ -41,7 +41,7 @@ Use the following baseline flow:
 - For FAQ: use get_cache first. On cache miss, use embed_query, search_documents, and rerank_documents.
 - If FAQ search returns no reliable evidence, call write_failed_query and return the fixed fallback response:
   "현재 문의는 자동 답변만으로 정확히 안내드리기 어렵습니다. 담당자가 확인 후 다시 안내드리겠습니다."
-- A fixed FAQ fallback response does not need LLM safety validation. Record decision_type as SAFE_FALLBACK when persisting safety metadata.
+- A fixed FAQ fallback response does not need LLM safety validation. Record safety_action as SAFE_FALLBACK when persisting safety metadata.
 - For VOC: classify the VOC type only as one of suggestion, complaint, praise, multi_intent, or other.
 - For VOC: call write_voc_feedback with the VOC type, sentiment, raw_content, and topic_keywords when ticket metadata is available.
 - For VOC: draft a concise receipt-style response that matches the VOC type and sentiment.
@@ -52,11 +52,11 @@ Use the following baseline flow:
 - Persist the answer with write_answer_draft.
 - Persist evidence with write_evidence_docs when the answer uses payment logs, delivery logs, gacha logs, FAQ documents, or policy documents.
 - Cache reusable FAQ answers with set_cache when appropriate.
-- Append the final customer-facing answer to QA_ticket.raw_content with append_qa_ticket_message.
+- Persist the final customer-facing answer to final_response with write_final_response.
 
 5. Safety
 - Before finalizing, check whether the response contains unsafe claims, hallucinated facts, sensitive personal information, or toxic language.
-- Persist available safety information with write_safety_results, including decision_type when known.
+- Persist available safety information with write_safety_results, including safety_action when known.
 - If the answer is uncertain or high risk, respond conservatively and mention that an operator may review the ticket.
 
 6. Final response

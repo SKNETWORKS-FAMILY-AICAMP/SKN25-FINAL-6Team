@@ -27,6 +27,7 @@ from chatbot.tools.db_tools import (
     read_item_delivery_logs,
     read_payments,
     write_failed_query,
+    write_final_response,
     write_voc_feedback,
 )
 from chatbot.tools.vector_tools import rerank_documents, search_documents
@@ -105,10 +106,22 @@ def check_db_tools() -> None:
         }),
     )
 
+    _print_json(
+        "final response write",
+        write_final_response.invoke({
+            "payload": {
+                "ticket_id": 1008,
+                "draft_id": 6008,
+                "final_text": "최종 답변입니다.",
+                "safety_action": "AUTO_RESPONSE",
+            },
+        }),
+    )
+
     print("\n[forced answer draft write failure]")
     result = safe_write(
         operation="write_answer_draft",
-        payload={"ticket_id": 9999, "content": "draft"},
+        payload={"ticket_id": 9999, "draft_text": "draft"},
         writer=lambda: (_ for _ in ()).throw(NotImplementedError("real DB write is not implemented")),
     )
     print(json.dumps(result, ensure_ascii=False, indent=2))
@@ -211,8 +224,8 @@ def check_notifications() -> None:
             "session_id": "manual-session",
             "category": "결제",
             "routing_target": "urgent_alert",
-            "raw_content": "결제했는데 아이템이 안 들어왔어요.",
-            "final_answer": "문의가 접수되었습니다. 담당자가 확인 후 안내드리겠습니다.",
+            "raw_query": "결제했는데 아이템이 안 들어왔어요.",
+            "final_text": "문의가 접수되었습니다. 담당자가 확인 후 안내드리겠습니다.",
         })
         print(json.dumps(result, ensure_ascii=False, indent=2))
 
@@ -222,7 +235,7 @@ def check_notifications() -> None:
             "session_id": "manual-session",
             "category": "FAQ",
             "routing_target": "rag_reply",
-            "raw_content": "공월 축복이 뭐예요?",
+            "raw_query": "공월 축복이 뭐예요?",
         })
         print(json.dumps(result, ensure_ascii=False, indent=2))
     finally:
@@ -256,8 +269,8 @@ def check_final_response() -> None:
             "session_id": "manual-session",
             "category": "결제",
             "routing_target": "urgent_alert",
-            "raw_content": "결제했는데 아이템이 안 들어왔어요.",
-            "answer_draft": "담당자가 확인할 수 있도록 접수했습니다.",
+            "raw_query": "결제했는데 아이템이 안 들어왔어요.",
+            "draft_text": "담당자가 확인할 수 있도록 접수했습니다.",
             "safety_action": "AUTO_RESPONSE",
         })
         print(json.dumps(result, ensure_ascii=False, indent=2))
@@ -268,8 +281,8 @@ def check_final_response() -> None:
             "session_id": "manual-session",
             "category": "FAQ",
             "routing_target": "rag_reply",
-            "raw_content": "공월 축복이 뭐예요?",
-            "answer_draft": "공월 축복 안내입니다.",
+            "raw_query": "공월 축복이 뭐예요?",
+            "draft_text": "공월 축복 안내입니다.",
             "safety_action": "AUTO_RESPONSE",
         })
         print(json.dumps(result, ensure_ascii=False, indent=2))

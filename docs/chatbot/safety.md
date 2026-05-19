@@ -10,7 +10,7 @@
 ```text
 answer_draft 입력
 → OpenAI Moderation API 검사
-→ decision_type 결정
+→ safety_action 결정
 → safety_results 저장
 → state에 safety 결과 반환
 ```
@@ -54,12 +54,12 @@ retry_count
 ```text
 draft_id
 ticket_id
-decision_type
+safety_action
 factuality_score
 hallucination_score
 toxicity_score
 policy_violation_score
-reason
+safety_reason
 ```
 
 현재 moderation은 toxicity, hate, violence, harassment 계열 점수를 중심으로

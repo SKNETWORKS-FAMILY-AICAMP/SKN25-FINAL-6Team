@@ -27,8 +27,8 @@ class ChatbotState(AgentState):
     source_type: NotRequired[str]
 
     # Active user inquiry.
-    raw_content: NotRequired[str]
-    cleaned_content: NotRequired[str]
+    raw_query: NotRequired[str]
+    enriched_query: NotRequired[str]
 
     # Routing and workflow state.
     ticket_id: NotRequired[int]
@@ -39,16 +39,17 @@ class ChatbotState(AgentState):
 
     # Drafting, safety, and review state.
     draft_id: NotRequired[int | None]
-    answer_draft: NotRequired[str | None]
-    final_answer: NotRequired[str | None]
+    draft_text: NotRequired[str | None]
+    final_text: NotRequired[str | None]
+    final_response_result: NotRequired[dict[str, Any] | None]
     reasoning_node: NotRequired[str | None]
     safety_passed: NotRequired[bool | None]
     safety_action: NotRequired[SafetyAction | str | None]
     safety_reason: NotRequired[str | None]
     review_required: NotRequired[bool | None]
     voc_type: NotRequired[str | None]
-    voc_sentiment: NotRequired[str | None]
-    voc_topic_keywords: NotRequired[list[str]]
+    sentiment: NotRequired[str | None]
+    topic_keywords: NotRequired[list[str]]
     notification_result: NotRequired[dict[str, Any] | None]
 
     # Multi-turn bookkeeping.
@@ -71,7 +72,7 @@ class PaymentAgentInput(BaseModel):
 
     ticket_id: int
     account_id: int | None = None
-    cleaned_content: str | None = None
+    enriched_query: str | None = None
 
 
 class SafetyInput(BaseModel):
@@ -79,7 +80,7 @@ class SafetyInput(BaseModel):
 
     draft_id: int
     ticket_id: int
-    answer_draft: str | None = None
+    draft_text: str | None = None
 
 
 class SafetyDecision(BaseModel):
