@@ -13,7 +13,9 @@ def save_safety_results(payload: dict[str, Any]) -> dict[str, Any]:
             return {
                 "status": "ok",
                 "draft_id": payload.get("draft_id"),
-                "decision_type": payload.get("decision_type"),
+                "safety_action": payload.get("safety_action"),
+                "safety_reason": payload.get("safety_reason"),
+                "retry_count": payload.get("retry_count"),
             }
         raise NotImplementedError("DB-backed write_safety_results is not implemented yet.")
 

@@ -11,7 +11,7 @@ def draft_persistence_node(state: ChatbotState) -> dict:
     draft_result = write_answer_draft.invoke({
         "payload": {
             "ticket_id": state["ticket_id"],
-            "content": state["answer_draft"],
+            "draft_text": state["draft_text"],
         },
     })
     draft_id = json.loads(draft_result)["draft_id"]
@@ -19,7 +19,11 @@ def draft_persistence_node(state: ChatbotState) -> dict:
     write_evidence_docs.invoke({
         "payload": {
             "draft_id": draft_id,
-            "source": f"{state['reasoning_node']}_create_agent",
+            "source_type": "agent",
+            "source_id": f"{state['reasoning_node']}_create_agent",
+            "evidence_text": state["draft_text"],
+            "relevance_score": 1.0,
+            "retrieval_rank": 1,
         },
     })
 

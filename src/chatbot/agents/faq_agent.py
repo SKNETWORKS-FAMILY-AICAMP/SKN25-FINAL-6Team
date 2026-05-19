@@ -1,8 +1,11 @@
 from __future__ import annotations
 
-from chatbot.agents.drafting_agent import drafting_agent_node
+from chatbot.agent import invoke_faq_agent
+from chatbot.agents.drafting_agent import build_draft_update
+from chatbot.agents.policies import FAQ_POLICY
 from chatbot.schemas import ChatbotState
 
 
 def faq_agent_node(state: ChatbotState) -> dict:
-    return drafting_agent_node(state, "faq_agent")
+    result = invoke_faq_agent(state)
+    return build_draft_update(state, result, FAQ_POLICY.name)

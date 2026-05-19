@@ -69,23 +69,25 @@ def _evaluate_safety(text: str) -> tuple[bool, dict[str, float], str]:
 
 
 def safety_layer_node(state: ChatbotState) -> dict:
-    answer_draft = state["answer_draft"]
+    draft_text = state["draft_text"]
     draft_id = state["draft_id"]
     ticket_id = state["ticket_id"]
-    is_blocked, scores, safety_reason = _evaluate_safety(answer_draft)
+    is_blocked, scores, safety_reason = _evaluate_safety(draft_text)
     safety_passed = not is_blocked
-    decision_type = "AUTO_RESPONSE" if safety_passed else "BLOCK_RESPONSE"
+    safety_action = "AUTO_RESPONSE" if safety_passed else "BLOCK_RESPONSE"
 
     write_safety_results.invoke({
         "payload": {
             "draft_id": draft_id,
             "ticket_id": ticket_id,
-            "decision_type": decision_type,
+            "safety_action": safety_action,
             "factuality_score": scores["factuality_score"],
             "hallucination_score": scores["hallucination_score"],
             "toxicity_score": scores["toxicity_score"],
             "policy_violation_score": scores["policy_violation_score"],
-            "reason": safety_reason,
+            "safety_reason": safety_reason,
+            "review_required": False,
+            "retry_count": state["retry_count"] + (1 if is_blocked else 0),
         },
     })
 
@@ -99,15 +101,15 @@ def safety_layer_node(state: ChatbotState) -> dict:
         status="ok",
         metadata={
             "safety_passed": safety_passed,
-            "safety_action": decision_type,
+            "safety_action": safety_action,
             "draft_id": draft_id,
         },
     )
 
     return {
         "safety_passed": safety_passed,
-        "safety_action": decision_type,
+        "safety_action": safety_action,
         "safety_reason": safety_reason,
-        "review_required": decision_type == "REVIEW_QUEUE",
+        "review_required": safety_action == "REVIEW_QUEUE",
         "retry_count": state["retry_count"] + (1 if is_blocked else 0),
     }

@@ -2,7 +2,7 @@
 
 이 문서는 챗봇의 최종 workflow를 Mermaid 기준으로 정리합니다.
 
-현재 메인 실행 경로는 `chatbot/agent.py`의 LangChain `create_agent`이며, 이 폴더의 `workflow.py`는 LangGraph `StateGraph` 전환을 위한 실험 경로입니다. 최종 설계에서는 `StateGraph`가 전체 처리 순서와 분기를 관리하고, 각 node 내부에서 tools 또는 agent 로직을 사용합니다.
+현재 메인 실행 경로는 `chatbot/graph/workflow.py`의 LangGraph `StateGraph`입니다. `StateGraph`가 전체 처리 순서와 분기를 관리하고, payment/bug/faq node 내부에서 category별 `create_agent` reasoning unit을 호출합니다.
 
 ## Workflow
 
@@ -13,7 +13,7 @@ flowchart TD
     subgraph ACCESS["Step 1. Access Layer"]
         A1["Chatbot Interface<br/>사용자 문의 입력"]
         A2["Session Manager<br/>user_id, session_id, 대화 이력 관리"]
-        A3["Input Payload 생성<br/>raw_content, source_type, account_id"]
+        A3["Input Payload 생성<br/>raw_query, source_type, account_id"]
         A1 --> A2 --> A3
     end
 
@@ -21,7 +21,7 @@ flowchart TD
 
     subgraph ORCH["Step 2. Orchestration Layer"]
         O1["Toxic Filter<br/>욕설 / 위협 / 유해표현 1차 감지"]
-        O2["Input Normalize<br/>cleaned_content 생성"]
+        O2["Input Normalize<br/>enriched_query 생성"]
         O3["Query Enrichment<br/>분류 힌트 보강"]
         O4["Classifier<br/>category, routing_target 결정"]
         O5["QA_ticket WRITE"]
@@ -39,9 +39,9 @@ flowchart TD
     subgraph INTEL["Step 3. Intelligence Layer"]
         subgraph FAQ["FAQ Agent"]
             F1{"Cache Hit?"}
-            F2["Cache Answer<br/>answer_draft WRITE"]
+            F2["Cache Answer<br/>draft_text 생성"]
             F3["RAG Search<br/>Embed → Search → Rerank"]
-            F4["Answer Generation<br/>answer_draft WRITE<br/>evidence_docs WRITE"]
+            F4["Answer Generation<br/>draft_text 생성"]
             F5{"답변 가능?"}
             F6["failed_queries WRITE<br/>FAQ/RAG 실패 사유 저장"]
 
@@ -56,7 +56,7 @@ flowchart TD
         subgraph BUG["Bug Agent"]
             B1["Data Lookup<br/>gacha_logs / item_delivery_logs READ"]
             B2{"버그 유형 판단"}
-            B3["단순 버그<br/>answer_draft WRITE"]
+            B3["단순 버그<br/>draft_text 생성"]
             B4["복잡 버그<br/>operator_queue WRITE"]
             B5["미지급 의심<br/>Payment Agent로 전달"]
 
@@ -69,8 +69,8 @@ flowchart TD
         subgraph PAY["Payment Agent"]
             P1["Data Lookup<br/>payments / refunds / item_delivery_logs READ"]
             P2{"routing_target"}
-            P3["rag_reply<br/>answer_draft WRITE<br/>evidence_docs WRITE"]
-            P4["urgent_alert<br/>operator_queue WRITE<br/>answer_draft WRITE"]
+            P3["rag_reply<br/>draft_text 생성"]
+            P4["urgent_alert<br/>operator_queue WRITE<br/>draft_text 생성"]
 
             P1 --> P2
             P2 -->|"rag_reply"| P3 --> SAFETY
@@ -89,7 +89,7 @@ flowchart TD
 
     subgraph SAFETY["Step 4. Safety Layer"]
         S1["Safety Checks<br/>PII Detection<br/>Response Validation<br/>Moderation"]
-        S2["safety_results WRITE<br/>decision_type, factuality, hallucination,<br/>toxicity, pii_detected, reason"]
+        S2["safety_results WRITE<br/>safety_action, factuality, hallucination,<br/>toxicity, safety_reason"]
         S3{"final_decision"}
 
         S4["AUTO_RESPONSE<br/>답변 승인"]
@@ -107,17 +107,17 @@ flowchart TD
     end
 
     subgraph FINAL_LAYER["Final Response Layer"]
-        FINAL["final_answer 생성<br/>QA_ticket.raw_content에<br/>Q/A 형식으로 append"]
+        FINAL["final_text 생성<br/>final_response에<br/>최종 응답 저장"]
     end
 
     FINAL --> OPDATA
 
     subgraph OPDATA["Step 5. Operational Data Logging"]
-        D1["QA_ticket<br/>raw_content, final_answer, status"]
+        D1["QA_ticket<br/>raw_query, status"]
         D2["ticket_analysis<br/>category, routing_target"]
-        D3["answer_draft<br/>draft_id, content"]
+        D3["answer_draft<br/>draft_id, draft_text"]
         D4["evidence_docs<br/>근거 로그 / 문서"]
-        D5["safety_results<br/>decision_type, scores, reason"]
+        D5["safety_results<br/>safety_action, scores, safety_reason"]
         D6["failed_queries<br/>FAQ/RAG 실패 전용"]
         D7["VOC_DB<br/>VOC 유형 / 키워드"]
         D8["operator_queue<br/>urgent_alert / review_queue"]
@@ -133,8 +133,8 @@ flowchart TD
 | Access Layer | 사용자 문의 입력, 세션 식별, 입력 payload 생성 |
 | Orchestration Layer | 입력 정제, 문의 분류, 라우팅 결정, 티켓/분석 결과 저장 |
 | Intelligence Layer | FAQ, Bug, Payment, VOC별 근거 조회 및 답변 초안 생성 |
-| Safety Layer | 답변 초안 검증, `decision_type` 저장, 안전성 분기 결정 |
-| Final Response Layer | 사용자에게 나갈 최종 답변 생성 및 Q/A 누적 준비 |
+| Safety Layer | 답변 초안 검증, `safety_action` 저장, 안전성 분기 결정 |
+| Final Response Layer | 사용자에게 나갈 최종 답변 생성 및 final_response 저장 |
 | Operational Data Logging | 운영 대시보드가 소비할 데이터 적재 |
 
 ## Storage Policy
@@ -143,19 +143,19 @@ flowchart TD
 
 ```text
 QA_ticket
-  -> 사용자 문의 원문, 최종 답변, 상태 저장
+  -> 사용자 문의 원문, 상태 저장
 
 ticket_analysis
   -> category, routing_target 저장
 
 answer_draft
-  -> agent가 생성한 답변 초안 저장
+  -> payment/bug/faq는 draft_persistence node가 저장, VOC는 voc_agent가 직접 저장
 
 evidence_docs
-  -> 답변 근거가 된 로그 또는 문서 저장
+  -> payment/bug/faq는 draft_persistence node가 저장, VOC는 voc_agent가 직접 저장
 
 safety_results
-  -> decision_type, safety score, reason 저장
+  -> safety_action, safety score, safety_reason 저장
 
 failed_queries
   -> FAQ/RAG에서 답변 근거를 찾지 못한 질문만 저장
@@ -173,13 +173,13 @@ operator_queue
 
 ```text
 orchestrator
-  -> category agent
+  -> payment/bug/faq/voc node
      -> VOC이면 final_response
      -> 결제/인게임버그/FAQ이면 safety_layer -> final_response
   -> END
 ```
 
-현재 구현은 seed/mock tool 기반 baseline입니다. 실제 RAG/ChromaDB 검색과 운영 대시보드 연동은 후속 작업으로 연결합니다. `QA_ticket.raw_content` append는 `append_qa_ticket_message` tool 계약으로 준비되어 있습니다.
+현재 구현은 seed/mock tool 기반 baseline입니다. 실제 RAG/ChromaDB 검색과 운영 대시보드 연동은 후속 작업으로 연결합니다. 최종 고객 응답은 `write_final_response` tool 계약으로 `final_response`에 저장합니다.
 
 ## Run
 
@@ -195,10 +195,10 @@ python3 runners/run_chatbot.py
 runners/run_chatbot.py
   -> chatbot.graph.workflow.graph
   -> orchestrator
-  -> category agent
+  -> payment/bug/faq/voc node
   -> VOC이면 final_response
   -> 결제/인게임버그/FAQ이면 safety_layer
   -> final_response
 ```
 
-주의할 점은 category agent 내부에서 공통 `create_agent` reasoning을 호출할 수 있다는 점입니다. 따라서 graph runtime 검증은 OpenAI API 연결이 가능한 환경에서 실행해야 합니다.
+주의할 점은 payment/bug/faq node 내부에서 각각의 `create_agent` reasoning을 호출한다는 점입니다. 따라서 graph runtime 검증은 OpenAI API 연결이 가능한 환경에서 실행해야 합니다.

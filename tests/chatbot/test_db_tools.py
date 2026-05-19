@@ -8,9 +8,18 @@ import pytest
 pytest.importorskip("langchain_core")
 
 from chatbot.notifications.dispatcher import dispatch_urgent_alert
+from chatbot.notifications.slack import send_slack_alert
 from chatbot.observability.error_classifier import classify_error
 from chatbot.observability.logger import EVENT_DB_WRITE_FAILED, build_log_event, log_event
-from chatbot.tools.db_tools import read_payments, write_answer_draft, write_failed_query, write_voc_feedback
+from chatbot.agents.policies import BUG_POLICY, FAQ_POLICY, PAYMENT_POLICY
+from chatbot.response.final_response import final_response_node
+from chatbot.tools.db_tools import (
+    read_payments,
+    write_answer_draft,
+    write_failed_query,
+    write_final_response,
+    write_voc_feedback,
+)
 
 
 def _invoke(tool, payload: dict) -> dict:
@@ -79,17 +88,61 @@ def test_write_failed_query_uses_repository_wrapper() -> None:
     assert result["category"] == "FAQ"
 
 
+def test_write_final_response_uses_repository_wrapper() -> None:
+    result = _invoke(
+        write_final_response,
+        {
+            "payload": {
+                "ticket_id": 1008,
+                "draft_id": 6008,
+                "final_text": "최종 답변입니다.",
+                "safety_action": "AUTO_RESPONSE",
+            },
+        },
+    )
+
+    assert result["status"] == "ok"
+    assert result["ticket_id"] == 1008
+    assert result["draft_id"] == 6008
+    assert result["safety_action"] == "AUTO_RESPONSE"
+
+
 def test_write_failure_returns_error_payload(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "chatbot.repositories.draft_repository.settings",
         SimpleNamespace(use_seed_payload=False),
     )
-    result = _invoke(write_answer_draft, {"payload": {"ticket_id": 9999, "content": "draft"}})
+    result = _invoke(write_answer_draft, {"payload": {"ticket_id": 9999, "draft_text": "draft"}})
 
     assert result["status"] == "error"
     assert result["stored"] is False
     assert result["error"] == "NotImplementedError"
     assert result["error_category"] == "not_implemented"
+
+
+def test_agent_policies_limit_tools_by_node() -> None:
+    payment_tool_names = {tool.name for tool in PAYMENT_POLICY.tools}
+    faq_tool_names = {tool.name for tool in FAQ_POLICY.tools}
+    bug_tool_names = {tool.name for tool in BUG_POLICY.tools}
+
+    assert "read_payments" in payment_tool_names
+    assert "read_refunds" in payment_tool_names
+    assert "search_documents" not in payment_tool_names
+    assert "write_voc_feedback" not in payment_tool_names
+    assert "write_answer_draft" not in payment_tool_names
+    assert "write_evidence_docs" not in payment_tool_names
+
+    assert "search_documents" in faq_tool_names
+    assert "write_failed_query" in faq_tool_names
+    assert "read_payments" not in faq_tool_names
+    assert "write_answer_draft" not in faq_tool_names
+    assert "write_evidence_docs" not in faq_tool_names
+
+    assert "read_gacha_logs" in bug_tool_names
+    assert "read_item_delivery_logs" in bug_tool_names
+    assert "read_refunds" not in bug_tool_names
+    assert "write_answer_draft" not in bug_tool_names
+    assert "write_evidence_docs" not in bug_tool_names
 
 
 def test_urgent_alert_dispatcher_returns_mock_without_webhook(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -100,11 +153,73 @@ def test_urgent_alert_dispatcher_returns_mock_without_webhook(monkeypatch: pytes
         "session_id": "seed-session",
         "category": "결제",
         "routing_target": "urgent_alert",
-        "raw_content": "결제했는데 아이템이 안 들어왔어요.",
-        "final_answer": "담당자가 확인할 수 있도록 접수했습니다.",
+        "raw_query": "결제했는데 아이템이 안 들어왔어요.",
+        "final_text": "담당자가 확인할 수 있도록 접수했습니다.",
     })
 
     assert result["status"] == "mock"
+
+
+def test_urgent_alert_dispatcher_skips_non_urgent_target() -> None:
+    result = dispatch_urgent_alert({
+        "ticket_id": 1002,
+        "session_id": "seed-session",
+        "category": "FAQ",
+        "routing_target": "rag_reply",
+        "raw_query": "공월 축복이 뭐예요?",
+    })
+
+    assert result == {"status": "skipped", "reason": "routing_target is not urgent_alert"}
+
+
+def test_slack_alert_failure_returns_classified_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    def _raise_timeout(*args, **kwargs):
+        raise TimeoutError("request timed out")
+
+    monkeypatch.setenv("SLACK_WEBHOOK_URL", "https://example.invalid/webhook")
+    monkeypatch.setattr("chatbot.notifications.slack.request.urlopen", _raise_timeout)
+
+    result = send_slack_alert("긴급 문의 테스트")
+
+    assert result["status"] == "error"
+    assert result["error"] == "TimeoutError"
+    assert result["error_category"] == "timeout"
+
+
+def test_final_response_dispatches_urgent_alert_without_webhook(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("SLACK_WEBHOOK_URL", raising=False)
+
+    result = final_response_node({
+        "ticket_id": 1001,
+        "session_id": "seed-session",
+        "category": "결제",
+        "routing_target": "urgent_alert",
+        "raw_query": "결제했는데 아이템이 안 들어왔어요.",
+        "draft_text": "담당자가 확인할 수 있도록 접수했습니다.",
+        "safety_action": "AUTO_RESPONSE",
+    })
+
+    assert result["final_text"] == "담당자가 확인할 수 있도록 접수했습니다."
+    assert result["final_response_result"]["status"] == "ok"
+    assert result["final_response_result"]["ticket_id"] == 1001
+    assert result["notification_result"]["status"] == "mock"
+
+
+def test_final_response_skips_notification_for_non_urgent_target() -> None:
+    result = final_response_node({
+        "ticket_id": 1002,
+        "session_id": "seed-session",
+        "category": "FAQ",
+        "routing_target": "rag_reply",
+        "raw_query": "공월 축복이 뭐예요?",
+        "draft_text": "공월 축복 안내입니다.",
+        "safety_action": "AUTO_RESPONSE",
+    })
+
+    assert result["final_text"] == "공월 축복 안내입니다."
+    assert result["final_response_result"]["status"] == "ok"
+    assert result["final_response_result"]["ticket_id"] == 1002
+    assert result["notification_result"]["status"] == "skipped"
 
 
 def test_error_classifier_covers_common_infra_failures() -> None:

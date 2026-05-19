@@ -119,15 +119,15 @@ if user_input := st.chat_input("문의 내용을 입력하세요."):
                         print(f"  classification_method : {node_update.get('classification_method')}")
                         print(f"  classification_reason : {node_update.get('classification_reason')}")
                     elif node_name in ("payment_agent", "bug_agent", "faq_agent", "voc_agent"):
-                        draft = str(node_update.get("answer_draft", ""))
-                        print(f"  answer_draft          : {draft[:200]}{'...' if len(draft) > 200 else ''}")
+                        draft = str(node_update.get("draft_text", ""))
+                        print(f"  draft_text            : {draft[:200]}{'...' if len(draft) > 200 else ''}")
                     elif node_name == "safety_layer":
                         print(f"  safety_passed         : {node_update.get('safety_passed')}")
                         print(f"  safety_action         : {node_update.get('safety_action')}")
                         print(f"  retry_count           : {node_update.get('retry_count')}")
                     elif node_name == "final_response":
-                        final = str(node_update.get("final_answer", ""))
-                        print(f"  final_answer          : {final[:200]}{'...' if len(final) > 200 else ''}")
+                        final = str(node_update.get("final_text", ""))
+                        print(f"  final_text            : {final[:200]}{'...' if len(final) > 200 else ''}")
                     result.update(node_update)
 
         answer = _last_message_text(result)

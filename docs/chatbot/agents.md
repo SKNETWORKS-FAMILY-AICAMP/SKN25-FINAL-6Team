@@ -2,7 +2,7 @@
 
 이 폴더는 LangGraph 전환을 위한 category별 node 구현을 담습니다.
 
-현재 프로젝트의 메인 실행 경로는 `chatbot/graph/workflow.py`의 LangGraph workflow입니다. 이 폴더의 category node들은 공통 `create_agent` reasoning unit을 호출해 `answer_draft`를 만들고, 이후 safety/final response node로 넘깁니다.
+현재 프로젝트의 메인 실행 경로는 `chatbot/graph/workflow.py`의 LangGraph workflow입니다. 이 폴더의 category node들은 payment/faq/bug별 `create_agent` reasoning unit을 호출해 `draft_text`를 만들고, 이후 persistence/safety/final response node로 넘깁니다.
 
 ## 전체 역할
 
@@ -12,10 +12,10 @@ orchestrator_node
   -> write_qa_ticket
   -> write_ticket_analysis
 
-category agent node
-  -> invoke_chatbot_agent(state)
-  -> answer_draft 생성
-  -> draft/evidence baseline persistence
+category-specific node
+  -> invoke_payment_agent / invoke_faq_agent / invoke_bug_agent
+  -> draft_text 생성
+  -> draft_persistence_node가 draft/evidence 저장
 ```
 
 ## 파일별 책임
@@ -40,19 +40,19 @@ user_id
 session_id
 account_id
 source_type
-raw_content
-cleaned_content  # orchestrator가 raw_content에서 생성
+raw_query
+enriched_query  # orchestrator가 raw_query에서 생성
 category
 routing_target
 draft_id
-answer_draft
+draft_text
 safety_passed
 retry_count
 ```
 
 ## Orchestrator
 
-`orchestrator_node`는 `ticket_id`와 `raw_content`를 필수 입력으로 직접 참조하고, `raw_content`에서 `cleaned_content`를 한 번 생성합니다. 이후 LLM structured output으로 `category`, `routing_target`, `classification_reason`을 결정합니다. 입력 누락, LLM 설정 오류, 호출 오류, 파싱 오류는 fallback으로 숨기지 않고 그대로 드러나게 둡니다.
+`orchestrator_node`는 `ticket_id`와 `raw_query`를 필수 입력으로 직접 참조하고, `raw_query`에서 `enriched_query`를 한 번 생성합니다. 이후 LLM structured output으로 `category`, `routing_target`, `classification_reason`을 결정합니다. 입력 누락, LLM 설정 오류, 호출 오류, 파싱 오류는 fallback으로 숨기지 않고 그대로 드러나게 둡니다.
 
 호출 tools:
 
@@ -79,8 +79,6 @@ write_ticket_analysis
 read_payments
 read_refunds
 read_item_delivery_logs
-write_answer_draft
-write_evidence_docs
 ```
 
 현재 동작:
@@ -90,7 +88,7 @@ write_evidence_docs
 2. account_id로 item_delivery_logs 조회
 3. 첫 payment_id로 refunds 조회
 4. 지급 실패 로그가 있으면 운영자 검토 필요 문구 포함
-5. answer_draft와 evidence_docs 저장
+5. draft_text 생성 후 draft_persistence_node로 전달
 ```
 
 향후 개선:
@@ -110,8 +108,6 @@ write_evidence_docs
 ```text
 read_gacha_logs
 read_item_delivery_logs
-write_answer_draft
-write_evidence_docs
 ```
 
 현재 동작:
@@ -120,7 +116,7 @@ write_evidence_docs
 1. account_id로 gacha_logs 조회
 2. account_id로 item_delivery_logs 조회
 3. 재현 조건 또는 지급 여부 확인 필요 문구 생성
-4. answer_draft와 evidence_docs 저장
+4. draft_text 생성 후 draft_persistence_node로 전달
 ```
 
 향후 개선:
@@ -140,22 +136,23 @@ write_evidence_docs
 ```text
 get_cache
 set_cache
-write_answer_draft
-write_evidence_docs
+embed_query
+search_documents
+rerank_documents
+write_failed_query
 ```
 
 현재 동작:
 
 ```text
-1. cleaned_content 기준 query_hash 생성
+1. enriched_query 기준 cache/retrieval 조회
 2. cache hit이면 cache 답변 사용
-3. cache miss이면 baseline FAQ 답변 생성 후 cache 저장
-4. answer_draft와 evidence_docs 저장
+3. cache miss이면 RAG 검색 및 rerank 결과 기반 답변 생성
+4. 근거가 부족하면 failed_queries 저장
+5. draft_text 생성 후 draft_persistence_node로 전달
 ```
 
-현재는 ChromaDB나 embedding search를 직접 호출하지 않습니다. RAG 품질 검증 단계에서 `embed_query`, `search_documents`, `rerank_documents`를 연결할 예정입니다.
-
-현재 3번 Workflow/LangGraph/Safety 담당 범위에서는 FAQ가 graph 안에서 정상 라우팅되고, cache hit/miss, draft 저장, evidence 저장, safety_layer까지 흐르는지만 확인합니다. 실제 RAG 검색 품질, ChromaDB 연결, seed embedding 검증은 Tools/Data/RAG 담당 범위에서 완료한 뒤 이 node에 연결합니다.
+현재 3번 Workflow/LangGraph/Safety 담당 범위에서는 FAQ가 graph 안에서 정상 라우팅되고, cache/retrieval tool 권한이 분리되며, draft_persistence_node와 safety_layer까지 흐르는지를 확인합니다. 실제 RAG 검색 품질, ChromaDB 연결, seed embedding 검증은 Tools/Data/RAG 담당 범위에서 완료한 뒤 이 node에 연결합니다.
 
 향후 개선:
 
@@ -167,7 +164,7 @@ write_evidence_docs
 
 ## VOC Agent
 
-`voc_agent_node`는 VOC 접수형 baseline입니다. VOC 세부 유형/감정/요약은 LLM structured output으로 분류합니다. LLM 설정/호출/파싱 오류는 숨기지 않고 그대로 드러나게 둡니다.
+`voc_agent_node`는 VOC 접수형 baseline입니다. VOC 세부 유형/감정/topic_keywords는 LLM structured output으로 분류합니다. LLM 설정/호출/파싱 오류는 숨기지 않고 그대로 드러나게 둡니다.
 
 호출 tools:
 
@@ -180,7 +177,7 @@ write_evidence_docs
 현재 동작:
 
 ```text
-1. LLM으로 VOC 유형/감정/요약 분류
+1. LLM으로 VOC 유형/감정/topic_keywords 분류
 2. VOC_DB 성격의 저장소에 VOC 내용 저장
 3. VOC 유형별 접수형 답변 생성
 4. answer_draft 저장

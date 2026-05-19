@@ -11,7 +11,7 @@ def _normalize_text(text: str) -> str:
     return " ".join(text.strip().split())
 
 
-def _classify_with_llm(ticket_id: int, cleaned_content: str) -> OrchestratorOutput:
+def _classify_with_llm(ticket_id: int, enriched_query: str) -> OrchestratorOutput:
     """LLM structured output으로 카테고리와 라우팅 타깃을 판단한다."""
     if not settings.openai_api_key or not settings.openai_model:
         raise RuntimeError("OpenAI settings are missing.")
@@ -29,14 +29,14 @@ def _classify_with_llm(ticket_id: int, cleaned_content: str) -> OrchestratorOutp
             "user",
             "Classify this ticket.\n"
             f"ticket_id: {ticket_id}\n"
-            f"cleaned_content: {cleaned_content}",
+            f"enriched_query: {enriched_query}",
         ),
     ])
 
 
-def _classify(ticket_id: int, cleaned_content: str) -> tuple[str, str, str, str]:
+def _classify(ticket_id: int, enriched_query: str) -> tuple[str, str, str, str]:
     """LLM structured output 결과를 그대로 state에 매핑한다."""
-    result = _classify_with_llm(ticket_id, cleaned_content)
+    result = _classify_with_llm(ticket_id, enriched_query)
     return result.category, result.routing_target, "llm", result.reason
 
 
@@ -47,33 +47,37 @@ def orchestrator_node(state: ChatbotState) -> dict:
     QA 티켓과 분석 결과를 저장하고 다음 노드가 사용할 state 값을 반환한다.
     """
     ticket_id = state["ticket_id"]
-    raw_content = state["raw_content"]
-    cleaned_content = _normalize_text(raw_content)
-    category, routing_target, classification_method, classification_reason = _classify(ticket_id, cleaned_content)
+    raw_query = state["raw_query"]
+    enriched_query = _normalize_text(raw_query)
+    category, routing_target, classification_method, classification_reason = _classify(ticket_id, enriched_query)
 
     write_qa_ticket.invoke({
         "payload": {
             "ticket_id": ticket_id,
             "user_id": state["user_id"],
             "account_id": state["account_id"],
-            "raw_content": raw_content,
-            "cleaned_content": cleaned_content,
+            "session_id": state.get("session_id"),
+            "raw_query": raw_query,
             "source_type": state["source_type"],
+            "status": "open",
         },
     })
     write_ticket_analysis.invoke({
         "payload": {
             "ticket_id": ticket_id,
             "category": category,
+            "responder_type": "AI",
+            "enriched_query": enriched_query,
+            "risk_level": "normal",
+            "sentiment": "neutral",
             "routing_target": routing_target,
-            "classification_method": classification_method,
-            "reason": classification_reason,
+            "summary": classification_reason,
         },
     })
 
     return {
         "ticket_id": ticket_id,
-        "cleaned_content": cleaned_content,
+        "enriched_query": enriched_query,
         "category": category,
         "routing_target": routing_target,
         "classification_method": classification_method,

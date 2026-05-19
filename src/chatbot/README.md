@@ -8,8 +8,8 @@
 
 현재 베이스라인은 `StateGraph`가 전체 workflow를 제어하고, `create_agent`는 category node 안에서 reasoning과 답변 초안 생성을 담당합니다.
 
-현재 baseline 단계에서는 category별 specialized agent가 아니라 단일 `create_agent` 기반 reasoning agent를 공유합니다.
-향후 LangGraph workflow 내부에서 category별 specialized agent로 점진 분리할 수 있습니다.
+현재 baseline 단계에서는 category별 prompt/tool policy를 분리해 policy-specific `create_agent` reasoning unit을 실행합니다.
+향후 LangGraph workflow 내부에서 직접 tool 호출 node로 점진 전환할 수 있습니다.
 `PaymentAgentInput`, `SafetyInput`, `SafetyDecision`은 현재 runtime 필수 입력이 아니라 future graph-ready contract입니다.
 
 역할 분리는 다음 기준을 따릅니다.
@@ -42,7 +42,7 @@ VOC 이해
 고객-facing 답변 초안 생성
 ```
 
-현재 `chatbot.agent.agent`는 기존 호환성을 위해 유지하며, 새 코드나 Graph node에서는 `build_chatbot_agent()` 또는 `invoke_chatbot_agent(state)`를 우선 사용합니다.
+현재 `chatbot.agent`는 legacy singleton을 유지하지 않고, category policy가 넘긴 prompt/tools로 `create_agent`를 생성합니다.
 
 ## 역할
 
@@ -112,8 +112,8 @@ user_id
 session_id
 account_id
 source_type
-raw_content
-cleaned_content
+raw_query
+enriched_query
 conversation_summary
 turn_count
 ```
@@ -196,7 +196,7 @@ PII 포함 여부
 write_safety_results
 ```
 
-현재 safety는 별도 LangGraph 노드가 아니라 agent prompt 정책과 tool 호출로 표현합니다. 향후 LangGraph로 분리할 경우 `AUTO_RESPONSE`, `MASKING`, `SAFE_FALLBACK`, `BLOCK_RESPONSE`, `REVIEW_QUEUE` 같은 분기를 별도 노드로 구현할 수 있습니다.
+현재 safety는 LangGraph의 `safety_layer` 노드에서 처리합니다. `AUTO_RESPONSE`, `MASKING`, `SAFE_FALLBACK`, `BLOCK_RESPONSE`, `REVIEW_QUEUE` 같은 분기 값은 `final_response_node`가 최종 사용자 응답으로 변환합니다.
 
 ## State
 
@@ -209,13 +209,13 @@ write_safety_results
 | `session_id` | 현재 챗봇 세션 ID |
 | `account_id` | 게임 계정 ID |
 | `source_type` | 유입 채널 |
-| `raw_content` | 사용자 문의 원문 |
-| `cleaned_content` | 정제된 문의 내용 |
+| `raw_query` | 사용자 문의 원문 |
+| `enriched_query` | 정규화된 문의 내용 |
 | `ticket_id` | QA 티켓 ID |
 | `category` | 문의 카테고리 |
 | `routing_target` | `rag_reply` 또는 `urgent_alert` |
 | `draft_id` | 답변 초안 ID |
-| `answer_draft` | 답변 초안 |
+| `draft_text` | 답변 초안 |
 | `safety_passed` | safety 통과 여부 |
 | `safety_action` | safety 이후 workflow action |
 | `safety_reason` | safety 판단 사유 |
@@ -229,9 +229,9 @@ write_safety_results
 ## State Example
 
 ```python
-from chatbot.agent import invoke_chatbot_agent
+from chatbot.agent import invoke_payment_agent
 
-result = invoke_chatbot_agent({
+result = invoke_payment_agent({
     "messages": [
         {
             "role": "user",
@@ -243,8 +243,8 @@ result = invoke_chatbot_agent({
     "session_id": "session_001",
     "account_id": 101,
     "source_type": "chatbot",
-    "raw_content": "결제했는데 아이템이 안 들어왔어요.",
-    "cleaned_content": "결제했는데 아이템이 안 들어왔어요.",
+    "raw_query": "결제했는데 아이템이 안 들어왔어요.",
+    "enriched_query": "결제했는데 아이템이 안 들어왔어요.",
 })
 
 print(result["messages"][-1].content)
@@ -280,7 +280,9 @@ Windows PowerShell에서는 아래처럼 실행할 수 있습니다.
 python runners\run_chatbot.py
 ```
 
-또는 Python 코드에서 직접 `chatbot.agent.invoke_chatbot_agent`를 import해 호출할 수 있습니다.
+또는 Python 코드에서 직접 `chatbot.agent.invoke_payment_agent`,
+`chatbot.agent.invoke_faq_agent`, `chatbot.agent.invoke_bug_agent`를 import해
+카테고리별 agent를 호출할 수 있습니다.
 
 ### Python 실행 예시
 
