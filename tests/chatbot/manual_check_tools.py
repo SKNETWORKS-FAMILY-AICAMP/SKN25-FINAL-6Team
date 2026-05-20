@@ -19,9 +19,9 @@ from chatbot.notifications.dispatcher import dispatch_urgent_alert
 from chatbot.notifications.slack import send_slack_alert
 from chatbot.observability.error_classifier import classify_error
 from chatbot.observability.logger import EVENT_DB_WRITE_FAILED, build_log_event, log_event
-from chatbot.repositories.base import safe_read, safe_write
-from chatbot.response.final_response import final_response_node
-from chatbot.tools.cache_tools import get_cache, set_cache
+from chatbot.repository.base import safe_read, safe_write
+from chatbot.generation.response.final_response import final_response_node
+from chatbot.retrieval.cache_tools import get_cache, set_cache
 from chatbot.tools.db_tools import (
     read_gacha_logs,
     read_item_delivery_logs,
@@ -30,7 +30,7 @@ from chatbot.tools.db_tools import (
     write_final_response,
     write_voc_feedback,
 )
-from chatbot.tools.vector_tools import rerank_documents, search_documents
+from chatbot.retrieval.vector_tools import rerank_documents, search_documents
 from data.seed_payload import SEED_DOCUMENT_EMBEDDINGS
 
 

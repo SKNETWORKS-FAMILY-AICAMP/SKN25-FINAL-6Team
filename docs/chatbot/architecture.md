@@ -2,7 +2,7 @@
 
 이 문서는 챗봇의 최종 workflow를 Mermaid 기준으로 정리합니다.
 
-현재 메인 실행 경로는 `chatbot/graph/workflow.py`의 LangGraph `StateGraph`입니다. `StateGraph`가 전체 처리 순서와 분기를 관리하고, payment/bug/faq node 내부에서 category별 `create_agent` reasoning unit을 호출합니다.
+현재 메인 실행 경로는 `chatbot/chains/workflow.py`의 LangGraph `StateGraph`입니다. `StateGraph`가 전체 처리 순서와 분기를 관리하고, payment/bug/faq node 내부에서 category별 `create_agent` reasoning unit을 호출합니다.
 
 ## Workflow
 
@@ -189,11 +189,11 @@ orchestrator
 python3 runners/run_chatbot.py
 ```
 
-현재 공식 챗봇 실행 runner는 `chatbot.graph.workflow.graph`를 호출합니다.
+현재 공식 챗봇 실행 runner는 `chatbot.chains.workflow.graph`를 호출합니다.
 
 ```text
 runners/run_chatbot.py
-  -> chatbot.graph.workflow.graph
+  -> chatbot.chains.workflow.graph
   -> orchestrator
   -> payment/bug/faq/voc node
   -> VOC이면 final_response

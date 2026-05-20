@@ -8,7 +8,7 @@ workflow이며, category node 안에서 LangChain `create_agent` 기반 reasonin
 
 ```text
 runners/run_chatbot.py
-  -> chatbot.graph.workflow.graph
+  -> chatbot.chains.workflow.graph
   -> orchestrator/category/safety/final_response nodes
   -> category node에서 invoke_payment_agent / invoke_faq_agent / invoke_bug_agent
   -> db/vector/cache tools
@@ -61,8 +61,8 @@ VOC 이해
 | `agent.py` | `create_agent` baseline, graph-ready agent interface |
 | `schemas.py` | `ChatbotState`와 Pydantic 입출력 계약 |
 | `tools/` | DB, Vector, Cache tool |
-| `agents/` | 향후 세부 agent/node 구현 위치 |
-| `graph/` | 향후 StateGraph workflow 구현 위치 |
+| `generation/` | 향후 세부 agent/node 구현 위치 |
+| `chains/` | 향후 StateGraph workflow 구현 위치 |
 | `runners/run_chatbot.py` | 단일 턴 wrapper와 멀티턴 smoke helper |
 
 ## 실행 예시

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from chatbot.agent import invoke_bug_agent
-from chatbot.agents.drafting_agent import build_draft_update
-from chatbot.agents.policies import BUG_POLICY
+from chatbot.generation.drafting_agent import build_draft_update
+from chatbot.generation.policies import BUG_POLICY
 from chatbot.schemas import ChatbotState
 
 

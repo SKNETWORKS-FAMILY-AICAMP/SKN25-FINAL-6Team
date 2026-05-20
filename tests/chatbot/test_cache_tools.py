@@ -6,7 +6,7 @@ import pytest
 
 pytest.importorskip("langchain_core")
 
-from chatbot.tools import cache_tools
+from chatbot.retrieval import cache_tools
 
 
 def _invoke(tool, payload: dict) -> dict:

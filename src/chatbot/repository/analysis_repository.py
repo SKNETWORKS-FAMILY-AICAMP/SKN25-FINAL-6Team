@@ -4,7 +4,7 @@ from typing import Any
 
 from config import settings
 
-from chatbot.repositories.base import safe_write
+from chatbot.repository.base import safe_write
 
 
 def save_ticket_analysis(payload: dict[str, Any]) -> dict[str, Any]:

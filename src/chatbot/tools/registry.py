@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from chatbot.tools.cache_tools import get_cache, set_cache
+from chatbot.retrieval.cache_tools import get_cache, set_cache
 from chatbot.tools.db_tools import (
     read_gacha_logs,
     read_item_delivery_logs,
@@ -8,7 +8,7 @@ from chatbot.tools.db_tools import (
     read_refunds,
     write_failed_query,
 )
-from chatbot.tools.vector_tools import embed_query, rerank_documents, search_documents
+from chatbot.retrieval.vector_tools import embed_query, rerank_documents, search_documents
 
 PAYMENT_TOOLS = [
     read_payments,

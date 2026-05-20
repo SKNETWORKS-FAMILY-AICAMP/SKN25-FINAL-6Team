@@ -4,7 +4,7 @@ from typing import Any
 
 from collections.abc import Sequence
 
-from chatbot.agents.policies import BUG_POLICY, FAQ_POLICY, PAYMENT_POLICY
+from chatbot.generation.policies import BUG_POLICY, FAQ_POLICY, PAYMENT_POLICY
 from chatbot.schemas import ChatbotState
 from config import settings
 

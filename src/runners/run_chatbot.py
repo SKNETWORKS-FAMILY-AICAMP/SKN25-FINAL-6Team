@@ -9,7 +9,7 @@ except ModuleNotFoundError:
 
 ensure_project_root_on_path()
 
-from chatbot.graph.workflow import graph
+from chatbot.chains.workflow import graph
 
 
 def build_state(

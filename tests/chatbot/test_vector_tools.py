@@ -7,7 +7,7 @@ import pytest
 pytest.importorskip("langchain_core")
 pytest.importorskip("langchain_openai")
 
-from chatbot.tools.vector_tools import rerank_documents, search_documents
+from chatbot.retrieval.vector_tools import rerank_documents, search_documents
 from data.seed_payload import SEED_DOCUMENT_EMBEDDINGS
 
 

@@ -13,7 +13,7 @@ load_dotenv(ROOT_DIR / ".env", override=True)
 
 import streamlit as st
 
-from chatbot.graph.workflow import graph
+from chatbot.chains.workflow import graph
 from runners.run_chatbot import _last_message_text, build_state
 
 

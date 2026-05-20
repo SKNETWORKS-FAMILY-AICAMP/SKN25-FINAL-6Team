@@ -5,7 +5,7 @@ from typing import Any
 from config import settings
 from data.seed_payload import SEED_OPERATION_LOGS, clone_payload
 
-from chatbot.repositories.base import read_response, safe_read
+from chatbot.repository.base import read_response, safe_read
 
 
 def read_payments_by_account(account_id: int) -> dict[str, Any]:

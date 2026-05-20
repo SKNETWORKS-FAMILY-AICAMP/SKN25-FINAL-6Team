@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from chatbot.prompts.orchestrator_prompt import ORCHESTRATOR_SYSTEM_PROMPT
+from chatbot.generation.prompts.orchestrator_prompt import ORCHESTRATOR_SYSTEM_PROMPT
 from chatbot.schemas import ChatbotState, OrchestratorOutput
 from chatbot.tools.db_tools import write_qa_ticket, write_ticket_analysis
 from config import settings

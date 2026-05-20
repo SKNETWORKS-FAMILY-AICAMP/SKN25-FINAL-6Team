@@ -77,7 +77,7 @@ def run_chatbot(
     source_type: str = "chatbot",
     previous_messages: list[dict[str, str]] | None = None,
 ) -> dict[str, Any]:
-    from chatbot.graph.workflow import graph
+    from chatbot.chains.workflow import graph
 
     state = build_state(
         ticket_id=ticket_id,
@@ -112,7 +112,7 @@ def stream_chatbot(
     source_type: str = "chatbot",
     previous_messages: list[dict[str, str]] | None = None,
 ):
-    from chatbot.graph.workflow import graph
+    from chatbot.chains.workflow import graph
 
     state = build_state(
         ticket_id=ticket_id,

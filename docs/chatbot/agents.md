@@ -2,7 +2,7 @@
 
 이 폴더는 LangGraph 전환을 위한 category별 node 구현을 담습니다.
 
-현재 프로젝트의 메인 실행 경로는 `chatbot/graph/workflow.py`의 LangGraph workflow입니다. 이 폴더의 category node들은 payment/faq/bug별 `create_agent` reasoning unit을 호출해 `draft_text`를 만들고, 이후 persistence/safety/final response node로 넘깁니다.
+현재 프로젝트의 메인 실행 경로는 `chatbot/chains/workflow.py`의 LangGraph workflow입니다. 이 폴더의 category node들은 payment/faq/bug별 `create_agent` reasoning unit을 호출해 `draft_text`를 만들고, 이후 persistence/safety/final response node로 넘깁니다.
 
 ## 전체 역할
 
@@ -193,5 +193,5 @@ write_evidence_docs
 - 각 node는 ChatbotState를 받아 dict를 반환한다.
 - tools 호출은 seed/mock mode에서 동작해야 한다.
 - VOC 세부 유형 분류에는 외부 LLM 호출을 사용하고, 실패 시 broad exception으로 숨기지 않는다.
-- 파일별 책임을 넘는 큰 분기는 graph/workflow.py에서 처리한다.
+- 파일별 책임을 넘는 큰 분기는 chains/workflow.py에서 처리한다.
 ```

@@ -60,14 +60,14 @@ chatbot/
 ├── agent.py
 ├── schemas.py
 ├── constants.py
-├── prompts/
-├── graph/
-├── agents/
+├── generation/prompts/
+├── chains/
+├── generation/
 ├── retrieval/
-├── repositories/
+├── repository/
 ├── tools/
 ├── safety/
-├── response/
+├── generation/response/
 ├── memory/
 ├── notifications/
 ├── observability/
@@ -83,11 +83,11 @@ chatbot/
 | `constants.py` | 카테고리, 라우팅, safety threshold 상수 |
 | `tools/db_tools.py` | DB 조회/저장 tool |
 | `tools/vector_tools.py` | Chroma 기반 문서 embedding/search/rerank tool |
-| `tools/cache_tools.py` | FAQ 답변 캐시 tool |
+| `retrieval/cache_tools.py` | FAQ 답변 캐시 tool |
 | `tools/registry.py` | `create_agent`에 주입되는 tool 목록 |
-| `prompts/system_prompt.py` | 챗봇 시스템 프롬프트 |
-| `graph/workflow.py` | LangGraph `StateGraph` 정의 |
-| `graph/routing.py` | category/safety 기반 routing 함수 |
+| `generation/prompts/system_prompt.py` | 챗봇 시스템 프롬프트 |
+| `chains/workflow.py` | LangGraph `StateGraph` 정의 |
+| `chains/routing.py` | category/safety 기반 routing 함수 |
 | `runners/run_chatbot.py` | 단일 턴 실행 함수와 간단 멀티턴 데모 헬퍼 |
 
 ## Baseline Flow

@@ -4,19 +4,19 @@ import json
 
 from langchain_core.tools import tool
 
-from chatbot.repositories.analysis_repository import save_ticket_analysis
-from chatbot.repositories.draft_repository import save_answer_draft, save_evidence_docs
-from chatbot.repositories.failed_query_repository import save_failed_query
-from chatbot.repositories.final_response_repository import save_final_response
-from chatbot.repositories.operation_log_repository import (
+from chatbot.repository.analysis_repository import save_ticket_analysis
+from chatbot.repository.draft_repository import save_answer_draft, save_evidence_docs
+from chatbot.repository.failed_query_repository import save_failed_query
+from chatbot.repository.final_response_repository import save_final_response
+from chatbot.repository.operation_log_repository import (
     read_gacha_logs_by_account,
     read_item_delivery_logs_by_account,
     read_payments_by_account,
     read_refunds_by_payment,
 )
-from chatbot.repositories.safety_repository import save_safety_results
-from chatbot.repositories.ticket_repository import save_qa_ticket
-from chatbot.repositories.voc_repository import save_voc_feedback
+from chatbot.repository.safety_repository import save_safety_results
+from chatbot.repository.ticket_repository import save_qa_ticket
+from chatbot.repository.voc_repository import save_voc_feedback
 
 
 def _json(data: object) -> str:

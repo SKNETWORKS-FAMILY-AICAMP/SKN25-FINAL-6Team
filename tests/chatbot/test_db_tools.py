@@ -11,8 +11,8 @@ from chatbot.notifications.dispatcher import dispatch_urgent_alert
 from chatbot.notifications.slack import send_slack_alert
 from chatbot.observability.error_classifier import classify_error
 from chatbot.observability.logger import EVENT_DB_WRITE_FAILED, build_log_event, log_event
-from chatbot.agents.policies import BUG_POLICY, FAQ_POLICY, PAYMENT_POLICY
-from chatbot.response.final_response import final_response_node
+from chatbot.generation.policies import BUG_POLICY, FAQ_POLICY, PAYMENT_POLICY
+from chatbot.generation.response.final_response import final_response_node
 from chatbot.tools.db_tools import (
     read_payments,
     write_answer_draft,
@@ -36,7 +36,7 @@ def test_read_payments_uses_repository_response_contract() -> None:
 
 def test_read_failure_returns_error_payload(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "chatbot.repositories.operation_log_repository.settings",
+        "chatbot.repository.operation_log_repository.settings",
         SimpleNamespace(use_seed_payload=False),
     )
 
@@ -109,7 +109,7 @@ def test_write_final_response_uses_repository_wrapper() -> None:
 
 def test_write_failure_returns_error_payload(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "chatbot.repositories.draft_repository.settings",
+        "chatbot.repository.draft_repository.settings",
         SimpleNamespace(use_seed_payload=False),
     )
     result = _invoke(write_answer_draft, {"payload": {"ticket_id": 9999, "draft_text": "draft"}})

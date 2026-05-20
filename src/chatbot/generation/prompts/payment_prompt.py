@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from chatbot.prompts.system_prompt import CHATBOT_SYSTEM_PROMPT
+from chatbot.generation.prompts.system_prompt import CHATBOT_SYSTEM_PROMPT
 
 
 PAYMENT_AGENT_PROMPT = CHATBOT_SYSTEM_PROMPT + """
