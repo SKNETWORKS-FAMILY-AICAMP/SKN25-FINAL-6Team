@@ -333,8 +333,8 @@ for answer in answers:
 `.env.sample`을 참고합니다.
 
 ```text
-OPENAI_API_KEY=
-OPENAI_MODEL=gpt-4o
+LLM_API_KEY=
+LLM_MODEL=gpt-4o-mini
 EMBEDDING_MODEL=openai:text-embedding-3-small
 RETRIEVAL_TOP_K=3
 USE_SEED_PAYLOAD=true
