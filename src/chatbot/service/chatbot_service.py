@@ -3,6 +3,8 @@ from __future__ import annotations
 import os
 from typing import Any
 
+from chatbot.observability.logger import log_operator_summary
+
 def build_state(
     ticket_id: int,
     user_message: str,
@@ -97,8 +99,21 @@ def run_chatbot(
         print(f"classification_method: {result.get('classification_method')}")
         print(f"classification_reason: {result.get('classification_reason')}")
 
+    answer = last_message_text(result)
+    log_operator_summary(
+        ticket_id=ticket_id,
+        session_id=session_id,
+        user_id=user_id,
+        raw_query=user_message,
+        category=result.get("category"),
+        routing_target=result.get("routing_target"),
+        safety_action=result.get("safety_action"),
+        final_text=answer,
+        notification_result=result.get("notification_result"),
+    )
+
     return {
-        "answer": last_message_text(result),
+        "answer": answer,
         "state": result,
     }
 
@@ -129,8 +144,21 @@ def stream_chatbot(
         for node_update in chunk.values():
             result.update(node_update)
 
+    answer = last_message_text(result)
+    log_operator_summary(
+        ticket_id=ticket_id,
+        session_id=session_id,
+        user_id=user_id,
+        raw_query=user_message,
+        category=result.get("category"),
+        routing_target=result.get("routing_target"),
+        safety_action=result.get("safety_action"),
+        final_text=answer,
+        notification_result=result.get("notification_result"),
+    )
+
     return {
-        "answer": last_message_text(result),
+        "answer": answer,
         "state": result,
         "input_state": state,
     }
