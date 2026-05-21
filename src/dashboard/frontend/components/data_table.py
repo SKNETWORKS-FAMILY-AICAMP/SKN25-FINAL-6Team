@@ -12,4 +12,3 @@ def render_data_table(rows: list[dict[str, Any]]) -> None:
         st.info("표시할 데이터가 없습니다.")
         return
     st.dataframe(rows, use_container_width=True, hide_index=True)
-
