@@ -15,8 +15,8 @@ class ChatRequest(BaseModel):
     ticket_id: int
     user_message: str = Field(min_length=1)
     account_id: int | None = None
-    user_id: str = "seed-user"
-    session_id: str = "seed-session"
+    user_id: int = 1
+    session_id: int = 1
     source_type: str = "chatbot"
     previous_messages: list[dict[str, str]] | None = None
 

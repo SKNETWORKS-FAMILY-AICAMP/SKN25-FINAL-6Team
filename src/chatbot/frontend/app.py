@@ -19,18 +19,18 @@ def main() -> None:
 
     with st.sidebar:
         st.header("Settings")
-        user_id = st.text_input("user_id", value=st.session_state.user_id)
-        session_id = st.text_input("session_id", value=st.session_state.session_id)
+        user_id = st.number_input("user_id", min_value=1, value=int(st.session_state.user_id), step=1)
+        session_id = st.number_input("session_id", min_value=1, value=int(st.session_state.session_id), step=1)
         account_id = st.number_input("account_id (0 = none)", min_value=0, value=101, step=1)
         ticket_start = st.number_input("ticket_id start", min_value=0, value=1000, step=1)
 
-        st.session_state.user_id = user_id
-        st.session_state.session_id = session_id
+        st.session_state.user_id = int(user_id)
+        st.session_state.session_id = int(session_id)
 
         st.caption(f"next ticket_id: {st.session_state.ticket_counter + 1}")
         if st.button("Reset conversation", use_container_width=True):
-            st.session_state.user_id = user_id
-            st.session_state.session_id = session_id
+            st.session_state.user_id = int(user_id)
+            st.session_state.session_id = int(session_id)
             reset_chat_state(int(ticket_start))
             st.rerun()
         if st.button("Clear all", use_container_width=True):

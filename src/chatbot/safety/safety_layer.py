@@ -19,7 +19,7 @@ def _as_dict(value: object) -> dict:
 
 
 def _moderation_safety_check(text: str) -> tuple[bool, dict[str, float], str]:
-    api_key = os.environ.get("LLM_API_KEY") or os.environ.get("OPENAI_API_KEY")
+    api_key = os.environ.get("LLM_API_KEY")
     if not api_key:
         raise RuntimeError("OpenAI API key is missing.")
 

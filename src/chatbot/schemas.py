@@ -21,8 +21,8 @@ class ChatbotState(AgentState):
     """Runtime state shared by the create_agent baseline and future StateGraph nodes."""
 
     # Request/session metadata.
-    user_id: NotRequired[str]
-    session_id: NotRequired[str]
+    user_id: NotRequired[int]
+    session_id: NotRequired[int]
     account_id: NotRequired[int | None]
     source_type: NotRequired[str]
 
@@ -38,6 +38,7 @@ class ChatbotState(AgentState):
     classification_reason: NotRequired[str | None]
 
     # Drafting, safety, and review state.
+    analysis_id: NotRequired[int | None]
     draft_id: NotRequired[int | None]
     draft_text: NotRequired[str | None]
     final_text: NotRequired[str | None]

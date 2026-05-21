@@ -25,8 +25,8 @@ def _active_text(state: ChatbotState) -> str:
 
 
 def _classify_voc_with_llm(text: str) -> VocClassification:
-    api_key = os.environ.get("LLM_API_KEY") or os.environ.get("OPENAI_API_KEY")
-    model = os.environ.get("LLM_MODEL") or os.environ.get("OPENAI_MODEL")
+    api_key = os.environ.get("LLM_API_KEY")
+    model = os.environ.get("LLM_MODEL")
     if not api_key or not model:
         raise RuntimeError("OpenAI settings are missing.")
 
@@ -107,7 +107,11 @@ def voc_agent_node(state: ChatbotState) -> dict:
     })
 
     draft_result = write_answer_draft.invoke({
-        "payload": {"ticket_id": ticket_id, "draft_text": answer},
+        "payload": {
+            "ticket_id": ticket_id,
+            "analysis_id": state["analysis_id"],
+            "draft_text": answer,
+        },
     })
     draft_id = json.loads(draft_result)["draft_id"]
 

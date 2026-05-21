@@ -3,12 +3,14 @@ from __future__ import annotations
 import os
 from typing import Any
 
+from chatbot.observability.logger import EVENT_NODE_COMPLETED, log_event
+
 def build_state(
     ticket_id: int,
     user_message: str,
     account_id: int | None = None,
-    user_id: str = "seed-user",
-    session_id: str = "seed-session",
+    user_id: int = 1,
+    session_id: int = 1,
     source_type: str = "chatbot",
     previous_messages: list[dict[str, str]] | None = None,
 ) -> dict[str, Any]:
@@ -33,6 +35,7 @@ def build_state(
         "ticket_id": ticket_id,
         "category": "",
         "routing_target": "",
+        "analysis_id": None,
         "draft_id": None,
         "draft_text": None,
         "final_text": None,
@@ -72,8 +75,8 @@ def run_chatbot(
     ticket_id: int,
     user_message: str,
     account_id: int | None = None,
-    user_id: str = "seed-user",
-    session_id: str = "seed-session",
+    user_id: int = 1,
+    session_id: int = 1,
     source_type: str = "chatbot",
     previous_messages: list[dict[str, str]] | None = None,
 ) -> dict[str, Any]:
@@ -107,8 +110,8 @@ def stream_chatbot(
     ticket_id: int,
     user_message: str,
     account_id: int | None = None,
-    user_id: str = "seed-user",
-    session_id: str = "seed-session",
+    user_id: int = 1,
+    session_id: int = 1,
     source_type: str = "chatbot",
     previous_messages: list[dict[str, str]] | None = None,
 ):
@@ -126,7 +129,15 @@ def stream_chatbot(
     result: dict[str, Any] = {}
 
     for chunk in graph.stream(state, stream_mode="updates"):
-        for node_update in chunk.values():
+        for node_name, node_update in chunk.items():
+            log_event(
+                EVENT_NODE_COMPLETED,
+                ticket_id=ticket_id,
+                session_id=session_id,
+                node_name=f"stream:{node_name}",
+                status="stream_update",
+                metadata={"updated_keys": sorted(node_update.keys())},
+            )
             result.update(node_update)
 
     return {

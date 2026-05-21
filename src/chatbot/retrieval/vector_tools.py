@@ -10,6 +10,7 @@ from langchain_core.tools import tool
 from langchain_openai import OpenAIEmbeddings
 from psycopg.rows import dict_row
 from src.common.db.connection import db_connection
+from chatbot.observability.logger import EVENT_TOOL_COMPLETED, EVENT_TOOL_STARTED, log_event
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 root_str = str(ROOT_DIR)
@@ -57,11 +58,21 @@ def embed_query(text: str) -> str:
     Args:
         text: Query text to embed.
     """
+    log_event(
+        EVENT_TOOL_STARTED,
+        tool_name="embed_query",
+        metadata={"text_length": len(text)},
+    )
     client = OpenAIEmbeddings(
         model=_embedding_model_name(),
-        api_key=os.environ.get("LLM_API_KEY") or os.environ.get("OPENAI_API_KEY"),
+        api_key=os.environ.get("LLM_API_KEY"),
     )
     vector = client.embed_query(text)
+    log_event(
+        EVENT_TOOL_COMPLETED,
+        tool_name="embed_query",
+        metadata={"vector_size": len(vector)},
+    )
     return json.dumps(vector)
 
 
@@ -76,6 +87,11 @@ def search_documents(embedding_json: str, query_text: str = "", top_k: int | Non
     """
     k = top_k or int(os.environ.get("RETRIEVAL_TOP_K", "3"))
     query_vec: list[float] = json.loads(embedding_json)
+    log_event(
+        EVENT_TOOL_STARTED,
+        tool_name="search_documents",
+        metadata={"query_text": query_text, "top_k": k},
+    )
 
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
@@ -118,6 +134,11 @@ def search_documents(embedding_json: str, query_text: str = "", top_k: int | Non
 
     scored.sort(key=lambda item: item[0], reverse=True)
     results = [{"score": round(score, 4), **row} for score, row in scored[:k]]
+    log_event(
+        EVENT_TOOL_COMPLETED,
+        tool_name="search_documents",
+        metadata={"candidate_count": len(rows), "result_count": len(results)},
+    )
     return json.dumps(results, ensure_ascii=False, indent=2)
 
 
@@ -130,4 +151,9 @@ def rerank_documents(docs_json: str, query: str) -> str:
         query: Original user query for relevance comparison.
     """
     # Baseline: pass-through. Swap in a cross-encoder or LLM reranker when ready.
+    log_event(
+        EVENT_TOOL_COMPLETED,
+        tool_name="rerank_documents",
+        metadata={"query_length": len(query), "docs_json_length": len(docs_json)},
+    )
     return docs_json

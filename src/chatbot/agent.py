@@ -16,9 +16,21 @@ def build_chatbot_agent(
 ) -> Any:
     """Build a create_agent instance for one StateGraph category node policy."""
     from langchain.agents import create_agent
+    from langchain_openai import ChatOpenAI
+
+    api_key = os.environ.get("LLM_API_KEY") 
+    model = os.environ.get("LLM_MODEL")
+    if not api_key or not model:
+        raise RuntimeError("LLM_API_KEY is required.")
+
+    chat_model = ChatOpenAI(
+        model=model,
+        api_key=api_key,
+        temperature=0,
+    )
 
     return create_agent(
-        model=os.environ["LLM_MODEL"],
+        model=chat_model,
         tools=list(tools),
         system_prompt=system_prompt,
         state_schema=ChatbotState,

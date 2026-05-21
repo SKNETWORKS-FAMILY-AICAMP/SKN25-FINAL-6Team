@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 
 from chatbot.generation.prompts.orchestrator_prompt import ORCHESTRATOR_SYSTEM_PROMPT
@@ -14,8 +15,8 @@ def _normalize_text(text: str) -> str:
 
 def _classify_with_llm(ticket_id: int, enriched_query: str) -> OrchestratorOutput:
     """LLM structured output으로 카테고리와 라우팅 타깃을 판단한다."""
-    api_key = os.environ.get("LLM_API_KEY") or os.environ.get("OPENAI_API_KEY")
-    model = os.environ.get("LLM_MODEL") or os.environ.get("OPENAI_MODEL")
+    api_key = os.environ.get("LLM_API_KEY")
+    model = os.environ.get("LLM_MODEL")
     if not api_key or not model:
         raise RuntimeError("OpenAI settings are missing.")
 
@@ -66,7 +67,7 @@ def orchestrator_node(state: ChatbotState) -> dict:
             "status": "open",
         },
     })
-    write_ticket_analysis.invoke({
+    analysis_result = write_ticket_analysis.invoke({
         "payload": {
             "ticket_id": ticket_id,
             "category": category,
@@ -78,9 +79,11 @@ def orchestrator_node(state: ChatbotState) -> dict:
             "summary": classification_reason,
         },
     })
+    analysis_id = json.loads(analysis_result)["analysis_id"]
 
     return {
         "ticket_id": ticket_id,
+        "analysis_id": analysis_id,
         "enriched_query": enriched_query,
         "category": category,
         "routing_target": routing_target,
