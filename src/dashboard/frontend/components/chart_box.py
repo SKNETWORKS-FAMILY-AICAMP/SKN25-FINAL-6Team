@@ -15,7 +15,9 @@ def render_chart_box(title: str, data: Any, *, kind: str = "bar") -> None:
             st.info("표시할 데이터가 없습니다.")
             return
         if isinstance(data, pd.DataFrame):
-            if kind == "line":
+            if data.empty:
+                st.info("표시할 데이터가 없습니다.")
+            elif kind == "line":
                 st.line_chart(data)
             else:
                 st.bar_chart(data)

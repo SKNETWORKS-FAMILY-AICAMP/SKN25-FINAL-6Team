@@ -1,102 +1,102 @@
 # Dashboard Architecture
 
-`docs/DB/descriptions.md`에 정의된 운영 데이터베이스를 읽어서, Streamlit 기반 대시보드가 운영 현황, 리스크, 응답 품질을 한 화면 계열로 보여주는 구조다.
+운영 대시보드는 `docs/DB/descriptions.md`에 정리된 PostgreSQL `public` 스키마를 읽어 최근 문의, 불만사항, 리스크, 응답 품질을 운영자가 확인할 수 있게 제공한다.
 
 ## 목표
 
-- 운영팀이 현재 처리량과 backlog를 빠르게 확인한다.
-- 분석팀이 위험 티켓과 안전성 점수를 바로 추적한다.
-- 품질 관리자가 답변 초안, 근거 문서, 최종 응답의 품질을 검토한다.
+- 운영자는 최근 문의량, 대기 backlog, 종료 건수, 당일 접수 건수를 빠르게 확인한다.
+- 리스크 담당자는 문의 분석, VOC, 인사이트, 안전성 검사 결과에서 고위험 후보를 추적한다.
+- 관리자와 검수자는 답변 초안, 근거 문서, 안전성 점수, 최종 응답과 알림 상태를 함께 확인한다.
+
+## 사용 DB
+
+주요 테이블은 다음과 같다.
+
+| 영역 | 테이블 |
+| --- | --- |
+| 문의 원천 | `qa_ticket`, `community_users`, `game_accounts` |
+| 분석 결과 | `ticket_analysis`, `insight`, `voc_feedback` |
+| 답변 생성 | `answer_draft`, `evidence_docs`, `safety_results`, `final_response` |
+| 알림/운영 로그 | `notification_logs`, `admin_event_logs`, `failed_queries` |
+| 근거 문서 | `documents`, `documents_chunks`, `documents_embeddings` |
+
+최신 분석/초안/응답은 티켓 단위로 `ORDER BY created_at/analyzed_at DESC, id DESC LIMIT 1` 패턴을 사용한다. PostgreSQL에서는 `LEFT JOIN LATERAL`로 구현한다.
+
+## LangGraph 구조
+
+`src/dashboard/workflow`는 operation과 동일하게 `graph.py`, `state.py`, `nodes.py`로 구성한다.
+
+```mermaid
+flowchart LR
+    START["START"]
+    LOAD["load_window_node"]
+    ROUTE{"section"}
+    FOV["fetch_overview_node"]
+    COV["compute_overview_node"]
+    FR["fetch_risk_node"]
+    CR["compute_risk_node"]
+    FQ["fetch_quality_node"]
+    CQ["compute_quality_node"]
+    END["END"]
+
+    START --> LOAD
+    LOAD --> ROUTE
+    ROUTE -->|"overview/all"| FOV
+    ROUTE -->|"risk"| FR
+    ROUTE -->|"quality"| FQ
+    FOV --> COV
+    COV --> FR
+    FR --> CR
+    CR --> FQ
+    FQ --> CQ
+    CQ --> END
+```
+
+### 노드 역할
+
+| Node | 역할 |
+| --- | --- |
+| `load_window_node` | `days` 파라미터를 검증하고 `window_start = now - days`를 계산한다. |
+| `fetch_overview_node` | 문의 수, 상태/채널/라우팅 분포, 최근 문의 목록을 DB에서 읽는다. |
+| `compute_overview_node` | 응답률, 초안 커버리지, 분석 커버리지를 계산한다. |
+| `fetch_risk_node` | `ticket_analysis`, `insight`, `safety_results` 기반 리스크 분포와 고위험 후보를 읽는다. |
+| `compute_risk_node` | 안전성 평균 점수에 threshold를 적용해 alert flag를 계산한다. |
+| `fetch_quality_node` | 초안, 근거, 최종 응답, 알림 상태, 품질 점검 후보를 읽는다. |
+| `compute_quality_node` | 초안 티켓률, 근거 첨부율, 최종 응답률을 계산한다. |
+
+## 런타임 구성
+
+| 경로 | 역할 |
+| --- | --- |
+| `src/dashboard/workflow/state.py` | LangGraph 상태 모델 |
+| `src/dashboard/workflow/nodes.py` | DB 조회와 지표 계산 노드 |
+| `src/dashboard/workflow/graph.py` | 그래프 선언과 실행 함수 |
+| `src/dashboard/visualization/charts.py` | Streamlit 차트용 DataFrame 변환 함수 |
+| `src/dashboard/visualization/tables.py` | 표 렌더링용 행 정리 함수 |
+| `src/dashboard/api/main.py` | FastAPI endpoint, workflow 호출 |
+| `src/dashboard/frontend/app.py` | Streamlit 메인 대시보드 |
+| `src/dashboard/frontend/pages/` | 운영 현황, 리스크 분석, 응답 품질 페이지 |
+| `src/dashboard/run.py` | API와 Streamlit을 함께 실행 |
 
 ## 데이터 흐름
 
 ```mermaid
 flowchart TB
     DB["PostgreSQL public schema"]
-    QAT["qa_ticket"]
-    ANALYSIS["ticket_analysis"]
-    INSIGHT["insight"]
-    DRAFT["answer_draft"]
-    EVIDENCE["evidence_docs"]
-    SAFETY["safety_results"]
-    FINAL["final_response"]
-    NOTIFY["notification_logs"]
-    VOC["voc_feedback"]
-    DOCS["documents / documents_chunks"]
-
+    WF["src/dashboard/workflow"]
     API["src/dashboard/api/main.py"]
-    UI["src/dashboard/frontend/app.py"]
+    VIS["src/dashboard/visualization"]
+    UI["src/dashboard/frontend"]
 
-    DB --> QAT
-    DB --> ANALYSIS
-    DB --> INSIGHT
-    DB --> DRAFT
-    DB --> EVIDENCE
-    DB --> SAFETY
-    DB --> FINAL
-    DB --> NOTIFY
-    DB --> VOC
-    DB --> DOCS
-
-    QAT --> API
-    ANALYSIS --> API
-    INSIGHT --> API
-    DRAFT --> API
-    EVIDENCE --> API
-    SAFETY --> API
-    FINAL --> API
-    NOTIFY --> API
-    VOC --> API
-    DOCS --> API
-
+    DB --> WF
+    WF --> API
     API --> UI
+    VIS --> UI
 ```
-
-## Runtime layout
-
-- `src/dashboard/api/main.py`
-  - PostgreSQL에서 집계 데이터를 읽는 FastAPI 서버
-  - 페이지별 summary endpoint와 티켓 상세 endpoint 제공
-- `src/dashboard/frontend/app.py`
-  - Streamlit 시작점
-  - 좌측 사이드바에서 API 주소와 조회 범위 제어
-- `src/dashboard/frontend/pages/`
-  - `1_운영_현황.py`
-  - `2_리스크_분석.py`
-  - `3_응답_품질.py`
-- `src/dashboard/frontend/components/`
-  - metric card, chart box, data table 렌더링 공통화
-- `src/dashboard/visualization/`
-  - 응답 데이터를 화면용 표로 정리하는 보조 함수
-
-## 페이지 역할
-
-### 1. 운영 현황
-
-- 티켓 총량, 대기 건수, 종료 건수, 당일 접수 건수
-- `source_type` 분포와 `status` 분포
-- 최신 `ticket_analysis` 기준 카테고리와 라우팅 타깃
-- 최근 티켓 목록과 상세 진입점
-
-### 2. 리스크 분석
-
-- `ticket_analysis.risk_level` 분포
-- `insight.risk_level` 및 `insight.pattern_risk_level` 분포
-- `safety_results` 평균 점수와 고위험 후보
-- `voc_feedback` 키워드와 `documents` 기반 정책/장애 맥락 확인
-
-### 3. 응답 품질
-
-- 답변 초안 생성률
-- 증거 문서 연결률
-- `safety_results`의 hallucination, toxicity, policy_violation, factuality 점수
-- `final_response` 생성률
-- `notification_logs` 전송 상태 분포
 
 ## 구현 원칙
 
-- 집계는 DB에서 수행하고 UI는 렌더링에 집중한다.
-- 최신 값이 중요한 지표는 각 티켓별 `DISTINCT ON` 또는 최신 timestamp 기준으로 한 건만 사용한다.
-- 숫자/비율/분포는 endpoint에서 계산해 Streamlit은 그대로 표시한다.
-- 상세 조회는 `ticket_id` 단위로 `qa_ticket`, `ticket_analysis`, `answer_draft`, `evidence_docs`, `safety_results`, `final_response`, `notification_logs`를 한 번에 가져온다.
-
+- 수치와 비율은 API/workflow에서 계산하고 Streamlit은 렌더링에 집중한다.
+- 날짜 필터는 `qa_ticket.inquiry_created_at >= window_start` 기준이다.
+- 최신 값이 필요한 테이블은 티켓 단위 최신 레코드만 사용한다.
+- 상세 조회는 `ticket_id` 단위로 문의, 분석, 초안, 근거, 안전성, 최종 응답, 알림, VOC를 한 번에 반환한다.

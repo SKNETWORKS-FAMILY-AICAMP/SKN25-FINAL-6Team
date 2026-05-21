@@ -20,8 +20,9 @@ init_session_state()
 st.title("운영 현황")
 
 with st.sidebar:
+    st.text_input("API URL", key="dashboard_api_base_url")
     days = st.slider("조회 기간(일)", min_value=7, max_value=180, value=30, step=7, key="ops_days")
-    ticket_limit = st.slider("최근 티켓 수", min_value=10, max_value=50, value=20, step=5, key="ops_limit")
+    ticket_limit = st.slider("최근 문의 수", min_value=10, max_value=50, value=20, step=5, key="ops_limit")
 
 
 def _api_get(path: str, params: dict[str, object] | None = None) -> Any:
@@ -38,6 +39,7 @@ except requests.RequestException as exc:
 
 counts = summary["ticket_counts"]
 response_metrics = summary["response_metrics"]
+
 metric_cols = st.columns(4)
 metric_cols[0].metric("전체", counts["total"])
 metric_cols[1].metric("대기", counts["pending"])
@@ -50,7 +52,9 @@ metric_cols[1].metric("초안률", f"{response_metrics['draft_coverage_rate']:.1
 metric_cols[2].metric("분석률", f"{response_metrics['analysis_coverage_rate']:.1%}")
 metric_cols[3].metric(
     "평균 응답 지연",
-    "-" if response_metrics["avg_response_latency_minutes"] is None else f"{response_metrics['avg_response_latency_minutes']:.1f} min",
+    "-"
+    if response_metrics["avg_response_latency_minutes"] is None
+    else f"{response_metrics['avg_response_latency_minutes']:.1f} min",
 )
 
 left, right = st.columns(2, gap="large")
@@ -59,13 +63,23 @@ with left:
     render_chart_box("상태 분포", as_bar_chart(summary["status_distribution"]))
 
 with right:
-    render_chart_box("라우팅 타깃", as_bar_chart(summary["routing_distribution"]))
+    render_chart_box("라우팅 대상", as_bar_chart(summary["routing_distribution"]))
     render_metric_card("조회 기간", f"{days}일")
 
-st.subheader("최근 티켓")
+st.subheader("최근 문의")
 render_data_table(
     as_table_rows(
         summary["recent_tickets"][:ticket_limit],
-        ["ticket_id", "title", "status", "source_type", "nickname", "category", "risk_level", "routing_target", "inquiry_created_at"],
+        [
+            "ticket_id",
+            "title",
+            "status",
+            "source_type",
+            "nickname",
+            "category",
+            "risk_level",
+            "routing_target",
+            "inquiry_created_at",
+        ],
     )
 )

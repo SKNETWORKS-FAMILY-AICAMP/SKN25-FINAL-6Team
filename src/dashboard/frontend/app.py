@@ -1,4 +1,4 @@
-"""Streamlit entry page for the dashboard."""
+"""Streamlit entry page for the operator dashboard."""
 
 from __future__ import annotations
 
@@ -17,12 +17,12 @@ st.set_page_config(page_title="운영 대시보드", layout="wide")
 init_session_state()
 
 st.title("운영 대시보드")
-st.caption("PostgreSQL 운영 데이터를 기반으로 한 요약 대시보드")
+st.caption("문의, 불만, 리스크, 응답 품질을 PostgreSQL 운영 데이터 기준으로 집계합니다.")
 
 with st.sidebar:
     st.text_input("API URL", key="dashboard_api_base_url")
     days = st.slider("조회 기간(일)", min_value=7, max_value=180, value=30, step=7)
-    ticket_limit = st.slider("최근 티켓 수", min_value=10, max_value=50, value=15, step=5)
+    ticket_limit = st.slider("최근 문의 수", min_value=10, max_value=50, value=15, step=5)
 
 
 def _api_get(path: str, params: dict[str, object] | None = None) -> Any:
@@ -41,7 +41,7 @@ ticket_counts = overview["ticket_counts"]
 response_metrics = overview["response_metrics"]
 
 metric_cols = st.columns(4)
-metric_cols[0].metric("전체 티켓", ticket_counts["total"])
+metric_cols[0].metric("전체 문의", ticket_counts["total"])
 metric_cols[1].metric("대기", ticket_counts["pending"])
 metric_cols[2].metric("종료", ticket_counts["closed"])
 metric_cols[3].metric("오늘 접수", ticket_counts["today"])
@@ -52,32 +52,38 @@ metric_cols[1].metric("초안 커버리지", f"{response_metrics['draft_coverage
 metric_cols[2].metric("분석 커버리지", f"{response_metrics['analysis_coverage_rate']:.1%}")
 metric_cols[3].metric(
     "평균 응답 지연",
-    "-" if response_metrics["avg_response_latency_minutes"] is None else f"{response_metrics['avg_response_latency_minutes']:.1f} min",
+    "-"
+    if response_metrics["avg_response_latency_minutes"] is None
+    else f"{response_metrics['avg_response_latency_minutes']:.1f} min",
 )
 
 left, right = st.columns(2, gap="large")
-
 with left:
     render_chart_box("접수 채널", as_bar_chart(overview["source_distribution"]))
     render_chart_box("상태 분포", as_bar_chart(overview["status_distribution"]))
 
 with right:
-    render_chart_box("라우팅 타깃", as_bar_chart(overview["routing_distribution"]))
+    render_chart_box("라우팅 대상", as_bar_chart(overview["routing_distribution"]))
     render_chart_box(
-        "최근 티켓 추이",
+        "최근 문의 추이",
         as_line_chart(overview["recent_tickets"], x_key="inquiry_created_at", y_key="ticket_id"),
         kind="line",
     )
 
-st.subheader("최근 티켓")
-render_data_table(as_table_rows(overview["recent_tickets"], [
-    "ticket_id",
-    "title",
-    "status",
-    "source_type",
-    "nickname",
-    "category",
-    "risk_level",
-    "routing_target",
-    "inquiry_created_at",
-]))
+st.subheader("최근 문의")
+render_data_table(
+    as_table_rows(
+        overview["recent_tickets"][:ticket_limit],
+        [
+            "ticket_id",
+            "title",
+            "status",
+            "source_type",
+            "nickname",
+            "category",
+            "risk_level",
+            "routing_target",
+            "inquiry_created_at",
+        ],
+    )
+)
