@@ -23,25 +23,35 @@ RiskLevel = Literal["low", "medium", "high", "critical"]
 
 
 class OperationModel(BaseModel):
-    """Base model config shared by operation workflow state objects."""
+    """운영 워크플로우 상태 모델들이 공유하는 기본 설정입니다.
+
+    LangGraph 노드 간 전달되는 payload와 DB/LLM에서 추가된 필드를 유연하게 연결합니다.
+    """
 
     model_config = ConfigDict(extra="allow", populate_by_name=True)
 
 
 class Ticket(OperationModel):
-    """Inbound customer ticket loaded at the start of the workflow."""
+    """워크플로우 시작 시 로드되는 고객 문의 티켓 모델입니다.
+
+    `qa_ticket`를 중심으로 `community_users`, `game_accounts`에서 온 메타데이터와 연결됩니다.
+    """
 
     ticket_id: str | None = None
     user_id: str | None = None
     title: str | None = None
     body: str | None = None
     channel: str | None = None
+    responder_type: str | None = None
     created_at: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class EvidenceDocument(OperationModel):
-    """Document retrieved from policy, notice, guide, or incident sources."""
+    """RAG 검색으로 가져온 근거 문서 모델입니다.
+
+    `documents_chunks`, `documents` 조회 결과를 답변 생성과 `evidence_docs` 저장에 연결합니다.
+    """
 
     doc_id: str | None = None
     source: str | None = None
@@ -52,7 +62,10 @@ class EvidenceDocument(OperationModel):
 
 
 class AnalysisResult(OperationModel):
-    """Structured analysis produced before target routing."""
+    """목표 route를 결정하기 전 생성되는 티켓 분석 결과입니다.
+
+    `ticket_analysis` 테이블 저장과 RAG 답변/긴급 알림 분기 판단에 연결됩니다.
+    """
 
     query_route: QueryRoute | None = None
     target_route: TargetRoute | None = None
@@ -63,7 +76,10 @@ class AnalysisResult(OperationModel):
 
 
 class SafetyResult(OperationModel):
-    """Safety and grounding result used by the approval router."""
+    """답변 초안의 안전성 및 근거 일치 여부를 담는 검수 결과입니다.
+
+    `safety_results` 테이블과 승인/사람 검수/긴급 알림 route 선택에 연결됩니다.
+    """
 
     approved: bool | None = None
     evidence_matched: bool | None = None
@@ -74,7 +90,10 @@ class SafetyResult(OperationModel):
 
 
 class HumanReviewResult(OperationModel):
-    """Operator review decision and optional edit payload."""
+    """운영자 검수 결정과 수정 답변을 담는 모델입니다.
+
+    승인, 반려, 편집 흐름을 `publish_final_answer_node`, `retry_routing_node`, `edit_answer_node`에 연결합니다.
+    """
 
     decision: HumanDecision | None = None
     reason: str | None = None
@@ -83,7 +102,10 @@ class HumanReviewResult(OperationModel):
 
 
 class OperationState(OperationModel):
-    """Shared state passed through all operation LangGraph nodes."""
+    """모든 운영 LangGraph 노드가 공유하는 전체 상태 모델입니다.
+
+    `qa_ticket` 로드부터 `final_response` 저장 또는 `notification_logs` 알림까지의 값을 연결합니다.
+    """
 
     ticket_id: str | None = None
     ticket: Ticket = Field(default_factory=Ticket)

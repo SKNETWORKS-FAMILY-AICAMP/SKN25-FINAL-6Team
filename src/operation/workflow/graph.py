@@ -34,6 +34,7 @@ HUMAN_DECISION_TARGETS = {
 SAVE_DRAFT_TARGETS = {
     "save_evidence_docs": "save_evidence_docs_node",
     "approval_gate": "approval_gate_node",
+    "urgent_alert": "urgent_alert_node",
 }
 #조건
 CONDITIONAL_EDGES = {
@@ -58,6 +59,7 @@ GRAPH_EDGES = (
     ("rag_retrieve_node", "generate_answer_node"),
     ("generate_answer_node", "save_draft_node"),
     ("save_draft_node", "save_evidence_docs_node"),
+    ("save_draft_node", "urgent_alert_node"),
     ("save_evidence_docs_node", "approval_gate_node"),
     ("urgent_draft_node", "save_draft_node"),
     ("approval_gate_node", "save_safety_result_node"),
@@ -70,11 +72,9 @@ GRAPH_EDGES = (
 
 
 def build_operation_graph(*, compile_graph: bool = True):
-    """Build the operation LangGraph from the architecture Mermaid diagram.
+    """운영 티켓 처리용 LangGraph를 구성합니다.
 
-    The current repository does not pin LangGraph yet, so the import is delayed
-    until this builder is called. State and node declarations remain importable
-    without the optional runtime dependency.
+    `nodes.py`의 DB/LLM 노드와 `state.py`의 `OperationState`를 연결해 실행 가능한 그래프를 만듭니다.
     """
 
     from langgraph.graph import END, START, StateGraph

@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+import logging
+from functools import wraps
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
+from time import perf_counter
 from typing import Any, Callable, Literal, cast
 
 from psycopg.rows import dict_row
@@ -42,11 +47,16 @@ from .state import (
 
 StateUpdate = dict[str, Any] | None
 NodeHandler = Callable[[OperationState], StateUpdate]
-AfterDraftRoute = Literal["save_evidence_docs", "approval_gate"]
+AfterDraftRoute = Literal["save_evidence_docs", "approval_gate", "urgent_alert"]
+LOG_DIR = Path(__file__).resolve().parents[3] / "logs" / "operation"
+LOG_FILE = LOG_DIR / "workflow.log"
 
 
 class DbRow(BaseModel):
-    """Database row stored in workflow context."""
+    """워크플로우 context에 저장하는 DB 행 모델입니다.
+
+    `payments`, `documents` 등 여러 테이블 행을 JSON 직렬화 가능한 형태로 넘길 때 사용됩니다.
+    """
 
     model_config = ConfigDict(extra="allow")
 
@@ -72,27 +82,163 @@ CONTEXT_NODE_BY_ROUTE: dict[QueryRoute, str] = {
 }
 
 
+def _operation_logger() -> logging.Logger:
+    """운영 workflow 전용 파일 logger를 생성하거나 재사용합니다.
+
+    모든 LangGraph 노드 실행 로그를 `logs/operation/workflow.log`로 연결합니다.
+    """
+    logger = logging.getLogger("operation.workflow")
+    if logger.handlers:
+        return logger
+
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+    handler = RotatingFileHandler(
+        LOG_FILE,
+        maxBytes=1_000_000,
+        backupCount=5,
+        encoding="utf-8",
+    )
+    handler.setFormatter(
+        logging.Formatter(
+            "%(asctime)s %(levelname)s [%(name)s] %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
+    )
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
+    return logger
+
+
+def _state_log_fields(state: OperationState) -> dict[str, Any]:
+    """로그에 남길 상태 식별자만 추려 민감 정보와 본문 과다 기록을 피합니다.
+
+    `qa_ticket`, route, 저장 PK, status 중심으로 노드 실행 흐름을 추적하도록 연결합니다.
+    """
+    return {
+        "ticket_id": state.ticket_id or state.ticket.ticket_id,
+        "query_route": state.query_route,
+        "target_route": state.target_route or state.analysis.target_route,
+        "approval_route": state.approval_route,
+        "human_decision": state.human_decision,
+        "analysis_id": state.analysis_id,
+        "draft_id": state.draft_id,
+        "safety_id": state.safety_id,
+        "response_id": state.response_id,
+        "status": state.status,
+    }
+
+
+def _update_log_fields(update: StateUpdate) -> dict[str, Any]:
+    """노드 반환값 중 추적에 필요한 키만 로그용 dict로 변환합니다.
+
+    `analysis_id`, `draft_id`, route, status 같은 후속 노드 연결값을 중심으로 기록합니다.
+    """
+    if not update:
+        return {}
+    tracked_keys = {
+        "query_route",
+        "target_route",
+        "approval_route",
+        "human_decision",
+        "analysis_id",
+        "draft_id",
+        "safety_id",
+        "response_id",
+        "notification_id",
+        "status",
+    }
+    fields = {key: update[key] for key in tracked_keys if key in update}
+    if "final_answer" in update:
+        fields["final_answer_present"] = bool(update["final_answer"])
+    return fields
+
+
+def _with_node_logging(node_name: str, handler: NodeHandler) -> NodeHandler:
+    """LangGraph 노드 실행 전후를 파일 로그로 감싸는 wrapper를 만듭니다.
+
+    `NODE_FUNCTIONS`에 연결되어 모든 workflow 실행에서 시작, 성공, 실패와 소요 시간을 기록합니다.
+    """
+
+    @wraps(handler)
+    def wrapped(state: OperationState) -> StateUpdate:
+        logger = _operation_logger()
+        current = _state(state)
+        started_at = perf_counter()
+        logger.info("node_start name=%s state=%s", node_name, _state_log_fields(current))
+        try:
+            update = handler(current)
+        except Exception:
+            elapsed_ms = int((perf_counter() - started_at) * 1000)
+            logger.exception("node_error name=%s elapsed_ms=%s state=%s", node_name, elapsed_ms, _state_log_fields(current))
+            raise
+
+        elapsed_ms = int((perf_counter() - started_at) * 1000)
+        logger.info("node_end name=%s elapsed_ms=%s update=%s", node_name, elapsed_ms, _update_log_fields(update))
+        return update
+
+    return wrapped
+
+
 def _state(state: OperationState | dict[str, Any]) -> OperationState:
+    """LangGraph가 넘긴 상태를 `OperationState`로 정규화합니다.
+
+    모든 노드 함수와 라우터가 같은 Pydantic 상태 계약을 사용하도록 연결합니다.
+    """
     return OperationState.model_validate(state)
 
 
 def _dump_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """DB 조회 행 목록을 JSON 안전한 dict 목록으로 변환합니다.
+
+    context 노드들이 조회한 `payments`, `refunds`, `documents` 행을 LLM 프롬프트에 연결합니다.
+    """
     return [DbRow.model_validate(row).model_dump(mode="json") for row in rows]
 
 
-def _next_id(table_name: str, column_name: str) -> int:
-    with db_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(f"SELECT COALESCE(MAX({column_name}), 0) + 1 FROM {table_name}")
-            return cast(int, cur.fetchone()[0])
+def _ticket_key(state: OperationState) -> str:
+    """현재 상태에서 DB 저장과 조회에 사용할 티켓 ID를 확정합니다.
+
+    `qa_ticket`을 기준으로 `ticket_analysis`, `answer_draft`, `final_response` FK를 연결합니다.
+    """
+    ticket_id = state.ticket_id or state.ticket.ticket_id
+    if not ticket_id:
+        raise ValueError("operation workflow requires ticket_id")
+    return str(ticket_id)
 
 
-def _next_id_from_cursor(cur: Any, table_name: str, column_name: str) -> int:
-    cur.execute(f"SELECT COALESCE(MAX({column_name}), 0) + 1 FROM {table_name}")
-    return cast(int, cur.fetchone()[0])
+def _next_integer_id(cur: Any, table_name: str, column_name: str) -> int:
+    """PK default가 없는 테이블의 다음 정수 ID를 현재 트랜잭션에서 계산합니다.
+
+    live DB는 일부 workflow write table에 sequence default를 두지 않으므로
+    앱이 `MAX(id) + 1` 방식으로 값을 채워 넣어야 합니다.
+    """
+    cur.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", (table_name,))
+    cur.execute(
+        f"SELECT COALESCE(MAX({column_name}), 0) + 1 FROM {table_name}",
+    )
+    row = cur.fetchone()
+    if row is None:
+        raise RuntimeError(f"unable to allocate next id for {table_name}.{column_name}")
+    return int(row[0])
+
+
+def _query_text(state: OperationState) -> str:
+    """검색과 LLM 입력에 사용할 문의 텍스트를 확정합니다.
+
+    `qa_ticket.raw_query`가 없을 때 제목을 보조로 쓰며, RAG 검색 노드와 분석 노드에 연결됩니다.
+    """
+    query_text = state.query_text or state.ticket.body or state.ticket.title
+    if not query_text:
+        raise ValueError("operation workflow requires query_text or ticket body")
+    return query_text
 
 
 def _fetch_ticket(ticket_id: str) -> dict[str, Any]:
+    """`qa_ticket`에서 티켓과 사용자/계정 정보를 함께 조회합니다.
+
+    `community_users`, `game_accounts`를 LEFT JOIN하여 이후 context 노드가 FK 기준을 사용할 수 있게 합니다.
+    """
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
@@ -104,6 +250,7 @@ def _fetch_ticket(ticket_id: str) -> dict[str, Any]:
                     t.title,
                     t.raw_query,
                     t.source_type,
+                    t.responder_type,
                     t.status,
                     t.inquiry_created_at,
                     t.session_id,
@@ -122,11 +269,18 @@ def _fetch_ticket(ticket_id: str) -> dict[str, Any]:
                 """,
                 (ticket_id,),
             )
-            return dict(cur.fetchone())
+            row = cur.fetchone()
+            if row is None:
+                raise LookupError(f"qa_ticket not found: {ticket_id}")
+            return dict(row)
 
 
 def _context_for_route(route: QueryRoute, state: OperationState) -> list[dict[str, Any]]:
-    ticket_id = state.ticket_id or state.ticket.ticket_id
+    """라우팅 결과에 맞춰 티켓 주변 업무 데이터를 조회합니다.
+
+    `payments`, `refunds`, `item_delivery_logs`, `gacha_logs`, `insight`, `documents`를 노드별 context로 연결합니다.
+    """
+    ticket_id = _ticket_key(state)
     user_id = state.ticket.user_id or state.ticket.metadata.get("user_id")
     account_id = state.ticket.metadata.get("account_id")
     with db_connection() as conn:
@@ -216,14 +370,20 @@ def _context_for_route(route: QueryRoute, state: OperationState) -> list[dict[st
                 )
             return [dict(row) for row in cur.fetchall()]
 
-# 날 닮은너... 너 늬긔야.....
 def _add_context(state: OperationState, route: QueryRoute) -> StateUpdate:
+    """조회한 route별 업무 context를 workflow state에 병합합니다.
+
+    query router가 선택한 route와 실제 context node 이름을 `context_nodes`에 함께 기록합니다.
+    """
     rows = _dump_rows(_context_for_route(route, state))
     context = state.context | {route: rows}
     return {"context": context, "context_nodes": [*state.context_nodes, CONTEXT_NODE_BY_ROUTE[route]]}
 
-## 여기서부터 node 시작
 def load_ticket(state: OperationState) -> StateUpdate:
+    """워크플로우 시작 시 `qa_ticket` 기준으로 문의 원문을 로드합니다.
+
+    `community_users`, `game_accounts`와 연결된 메타데이터를 `Ticket.metadata`에 담아 뒤 노드에 전달합니다.
+    """
     current = _state(state)
     if current.ticket_id:
         row = _fetch_ticket(current.ticket_id)
@@ -233,15 +393,20 @@ def load_ticket(state: OperationState) -> StateUpdate:
             title=row.get("title"),
             body=row.get("raw_query"),
             channel=row.get("source_type"),
+            responder_type=row.get("responder_type"),
             created_at=str(row.get("inquiry_created_at")) if row.get("inquiry_created_at") else None,
             metadata=row,
         )
         return {"ticket": ticket, "query_text": ticket.body, "status": row.get("status")}
-    query_text = current.query_text or current.ticket.body or current.ticket.title
+    query_text = _query_text(current)
     return {"query_text": query_text}
 
 
 def query_router(state: OperationState) -> StateUpdate:
+    """문의 내용을 LLM으로 분류해 업무 route를 결정합니다.
+
+    결과는 `payment_context_node` 등 route별 context 노드와 연결됩니다.
+    """
     current = _state(state)
     response = invoke_structured_llm(
         system_prompt=SYSTEM_PROMPT,
@@ -252,34 +417,66 @@ def query_router(state: OperationState) -> StateUpdate:
 
 
 def payment_context_node(state: OperationState) -> StateUpdate:
+    """결제 문의에 필요한 최근 결제 내역을 context에 추가합니다.
+
+    `payments`와 `game_accounts`를 기준으로 해당 사용자/계정의 결제 데이터를 연결합니다.
+    """
     return _add_context(_state(state), "payment")
 
 
 def refund_context_node(state: OperationState) -> StateUpdate:
+    """환불 문의에 필요한 환불 및 원결제 내역을 context에 추가합니다.
+
+    `refunds`, `payments`, `game_accounts`를 연결해 환불 상태와 결제 상태를 함께 제공합니다.
+    """
     return _add_context(_state(state), "refund")
 
 
 def item_delivery_context_node(state: OperationState) -> StateUpdate:
+    """아이템 미지급 문의에 필요한 지급 로그를 context에 추가합니다.
+
+    `item_delivery_logs`와 `game_accounts`를 연결해 지급 예정/완료 상태를 확인합니다.
+    """
     return _add_context(_state(state), "item_delivery")
 
 
 def gacha_context_node(state: OperationState) -> StateUpdate:
+    """가챠 문의에 필요한 뽑기 이력을 context에 추가합니다.
+
+    `gacha_logs`와 `game_accounts`를 연결해 배너, 아이템, pity count 정보를 제공합니다.
+    """
     return _add_context(_state(state), "gacha")
 
 
 def policy_context_node(state: OperationState) -> StateUpdate:
+    """정책/가이드 문의에 필요한 문서 context를 추가합니다.
+
+    `documents`의 policy 관련 문서를 조회해 이후 RAG 답변과 분석 노드에 연결합니다.
+    """
     return _add_context(_state(state), "policy")
 
 
 def abuse_context_node(state: OperationState) -> StateUpdate:
+    """어뷰징/위험 문의에 필요한 인사이트와 VOC context를 추가합니다.
+
+    `insight`, `voc_feedback`을 `qa_ticket`, `community_users`, `game_accounts` 기준으로 연결합니다.
+    """
     return _add_context(_state(state), "abuse")
 
 
 def outage_context_node(state: OperationState) -> StateUpdate:
+    """장애/접속 실패 문의에 필요한 공지 문서 context를 추가합니다.
+
+    `documents`의 outage 관련 문서를 조회해 긴급 대응 여부 판단과 연결합니다.
+    """
     return _add_context(_state(state), "outage")
 
 
 def analyze_ticket(state: OperationState) -> StateUpdate:
+    """티켓과 DB context를 기반으로 위험도와 목표 route를 분석합니다.
+
+    분석 결과는 `ticket_analysis` 저장과 `rag_retrieve_node` 또는 `urgent_draft_node` 분기로 연결됩니다.
+    """
     current = _state(state)
     response = invoke_structured_llm(
         system_prompt=SYSTEM_PROMPT,
@@ -298,10 +495,16 @@ def analyze_ticket(state: OperationState) -> StateUpdate:
 
 
 def save_analysis(state: OperationState) -> StateUpdate:
+    """LLM 분석 결과를 `ticket_analysis` 테이블에 저장합니다.
+
+    `qa_ticket.ticket_id`를 FK로 사용하며 이후 `answer_draft.analysis_id`와 연결됩니다.
+    """
     current = _state(state)
-    analysis_id = _next_id("ticket_analysis", "analysis_id")
+    ticket_id = _ticket_key(current)
+    query_text = _query_text(current)
     with db_connection() as conn:
         with conn.cursor() as cur:
+            analysis_id = _next_integer_id(cur, "ticket_analysis", "analysis_id")
             cur.execute(
                 """
                 INSERT INTO ticket_analysis (
@@ -312,10 +515,10 @@ def save_analysis(state: OperationState) -> StateUpdate:
                 """,
                 (
                     analysis_id,
-                    current.ticket_id or current.ticket.ticket_id,
+                    ticket_id,
                     current.analysis.query_route,
-                    current.target_route,
-                    current.query_text,
+                    current.ticket.responder_type or current.target_route,
+                    query_text,
                     current.analysis.risk_level,
                     None,
                     current.analysis.target_route,
@@ -326,7 +529,12 @@ def save_analysis(state: OperationState) -> StateUpdate:
 
 
 def rag_retrieve_node(state: OperationState) -> StateUpdate:
+    """문의 텍스트로 문서 청크를 검색해 답변 근거를 구성합니다.
+
+    `documents_chunks`와 `documents`를 연결하며, `evidence_docs` 저장과 답변 생성 노드에 이어집니다.
+    """
     current = _state(state)
+    query_text = _query_text(current)
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
@@ -347,7 +555,7 @@ def rag_retrieve_node(state: OperationState) -> StateUpdate:
                 ORDER BY score DESC NULLS LAST, c.created_at DESC NULLS LAST
                 LIMIT 8
                 """,
-                (current.query_text, current.query_text, f"%{current.query_text}%", f"%{current.query_text}%"),
+                (query_text, query_text, f"%{query_text}%", f"%{query_text}%"),
             )
             rows = [dict(row) for row in cur.fetchall()]
     docs = [
@@ -365,6 +573,10 @@ def rag_retrieve_node(state: OperationState) -> StateUpdate:
 
 
 def generate_answer_node(state: OperationState) -> StateUpdate:
+    """검색 근거와 업무 context를 바탕으로 고객 답변 초안을 생성합니다.
+
+    생성된 문안은 `answer_draft` 저장 노드와 연결되고, 근거 ID는 `evidence_docs`와 연결됩니다.
+    """
     current = _state(state)
     response = invoke_structured_llm(
         system_prompt=SYSTEM_PROMPT,
@@ -375,6 +587,10 @@ def generate_answer_node(state: OperationState) -> StateUpdate:
 
 
 def urgent_draft_node(state: OperationState) -> StateUpdate:
+    """긴급 운영 확인이 필요한 티켓의 운영자 알림 초안을 생성합니다.
+
+    `urgent_alert_node`가 사용할 메시지를 만들며 `notification_logs` 저장 흐름과 연결됩니다.
+    """
     current = _state(state)
     response = invoke_structured_llm(
         system_prompt=SYSTEM_PROMPT,
@@ -385,10 +601,17 @@ def urgent_draft_node(state: OperationState) -> StateUpdate:
 
 
 def save_draft_node(state: OperationState) -> StateUpdate:
+    """생성된 고객 답변 또는 긴급 초안을 `answer_draft`에 저장합니다.
+
+    `ticket_analysis.analysis_id`와 `qa_ticket.ticket_id`를 FK로 연결해 검수/최종응답의 기준 초안을 만듭니다.
+    """
     current = _state(state)
-    draft_id = _next_id("answer_draft", "draft_id")
+    if current.analysis_id is None:
+        raise ValueError("answer_draft requires analysis_id")
+    ticket_id = _ticket_key(current)
     with db_connection() as conn:
         with conn.cursor() as cur:
+            draft_id = _next_integer_id(cur, "answer_draft", "draft_id")
             cur.execute(
                 """
                 INSERT INTO answer_draft (
@@ -398,7 +621,7 @@ def save_draft_node(state: OperationState) -> StateUpdate:
                 """,
                 (
                     draft_id,
-                    current.ticket_id or current.ticket.ticket_id,
+                    ticket_id,
                     current.analysis_id,
                     current.answer_draft or current.urgent_draft,
                     "operation-workflow",
@@ -408,11 +631,17 @@ def save_draft_node(state: OperationState) -> StateUpdate:
 
 
 def save_evidence_docs_node(state: OperationState) -> StateUpdate:
+    """RAG 검색 결과를 `evidence_docs` 테이블에 저장합니다.
+
+    각 근거는 `answer_draft.draft_id`에 연결되어 안전성 검수와 사후 추적에 사용됩니다.
+    """
     current = _state(state)
+    if current.draft_id is None:
+        raise ValueError("evidence_docs requires draft_id")
     with db_connection() as conn:
         with conn.cursor() as cur:
             for rank, document in enumerate(current.retrieved_docs, start=1):
-                evidence_id = _next_id_from_cursor(cur, "evidence_docs", "evidence_id")
+                evidence_id = _next_integer_id(cur, "evidence_docs", "evidence_id")
                 cur.execute(
                     """
                     INSERT INTO evidence_docs (
@@ -435,6 +664,10 @@ def save_evidence_docs_node(state: OperationState) -> StateUpdate:
 
 
 def approval_gate_node(state: OperationState) -> StateUpdate:
+    """답변 초안을 안전성/근거성 기준으로 검수합니다.
+
+    결과는 `safety_results` 저장 후 승인, 사람 검수, 긴급 알림 route와 연결됩니다.
+    """
     current = _state(state)
     response = invoke_structured_llm(
         system_prompt=SYSTEM_PROMPT,
@@ -459,10 +692,16 @@ def approval_gate_node(state: OperationState) -> StateUpdate:
 
 
 def save_safety_result_node(state: OperationState) -> StateUpdate:
+    """승인 게이트의 검수 결과를 `safety_results`에 저장합니다.
+
+    `answer_draft.draft_id`와 연결되어 최종 응답 또는 운영자 검토의 판단 근거가 됩니다.
+    """
     current = _state(state)
-    safety_id = _next_id("safety_results", "safety_id")
+    if current.draft_id is None:
+        raise ValueError("safety_results requires draft_id")
     with db_connection() as conn:
         with conn.cursor() as cur:
+            safety_id = _next_integer_id(cur, "safety_results", "safety_id")
             cur.execute(
                 """
                 INSERT INTO safety_results (
@@ -488,38 +727,49 @@ def save_safety_result_node(state: OperationState) -> StateUpdate:
 
 
 def publish_final_answer_node(state: OperationState) -> StateUpdate:
+    """승인된 최종 답변을 `final_response`에 저장하고 티켓을 종료합니다.
+
+    `qa_ticket.status`를 `closed`로 갱신하며 고객 응답 이력과 원 티켓을 연결합니다.
+    """
     current = _state(state)
     final_answer = current.edited_answer or current.answer_draft or current.urgent_draft
-    response_id = _next_id("final_response", "response_id")
+    if not final_answer:
+        raise ValueError("final_response requires final answer text")
+    ticket_id = _ticket_key(current)
     with db_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
                 INSERT INTO final_response (
-                    response_id, ticket_id, draft_id, final_text, safety_action, created_at
+                    ticket_id, draft_id, final_text, safety_action, created_at
                 )
-                VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+                VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP)
+                RETURNING response_id
                 """,
                 (
-                    response_id,
-                    current.ticket_id or current.ticket.ticket_id,
+                    ticket_id,
                     current.draft_id,
                     final_answer,
                     current.approval_route,
                 ),
             )
+            response_id = cast(int, cur.fetchone()[0])
             cur.execute(
                 """
                 UPDATE qa_ticket
                 SET status = %s
                 WHERE ticket_id = %s
                 """,
-                ("closed", current.ticket_id or current.ticket.ticket_id),
+                ("closed", ticket_id),
             )
     return {"final_answer": final_answer, "response_id": response_id, "status": "closed"}
 
 
 def human_review_node(state: OperationState) -> StateUpdate:
+    """사람 검수 단계에서 필요한 결정 초안을 LLM으로 정리합니다.
+
+    승인, 반려, 편집 결정은 `publish_final_answer_node`, `retry_routing_node`, `edit_answer_node`와 연결됩니다.
+    """
     current = _state(state)
     response = invoke_structured_llm(
         system_prompt=SYSTEM_PROMPT,
@@ -539,6 +789,10 @@ def human_review_node(state: OperationState) -> StateUpdate:
 
 
 def retry_routing_node(state: OperationState) -> StateUpdate:
+    """사람 검수에서 반려된 건을 재라우팅할 수 있도록 상태를 초기화합니다.
+
+    기존 초안/검수 route를 지우고 `query_router`로 되돌려 재분류 흐름과 연결합니다.
+    """
     current = _state(state)
     retry_count = (current.retry_count or 0) + 1
     return {
@@ -552,65 +806,109 @@ def retry_routing_node(state: OperationState) -> StateUpdate:
 
 
 def edit_answer_node(state: OperationState) -> StateUpdate:
+    """사람 검수에서 수정된 답변을 최종 답변 후보로 반영합니다.
+
+    `human_review.edited_answer`를 `save_final_edit_node`와 최종 발행 노드에 연결합니다.
+    """
     current = _state(state)
     return {"edited_answer": current.human_review.edited_answer}
 
 
 def save_final_edit_node(state: OperationState) -> StateUpdate:
+    """검수자가 편집한 답변을 워크플로우 상태의 최종 답변으로 확정합니다.
+
+    DB 쓰기는 다음 단계인 `publish_final_answer_node`가 담당하며 이 노드는 상태 연결만 수행합니다.
+    """
     current = _state(state)
     return {"final_answer": current.edited_answer or current.answer_draft}
 
 
 def urgent_alert_node(state: OperationState) -> StateUpdate:
+    """긴급 알림 메시지를 `notification_logs`에 저장합니다.
+
+    `qa_ticket.ticket_id`와 운영 채널을 연결해 담당자 확인 대기 상태를 남깁니다.
+    """
     current = _state(state)
+    ticket_id = _ticket_key(current)
     with db_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
                 INSERT INTO notification_logs (
-                    notification_id, ticket_id, channel, status, message, sent_at
+                    ticket_id, channel, status, message, sent_at
                 )
-                VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+                VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP)
+                RETURNING notification_id
                 """,
                 (
-                    _next_id_from_cursor(cur, "notification_logs", "notification_id"),
-                    current.ticket_id or current.ticket.ticket_id,
+                    ticket_id,
                     "operation",
                     "pending",
                     current.urgent_draft or current.answer_draft,
                 ),
             )
-    return {"status": "urgent_alert_pending"}
+            notification_id = cast(int, cur.fetchone()[0])
+    return {"notification_id": notification_id, "status": "urgent_alert_pending"}
 
 
 def route_by_query(state: OperationState) -> QueryRoute:
+    """query router 결과를 context 노드 이름으로 변환할 route 값을 반환합니다.
+
+    `CONTEXT_NODE_BY_ROUTE`와 연결되어 결제, 환불, 정책 등 업무별 조회 노드를 선택합니다.
+    """
     current = _state(state)
+    if current.query_route is None:
+        raise ValueError("query_route is required for routing")
     return cast(QueryRoute, current.query_route)
 
 
 def route_by_target(state: OperationState) -> TargetRoute:
+    """분석 결과의 목표 route를 반환해 답변 생성 방향을 선택합니다.
+
+    `TARGET_ROUTE_TARGETS`와 연결되어 RAG 답변 또는 긴급 알림 초안 흐름으로 분기합니다.
+    """
     current = _state(state)
+    if current.target_route is None and current.analysis.target_route is None:
+        raise ValueError("target_route is required for routing")
     return cast(TargetRoute, current.target_route or current.analysis.target_route)
 
 
 def route_after_save_draft(state: OperationState) -> AfterDraftRoute:
+    """초안 저장 후 근거 문서 저장이 필요한지 결정합니다.
+
+    검색 근거가 있으면 `evidence_docs` 저장으로, 없으면 바로 안전성 검수로 연결합니다.
+    """
     current = _state(state)
+    if current.target_route == "urgent_alert" or current.analysis.target_route == "urgent_alert":
+        return "urgent_alert"
     if current.retrieved_docs:
         return "save_evidence_docs"
     return "approval_gate"
 
 
 def route_by_approval(state: OperationState) -> ApprovalRoute:
+    """안전성 검수 결과에 따른 후속 route를 반환합니다.
+
+    `APPROVAL_ROUTE_TARGETS`와 연결되어 최종 발행, 사람 검수, 긴급 알림 중 하나를 선택합니다.
+    """
     current = _state(state)
+    if current.approval_route is None:
+        raise ValueError("approval_route is required for routing")
     return cast(ApprovalRoute, current.approval_route)
 
 
 def route_by_human_decision(state: OperationState) -> HumanDecision:
+    """사람 검수 결정에 따른 후속 route를 반환합니다.
+
+    `HUMAN_DECISION_TARGETS`와 연결되어 승인 발행, 재시도, 편집 반영 흐름으로 분기합니다.
+    """
     current = _state(state)
+    if current.human_decision is None:
+        raise ValueError("human_decision is required for routing")
     return cast(HumanDecision, current.human_decision)
 
 
-NODE_FUNCTIONS: dict[str, NodeHandler] = {
+_RAW_NODE_FUNCTIONS: dict[str, NodeHandler] = {
     "load_ticket": load_ticket,
     "query_router": query_router,
     "payment_context_node": payment_context_node,
@@ -635,4 +933,9 @@ NODE_FUNCTIONS: dict[str, NodeHandler] = {
     "edit_answer_node": edit_answer_node,
     "save_final_edit_node": save_final_edit_node,
     "urgent_alert_node": urgent_alert_node,
+}
+
+NODE_FUNCTIONS: dict[str, NodeHandler] = {
+    node_name: _with_node_logging(node_name, node_handler)
+    for node_name, node_handler in _RAW_NODE_FUNCTIONS.items()
 }

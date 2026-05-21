@@ -1,385 +1,401 @@
 # DB Descriptions
 
-작성 기준: `tests/common/test_db_connection.py`에 등록된 접속 정보로 DB에 직접 접속하여 조회한 메타데이터
+Generated from the live PostgreSQL database on 2026-05-21.
 
-## 기본 정보
+## Basic Info
 
-| 항목 | 값 |
+| Item | Value |
 | --- | --- |
 | DBMS | PostgreSQL |
-| PostgreSQL 버전 | 16.13 |
+| Version | 16.13 |
 | Host | `100.97.235.15` |
 | Port | `5432` |
 | Database | `game_cs` |
-| User | `game_cs_user` |
 | Schema | `public` |
 | Extensions | `plpgsql 1.0`, `vector 0.6.0` |
 
-## 전체 구성 요약
+## Table Summary
 
-- 사용자 테이블 수: 20개
-- 주요 데이터 성격: 게임 CS/QA 티켓, 유저/계정, 결제/환불, 아이템 지급, 가챠 로그, RAG 문서/임베딩, 답변 생성/검증/운영 로그
-- 벡터 검색 지원: `documents_embeddings.embedding_vector` 컬럼과 `ivfflat` cosine 인덱스 사용
-- 행 수는 `pg_stat_user_tables.n_live_tup` 기준 추정치이다.
+Row counts are PostgreSQL `pg_stat_user_tables.n_live_tup` estimates.
 
-## 테이블 목록
-
-| 테이블 | 추정 행 수 | 설명 |
+| Table | Estimated Rows | Purpose |
 | --- | ---: | --- |
-| `admin_event_logs` | 0 | 운영/관리 워크플로우의 노드, 도구, 라우팅, 오류 이벤트 로그 |
-| `answer_draft` | 2 | 티켓 분석 결과를 바탕으로 생성된 답변 초안 |
-| `community_users` | 2 | 커뮤니티 사용자 기본 정보 |
-| `documents` | 1201 | RAG 검색 원천 문서 |
-| `documents_chunks` | 3864 | 문서를 청크 단위로 분할한 텍스트 |
-| `documents_embeddings` | 3864 | 문서 청크의 임베딩 벡터 |
-| `evidence_docs` | 2 | 답변 초안 생성에 사용된 근거 문서 |
-| `failed_queries` | 0 | 검색/처리 실패 질의 기록 |
-| `final_response` | 0 | 최종 고객 응답 |
-| `gacha_logs` | 2 | 게임 계정의 가챠 이력 |
-| `game_accounts` | 2 | 사용자별 게임 계정 정보 |
-| `insight` | 2 | 문의/사용자/계정 기반 인사이트 분석 결과 |
-| `item_delivery_logs` | 2 | 결제 또는 보상성 아이템 지급 이력 |
-| `notification_logs` | 0 | 알림 발송 결과 및 오류 로그 |
-| `payments` | 2 | 결제 내역 |
-| `qa_ticket` | 2 | 고객 문의/QA 티켓 |
-| `refunds` | 2 | 환불 요청 및 처리 내역 |
-| `safety_results` | 2 | 답변 초안의 안전성 검증 결과 |
-| `ticket_analysis` | 2 | QA 티켓 분류, 감성, 위험도, 라우팅 분석 결과 |
-| `voc_feedback` | 0 | VOC 피드백 및 키워드 기록 |
+| `admin_event_logs` | 0 | Operation/admin workflow event and error logs |
+| `answer_draft` | 2 | Generated answer drafts for tickets |
+| `community_users` | 6,288 | Community user profile data |
+| `documents` | 1,201 | Source documents for policy, notice, guide, incident, and RAG retrieval |
+| `documents_chunks` | 3,864 | Searchable chunks split from source documents |
+| `documents_embeddings` | 3,864 | Vector embeddings for document chunks |
+| `evidence_docs` | 2 | Retrieved evidence saved for answer drafts |
+| `failed_queries` | 0 | Failed ticket/query processing logs |
+| `final_response` | 0 | Final customer-facing responses |
+| `gacha_logs` | 5 | Gacha pull history per game account |
+| `game_accounts` | 6,288 | Game account data linked to community users |
+| `insight` | 5 | Ticket/user/account-level insight analysis data |
+| `item_delivery_logs` | 5 | Paid or reward item delivery history |
+| `notification_logs` | 0 | Notification send results and errors |
+| `payments` | 11 | Payment transaction history |
+| `qa_ticket` | 9,221 | Customer inquiry/QA tickets |
+| `refunds` | 5 | Refund request and processing history |
+| `safety_results` | 2 | Safety and grounding check results for drafts |
+| `ticket_analysis` | 3 | Ticket classification, risk, sentiment, and routing analysis |
+| `voc_feedback` | 3 | VOC feedback and topic keyword records |
 
-## 주요 관계
+## Data Load Sources
 
-| From | To | 관계 |
+| Source | Target Tables | Notes |
 | --- | --- | --- |
-| `game_accounts.user_id` | `community_users.user_id` | 사용자의 게임 계정 |
-| `qa_ticket.user_id` | `community_users.user_id` | 사용자가 생성한 문의 |
-| `qa_ticket.account_id` | `game_accounts.account_id` | 문의와 게임 계정 연결 |
-| `payments.account_id` | `game_accounts.account_id` | 계정별 결제 |
-| `refunds.payment_id` | `payments.payment_id` | 결제 건의 환불 |
-| `gacha_logs.account_id` | `game_accounts.account_id` | 계정별 가챠 로그 |
-| `item_delivery_logs.account_id` | `game_accounts.account_id` | 계정별 아이템 지급 |
-| `item_delivery_logs.payment_id` | `payments.payment_id` | 결제 기반 아이템 지급 |
-| `ticket_analysis.ticket_id` | `qa_ticket.ticket_id` | 티켓 분석 결과 |
-| `answer_draft.ticket_id` | `qa_ticket.ticket_id` | 티켓별 답변 초안 |
-| `answer_draft.analysis_id` | `ticket_analysis.analysis_id` | 분석 결과 기반 답변 초안 |
-| `evidence_docs.draft_id` | `answer_draft.draft_id` | 답변 초안의 근거 문서 |
-| `safety_results.draft_id` | `answer_draft.draft_id` | 답변 초안 안전성 검증 |
-| `final_response.ticket_id` | `qa_ticket.ticket_id` | 티켓별 최종 응답 |
-| `final_response.draft_id` | `answer_draft.draft_id` | 초안 기반 최종 응답 |
-| `documents_chunks.document_id` | `documents.documents_id` | 문서와 청크 |
-| `documents_embeddings.chunk_id` | `documents_chunks.chunk_id` | 청크와 임베딩 |
-| `admin_event_logs.ticket_id` | `qa_ticket.ticket_id` | 티켓 처리 운영 로그 |
-| `failed_queries.ticket_id` | `qa_ticket.ticket_id` | 티켓 처리 중 실패 질의 |
-| `notification_logs.ticket_id` | `qa_ticket.ticket_id` | 티켓 관련 알림 |
-| `insight.user_id` | `community_users.user_id` | 사용자 기반 인사이트 |
-| `insight.ticket_id` | `qa_ticket.ticket_id` | 티켓 기반 인사이트 |
-| `insight.account_id` | `game_accounts.account_id` | 계정 기반 인사이트 |
-| `voc_feedback.user_id` | `community_users.user_id` | 사용자 VOC |
-| `voc_feedback.ticket_id` | `qa_ticket.ticket_id` | 티켓 VOC |
-| `voc_feedback.account_id` | `game_accounts.account_id` | 계정 VOC |
+| `data/processed/community_users.csv` | `community_users` | 9,221 source rows; upserted by `user_id`, resulting in 6,288 distinct users in the table. |
+| `data/processed/qa_ticket.csv` | `qa_ticket` | 9,221 source rows; `source_type` appears twice in the CSV header and `notebooks/insert_processed_data.ipynb` keeps the first occurrence. |
+| `notebooks/insert_processed_data.ipynb` | `community_users`, `game_accounts`, `qa_ticket` | Derives 6,288 `game_accounts` rows from distinct non-null `qa_ticket.account_id` to `user_id` mappings before loading tickets. |
+| `notebooks/generate_operation_workflow_sample_data.ipynb` | `payments`, `refunds`, `item_delivery_logs`, `gacha_logs`, `insight`, `voc_feedback` | Adds operation workflow sample context rows used by the LangGraph workflow. |
 
-## 테이블 상세
+## Search Indexes
+
+| Table | Index | Definition Summary |
+| --- | --- | --- |
+| `documents_chunks` | `idx_documents_chunks_document_id` | B-tree index on `document_id`. |
+| `documents_chunks` | `idx_documents_chunks_document_order` | B-tree index on `document_id`, `chunk_order`. |
+| `documents_chunks` | `uq_documents_chunks_document_order` | Unique B-tree index on `document_id`, `chunk_order`. |
+| `documents_embeddings` | `idx_documents_embeddings_chunk_id` | B-tree index on `chunk_id`. |
+| `documents_embeddings` | `idx_documents_embeddings_source_category` | B-tree index on `source_type`, `category`. |
+| `documents_embeddings` | `idx_documents_embeddings_vector_cosine` | IVFFlat vector cosine index on `embedding_vector` with `lists=100`. |
+| `documents_embeddings` | `uq_documents_embeddings_chunk_id` | Unique B-tree index on `chunk_id`. |
+
+## Operation Workflow Tables
+
+`src/operation/workflow/nodes.py` uses these tables:
+
+| Phase | Tables |
+| --- | --- |
+| Ticket load | `qa_ticket`, `community_users`, `game_accounts` |
+| Payment context | `payments`, `game_accounts` |
+| Refund context | `refunds`, `payments`, `game_accounts` |
+| Item delivery context | `item_delivery_logs`, `game_accounts` |
+| Gacha context | `gacha_logs`, `game_accounts` |
+| Abuse context | `insight`, `voc_feedback` |
+| Policy/outage context | `documents` |
+| RAG retrieval | `documents_chunks`, `documents` |
+| Workflow writes | `ticket_analysis`, `answer_draft`, `evidence_docs`, `safety_results`, `final_response`, `notification_logs` |
+
+Live DB note: `ticket_analysis`, `answer_draft`, `evidence_docs`, and `safety_results` do not currently have database-side PK defaults. The workflow assigns those IDs in application code before insert. `final_response` and `notification_logs` still use database defaults.
+
+## Key Relationships
+
+| From | To |
+| --- | --- |
+| `game_accounts.user_id` | `community_users.user_id` |
+| `qa_ticket.user_id` | `community_users.user_id` |
+| `qa_ticket.account_id` | `game_accounts.account_id` |
+| `payments.account_id` | `game_accounts.account_id` |
+| `refunds.payment_id` | `payments.payment_id` |
+| `gacha_logs.account_id` | `game_accounts.account_id` |
+| `item_delivery_logs.account_id` | `game_accounts.account_id` |
+| `item_delivery_logs.payment_id` | `payments.payment_id` |
+| `ticket_analysis.ticket_id` | `qa_ticket.ticket_id` |
+| `answer_draft.ticket_id` | `qa_ticket.ticket_id` |
+| `answer_draft.analysis_id` | `ticket_analysis.analysis_id` |
+| `evidence_docs.draft_id` | `answer_draft.draft_id` |
+| `safety_results.draft_id` | `answer_draft.draft_id` |
+| `final_response.ticket_id` | `qa_ticket.ticket_id` |
+| `final_response.draft_id` | `answer_draft.draft_id` |
+| `documents_chunks.document_id` | `documents.documents_id` |
+| `documents_embeddings.chunk_id` | `documents_chunks.chunk_id` |
+| `admin_event_logs.ticket_id` | `qa_ticket.ticket_id` |
+| `failed_queries.ticket_id` | `qa_ticket.ticket_id` |
+| `notification_logs.ticket_id` | `qa_ticket.ticket_id` |
+| `insight.user_id` | `community_users.user_id` |
+| `insight.ticket_id` | `qa_ticket.ticket_id` |
+| `insight.account_id` | `game_accounts.account_id` |
+| `voc_feedback.user_id` | `community_users.user_id` |
+| `voc_feedback.ticket_id` | `qa_ticket.ticket_id` |
+| `voc_feedback.account_id` | `game_accounts.account_id` |
+
+## Table Details
 
 ### `admin_event_logs`
 
-- 설명: 운영/관리 자동화 처리 과정에서 발생한 이벤트, 라우팅, 도구 호출, 오류를 기록한다.
 - Primary Key: `log_id`
 - Foreign Key: `ticket_id` -> `qa_ticket.ticket_id`
 - Columns:
   - `log_id integer NOT NULL DEFAULT nextval('admin_event_logs_log_id_seq'::regclass)`
-  - `ticket_id integer`
-  - `session_id integer`
-  - `node_name varchar(100)`
-  - `event_type varchar(100)`
-  - `category varchar(100)`
-  - `routing_target varchar(100)`
-  - `tool_name varchar(100)`
-  - `status varchar(50)`
-  - `error_message text`
-  - `error_category varchar(100)`
-  - `metadata json`
-  - `created_at timestamp DEFAULT CURRENT_TIMESTAMP`
+  - `ticket_id integer NULL`
+  - `session_id integer NULL`
+  - `node_name varchar(100) NULL`
+  - `event_type varchar(100) NULL`
+  - `category varchar(100) NULL`
+  - `routing_target varchar(100) NULL`
+  - `tool_name varchar(100) NULL`
+  - `status varchar(50) NULL`
+  - `error_message text NULL`
+  - `error_category varchar(100) NULL`
+  - `metadata json NULL`
+  - `created_at timestamp NULL DEFAULT CURRENT_TIMESTAMP`
 
 ### `answer_draft`
 
-- 설명: 티켓 분석 결과를 기반으로 생성된 답변 초안을 저장한다.
 - Primary Key: `draft_id`
+- Live DB behavior: application-assigned integer id, no default sequence in the table definition.
 - Foreign Key: `analysis_id` -> `ticket_analysis.analysis_id`, `ticket_id` -> `qa_ticket.ticket_id`
 - Columns:
   - `draft_id integer NOT NULL`
   - `ticket_id integer NOT NULL`
   - `analysis_id integer NOT NULL`
-  - `draft_text text`
-  - `prompt_version varchar`
-  - `created_at timestamp`
+  - `draft_text text NULL`
+  - `prompt_version varchar NULL`
+  - `created_at timestamp NULL`
 
 ### `community_users`
 
-- 설명: 커뮤니티 사용자 계정의 기본 식별자, 이메일, 닉네임, 상태 정보를 저장한다.
 - Primary Key: `user_id`
 - Columns:
   - `user_id integer NOT NULL`
-  - `email varchar`
-  - `nickname varchar`
-  - `created_at timestamp`
-  - `user_status varchar`
-  - `last_login_at timestamp`
+  - `email varchar NULL`
+  - `nickname varchar NULL`
+  - `created_at timestamp NULL`
+  - `user_status varchar NULL`
+  - `last_login_at timestamp NULL`
 
 ### `documents`
 
-- 설명: RAG 검색에 사용되는 원천 문서와 출처 정보를 저장한다.
 - Primary Key: `documents_id`
 - Columns:
   - `documents_id varchar NOT NULL`
-  - `source_type varchar`
-  - `category varchar`
-  - `title varchar`
-  - `raw_content text`
-  - `source_url varchar`
-  - `published_at timestamp`
-  - `updated_at timestamp`
+  - `source_type varchar NULL`
+  - `category varchar NULL`
+  - `title varchar NULL`
+  - `raw_content text NULL`
+  - `source_url varchar NULL`
+  - `published_at timestamp NULL`
+  - `updated_at timestamp NULL`
 
 ### `documents_chunks`
 
-- 설명: 원천 문서를 검색 가능한 청크 단위로 분할한 텍스트를 저장한다.
 - Primary Key: `chunk_id`
 - Unique: `document_id`, `chunk_order`
 - Foreign Key: `document_id` -> `documents.documents_id`
-- Indexes: `idx_documents_chunks_document_id`, `idx_documents_chunks_document_order`, `uq_documents_chunks_document_order`
 - Columns:
   - `chunk_id varchar NOT NULL`
   - `document_id varchar NOT NULL`
   - `chunk_text text NOT NULL`
   - `chunk_order integer NOT NULL`
-  - `token_count integer`
-  - `created_at timestamp DEFAULT CURRENT_TIMESTAMP`
+  - `token_count integer NULL`
+  - `created_at timestamp NULL DEFAULT CURRENT_TIMESTAMP`
 
 ### `documents_embeddings`
 
-- 설명: 문서 청크별 임베딩 벡터와 임베딩 모델 정보를 저장한다.
 - Primary Key: `embedding_id`
 - Unique: `chunk_id`
 - Foreign Key: `chunk_id` -> `documents_chunks.chunk_id`
-- Indexes: `idx_documents_embeddings_chunk_id`, `idx_documents_embeddings_source_category`, `idx_documents_embeddings_vector_cosine`, `uq_documents_embeddings_chunk_id`
 - Columns:
   - `embedding_id varchar NOT NULL`
   - `chunk_id varchar NOT NULL`
   - `embedding_vector vector NOT NULL`
   - `embedding_model varchar NOT NULL`
-  - `source_type varchar`
-  - `category varchar`
-  - `created_at timestamp DEFAULT CURRENT_TIMESTAMP`
+  - `source_type varchar NULL`
+  - `category varchar NULL`
+  - `created_at timestamp NULL DEFAULT CURRENT_TIMESTAMP`
 
 ### `evidence_docs`
 
-- 설명: 답변 초안 생성 또는 검증에 사용된 근거 문서와 관련 점수를 저장한다.
 - Primary Key: `evidence_id`
+- Live DB behavior: application-assigned integer id, no default sequence in the table definition.
 - Foreign Key: `draft_id` -> `answer_draft.draft_id`
 - Columns:
   - `evidence_id integer NOT NULL`
   - `draft_id integer NOT NULL`
-  - `source_type varchar`
-  - `source_id varchar`
-  - `evidence_text text`
-  - `relevance_score double precision`
-  - `retrieval_rank integer`
+  - `source_type varchar NULL`
+  - `source_id varchar NULL`
+  - `evidence_text text NULL`
+  - `relevance_score double precision NULL`
+  - `retrieval_rank integer NULL`
 
 ### `failed_queries`
 
-- 설명: 티켓 처리 중 검색이나 질의 처리가 실패한 내용을 기록한다.
 - Primary Key: `failed_query_id`
 - Foreign Key: `ticket_id` -> `qa_ticket.ticket_id`
 - Columns:
   - `failed_query_id integer NOT NULL DEFAULT nextval('failed_queries_failed_query_id_seq'::regclass)`
   - `ticket_id integer NOT NULL`
   - `query text NOT NULL`
-  - `category varchar(100)`
-  - `reason text`
-  - `created_at timestamp DEFAULT CURRENT_TIMESTAMP`
+  - `category varchar(100) NULL`
+  - `reason text NULL`
+  - `created_at timestamp NULL DEFAULT CURRENT_TIMESTAMP`
 
 ### `final_response`
 
-- 설명: 고객에게 전달할 최종 응답과 안전성 조치 결과를 저장한다.
 - Primary Key: `response_id`
 - Foreign Key: `draft_id` -> `answer_draft.draft_id`, `ticket_id` -> `qa_ticket.ticket_id`
 - Columns:
   - `response_id integer NOT NULL DEFAULT nextval('final_response_response_id_seq'::regclass)`
   - `ticket_id integer NOT NULL`
-  - `draft_id integer`
+  - `draft_id integer NULL`
   - `final_text text NOT NULL`
-  - `safety_action varchar(50)`
-  - `created_at timestamp DEFAULT CURRENT_TIMESTAMP`
+  - `safety_action varchar(50) NULL`
+  - `created_at timestamp NULL DEFAULT CURRENT_TIMESTAMP`
 
 ### `gacha_logs`
 
-- 설명: 게임 계정의 가챠 배너, 획득 아이템, 희귀도, pity count, 획득 시각을 저장한다.
 - Primary Key: `gacha_id`
 - Foreign Key: `account_id` -> `game_accounts.account_id`
 - Columns:
   - `gacha_id integer NOT NULL`
   - `account_id integer NOT NULL`
-  - `banner_name varchar`
-  - `item_name varchar`
-  - `item_type varchar`
-  - `rarity varchar`
-  - `pity_count integer`
-  - `pulled_at timestamp`
+  - `banner_name varchar NULL`
+  - `item_name varchar NULL`
+  - `item_type varchar NULL`
+  - `rarity varchar NULL`
+  - `pity_count integer NULL`
+  - `pulled_at timestamp NULL`
 
 ### `game_accounts`
 
-- 설명: 사용자와 연결된 게임 계정, UID, 서버, 진행도, 계정 상태를 저장한다.
 - Primary Key: `account_id`
 - Foreign Key: `user_id` -> `community_users.user_id`
 - Columns:
   - `account_id integer NOT NULL`
   - `user_id integer NOT NULL`
-  - `game_name varchar`
-  - `uid varchar`
-  - `server_region varchar`
-  - `progression_level integer`
-  - `account_status varchar`
-  - `created_at timestamp`
+  - `game_name varchar NULL`
+  - `uid varchar NULL`
+  - `server_region varchar NULL`
+  - `progression_level integer NULL`
+  - `account_status varchar NULL`
+  - `created_at timestamp NULL`
 
 ### `insight`
 
-- 설명: 문의 내용을 요약하고 카테고리, 감성, 위험도, 패턴 위험도를 저장한다.
 - Primary Key: `insight_id`
-- Foreign Key: `account_id` -> `game_accounts.account_id`, `ticket_id` -> `qa_ticket.ticket_id`, `user_id` -> `community_users.user_id`
+- Foreign Keys: `account_id` -> `game_accounts.account_id`, `ticket_id` -> `qa_ticket.ticket_id`, `user_id` -> `community_users.user_id`
 - Columns:
   - `insight_id integer NOT NULL`
   - `user_id integer NOT NULL`
   - `ticket_id integer NOT NULL`
-  - `account_id integer`
-  - `content_summary text`
-  - `category varchar`
-  - `sentiment varchar`
-  - `risk_level varchar`
-  - `pattern_risk_level varchar`
-  - `inquiry_created_at timestamp`
+  - `account_id integer NULL`
+  - `content_summary text NULL`
+  - `category varchar NULL`
+  - `sentiment varchar NULL`
+  - `risk_level varchar NULL`
+  - `pattern_risk_level varchar NULL`
+  - `inquiry_created_at timestamp NULL`
 
 ### `item_delivery_logs`
 
-- 설명: 계정별 아이템 지급 내역, 지급 상태, 예정/완료 시각을 저장한다.
 - Primary Key: `delivery_id`
-- Foreign Key: `account_id` -> `game_accounts.account_id`, `payment_id` -> `payments.payment_id`
+- Foreign Keys: `account_id` -> `game_accounts.account_id`, `payment_id` -> `payments.payment_id`
 - Columns:
   - `delivery_id integer NOT NULL`
-  - `payment_id integer`
+  - `payment_id integer NULL`
   - `account_id integer NOT NULL`
-  - `source_type varchar`
-  - `item_name varchar`
-  - `quantity integer`
-  - `delivery_status varchar`
-  - `expected_at timestamp`
-  - `delivered_at timestamp`
+  - `source_type varchar NULL`
+  - `item_name varchar NULL`
+  - `quantity integer NULL`
+  - `delivery_status varchar NULL`
+  - `expected_at timestamp NULL`
+  - `delivered_at timestamp NULL`
 
 ### `notification_logs`
 
-- 설명: 티켓 관련 알림 발송 채널, 상태, 메시지, 오류 정보를 기록한다.
 - Primary Key: `notification_id`
 - Foreign Key: `ticket_id` -> `qa_ticket.ticket_id`
 - Columns:
   - `notification_id integer NOT NULL DEFAULT nextval('notification_logs_notification_id_seq'::regclass)`
   - `ticket_id integer NOT NULL`
-  - `channel varchar(50)`
-  - `status varchar(50)`
-  - `message text`
-  - `error_message text`
-  - `error_category varchar(100)`
-  - `sent_at timestamp DEFAULT CURRENT_TIMESTAMP`
+  - `channel varchar(50) NULL`
+  - `status varchar(50) NULL`
+  - `message text NULL`
+  - `error_message text NULL`
+  - `error_category varchar(100) NULL`
+  - `sent_at timestamp NULL DEFAULT CURRENT_TIMESTAMP`
 
 ### `payments`
 
-- 설명: 게임 계정의 상품 결제 내역과 결제 상태, 거래 식별자를 저장한다.
 - Primary Key: `payment_id`
 - Foreign Key: `account_id` -> `game_accounts.account_id`
 - Columns:
   - `payment_id integer NOT NULL`
   - `account_id integer NOT NULL`
-  - `product_name varchar`
-  - `product_type varchar`
-  - `amount numeric`
-  - `currency varchar`
-  - `payment_method varchar`
-  - `payment_status varchar`
-  - `transaction_id varchar`
-  - `paid_at timestamp`
+  - `product_name varchar NULL`
+  - `product_type varchar NULL`
+  - `amount numeric NULL`
+  - `currency varchar NULL`
+  - `payment_method varchar NULL`
+  - `payment_status varchar NULL`
+  - `transaction_id varchar NULL`
+  - `paid_at timestamp NULL`
 
 ### `qa_ticket`
 
-- 설명: 사용자 문의 티켓의 제목, 원문 질의, 접수 채널, 상태, 문의 시각을 저장한다.
 - Primary Key: `ticket_id`
-- Foreign Key: `account_id` -> `game_accounts.account_id`, `user_id` -> `community_users.user_id`
+- Foreign Keys: `account_id` -> `game_accounts.account_id`, `user_id` -> `community_users.user_id`
 - Columns:
   - `ticket_id integer NOT NULL`
-  - `account_id integer`
+  - `account_id integer NULL`
   - `user_id integer NOT NULL`
-  - `title varchar`
-  - `raw_query text`
-  - `source_type varchar`
-  - `status varchar`
-  - `inquiry_created_at timestamp`
-  - `session_id integer`
+  - `title varchar NULL`
+  - `raw_query text NULL`
+  - `source_type varchar NULL`
+  - `status varchar NULL`
+  - `inquiry_created_at timestamp NULL`
+  - `session_id integer NULL`
+  - `responder_type varchar(100) NULL`
 
 ### `refunds`
 
-- 설명: 결제 건별 환불 상태, 사유, 요청/처리 시각을 저장한다.
 - Primary Key: `refund_id`
 - Foreign Key: `payment_id` -> `payments.payment_id`
 - Columns:
   - `refund_id integer NOT NULL`
   - `payment_id integer NOT NULL`
-  - `refund_status varchar`
-  - `refund_reason text`
-  - `requested_at timestamp`
-  - `processed_at timestamp`
+  - `refund_status varchar NULL`
+  - `refund_reason text NULL`
+  - `requested_at timestamp NULL`
+  - `processed_at timestamp NULL`
 
 ### `safety_results`
 
-- 설명: 답변 초안에 대한 환각, 독성, 정책 위반, 사실성 점수와 최종 안전 조치를 저장한다.
 - Primary Key: `safety_id`
+- Live DB behavior: application-assigned integer id, no default sequence in the table definition.
 - Foreign Key: `draft_id` -> `answer_draft.draft_id`
 - Columns:
   - `safety_id integer NOT NULL`
   - `draft_id integer NOT NULL`
-  - `hallucination_score double precision`
-  - `toxicity_score double precision`
-  - `policy_violation_score double precision`
-  - `factuality_score double precision`
-  - `checked_at timestamp`
-  - `safety_action varchar(100)`
-  - `safety_reason varchar(255)`
-  - `retry_count integer DEFAULT 0`
+  - `hallucination_score double precision NULL`
+  - `toxicity_score double precision NULL`
+  - `policy_violation_score double precision NULL`
+  - `factuality_score double precision NULL`
+  - `checked_at timestamp NULL`
+  - `safety_action varchar(100) NULL`
+  - `safety_reason varchar(255) NULL`
+  - `retry_count integer NULL DEFAULT 0`
 
 ### `ticket_analysis`
 
-- 설명: QA 티켓의 카테고리, 응답자 유형, 보강 질의, 위험도, 감성, 라우팅 대상, 요약을 저장한다.
 - Primary Key: `analysis_id`
+- Live DB behavior: application-assigned integer id, no default sequence in the table definition.
 - Foreign Key: `ticket_id` -> `qa_ticket.ticket_id`
 - Columns:
   - `analysis_id integer NOT NULL`
   - `ticket_id integer NOT NULL`
-  - `category varchar`
-  - `responder_type varchar`
-  - `enriched_query text`
-  - `risk_level varchar`
-  - `sentiment varchar`
-  - `routing_target varchar`
-  - `summary text`
-  - `analyzed_at timestamp`
+  - `category varchar NULL`
+  - `responder_type varchar NULL`
+  - `enriched_query text NULL`
+  - `risk_level varchar NULL`
+  - `sentiment varchar NULL`
+  - `routing_target varchar NULL`
+  - `summary text NULL`
+  - `analyzed_at timestamp NULL`
 
 ### `voc_feedback`
 
-- 설명: 사용자 VOC 유형, 감성, 원문, 토픽 키워드를 저장한다.
 - Primary Key: `voc_id`
-- Foreign Key: `account_id` -> `game_accounts.account_id`, `ticket_id` -> `qa_ticket.ticket_id`, `user_id` -> `community_users.user_id`
+- Foreign Keys: `account_id` -> `game_accounts.account_id`, `ticket_id` -> `qa_ticket.ticket_id`, `user_id` -> `community_users.user_id`
 - Columns:
   - `voc_id integer NOT NULL DEFAULT nextval('voc_feedback_voc_id_seq'::regclass)`
   - `ticket_id integer NOT NULL`
   - `user_id integer NOT NULL`
-  - `account_id integer`
-  - `voc_type varchar(100)`
-  - `sentiment varchar(50)`
+  - `account_id integer NULL`
+  - `voc_type varchar(100) NULL`
+  - `sentiment varchar(50) NULL`
   - `raw_content text NOT NULL`
-  - `topic_keywords json`
-  - `created_at timestamp DEFAULT CURRENT_TIMESTAMP`
+  - `topic_keywords json NULL`
+  - `created_at timestamp NULL DEFAULT CURRENT_TIMESTAMP`
