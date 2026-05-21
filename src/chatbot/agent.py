@@ -9,6 +9,14 @@ from chatbot.generation.policies import BUG_POLICY, FAQ_POLICY, PAYMENT_POLICY
 from chatbot.schemas import ChatbotState
 
 
+def _llm_max_tokens() -> int:
+    raw_value = os.environ.get("LLM_MAX_TOKENS", "800")
+    try:
+        return int(raw_value)
+    except ValueError:
+        return 800
+
+
 def build_chatbot_agent(
     *,
     system_prompt: str,
@@ -18,15 +26,16 @@ def build_chatbot_agent(
     from langchain.agents import create_agent
     from langchain_openai import ChatOpenAI
 
-    api_key = os.environ.get("LLM_API_KEY") 
+    api_key = os.environ.get("LLM_API_KEY")
     model = os.environ.get("LLM_MODEL")
     if not api_key or not model:
-        raise RuntimeError("LLM_API_KEY is required.")
+        raise RuntimeError("LLM_API_KEY and LLM_MODEL are required.")
 
     chat_model = ChatOpenAI(
         model=model,
         api_key=api_key,
         temperature=0,
+        max_tokens=_llm_max_tokens(),
     )
 
     return create_agent(
