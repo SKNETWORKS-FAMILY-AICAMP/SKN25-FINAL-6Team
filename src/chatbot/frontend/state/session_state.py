@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import os
-
 import streamlit as st
 
 
@@ -11,17 +9,6 @@ def _coerce_positive_int(value: object, default: int = 1) -> int:
     except (TypeError, ValueError):
         return default
     return parsed if parsed > 0 else default
-
-
-def _default_account_id() -> int | None:
-    raw_value = os.getenv("CHATBOT_DEFAULT_ACCOUNT_ID", "101").strip()
-    if not raw_value:
-        return None
-    try:
-        account_id = int(raw_value)
-    except ValueError:
-        return None
-    return account_id if account_id > 0 else None
 
 
 def init_chat_state() -> None:
@@ -39,8 +26,6 @@ def init_chat_state() -> None:
         st.session_state.session_id = 1
     else:
         st.session_state.session_id = _coerce_positive_int(st.session_state.session_id)
-    if "account_id" not in st.session_state:
-        st.session_state.account_id = _default_account_id()
 
 
 def reset_chat_state(ticket_start: int = 1000) -> None:
