@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+from typing import Any
 
 from chatbot.generation.prompts.orchestrator_prompt import ORCHESTRATOR_SYSTEM_PROMPT
 from chatbot.schemas import ChatbotState, OrchestratorOutput
@@ -45,6 +46,14 @@ def _classify(ticket_id: int, enriched_query: str) -> tuple[str, str, str, str]:
     return result.category, result.routing_target, "llm", result.reason
 
 
+def _require_stored_result(raw_result: str, *, operation: str, id_field: str) -> dict[str, Any]:
+    result = json.loads(raw_result)
+    if result.get("stored") and result.get(id_field) is not None:
+        return result
+    error_message = result.get("message") or result.get("error") or "unknown write failure"
+    raise RuntimeError(f"{operation} failed before workflow could continue: {error_message}")
+
+
 def orchestrator_node(state: ChatbotState) -> dict:
     """StateGraph의 orchestration 노드.
 
@@ -67,7 +76,7 @@ def orchestrator_node(state: ChatbotState) -> dict:
             "status": "open",
         },
     })
-    analysis_result = write_ticket_analysis.invoke({
+    analysis_result = _require_stored_result(write_ticket_analysis.invoke({
         "payload": {
             "ticket_id": ticket_id,
             "category": category,
@@ -78,8 +87,8 @@ def orchestrator_node(state: ChatbotState) -> dict:
             "routing_target": routing_target,
             "summary": classification_reason,
         },
-    })
-    analysis_id = json.loads(analysis_result)["analysis_id"]
+    }), operation="write_ticket_analysis", id_field="analysis_id")
+    analysis_id = analysis_result["analysis_id"]
 
     return {
         "ticket_id": ticket_id,

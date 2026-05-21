@@ -6,24 +6,20 @@ from chatbot.frontend.components.chat_message import to_chat_message
 from chatbot.service.chatbot_service import stream_chatbot
 
 
-def render_chat_input(account_id: int) -> None:
-    if not (user_input := st.chat_input("Enter customer inquiry")):
-        return
-
+def handle_user_message(user_input: str, account_id: int | None) -> None:
     with st.chat_message("user"):
         st.markdown(user_input)
     st.session_state.messages.append({"role": "user", "content": user_input})
 
     st.session_state.ticket_counter += 1
     ticket_id = st.session_state.ticket_counter
-    acc_id = account_id if account_id > 0 else None
 
     with st.chat_message("assistant"):
-        with st.spinner("Generating answer..."):
+        with st.spinner("문의 내용을 확인하고 있어요..."):
             output = stream_chatbot(
                 ticket_id=ticket_id,
                 user_message=user_input,
-                account_id=acc_id,
+                account_id=account_id,
                 user_id=st.session_state.user_id,
                 session_id=st.session_state.session_id,
                 previous_messages=st.session_state.graph_messages,
@@ -42,3 +38,8 @@ def render_chat_input(account_id: int) -> None:
         for message in (to_chat_message(item) for item in raw_messages)
         if message is not None
     ]
+
+
+def render_chat_input(account_id: int | None) -> None:
+    if user_input := st.chat_input("문의 내용을 입력하세요."):
+        handle_user_message(user_input, account_id)
