@@ -35,7 +35,7 @@ SAVE_DRAFT_TARGETS = {
     "save_evidence_docs": "save_evidence_docs_node",
     "approval_gate": "approval_gate_node",
 }
-
+#조건
 CONDITIONAL_EDGES = {
     "query_router": ("route_by_query", CONTEXT_NODE_BY_ROUTE),
     "save_analysis": ("route_by_target", TARGET_ROUTE_TARGETS),

@@ -216,13 +216,13 @@ def _context_for_route(route: QueryRoute, state: OperationState) -> list[dict[st
                 )
             return [dict(row) for row in cur.fetchall()]
 
-
+# 날 닮은너... 너 늬긔야.....
 def _add_context(state: OperationState, route: QueryRoute) -> StateUpdate:
     rows = _dump_rows(_context_for_route(route, state))
     context = state.context | {route: rows}
     return {"context": context, "context_nodes": [*state.context_nodes, CONTEXT_NODE_BY_ROUTE[route]]}
 
-
+## 여기서부터 node 시작
 def load_ticket(state: OperationState) -> StateUpdate:
     current = _state(state)
     if current.ticket_id:
