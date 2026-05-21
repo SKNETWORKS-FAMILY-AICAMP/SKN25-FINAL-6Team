@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import json
 import math
+import os
+import re
 import sys
+from html import unescape
 from pathlib import Path
 
 from langchain_core.tools import tool
@@ -15,12 +18,59 @@ if root_str not in sys.path:
     sys.path.insert(0, root_str)
 
 from config import settings
-from data.seed_payload import SEED_DOCUMENT_CHUNKS, SEED_DOCUMENT_EMBEDDINGS, clone_payload
+from data.seed_payload import (
+    SEED_DOCUMENT_CHUNKS,
+    SEED_DOCUMENT_EMBEDDINGS,
+    SEED_DOCUMENTS,
+    clone_payload,
+)
 
 
 def _embedding_model_name() -> str:
     raw = settings.embedding_model
     return raw.split(":", 1)[1] if raw.startswith("openai:") else raw
+
+
+def _env_int(name: str, default: int) -> int:
+    try:
+        return int(os.environ.get(name, str(default)))
+    except ValueError:
+        return default
+
+
+def _clamp(value: int, low: int, high: int) -> int:
+    return max(low, min(value, high))
+
+
+def _clean_text(text: str, max_chars: int) -> str:
+    without_tags = re.sub(r"<[^>]+>", " ", unescape(text or ""))
+    collapsed = re.sub(r"\s+", " ", without_tags).strip()
+    if len(collapsed) <= max_chars:
+        return collapsed
+    return collapsed[: max_chars - 3].rstrip() + "..."
+
+
+def _compact_results(results: list[dict]) -> list[dict]:
+    docs = {
+        row["documents_id"]: row
+        for row in clone_payload(SEED_DOCUMENTS)
+        if row.get("documents_id")
+    }
+    max_chars = _clamp(_env_int("FAQ_RAG_CHUNK_CHARS", 700), 120, 1500)
+    compact = []
+    for rank, row in enumerate(results, start=1):
+        document_id = row.get("document_id", "")
+        doc = docs.get(document_id, {})
+        compact.append({
+            "rank": rank,
+            "score": row.get("score"),
+            "chunk_id": row.get("chunk_id"),
+            "document_id": document_id,
+            "source_type": doc.get("source_type"),
+            "title": _clean_text(doc.get("title", ""), 120),
+            "chunk_text": _clean_text(row.get("chunk_text", ""), max_chars),
+        })
+    return compact
 
 
 def _cosine(a: list[float], b: list[float]) -> float:
@@ -83,7 +133,9 @@ def search_documents(embedding_json: str, query_text: str = "", top_k: int | Non
         query_text: Original query text for BM25 keyword search. If empty, uses cosine only.
         top_k: Number of top results to return. Defaults to RETRIEVAL_TOP_K.
     """
-    k = top_k or settings.retrieval_top_k
+    requested_k = top_k or settings.retrieval_top_k
+    max_k = _clamp(_env_int("FAQ_RAG_MAX_RESULTS", settings.retrieval_top_k), 1, 5)
+    k = _clamp(requested_k, 1, max_k)
     query_vec: list[float] = json.loads(embedding_json)
 
     chunks = clone_payload(SEED_DOCUMENT_CHUNKS)
@@ -115,7 +167,7 @@ def search_documents(embedding_json: str, query_text: str = "", top_k: int | Non
         final = cosine_scored
 
     results = [{"score": round(s, 4), **c} for s, c in final[:k]]
-    return json.dumps(results, ensure_ascii=False, indent=2)
+    return json.dumps(_compact_results(results), ensure_ascii=False)
 
 
 @tool(parse_docstring=True)
