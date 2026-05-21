@@ -1,0 +1,127 @@
+flowchart TD
+
+START((START))
+
+LOAD_TICKET["load_ticket"]
+
+QUERY_ROUTER["query_router"]
+
+ROUTE_BY_QUERY{"route_by_query"}
+
+PAYMENT_CONTEXT["payment_context_node"]
+REFUND_CONTEXT["refund_context_node"]
+ITEM_CONTEXT["item_delivery_context_node"]
+GACHA_CONTEXT["gacha_context_node"]
+POLICY_CONTEXT["policy_context_node"]
+ABUSE_CONTEXT["abuse_context_node"]
+OUTAGE_CONTEXT["outage_context_node"]
+
+ANALYZE["analyze_ticket"]
+
+SAVE_ANALYSIS["save_analysis"]
+
+ROUTE_BY_TARGET{"route_by_target"}
+
+RAG_RETRIEVE["rag_retrieve_node<br/><br/>Hybrid Retriever<br/>BM25 + Vector Search"]
+
+GENERATE_ANSWER["generate_answer_node<br/><br/>근거 기반 답변 초안 생성"]
+
+URGENT_DRAFT["urgent_draft_node<br/><br/>긴급 알림용 초안 생성<br/>ticket_id, risk_level, risk_reason 포함"]
+
+SAVE_DRAFT["save_draft_node<br/><br/>RDBMS · answer_draft 저장"]
+
+SAVE_EVIDENCE["save_evidence_docs_node<br/><br/>RDBMS · evidence_docs 저장"]
+
+APPROVAL_GATE["approval_gate_node<br/><br/>근거 문서 일치 여부<br/>Hallucination 여부<br/>정책 위반 여부<br/>욕설 / 유해 표현 여부"]
+
+SAVE_SAFETY["save_safety_result_node<br/><br/>RDBMS · safety_results 저장"]
+
+ROUTE_BY_APPROVAL{"route_by_approval"}
+
+PUBLISH["publish_final_answer_node<br/><br/>최종 응답 게시<br/>QA_ticket.status = closed"]
+
+HUMAN_REVIEW["human_review_node<br/><br/>운영자 검수<br/>답변 수정<br/>수동 지급<br/>환불 처리"]
+
+ROUTE_BY_HUMAN{"route_by_human_decision"}
+
+RETRY_ROUTING["retry_routing_node<br/><br/>reject 사유 저장<br/>기존 draft 폐기<br/>routing 재시도 플래그 설정<br/>retry_count 증가"]
+
+EDIT_ANSWER["edit_answer_node<br/><br/>운영자 현장 수정<br/>edited_answer 저장"]
+
+SAVE_FINAL_EDIT["save_final_edit_node<br/><br/>RDBMS · response_revision 저장<br/>수정 전/후 답변 기록"]
+
+URGENT_ALERT["urgent_alert_node<br/><br/>긴급 알림 이메일 발송<br/>운영 담당자 / 관리자 알림"]
+
+END((END))
+
+START --> LOAD_TICKET
+LOAD_TICKET --> QUERY_ROUTER
+QUERY_ROUTER --> ROUTE_BY_QUERY
+
+ROUTE_BY_QUERY -->|"payment"| PAYMENT_CONTEXT
+ROUTE_BY_QUERY -->|"refund"| REFUND_CONTEXT
+ROUTE_BY_QUERY -->|"item_delivery"| ITEM_CONTEXT
+ROUTE_BY_QUERY -->|"gacha"| GACHA_CONTEXT
+ROUTE_BY_QUERY -->|"policy"| POLICY_CONTEXT
+ROUTE_BY_QUERY -->|"abuse"| ABUSE_CONTEXT
+ROUTE_BY_QUERY -->|"outage"| OUTAGE_CONTEXT
+
+PAYMENT_CONTEXT --> ANALYZE
+REFUND_CONTEXT --> ANALYZE
+ITEM_CONTEXT --> ANALYZE
+GACHA_CONTEXT --> ANALYZE
+POLICY_CONTEXT --> ANALYZE
+ABUSE_CONTEXT --> ANALYZE
+OUTAGE_CONTEXT --> ANALYZE
+
+ANALYZE --> SAVE_ANALYSIS
+SAVE_ANALYSIS --> ROUTE_BY_TARGET
+
+ROUTE_BY_TARGET -->|"rag_reply"| RAG_RETRIEVE
+ROUTE_BY_TARGET -->|"urgent_alert"| URGENT_DRAFT
+
+RAG_RETRIEVE --> GENERATE_ANSWER
+GENERATE_ANSWER --> SAVE_DRAFT
+GENERATE_ANSWER --> SAVE_EVIDENCE
+
+URGENT_DRAFT --> SAVE_DRAFT
+
+SAVE_DRAFT --> APPROVAL_GATE
+SAVE_EVIDENCE --> APPROVAL_GATE
+
+APPROVAL_GATE --> SAVE_SAFETY
+SAVE_SAFETY --> ROUTE_BY_APPROVAL
+
+ROUTE_BY_APPROVAL -->|"approved"| PUBLISH
+ROUTE_BY_APPROVAL -->|"human_review"| HUMAN_REVIEW
+ROUTE_BY_APPROVAL -->|"urgent_alert"| URGENT_ALERT
+
+HUMAN_REVIEW --> ROUTE_BY_HUMAN
+
+ROUTE_BY_HUMAN -->|"approved"| PUBLISH
+ROUTE_BY_HUMAN -->|"reject"| RETRY_ROUTING
+ROUTE_BY_HUMAN -->|"edit"| EDIT_ANSWER
+
+RETRY_ROUTING --> QUERY_ROUTER
+
+EDIT_ANSWER --> SAVE_FINAL_EDIT
+SAVE_FINAL_EDIT --> PUBLISH
+
+PUBLISH --> END
+URGENT_ALERT --> END
+
+classDef startEnd fill:#222,stroke:#222,color:#fff,stroke-width:2px;
+classDef node fill:#f8f8f8,stroke:#999,color:#000,stroke-width:1.2px;
+classDef router fill:#fff4cc,stroke:#c9a400,color:#000,stroke-width:2px;
+classDef db fill:#e8f0ff,stroke:#5b8def,color:#000,stroke-width:1.5px;
+classDef alert fill:#ffe8e8,stroke:#d64545,color:#000,stroke-width:2px;
+classDef human fill:#efe8ff,stroke:#7b61ff,color:#000,stroke-width:1.5px;
+classDef retry fill:#e8fff1,stroke:#2e9d5b,color:#000,stroke-width:1.5px;
+
+class START,END startEnd;
+class LOAD_TICKET,QUERY_ROUTER,PAYMENT_CONTEXT,REFUND_CONTEXT,ITEM_CONTEXT,GACHA_CONTEXT,POLICY_CONTEXT,ABUSE_CONTEXT,OUTAGE_CONTEXT,ANALYZE,RAG_RETRIEVE,GENERATE_ANSWER,URGENT_DRAFT,APPROVAL_GATE,PUBLISH,EDIT_ANSWER node;
+class SAVE_ANALYSIS,SAVE_DRAFT,SAVE_EVIDENCE,SAVE_SAFETY,SAVE_FINAL_EDIT db;
+class ROUTE_BY_QUERY,ROUTE_BY_TARGET,ROUTE_BY_APPROVAL,ROUTE_BY_HUMAN router;
+class URGENT_ALERT alert;
+class HUMAN_REVIEW human;
+class RETRY_ROUTING retry;
