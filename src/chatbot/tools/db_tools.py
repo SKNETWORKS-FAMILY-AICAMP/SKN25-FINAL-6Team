@@ -10,6 +10,19 @@ def _json(data: object) -> str:
 
 
 @tool(parse_docstring=True)
+def verify_user_login(email: str, password: str) -> str:
+    """Verify chatbot login credentials and return linked game account metadata.
+
+    Args:
+        email: Login email stored in community_users.email.
+        password: Plain-text password entered by the user.
+    """
+    from chatbot.repository.account_repository import verify_user_login as verify_login
+
+    return _json(verify_login(email=email, password=password))
+
+
+@tool(parse_docstring=True)
 def read_payments(account_id: int) -> str:
     """Read payment records for the given account.
 
