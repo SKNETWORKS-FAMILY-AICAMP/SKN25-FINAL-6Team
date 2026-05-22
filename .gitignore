@@ -32,4 +32,5 @@ env/
 tests/operation/operation_workflow_graph.png
 
 # Evaluation and experiment results
-evals/experiments/
+src/chatbot/evals/experiments/
+src/chatbot/evals/datasets/

@@ -126,7 +126,7 @@ def save_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build a draft FAQ/RAG evaluation dataset from DB documents.")
-    parser.add_argument("--output", default="evals/datasets/faq_ragas_db_seed.jsonl")
+    parser.add_argument("--output", default="src/chatbot/evals/datasets/faq_ragas_db_seed.jsonl")
     parser.add_argument("--limit", type=int, default=50)
     parser.add_argument("--min-chars", type=int, default=80)
     args = parser.parse_args()

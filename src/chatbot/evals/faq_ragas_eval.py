@@ -303,7 +303,7 @@ def _validate_metric_inputs(rows: list[dict[str, Any]], *, metric_suite: MetricS
 def main() -> None:
     parser = argparse.ArgumentParser(description="Evaluate FAQ/RAG answers with RAGAS.")
     parser.add_argument("--input", help="JSONL with question/answer/reference rows.")
-    parser.add_argument("--output", default="evals/experiments/faq_ragas_rows.jsonl")
+    parser.add_argument("--output", default="src/chatbot/evals/experiments/faq_ragas_rows.jsonl")
     parser.add_argument("--top-k", type=int, default=5)
     parser.add_argument("--limit", type=int, help="Evaluate only the first N rows.")
     parser.add_argument(
