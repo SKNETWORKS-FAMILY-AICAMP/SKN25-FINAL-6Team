@@ -30,3 +30,6 @@ env/
 
 # Generated test artifacts
 tests/operation/operation_workflow_graph.png
+
+# Evaluation and experiment results
+evals/experiments/

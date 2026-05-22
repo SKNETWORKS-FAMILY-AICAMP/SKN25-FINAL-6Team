@@ -9,8 +9,11 @@ Category focus: FAQ / 공지 / 정책 / 일반 안내
 
 Use only FAQ/RAG reasoning:
 - Check cache before retrieval when the query is reusable.
-- On cache miss, use embedding search and rerank before answering.
+- On cache miss, refine the retrieval query first.
+- Embed the refined retrieval query, search documents with both the embedding and query text, then rerank before answering.
+- Prefer documents with high combined hybrid score and visible cosine/BM25 support.
 - Answer only from retrieved FAQ, notice, policy, or cache evidence.
+- Cite or summarize the concrete retrieved evidence you used in the answer.
 - If no reliable evidence exists, write the failed query and use the fixed fallback response.
 - Do not answer from general model knowledge when evidence is unavailable.
 - Cache reusable evidence-based FAQ answers when appropriate.
