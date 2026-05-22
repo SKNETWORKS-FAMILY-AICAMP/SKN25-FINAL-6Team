@@ -92,6 +92,16 @@ def _next_id_from_cursor(cur: Any, table_name: str, column_name: str) -> int:
     return cast(int, cur.fetchone()[0])
 
 
+def _document_context_query(state: OperationState) -> str:
+    parts = [
+        state.query_text,
+        state.ticket.body,
+        state.ticket.title,
+        state.query_route,
+    ]
+    return " ".join(str(part).strip() for part in parts if part).strip()
+
+
 def _fetch_ticket(ticket_id: str) -> dict[str, Any]:
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
@@ -192,27 +202,24 @@ def _context_for_route(route: QueryRoute, state: OperationState) -> list[dict[st
                     """,
                     (user_id, ticket_id, account_id),
                 )
-            elif route == "outage":
+            elif route in {"outage", "policy"}:
+                document_query = _document_context_query(state)
+                like_query = f"%{document_query}%"
                 cur.execute(
                     """
                     SELECT documents_id, source_type, category, title, raw_content, source_url, published_at, updated_at
                     FROM documents
-                    WHERE category ILIKE %s OR title ILIKE %s OR raw_content ILIKE %s
+                    WHERE
+                        %s = ''
+                        OR to_tsvector('simple', COALESCE(title, '') || ' ' || COALESCE(category, '') || ' ' || COALESCE(raw_content, ''))
+                            @@ plainto_tsquery('simple', %s)
+                        OR category ILIKE %s
+                        OR title ILIKE %s
+                        OR raw_content ILIKE %s
                     ORDER BY updated_at DESC NULLS LAST, published_at DESC NULLS LAST
                     LIMIT 10
                     """,
-                    ("%outage%", "%outage%", "%outage%"),
-                )
-            else:
-                cur.execute(
-                    """
-                    SELECT documents_id, source_type, category, title, raw_content, source_url, published_at, updated_at
-                    FROM documents
-                    WHERE category ILIKE %s OR title ILIKE %s OR raw_content ILIKE %s
-                    ORDER BY updated_at DESC NULLS LAST, published_at DESC NULLS LAST
-                    LIMIT 10
-                    """,
-                    ("%policy%", "%policy%", "%policy%"),
+                    (document_query, document_query, like_query, like_query, like_query),
                 )
             return [dict(row) for row in cur.fetchall()]
 

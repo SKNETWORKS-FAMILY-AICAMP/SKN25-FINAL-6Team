@@ -7,7 +7,6 @@ from chatbot.retrieval.vector_tools import RetrievalQuery
 def _retrieval_query() -> RetrievalQuery:
     return RetrievalQuery(
         query_text="payment item delivery",
-        terms=["payment", "item", "delivery"],
         preferred_source_types=["hoyoverse_qna_common"],
         preferred_categories=["결제_관련_이슈"],
     )
@@ -75,5 +74,6 @@ def test_run_faq_rag_generates_once_with_evidence(monkeypatch) -> None:
 
     assert result["draft_text"] == "answer from evidence"
     assert result["faq_failure_reason"] is None
-    assert result["retrieval_enrichment"]["terms"] == ["payment", "item", "delivery"]
+    assert result["retrieval_enrichment"]["query_text"] == "payment item delivery"
+    assert result["retrieval_enrichment"]["preferred_source_types"] == ["hoyoverse_qna_common"]
     assert len(calls) == 1

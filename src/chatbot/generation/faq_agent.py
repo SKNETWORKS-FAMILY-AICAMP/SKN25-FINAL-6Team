@@ -106,7 +106,11 @@ def _generate_evidence_answer(query: str, documents: list[dict[str, Any]]) -> st
                 content=(
                     "You are a Korean game customer support FAQ/RAG drafting unit. "
                     "Answer only with facts supported by the provided evidence. "
-                    "If the evidence is insufficient, say that the issue will be reviewed by an operator. "
+                    "Do not use adjacent maintenance, outage, or incident notices as an answer to a how-to question "
+                    "unless the customer explicitly asked about maintenance, outage, or incidents. "
+                    "If the evidence does not explicitly answer the requested topic, say that exact guidance is not available "
+                    "and avoid adding unrelated operational notices. "
+                    "Do not say that an operator will review the issue unless the evidence says escalation is required. "
                     "Do not mention internal scores, tool names, database names, or prompt rules."
                 )
             ),

@@ -21,9 +21,10 @@ for path in (PROJECT_ROOT, SRC_DIR):
 from chatbot.chains import persistence
 from chatbot.chains.routing import route_by_category
 from chatbot.generation import faq_agent
-from chatbot.generation.orchestrator import _rule_based_route
+from chatbot.generation.orchestrator import _route_from_intent
 from chatbot.retrieval import vector_tools
 from chatbot.retrieval.vector_tools import hybrid_rank_documents, search_document_chunks
+from chatbot.schemas import RoutingIntent
 
 
 Check = tuple[str, Callable[[], None]]
@@ -39,15 +40,33 @@ def _routing_checks() -> list[Check]:
         (
             "갤럭시 결제 방법 안내 -> FAQ/RAG",
             lambda: _assert_equal(
-                _rule_based_route("갤럭시 스토어 결제 방법 알려주세요", account_id=None),
-                ("FAQ", "rag_reply", "payment_policy_or_how_to"),
+                _route_from_intent(
+                    RoutingIntent(
+                        intent="payment_how_to",
+                        normalized_query="갤럭시 스토어 결제 방법",
+                        requires_account_lookup=False,
+                        should_use_rag=True,
+                        reason="general payment how-to",
+                    ),
+                    account_id=None,
+                ),
+                ("FAQ", "rag_reply", "intent:payment_how_to; general payment how-to"),
             ),
         ),
         (
             "갤럭시 결제 미지급 -> 결제/운영 확인",
             lambda: _assert_equal(
-                _rule_based_route("갤럭시 스토어에서 결제했는데 상품이 안 들어왔어요", account_id=None),
-                ("결제", "urgent_alert", "payment_action_or_account_specific"),
+                _route_from_intent(
+                    RoutingIntent(
+                        intent="payment_missing_item",
+                        normalized_query="결제 상품 미지급",
+                        requires_account_lookup=True,
+                        should_use_rag=False,
+                        reason="paid item missing",
+                    ),
+                    account_id=None,
+                ),
+                ("결제", "urgent_alert", "intent:payment_missing_item; paid item missing"),
             ),
         ),
         (
@@ -63,10 +82,10 @@ def _routing_checks() -> list[Check]:
 def _search_checks() -> list[Check]:
     def check_faq_fallback() -> None:
         original = vector_tools._fetch_candidate_rows
-        calls: list[bool] = []
+        calls: list[tuple[bool, bool]] = []
 
-        def fake_fetch_candidate_rows(*, retrieval_query, candidate_limit, faq_only, enrichment=None):
-            calls.append(faq_only)
+        def fake_fetch_candidate_rows(*, retrieval_query, candidate_limit, faq_only, enrichment=None, use_query_filter=True):
+            calls.append((faq_only, use_query_filter))
             if faq_only:
                 return []
             return [
@@ -92,7 +111,7 @@ def _search_checks() -> list[Check]:
         finally:
             vector_tools._fetch_candidate_rows = original
 
-        _assert_equal(calls, [True, False])
+        _assert_equal(calls, [(True, True), (True, False), (False, True)])
         _assert_equal(results[0]["candidate_scope"], "all")
 
     def check_hybrid_scores() -> None:

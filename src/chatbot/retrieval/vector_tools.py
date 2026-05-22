@@ -28,27 +28,19 @@ FAQ_SOURCE_TYPES = (
     "naver_cafe_notice",
 )
 
-FAQ_CATEGORY_TERMS = (
-    "게임_문제",
-    "결제_문제",
-    "결제_관련_이슈",
-    "계정_문제",
-    "계정보안_이슈",
-    "클라이언트_문제",
-    "hoyoverse_통행증_이슈",
-    "privacy",
-    "terms",
-    "공지사항",
-    "공지",
-    "안내",
-)
+SOURCE_PRIORITY = {
+    "hoyoverse_qna_common": 5,
+    "hoyoverse_qna_onlygenshin": 5,
+    "hoyoverse_policy": 4,
+    "naver_cafe_guide": 3,
+    "naver_cafe_notice": 1,
+}
 
 
 class RetrievalQuery(BaseModel):
     """LLM이 생성한 검색용 query enrichment 결과."""
 
     query_text: str = Field(description="Embedding과 BM25에 사용할 핵심 검색 문장")
-    terms: list[str] = Field(default_factory=list, description="title/category 후보 필터링에 사용할 핵심 검색어")
     preferred_source_types: list[str] = Field(default_factory=list, description="우선 검색할 documents.source_type")
     preferred_categories: list[str] = Field(default_factory=list, description="우선 검색할 documents.category")
 
@@ -92,42 +84,17 @@ def refine_query_text(text: str, max_terms: int = 16) -> str:
     return " ".join(deduped[:max_terms])
 
 
-def _candidate_tokens(query: str, max_terms: int = 8) -> list[str]:
-    """DB 후보 조회에 쓸 핵심 토큰만 고른다."""
-    skip_terms = {
-        "대해",
-        "관련",
-        "알려주세요",
-        "해주세요",
-        "문의",
-        "질문",
-        "확인",
-        "방법",
-        "안내",
-    }
-    candidates = []
-    for token in _tokenize(query):
-        normalized = token
-        if len(normalized) > 3 and normalized.endswith("에"):
-            normalized = normalized[:-1]
-        if normalized in skip_terms or len(normalized) <= 1:
-            continue
-        candidates.append(normalized)
-    deduped = list(dict.fromkeys(candidates))
-    brand_terms = {"hoyoverse", "genshin"}
-    non_brand_terms = [token for token in deduped if token not in brand_terms]
-    if non_brand_terms:
-        deduped = non_brand_terms
-    return deduped[:max_terms]
+def _query_patterns(query: str, max_tokens: int = 8) -> list[str]:
+    """정규화된 query_text에서 SQL title/category 후보 조회용 패턴을 만든다."""
+    tokens = list(dict.fromkeys(_tokenize(refine_query_text(query))))
+    return [f"%{token}%" for token in tokens[:max_tokens]]
 
 
 def _fallback_enrich_query(text: str) -> RetrievalQuery:
     """LLM enrichment 실패 시 사용할 규칙 기반 fallback."""
     query_text = refine_query_text(text)
-    terms = _candidate_tokens(query_text)
     return RetrievalQuery(
         query_text=query_text,
-        terms=terms,
         preferred_source_types=list(FAQ_SOURCE_TYPES),
         preferred_categories=[],
     )
@@ -154,12 +121,11 @@ def enrich_retrieval_query(text: str) -> RetrievalQuery:
                 (
                     "system",
                     "You enrich Korean game CS FAQ/RAG search queries. "
-                    "Extract a concise Korean query_text, important search terms, "
-                    "preferred document source types, and categories. "
+                    "Extract a concise Korean query_text, preferred document source types, and categories. "
                     "Use only source types from: "
                     f"{', '.join(FAQ_SOURCE_TYPES)}. "
                     "For privacy policy questions prefer hoyoverse_policy and category privacy. "
-                    "For terms questions prefer hoyoverse_policy and category terms. "
+                    "For terms-of-service questions prefer hoyoverse_policy and category terms. "
                     "For payment/account/client troubleshooting prefer hoyoverse_qna_common or hoyoverse_qna_onlygenshin. "
                     "Do not answer the user.",
                 ),
@@ -169,10 +135,8 @@ def enrich_retrieval_query(text: str) -> RetrievalQuery:
         allowed_sources = set(FAQ_SOURCE_TYPES)
         source_types = [source for source in result.preferred_source_types if source in allowed_sources]
         query_text = refine_query_text(result.query_text or text)
-        terms = list(dict.fromkeys([*result.terms, *_candidate_tokens(query_text)]))[:8]
         return RetrievalQuery(
             query_text=query_text,
-            terms=terms,
             preferred_source_types=source_types or list(FAQ_SOURCE_TYPES),
             preferred_categories=list(dict.fromkeys(result.preferred_categories))[:8],
         )
@@ -219,9 +183,48 @@ def _bm25_scores(query: str, rows: list[dict[str, Any]]) -> dict[Any, float]:
     return scores
 
 
+def _token_matches(query_token: str, document_token: str) -> bool:
+    if query_token == document_token:
+        return True
+    if len(query_token) <= 1 or len(document_token) <= 1:
+        return False
+    return query_token in document_token or document_token in query_token
+
+
+def _overlap_ratio(query_terms: set[str], text: str) -> float:
+    if not query_terms:
+        return 0.0
+    document_terms = set(_tokenize(text))
+    if not document_terms:
+        return 0.0
+
+    matched = 0
+    for query_term in query_terms:
+        if any(_token_matches(query_term, document_term) for document_term in document_terms):
+            matched += 1
+    return matched / len(query_terms)
+
+
+def _field_match_boost(query: str, chunk: dict[str, Any]) -> float:
+    query_terms = set(_tokenize(query))
+    if not query_terms:
+        return 0.0
+
+    title_weight = float(os.environ.get("RETRIEVAL_TITLE_MATCH_WEIGHT", "0.04"))
+    category_weight = float(os.environ.get("RETRIEVAL_CATEGORY_MATCH_WEIGHT", "0.01"))
+    text_weight = float(os.environ.get("RETRIEVAL_TEXT_MATCH_WEIGHT", "0.006"))
+
+    title_score = _overlap_ratio(query_terms, str(chunk.get("title") or ""))
+    category_score = _overlap_ratio(query_terms, str(chunk.get("category") or ""))
+    text_score = _overlap_ratio(query_terms, str(chunk.get("chunk_text") or ""))
+
+    return title_score * title_weight + category_score * category_weight + text_score * text_weight
+
+
 def _rrf_fuse(
     cosine_ranked: list[tuple[float, dict[str, Any]]],
     bm25_ranked: list[tuple[float, dict[str, Any]]],
+    query_text: str,
     k: int = 60,
 ) -> list[tuple[float, dict[str, Any]]]:
     """코사인 순위와 BM25 순위를 RRF 방식으로 결합한다."""
@@ -230,10 +233,18 @@ def _rrf_fuse(
     bm25_rank = {c["chunk_id"]: i for i, (_, c) in enumerate(bm25_ranked)}
     fused = []
     for cid in set(cosine_rank) | set(bm25_rank):
+        chunk = chunk_by_id[cid]
+        source_boost = SOURCE_PRIORITY.get(str(chunk.get("source_type") or ""), 0) * float(
+            os.environ.get("RETRIEVAL_SOURCE_PRIORITY_WEIGHT", "0.003")
+        )
+        field_boost = _field_match_boost(query_text, chunk)
         rrf = (
             1 / (k + cosine_rank.get(cid, len(cosine_rank)) + 1)
             + 1 / (k + bm25_rank.get(cid, len(bm25_rank)) + 1)
+            + source_boost
+            + field_boost
         )
+        chunk["field_match_score"] = field_boost
         fused.append((rrf, chunk_by_id[cid]))
     fused.sort(key=lambda x: x[0], reverse=True)
     return fused
@@ -272,7 +283,7 @@ def hybrid_rank_documents(
         key=lambda item: item[0],
         reverse=True,
     )
-    fused = _rrf_fuse(cosine_ranked, bm25_ranked)
+    fused = _rrf_fuse(cosine_ranked, bm25_ranked, retrieval_query)
 
     results = []
     for fused_score, row in fused[:top_k]:
@@ -280,6 +291,7 @@ def hybrid_rank_documents(
         result["score"] = round(fused_score, 6)
         result["cosine_score"] = round(float(result["cosine_score"]), 6)
         result["bm25_score"] = round(float(result["bm25_score"]), 6)
+        result["field_match_score"] = round(float(result.get("field_match_score", 0.0)), 6)
         results.append(result)
     return results
 
@@ -287,12 +299,8 @@ def hybrid_rank_documents(
 def _faq_filter_clause() -> tuple[str, list[str]]:
     """FAQ 답변 근거로 쓸 수 있는 source_type/category SQL 필터를 만든다."""
     source_placeholders = ", ".join(["%s"] * len(FAQ_SOURCE_TYPES))
-    checks = [f"d.source_type IN ({source_placeholders})"]
     params: list[str] = list(FAQ_SOURCE_TYPES)
-    for category in FAQ_CATEGORY_TERMS:
-        checks.append("d.category = %s")
-        params.append(category)
-    return f"({' OR '.join(checks)})", params
+    return f"d.source_type IN ({source_placeholders})", params
 
 
 def _enrichment_filter_clause(enrichment: RetrievalQuery | None) -> tuple[str, list[Any]]:
@@ -313,18 +321,6 @@ def _enrichment_filter_clause(enrichment: RetrievalQuery | None) -> tuple[str, l
         checks.append("d.category = ANY(%s)")
         params.append(categories)
 
-    terms = [term for term in enrichment.terms if term]
-    if terms:
-        term_patterns = [f"%{term}%" for term in terms]
-        checks.extend(
-            [
-                "d.title ILIKE ANY(%s)",
-                "d.category ILIKE ANY(%s)",
-                "d.source_type ILIKE ANY(%s)",
-            ]
-        )
-        params.extend([term_patterns, term_patterns, term_patterns])
-
     if not checks:
         return "", []
     return f"AND ({' OR '.join(checks)})", params
@@ -336,6 +332,7 @@ def _fetch_candidate_rows(
     candidate_limit: int,
     faq_only: bool,
     enrichment: RetrievalQuery | None = None,
+    use_query_filter: bool = True,
 ) -> list[dict[str, Any]]:
     """로컬 랭킹 전에 Postgres에서 문서 청크와 임베딩 후보를 조회한다."""
     faq_clause = ""
@@ -346,10 +343,39 @@ def _fetch_candidate_rows(
 
     enrichment_clause, enrichment_params = _enrichment_filter_clause(enrichment)
 
-    token_source = enrichment.terms if enrichment and enrichment.terms else _candidate_tokens(retrieval_query)
-    token_patterns = [f"%{token}%" for token in token_source]
+    token_patterns = _query_patterns(retrieval_query)
     if not token_patterns:
         token_patterns = [f"%{retrieval_query}%"]
+
+    text_clause = "TRUE"
+    text_params: list[Any] = []
+    if use_query_filter:
+        text_clause = """
+                    (
+                        %s = ''
+                        OR to_tsvector('simple', c.chunk_text) @@ plainto_tsquery('simple', %s)
+                        OR d.title ILIKE %s
+                        OR d.category ILIKE %s
+                        OR d.title ILIKE ANY(%s)
+                        OR d.category ILIKE ANY(%s)
+                    )
+        """
+        text_params = [
+            retrieval_query,
+            retrieval_query,
+            f"%{retrieval_query}%",
+            f"%{retrieval_query}%",
+            token_patterns,
+            token_patterns,
+        ]
+
+    source_priority_sql = "CASE " + " ".join(
+        f"WHEN d.source_type = '{source_type}' THEN {priority}"
+        for source_type, priority in SOURCE_PRIORITY.items()
+    ) + " ELSE 0 END"
+    order_clause = "c.created_at DESC NULLS LAST"
+    if not use_query_filter and faq_only:
+        order_clause = f"{source_priority_sql} DESC, c.created_at DESC NULLS LAST"
 
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
@@ -367,26 +393,14 @@ def _fetch_candidate_rows(
                 JOIN documents d ON d.documents_id = c.document_id
                 JOIN documents_embeddings e ON e.chunk_id = c.chunk_id
                 WHERE
-                    (
-                        %s = ''
-                        OR to_tsvector('simple', c.chunk_text) @@ plainto_tsquery('simple', %s)
-                        OR d.title ILIKE %s
-                        OR d.category ILIKE %s
-                        OR d.title ILIKE ANY(%s)
-                        OR d.category ILIKE ANY(%s)
-                    )
+                    {text_clause}
                     {faq_clause}
                     {enrichment_clause}
-                ORDER BY c.created_at DESC NULLS LAST
+                ORDER BY {order_clause}
                 LIMIT %s
                 """,
                 (
-                    retrieval_query,
-                    retrieval_query,
-                    f"%{retrieval_query}%",
-                    f"%{retrieval_query}%",
-                    token_patterns,
-                    token_patterns,
+                    *text_params,
                     *faq_params,
                     *enrichment_params,
                     candidate_limit,
@@ -406,6 +420,8 @@ def search_document_chunks(
     """FAQ RAG의 핵심 검색 함수로, FAQ 우선 조회 후 필요하면 전체 문서로 fallback한다."""
     k = top_k or int(os.environ.get("RETRIEVAL_TOP_K", "3"))
     candidate_limit = int(os.environ.get("RETRIEVAL_CANDIDATE_LIMIT", "300"))
+    broad_candidate_limit = int(os.environ.get("RETRIEVAL_BROAD_CANDIDATE_LIMIT", "2000"))
+    min_candidate_count = int(os.environ.get("RETRIEVAL_MIN_CANDIDATES", "50"))
     query_vec: list[float] = json.loads(embedding_json)
     retrieval_query = refine_query_text(query_text)
     if isinstance(enrichment, dict):
@@ -416,8 +432,23 @@ def search_document_chunks(
         candidate_limit=candidate_limit,
         faq_only=prefer_faq,
         enrichment=enrichment,
+        use_query_filter=True,
     )
     candidate_scope = "faq"
+
+    if prefer_faq and len(rows) < min_candidate_count:
+        broad_rows = _fetch_candidate_rows(
+            retrieval_query=retrieval_query,
+            candidate_limit=broad_candidate_limit,
+            faq_only=True,
+            enrichment=None,
+            use_query_filter=False,
+        )
+        rows_by_id = {row["chunk_id"]: row for row in rows}
+        for row in broad_rows:
+            rows_by_id.setdefault(row["chunk_id"], row)
+        rows = list(rows_by_id.values())
+        candidate_scope = "faq_broad"
 
     if not rows and prefer_faq:
         rows = _fetch_candidate_rows(
@@ -425,6 +456,7 @@ def search_document_chunks(
             candidate_limit=candidate_limit,
             faq_only=False,
             enrichment=enrichment,
+            use_query_filter=True,
         )
         candidate_scope = "all"
 
