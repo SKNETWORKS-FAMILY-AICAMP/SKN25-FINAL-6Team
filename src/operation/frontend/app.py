@@ -30,6 +30,7 @@ with st.sidebar:
 
 
 def _api_get(path: str, params: dict[str, object] | None = None) -> Any:
+    # timeout=15: 일반 API 읽기 요청 타임아웃 (초) — 워크플로우 실행은 2_답변_생성.py에서 120초 별도 적용
     response = requests.get(f"{api_base_url()}{path}", params=params, timeout=15)
     response.raise_for_status()
     return response.json()

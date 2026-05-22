@@ -97,6 +97,7 @@ class FakeCursor:
                 }
             ]
         elif "from documents_chunks c" in normalized_sql:
+            # _MIN_EVIDENCE_COUNT=2를 만족해야 save_evidence_docs 경로를 탄다
             self.result = [
                 {
                     "chunk_id": "chunk-1",
@@ -106,7 +107,16 @@ class FakeCursor:
                     "title": "결제 안내",
                     "chunk_text": "결제 완료 후 아이템 지급 상태를 확인합니다.",
                     "score": 0.75,
-                }
+                },
+                {
+                    "chunk_id": "chunk-2",
+                    "document_id": "doc-2",
+                    "source_type": "policy",
+                    "category": "payment",
+                    "title": "환불 안내",
+                    "chunk_text": "환불은 결제일로부터 7일 이내 신청 가능합니다.",
+                    "score": 0.60,
+                },
             ]
         elif normalized_sql.startswith("insert into ticket_analysis"):
             self.database.inserted["ticket_analysis"].append(params)
@@ -208,7 +218,9 @@ class WorkflowFullPathTest(unittest.TestCase):
 
         with patch.object(nodes, "db_connection", fake_db_connection(database)):
             with patch.object(nodes, "invoke_structured_llm", fake_structured_llm):
-                result = graph.invoke(OperationState(ticket_id="1001"))
+                # 임베딩 API 호출 없이 BM25 단독 검색으로 테스트 안정성 확보
+                with patch.object(nodes, "get_query_embedding", return_value=None):
+                    result = graph.invoke(OperationState(ticket_id="1001"))
 
         self.assertEqual(result["status"], "closed")
         self.assertEqual(result["final_answer"], "결제 내역과 지급 상태를 확인했습니다.")
@@ -226,12 +238,15 @@ class WorkflowFullPathTest(unittest.TestCase):
 
         with patch.object(nodes, "db_connection", fake_db_connection(database)):
             with patch.object(nodes, "invoke_structured_llm", fake_urgent_structured_llm):
-                result = graph.invoke(OperationState(ticket_id="1001"))
+                with patch.object(nodes, "get_query_embedding", return_value=None):
+                    result = graph.invoke(OperationState(ticket_id="1001"))
 
         self.assertEqual(result["status"], "urgent_alert_pending")
-        self.assertEqual(database.ticket_status, "pending")
+        # urgent_alert_node가 qa_ticket.status="urgent_alert_pending"으로 UPDATE한다
+        self.assertEqual(database.ticket_status, "urgent_alert_pending")
         self.assertEqual(len(database.inserted["answer_draft"]), 1)
         self.assertEqual(len(database.inserted["notification_logs"]), 1)
+        # 긴급 경로는 safety_results/final_response를 거치지 않는다
         self.assertEqual(len(database.inserted["safety_results"]), 0)
         self.assertEqual(len(database.inserted["final_response"]), 0)
 
@@ -241,8 +256,9 @@ class WorkflowFullPathTest(unittest.TestCase):
 
         with patch.object(nodes, "db_connection", fake_db_connection(database)):
             with patch.object(nodes, "invoke_structured_llm", fake_structured_llm):
-                first_result = graph.invoke(OperationState(ticket_id="1001"))
-                second_result = graph.invoke(OperationState(ticket_id="1001"))
+                with patch.object(nodes, "get_query_embedding", return_value=None):
+                    first_result = graph.invoke(OperationState(ticket_id="1001"))
+                    second_result = graph.invoke(OperationState(ticket_id="1001"))
 
         self.assertEqual(first_result["analysis_id"], 1)
         self.assertEqual(second_result["analysis_id"], 2)

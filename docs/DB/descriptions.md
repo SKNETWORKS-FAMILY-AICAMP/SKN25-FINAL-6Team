@@ -1,4 +1,4 @@
-# DB Descriptions
+ # DB Descriptions
 
 Generated from the live PostgreSQL database on 2026-05-21.
 

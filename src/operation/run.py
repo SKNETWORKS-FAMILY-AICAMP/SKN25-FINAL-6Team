@@ -19,6 +19,7 @@ API_BASE_URL = f"http://{API_HOST}:{API_PORT}"
 
 
 def wait_for_api() -> None:
+    # range(30): uvicorn 콜드 스타트 최대 30초 가정, 1초 간격 폴링 (dashboard/run.py와 동일 기준)
     for _ in range(30):
         try:
             with urlopen(f"{API_BASE_URL}/health", timeout=1) as response:

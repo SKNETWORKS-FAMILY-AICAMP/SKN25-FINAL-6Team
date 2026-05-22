@@ -9,6 +9,12 @@ import streamlit as st
 
 
 def render_answer_panel(api_base_url: str, draft: dict[str, Any], reviewer_id: str | None = None) -> None:
+    """답변 초안을 표시하고 수정 저장·승인·반려 액션을 제공합니다.
+
+    수정 저장은 PATCH /drafts/{draft_id},
+    승인은 POST /drafts/{draft_id}/approve,
+    반려는 POST /drafts/{draft_id}/reject 를 호출합니다.
+    """
     draft_id = draft["draft_id"]
     ticket_id = draft["ticket_id"]
     current_text = draft.get("draft_text") or ""
@@ -21,7 +27,7 @@ def render_answer_panel(api_base_url: str, draft: dict[str, Any], reviewer_id: s
         response = requests.patch(
             f"{api_base_url}/drafts/{draft_id}",
             json={"draft_text": edited_text, "reviewer_id": reviewer_id},
-            timeout=15,
+            timeout=15,  # 일반 API 쓰기 요청 타임아웃 (초)
         )
         response.raise_for_status()
         st.success("수정본을 저장했습니다.")
@@ -31,7 +37,7 @@ def render_answer_panel(api_base_url: str, draft: dict[str, Any], reviewer_id: s
         response = requests.post(
             f"{api_base_url}/drafts/{draft_id}/approve",
             json={"final_text": edited_text, "reviewer_id": reviewer_id},
-            timeout=15,
+            timeout=15,  # 일반 API 쓰기 요청 타임아웃 (초)
         )
         response.raise_for_status()
         st.success(f"문의 #{ticket_id} 답변을 승인했습니다.")
@@ -43,8 +49,20 @@ def render_answer_panel(api_base_url: str, draft: dict[str, Any], reviewer_id: s
             response = requests.post(
                 f"{api_base_url}/drafts/{draft_id}/reject",
                 json={"reason": reason, "reviewer_id": reviewer_id},
-                timeout=15,
+                timeout=15,  # 일반 API 쓰기 요청 타임아웃 (초)
             )
             response.raise_for_status()
+            result = response.json()
             st.warning(f"문의 #{ticket_id} 초안을 반려했습니다.")
+            if result.get("run_workflow_url"):
+                if st.button("워크플로우 재실행", key=f"rerun_{draft_id}", use_container_width=True):
+                    with st.spinner("워크플로우 재실행 중..."):
+                        rerun_resp = requests.post(
+                            f"{api_base_url}{result['run_workflow_url']}",
+                            # timeout=120: LangGraph 워크플로우 재실행 최대 대기 시간 — LLM 다단계 호출 포함
+                            timeout=120,
+                        )
+                        rerun_resp.raise_for_status()
+                        st.success("새 초안이 생성됐습니다.")
+                        st.rerun()
             st.rerun()
