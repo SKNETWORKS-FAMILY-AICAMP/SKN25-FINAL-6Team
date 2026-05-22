@@ -6,3 +6,4 @@ pydantic==2.12.5
 python-dotenv==1.2.2
 typing-extensions==4.15.0
 tzdata==2026.2
+ragas

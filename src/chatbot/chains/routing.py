@@ -4,12 +4,16 @@ from chatbot.constants import MAX_SAFETY_RETRY
 from chatbot.schemas import ChatbotState
 
 
+PAYMENT_CATEGORIES = {"결제", "寃곗젣"}
+BUG_CATEGORIES = {"인게임/버그", "?멸쾶?꾨쾭洹?"}
+
+
 def route_by_category(state: ChatbotState) -> str:
     """Route to the concrete category node selected by the orchestrator."""
     category = state["category"]
-    if category == "결제":
+    if category in PAYMENT_CATEGORIES:
         return "payment_agent"
-    if category == "인게임버그":
+    if category in BUG_CATEGORIES:
         return "bug_agent"
     if category == "FAQ":
         return "faq_agent"
