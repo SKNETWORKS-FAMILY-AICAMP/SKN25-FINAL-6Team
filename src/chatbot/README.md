@@ -19,6 +19,94 @@ Graph = orchestration / workflow
 Agent = reasoning / answer drafting
 ```
 
+## Streamlit UI / Login / Observability
+
+### 실행
+
+프로젝트 루트에서 실행합니다.
+
+```powershell
+streamlit run src\chatbot\frontend\app.py
+```
+
+API만 확인할 때는 다음을 사용합니다.
+
+```powershell
+uvicorn src.chatbot.api.main:app --reload
+```
+
+### 계정 로그인
+
+Streamlit 화면은 `community_users.email`, `community_users.password_hash`, `game_accounts.server_region` 3개 값을 입력받습니다. 세 값이 일치하는 계정을 찾으면 아래 형태로 UI 세션에 저장합니다.
+
+```python
+{
+    "login_success": True,
+    "user_id": 1,
+    "account_id": 101,
+    "game_id": "8123456",
+    "email": "user1@game.com",
+    "server_region": "KR",
+    "message": "로그인 성공",
+}
+```
+
+로그인 성공 후 `st.session_state`에는 `user_id`, `account_id`, `session_id`, `game_id`, `email`, `server_region`이 저장됩니다. 로그인 전에는 채팅 입력창이 비활성화되고, 채팅 요청에는 현재 `account_id`가 항상 전달됩니다.
+
+### 고정 state 필드
+
+```text
+ticket_id
+user_id
+account_id
+session_id
+raw_query
+enriched_query
+category
+routing_target
+classification_method
+classification_reason
+analysis_id
+draft_id
+draft_text
+final_text
+safety_action
+review_required
+```
+
+### LangSmith 연결
+
+`.env`에 다음 값을 설정합니다.
+
+```text
+LANGSMITH_TRACING=true
+LANGSMITH_API_KEY=<your_key>
+LANGSMITH_PROJECT=game_cs_chatbot
+```
+
+구버전 LangChain 환경과 맞출 때는 `LANGCHAIN_TRACING_V2=true`, `LANGCHAIN_API_KEY`, `LANGCHAIN_PROJECT=game_cs_chatbot`도 함께 설정할 수 있습니다. 로그인은 `game_account_login` run으로 기록되며 output에서 `login_success`, `user_id`, `account_id`, `game_id`, `email`, `server_region`을 확인합니다. 비밀번호는 trace와 운영 로그에 남기지 않습니다. 챗봇 서비스는 LangGraph 실행 config에 `ticket_id`, `session_id`, `user_id`, `account_id`를 metadata로 넣고, 실행 완료 후 운영 로그에 `category`, `routing_target`, `analysis_id`, `draft_id`까지 포함한 `langsmith_trace_metadata_linked` 이벤트를 남깁니다. 운영 로그와 LangSmith trace는 같은 `ticket_id` 태그와 metadata로 대조합니다.
+
+### 디버깅 체크
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest discover -s tests\common -p test_db_connection.py
+.\.venv\Scripts\python.exe -m unittest discover -s tests\chatbot -p test_db_schema.py
+.\.venv\Scripts\python.exe -m py_compile src\chatbot\frontend\app.py src\chatbot\service\chatbot_service.py
+```
+
+DB sequence는 `tests.chatbot.test_db_schema`의 auto id 검사를 통해 확인합니다. OpenAI RateLimit이 발생하면 데모 전 `LLM_MODEL`, `LLM_API_KEY`, 호출량을 확인하고 재시도 간격을 둡니다. FAQ 검색 결과가 0개이거나 threshold가 낮은 경우에는 `failed_queries` 저장과 안전한 fallback 응답 경로를 확인합니다.
+
+### 데모 질문 세트
+
+```text
+결제했는데 아이템이 지급되지 않았어요.
+방금 결제한 상품을 환불할 수 있나요?
+쿠폰은 어디에서 등록하나요?
+가챠를 돌렸는데 결과가 이상해요.
+업데이트 이후 접속이 자주 끊겨요.
+운영 정책 때문에 불편했던 점을 전달하고 싶어요.
+```
+
 향후 LangGraph가 담당할 영역:
 
 ```text

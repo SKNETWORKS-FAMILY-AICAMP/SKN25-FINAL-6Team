@@ -4,6 +4,8 @@ import os
 from typing import Any
 
 from chatbot.observability.logger import EVENT_NODE_COMPLETED, log_event
+from chatbot.observability.langsmith import build_runnable_config, build_trace_metadata
+
 
 def build_state(
     ticket_id: int,
@@ -32,9 +34,12 @@ def build_state(
         "account_id": account_id,
         "source_type": source_type,
         "raw_query": user_message,
+        "enriched_query": None,
         "ticket_id": ticket_id,
         "category": "",
         "routing_target": "",
+        "classification_method": None,
+        "classification_reason": None,
         "analysis_id": None,
         "draft_id": None,
         "draft_text": None,
@@ -91,7 +96,16 @@ def run_chatbot(
         source_type=source_type,
         previous_messages=previous_messages,
     )
-    result = graph.invoke(state)
+    result = graph.invoke(state, config=build_runnable_config(state, run_name="chatbot_request"))
+    log_event(
+        "langsmith_trace_metadata_linked",
+        ticket_id=ticket_id,
+        session_id=session_id,
+        category=result.get("category"),
+        routing_target=result.get("routing_target"),
+        status="ok",
+        metadata=build_trace_metadata(result),
+    )
 
     if os.getenv("CHATBOT_DEBUG_ROUTING", "").lower() in ("1", "true", "yes"):
         print("[routing_debug]")
@@ -128,7 +142,11 @@ def stream_chatbot(
     )
     result: dict[str, Any] = {}
 
-    for chunk in graph.stream(state, stream_mode="updates"):
+    for chunk in graph.stream(
+        state,
+        config=build_runnable_config(state, run_name="chatbot_stream_request"),
+        stream_mode="updates",
+    ):
         for node_name, node_update in chunk.items():
             log_event(
                 EVENT_NODE_COMPLETED,
@@ -139,6 +157,16 @@ def stream_chatbot(
                 metadata={"updated_keys": sorted(node_update.keys())},
             )
             result.update(node_update)
+
+    log_event(
+        "langsmith_trace_metadata_linked",
+        ticket_id=ticket_id,
+        session_id=session_id,
+        category=result.get("category"),
+        routing_target=result.get("routing_target"),
+        status="ok",
+        metadata=build_trace_metadata({**state, **result}),
+    )
 
     return {
         "answer": last_message_text(result),
