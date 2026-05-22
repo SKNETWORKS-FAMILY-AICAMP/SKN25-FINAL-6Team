@@ -5,6 +5,8 @@ uvicorn==0.38.0
 streamlit==1.52.1
 pandas==2.3.3
 requests==2.32.5
+slack-sdk==3.37.0
+Pillow==11.3.0
 psycopg==3.3.4
 psycopg-binary==3.3.4
 redis==5.2.1

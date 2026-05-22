@@ -4,25 +4,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from .nodes import NODE_FUNCTIONS, route_after_window
+from .nodes import NODE_FUNCTIONS, route_after_overview, route_after_risk, route_after_window
 from .state import DashboardSection, DashboardState
 
 
-SECTION_TARGETS = {
-    "overview": "fetch_overview_node",
-    "risk": "fetch_risk_node",
-    "quality": "fetch_quality_node",
-    "all": "fetch_overview_node",
-}
-
-
 def build_dashboard_graph(*, compile_graph: bool = True):
-    """Build the dashboard LangGraph.
-
-    The graph keeps dashboard calculation deterministic: it loads the time
-    window, fetches DB aggregates, computes presentation ratios, and returns
-    JSON-ready state for the API layer.
-    """
+    """Build the dashboard LangGraph."""
 
     from langgraph.graph import END, START, StateGraph
 
@@ -31,11 +18,34 @@ def build_dashboard_graph(*, compile_graph: bool = True):
         graph.add_node(node_name, node_handler)
 
     graph.add_edge(START, "load_window_node")
-    graph.add_conditional_edges("load_window_node", route_after_window, SECTION_TARGETS)
+    graph.add_conditional_edges(
+        "load_window_node",
+        route_after_window,
+        {
+            "overview": "fetch_overview_node",
+            "risk": "fetch_risk_node",
+            "quality": "fetch_quality_node",
+            "all": "fetch_overview_node",
+        },
+    )
     graph.add_edge("fetch_overview_node", "compute_overview_node")
-    graph.add_edge("compute_overview_node", "fetch_risk_node")
+    graph.add_conditional_edges(
+        "compute_overview_node",
+        route_after_overview,
+        {
+            "all": "fetch_risk_node",
+            "stop": END,
+        },
+    )
     graph.add_edge("fetch_risk_node", "compute_risk_node")
-    graph.add_edge("compute_risk_node", "fetch_quality_node")
+    graph.add_conditional_edges(
+        "compute_risk_node",
+        route_after_risk,
+        {
+            "all": "fetch_quality_node",
+            "stop": END,
+        },
+    )
     graph.add_edge("fetch_quality_node", "compute_quality_node")
     graph.add_edge("compute_quality_node", END)
 
