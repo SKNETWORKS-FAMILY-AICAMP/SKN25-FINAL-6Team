@@ -1,36 +1,36 @@
-## Environment
+# Environment and secrets
 .env
-.env.local
-.env.*.local
-.venv
+.env.*
+!.env.example
 
-## Python
+# Python
 __pycache__/
 *.py[cod]
+*$py.class
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
 .venv/
 venv/
 env/
 
-## Node / frontend
-node_modules/
-dist/
-build/
-.next/
-coverage/
-
-## OS / editor
-.DS_Store
-Thumbs.db
-.vscode/
+# Local/editor files
 .idea/
+.vscode/
+*.swp
+*.swo
 
-## Logs
+# Logs and runtime artifacts
 *.log
+*.tmp
 
-## Local data
+# Generated test artifacts
+tests/operation/operation_workflow_graph.png
 
-!data/.gitkeep
-*.sqlite3
+# Evaluation and experiment results
+src/chatbot/evals/experiments/
+src/chatbot/evals/datasets/
