@@ -15,6 +15,7 @@ def build_state(
     session_id: int = 1,
     source_type: str = "chatbot",
     previous_messages: list[dict[str, str]] | None = None,
+    conversation_summary: str | None = None,
 ) -> dict[str, Any]:
     messages = list(previous_messages or [])
     messages.append({
@@ -50,7 +51,7 @@ def build_state(
         "safety_reason": None,
         "review_required": None,
         "retry_count": 0,
-        "conversation_summary": None,
+        "conversation_summary": conversation_summary,
         "turn_count": len([message for message in messages if message.get("role") == "user"]),
     }
 
@@ -150,6 +151,7 @@ def run_chatbot(
     session_id: int = 1,
     source_type: str = "chatbot",
     previous_messages: list[dict[str, str]] | None = None,
+    conversation_summary: str | None = None,
 ) -> dict[str, Any]:
     from chatbot.chains.workflow import graph
 
@@ -161,6 +163,7 @@ def run_chatbot(
         session_id=session_id,
         source_type=source_type,
         previous_messages=previous_messages,
+        conversation_summary=conversation_summary,
     )
     result = graph.invoke(state, config=build_runnable_config(state, run_name="chatbot_request"))
     log_event(
@@ -194,6 +197,7 @@ def stream_chatbot(
     session_id: int = 1,
     source_type: str = "chatbot",
     previous_messages: list[dict[str, str]] | None = None,
+    conversation_summary: str | None = None,
 ):
     from chatbot.chains.workflow import graph
 
@@ -205,6 +209,7 @@ def stream_chatbot(
         session_id=session_id,
         source_type=source_type,
         previous_messages=previous_messages,
+        conversation_summary=conversation_summary,
     )
     result: dict[str, Any] = {}
     node_summaries: list[dict[str, Any]] = []

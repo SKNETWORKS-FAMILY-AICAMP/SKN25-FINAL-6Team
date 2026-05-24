@@ -16,6 +16,17 @@ from chatbot.generation.response.fixed_responses import (
     SAFE_FALLBACK_RESPONSE,
 )
 from chatbot.safety import safety_layer
+from chatbot.service.chatbot_service import build_state
+
+
+def test_build_state_keeps_conversation_summary() -> None:
+    state = build_state(
+        ticket_id=1,
+        user_message="게임 진행도 리셋 어캐함?",
+        conversation_summary="이전 문의는 계정 진행도 관련 질문이었다.",
+    )
+
+    assert state["conversation_summary"] == "이전 문의는 계정 진행도 관련 질문이었다."
 
 
 def test_evidence_grounding_scores_use_retrieved_documents() -> None:
