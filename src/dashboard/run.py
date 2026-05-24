@@ -9,6 +9,10 @@ import time
 from pathlib import Path
 from urllib.request import urlopen
 
+from dotenv import load_dotenv
+
+# .env 로드: os.environ.copy() 전에 실행해야 LangSmith 변수가 서브프로세스 env에 포함된다
+load_dotenv()
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 API_HOST = os.environ.get("DASHBOARD_API_HOST", "127.0.0.1")
