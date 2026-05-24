@@ -1,70 +1,87 @@
  # DB Descriptions
 
-Generated from the live PostgreSQL database on 2026-05-21.
+Generated from the live PostgreSQL database on 2026-05-24.
 
 ## Basic Info
 
 | Item | Value |
 | --- | --- |
 | DBMS | PostgreSQL |
-| Version | 16.13 |
+| Version | `PostgreSQL 16.14 (Ubuntu 16.14-0ubuntu0.24.04.1)` |
 | Host | `100.97.235.15` |
+| Server Address | `100.97.235.15/32` |
 | Port | `5432` |
 | Database | `game_cs` |
+| User | `game_cs_user` |
 | Schema | `public` |
 | Extensions | `plpgsql 1.0`, `vector 0.6.0` |
+| Public Tables | 20 |
+| Public Columns | 165 |
 
 ## Table Summary
 
-Row counts are PostgreSQL `pg_stat_user_tables.n_live_tup` estimates.
+Row counts are PostgreSQL `pg_stat_user_tables.n_live_tup` estimates at verification time.
 
-| Table | Estimated Rows | Purpose |
-| --- | ---: | --- |
-| `admin_event_logs` | 0 | Operation/admin workflow event and error logs |
-| `answer_draft` | 2 | Generated answer drafts for tickets |
-| `community_users` | 6,288 | Community user profile data |
-| `documents` | 1,201 | Source documents for policy, notice, guide, incident, and RAG retrieval |
-| `documents_chunks` | 3,864 | Searchable chunks split from source documents |
-| `documents_embeddings` | 3,864 | Vector embeddings for document chunks |
-| `evidence_docs` | 2 | Retrieved evidence saved for answer drafts |
-| `failed_queries` | 0 | Failed ticket/query processing logs |
-| `final_response` | 0 | Final customer-facing responses |
-| `gacha_logs` | 5 | Gacha pull history per game account |
-| `game_accounts` | 6,288 | Game account data linked to community users |
-| `insight` | 5 | Ticket/user/account-level insight analysis data |
-| `item_delivery_logs` | 5 | Paid or reward item delivery history |
-| `notification_logs` | 0 | Notification send results and errors |
-| `payments` | 11 | Payment transaction history |
-| `qa_ticket` | 9,221 | Customer inquiry/QA tickets |
-| `refunds` | 5 | Refund request and processing history |
-| `safety_results` | 2 | Safety and grounding check results for drafts |
-| `ticket_analysis` | 3 | Ticket classification, risk, sentiment, and routing analysis |
-| `voc_feedback` | 3 | VOC feedback and topic keyword records |
+| Table | Estimated Rows | Columns | Primary Key | PK Default | Purpose |
+| --- | ---: | ---: | --- | --- | --- |
+| `admin_event_logs` | 0 | 13 | `log_id` | `nextval('admin_event_logs_log_id_seq'::regclass)` | Operation/admin workflow event and error logs |
+| `answer_draft` | 97 | 6 | `draft_id` | none | Generated answer drafts for tickets |
+| `community_users` | 6,288 | 8 | `user_id` | none | Community user profile data |
+| `documents` | 1,201 | 8 | `documents_id` | none | Source documents for policy, notice, guide, incident, and RAG retrieval |
+| `documents_chunks` | 3,864 | 6 | `chunk_id` | none | Searchable chunks split from source documents |
+| `documents_embeddings` | 3,864 | 7 | `embedding_id` | none | Vector embeddings for document chunks |
+| `evidence_docs` | 195 | 7 | `evidence_id` | none | Retrieved evidence saved for answer drafts |
+| `failed_queries` | 9 | 6 | `failed_query_id` | none | Failed ticket/query processing logs |
+| `final_response` | 80 | 6 | `response_id` | none | Final customer-facing responses |
+| `gacha_logs` | 5 | 8 | `gacha_id` | none | Gacha pull history per game account |
+| `game_accounts` | 6,288 | 8 | `account_id` | none | Game account data linked to community users |
+| `insight` | 5 | 10 | `insight_id` | none | Ticket/user/account-level insight analysis data |
+| `item_delivery_logs` | 5 | 9 | `delivery_id` | none | Paid or reward item delivery history |
+| `notification_logs` | 0 | 8 | `notification_id` | `nextval('notification_logs_notification_id_seq'::regclass)` | Notification send results and errors |
+| `payments` | 11 | 10 | `payment_id` | none | Payment transaction history |
+| `qa_ticket` | 9,243 | 10 | `ticket_id` | none | Customer inquiry/QA tickets |
+| `refunds` | 5 | 6 | `refund_id` | none | Refund request and processing history |
+| `safety_results` | 95 | 10 | `safety_id` | none | Safety and grounding check results for drafts |
+| `ticket_analysis` | 118 | 10 | `analysis_id` | none | Ticket classification, risk, sentiment, and routing analysis |
+| `voc_feedback` | 5 | 9 | `voc_id` | none | VOC feedback and topic keyword records |
+
+## Data Type Summary
+
+| Data Type | PostgreSQL UDT | Column Count |
+| --- | --- | ---: |
+| `USER-DEFINED` | `vector` | 1 |
+| `character varying` | `varchar` | 65 |
+| `double precision` | `float8` | 5 |
+| `integer` | `int4` | 50 |
+| `json` | `json` | 2 |
+| `numeric` | `numeric` | 1 |
+| `text` | `text` | 17 |
+| `timestamp without time zone` | `timestamp` | 24 |
 
 ## Data Load Sources
 
 | Source | Target Tables | Notes |
 | --- | --- | --- |
 | `data/processed/community_users.csv` | `community_users` | 9,221 source rows; upserted by `user_id`, resulting in 6,288 distinct users in the table. |
-| `data/processed/qa_ticket.csv` | `qa_ticket` | 9,221 source rows; `source_type` appears twice in the CSV header and `notebooks/insert_processed_data.ipynb` keeps the first occurrence. |
-| `notebooks/insert_processed_data.ipynb` | `community_users`, `game_accounts`, `qa_ticket` | Derives 6,288 `game_accounts` rows from distinct non-null `qa_ticket.account_id` to `user_id` mappings before loading tickets. |
+| `data/processed/qa_ticket.csv` | `qa_ticket` | `source_type` appears twice in the CSV header and `notebooks/insert_processed_data.ipynb` keeps the first occurrence. |
+| `notebooks/insert_processed_data.ipynb` | `community_users`, `game_accounts`, `qa_ticket` | Derives game account rows from distinct non-null `qa_ticket.account_id` to `user_id` mappings before loading tickets. |
 | `notebooks/generate_operation_workflow_sample_data.ipynb` | `payments`, `refunds`, `item_delivery_logs`, `gacha_logs`, `insight`, `voc_feedback` | Adds operation workflow sample context rows used by the LangGraph workflow. |
 
 ## Search Indexes
 
 | Table | Index | Definition Summary |
 | --- | --- | --- |
-| `documents_chunks` | `idx_documents_chunks_document_id` | B-tree index on `document_id`. |
-| `documents_chunks` | `idx_documents_chunks_document_order` | B-tree index on `document_id`, `chunk_order`. |
-| `documents_chunks` | `uq_documents_chunks_document_order` | Unique B-tree index on `document_id`, `chunk_order`. |
-| `documents_embeddings` | `idx_documents_embeddings_chunk_id` | B-tree index on `chunk_id`. |
-| `documents_embeddings` | `idx_documents_embeddings_source_category` | B-tree index on `source_type`, `category`. |
-| `documents_embeddings` | `idx_documents_embeddings_vector_cosine` | IVFFlat vector cosine index on `embedding_vector` with `lists=100`. |
-| `documents_embeddings` | `uq_documents_embeddings_chunk_id` | Unique B-tree index on `chunk_id`. |
+| `documents_chunks` | `idx_documents_chunks_document_id` | `idx_documents_chunks_document_id ON documents_chunks USING btree (document_id)` |
+| `documents_chunks` | `idx_documents_chunks_document_order` | `idx_documents_chunks_document_order ON documents_chunks USING btree (document_id, chunk_order)` |
+| `documents_chunks` | `uq_documents_chunks_document_order` | `UNIQUE uq_documents_chunks_document_order ON documents_chunks USING btree (document_id, chunk_order)` |
+| `documents_embeddings` | `idx_documents_embeddings_chunk_id` | `idx_documents_embeddings_chunk_id ON documents_embeddings USING btree (chunk_id)` |
+| `documents_embeddings` | `idx_documents_embeddings_source_category` | `idx_documents_embeddings_source_category ON documents_embeddings USING btree (source_type, category)` |
+| `documents_embeddings` | `idx_documents_embeddings_vector_cosine` | `idx_documents_embeddings_vector_cosine ON documents_embeddings USING ivfflat (embedding_vector vector_cosine_ops) WITH (lists='100')` |
+| `documents_embeddings` | `uq_documents_embeddings_chunk_id` | `UNIQUE uq_documents_embeddings_chunk_id ON documents_embeddings USING btree (chunk_id)` |
 
 ## Operation Workflow Tables
 
-`src/operation/workflow/nodes.py` uses these tables:
+`src/operation/workflow/nodes.py`, `src/operation/api/main.py`, and `src/dashboard/workflow/nodes.py` use these tables.
 
 | Phase | Tables |
 | --- | --- |
@@ -75,327 +92,512 @@ Row counts are PostgreSQL `pg_stat_user_tables.n_live_tup` estimates.
 | Gacha context | `gacha_logs`, `game_accounts` |
 | Abuse context | `insight`, `voc_feedback` |
 | Policy/outage context | `documents` |
-| RAG retrieval | `documents_chunks`, `documents` |
-| Workflow writes | `ticket_analysis`, `answer_draft`, `evidence_docs`, `safety_results`, `final_response`, `notification_logs` |
+| RAG retrieval | `documents_chunks`, `documents`, `documents_embeddings` |
+| Workflow writes | `ticket_analysis`, `answer_draft`, `evidence_docs`, `safety_results`, `final_response`, `notification_logs`, `failed_queries`, `admin_event_logs` |
 
-Live DB note: `ticket_analysis`, `answer_draft`, `evidence_docs`, and `safety_results` do not currently have database-side PK defaults. The workflow assigns those IDs in application code before insert. `final_response` and `notification_logs` still use database defaults.
+Live DB note: these workflow write tables currently have primary keys with no database-side default, so inserts must provide IDs explicitly unless a migration adds defaults: `answer_draft`, `evidence_docs`, `failed_queries`, `final_response`, `safety_results`, `ticket_analysis`. `docs/DB/migrations/20260521_operation_workflow_identity_defaults.sql` is a reference migration for part of this ID strategy.
 
 ## Key Relationships
 
-| From | To |
-| --- | --- |
-| `game_accounts.user_id` | `community_users.user_id` |
-| `qa_ticket.user_id` | `community_users.user_id` |
-| `qa_ticket.account_id` | `game_accounts.account_id` |
-| `payments.account_id` | `game_accounts.account_id` |
-| `refunds.payment_id` | `payments.payment_id` |
-| `gacha_logs.account_id` | `game_accounts.account_id` |
-| `item_delivery_logs.account_id` | `game_accounts.account_id` |
-| `item_delivery_logs.payment_id` | `payments.payment_id` |
-| `ticket_analysis.ticket_id` | `qa_ticket.ticket_id` |
-| `answer_draft.ticket_id` | `qa_ticket.ticket_id` |
-| `answer_draft.analysis_id` | `ticket_analysis.analysis_id` |
-| `evidence_docs.draft_id` | `answer_draft.draft_id` |
-| `safety_results.draft_id` | `answer_draft.draft_id` |
-| `final_response.ticket_id` | `qa_ticket.ticket_id` |
-| `final_response.draft_id` | `answer_draft.draft_id` |
-| `documents_chunks.document_id` | `documents.documents_id` |
-| `documents_embeddings.chunk_id` | `documents_chunks.chunk_id` |
-| `admin_event_logs.ticket_id` | `qa_ticket.ticket_id` |
-| `failed_queries.ticket_id` | `qa_ticket.ticket_id` |
-| `notification_logs.ticket_id` | `qa_ticket.ticket_id` |
-| `insight.user_id` | `community_users.user_id` |
-| `insight.ticket_id` | `qa_ticket.ticket_id` |
-| `insight.account_id` | `game_accounts.account_id` |
-| `voc_feedback.user_id` | `community_users.user_id` |
-| `voc_feedback.ticket_id` | `qa_ticket.ticket_id` |
-| `voc_feedback.account_id` | `game_accounts.account_id` |
+| From | To | On Update | On Delete |
+| --- | --- | --- | --- |
+| `admin_event_logs.ticket_id` | `qa_ticket.ticket_id` | NO ACTION | NO ACTION |
+| `answer_draft.analysis_id` | `ticket_analysis.analysis_id` | NO ACTION | CASCADE |
+| `answer_draft.ticket_id` | `qa_ticket.ticket_id` | NO ACTION | CASCADE |
+| `documents_chunks.document_id` | `documents.documents_id` | NO ACTION | CASCADE |
+| `documents_embeddings.chunk_id` | `documents_chunks.chunk_id` | NO ACTION | CASCADE |
+| `evidence_docs.draft_id` | `answer_draft.draft_id` | NO ACTION | CASCADE |
+| `failed_queries.ticket_id` | `qa_ticket.ticket_id` | NO ACTION | NO ACTION |
+| `final_response.draft_id` | `answer_draft.draft_id` | NO ACTION | NO ACTION |
+| `final_response.ticket_id` | `qa_ticket.ticket_id` | NO ACTION | NO ACTION |
+| `gacha_logs.account_id` | `game_accounts.account_id` | NO ACTION | CASCADE |
+| `game_accounts.user_id` | `community_users.user_id` | NO ACTION | CASCADE |
+| `insight.account_id` | `game_accounts.account_id` | NO ACTION | SET NULL |
+| `insight.ticket_id` | `qa_ticket.ticket_id` | NO ACTION | CASCADE |
+| `insight.user_id` | `community_users.user_id` | NO ACTION | CASCADE |
+| `item_delivery_logs.account_id` | `game_accounts.account_id` | NO ACTION | CASCADE |
+| `item_delivery_logs.payment_id` | `payments.payment_id` | NO ACTION | SET NULL |
+| `notification_logs.ticket_id` | `qa_ticket.ticket_id` | NO ACTION | NO ACTION |
+| `payments.account_id` | `game_accounts.account_id` | NO ACTION | CASCADE |
+| `qa_ticket.account_id` | `game_accounts.account_id` | NO ACTION | SET NULL |
+| `qa_ticket.user_id` | `community_users.user_id` | NO ACTION | CASCADE |
+| `refunds.payment_id` | `payments.payment_id` | NO ACTION | CASCADE |
+| `safety_results.draft_id` | `answer_draft.draft_id` | NO ACTION | CASCADE |
+| `ticket_analysis.ticket_id` | `qa_ticket.ticket_id` | NO ACTION | CASCADE |
+| `voc_feedback.account_id` | `game_accounts.account_id` | NO ACTION | NO ACTION |
+| `voc_feedback.ticket_id` | `qa_ticket.ticket_id` | NO ACTION | NO ACTION |
+| `voc_feedback.user_id` | `community_users.user_id` | NO ACTION | NO ACTION |
 
 ## Table Details
 
 ### `admin_event_logs`
 
+- Purpose: Operation/admin workflow event and error logs
+- Estimated Rows: 0
 - Primary Key: `log_id`
-- Foreign Key: `ticket_id` -> `qa_ticket.ticket_id`
+- Primary Key Default: `nextval('admin_event_logs_log_id_seq'::regclass)`
+- Foreign Keys: `ticket_id` -> `qa_ticket.ticket_id` (NO ACTION)
 - Columns:
-  - `log_id integer NOT NULL DEFAULT nextval('admin_event_logs_log_id_seq'::regclass)`
-  - `ticket_id integer NULL`
-  - `session_id integer NULL`
-  - `node_name varchar(100) NULL`
-  - `event_type varchar(100) NULL`
-  - `category varchar(100) NULL`
-  - `routing_target varchar(100) NULL`
-  - `tool_name varchar(100) NULL`
-  - `status varchar(50) NULL`
-  - `error_message text NULL`
-  - `error_category varchar(100) NULL`
-  - `metadata json NULL`
-  - `created_at timestamp NULL DEFAULT CURRENT_TIMESTAMP`
+
+| # | Column | Data Type | Nullable | Default | Key / Reference |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `log_id` | `integer` | NO | `nextval('admin_event_logs_log_id_seq'::regclass)` | PK |
+| 2 | `ticket_id` | `integer` | YES |  | FK -> `qa_ticket.ticket_id` |
+| 3 | `session_id` | `integer` | YES |  |  |
+| 4 | `node_name` | `varchar(100)` | YES |  |  |
+| 5 | `event_type` | `varchar(100)` | YES |  |  |
+| 6 | `category` | `varchar(100)` | YES |  |  |
+| 7 | `routing_target` | `varchar(100)` | YES |  |  |
+| 8 | `tool_name` | `varchar(100)` | YES |  |  |
+| 9 | `status` | `varchar(50)` | YES |  |  |
+| 10 | `error_message` | `text` | YES |  |  |
+| 11 | `error_category` | `varchar(100)` | YES |  |  |
+| 12 | `metadata` | `json` | YES |  |  |
+| 13 | `created_at` | `timestamp` | YES | `CURRENT_TIMESTAMP` |  |
+
+- Indexes:
+  - `admin_event_logs_pkey`: `UNIQUE admin_event_logs_pkey ON admin_event_logs USING btree (log_id)`
 
 ### `answer_draft`
 
+- Purpose: Generated answer drafts for tickets
+- Estimated Rows: 97
 - Primary Key: `draft_id`
-- Live DB behavior: application-assigned integer id, no default sequence in the table definition.
-- Foreign Key: `analysis_id` -> `ticket_analysis.analysis_id`, `ticket_id` -> `qa_ticket.ticket_id`
+- Primary Key Default: none
+- Foreign Keys: `analysis_id` -> `ticket_analysis.analysis_id` (CASCADE), `ticket_id` -> `qa_ticket.ticket_id` (CASCADE)
 - Columns:
-  - `draft_id integer NOT NULL`
-  - `ticket_id integer NOT NULL`
-  - `analysis_id integer NOT NULL`
-  - `draft_text text NULL`
-  - `prompt_version varchar NULL`
-  - `created_at timestamp NULL`
+
+| # | Column | Data Type | Nullable | Default | Key / Reference |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `draft_id` | `integer` | NO |  | PK |
+| 2 | `ticket_id` | `integer` | NO |  | FK -> `qa_ticket.ticket_id` |
+| 3 | `analysis_id` | `integer` | NO |  | FK -> `ticket_analysis.analysis_id` |
+| 4 | `draft_text` | `text` | YES |  |  |
+| 5 | `prompt_version` | `varchar` | YES |  |  |
+| 6 | `created_at` | `timestamp` | YES |  |  |
+
+- Indexes:
+  - `answer_draft_pkey`: `UNIQUE answer_draft_pkey ON answer_draft USING btree (draft_id)`
 
 ### `community_users`
 
+- Purpose: Community user profile data
+- Estimated Rows: 6,288
 - Primary Key: `user_id`
+- Primary Key Default: none
 - Columns:
-  - `user_id integer NOT NULL`
-  - `email varchar NULL`
-  - `nickname varchar NULL`
-  - `created_at timestamp NULL`
-  - `user_status varchar NULL`
-  - `last_login_at timestamp NULL`
+
+| # | Column | Data Type | Nullable | Default | Key / Reference |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `user_id` | `integer` | NO |  | PK |
+| 2 | `email` | `varchar` | YES |  |  |
+| 3 | `nickname` | `varchar` | YES |  |  |
+| 4 | `created_at` | `timestamp` | YES |  |  |
+| 5 | `user_status` | `varchar` | YES |  |  |
+| 6 | `last_login_at` | `timestamp` | YES |  |  |
+| 7 | `password_hash` | `text` | YES |  |  |
+| 8 | `password_updated_at` | `timestamp` | YES |  |  |
+
+- Indexes:
+  - `community_users_pkey`: `UNIQUE community_users_pkey ON community_users USING btree (user_id)`
 
 ### `documents`
 
+- Purpose: Source documents for policy, notice, guide, incident, and RAG retrieval
+- Estimated Rows: 1,201
 - Primary Key: `documents_id`
+- Primary Key Default: none
 - Columns:
-  - `documents_id varchar NOT NULL`
-  - `source_type varchar NULL`
-  - `category varchar NULL`
-  - `title varchar NULL`
-  - `raw_content text NULL`
-  - `source_url varchar NULL`
-  - `published_at timestamp NULL`
-  - `updated_at timestamp NULL`
+
+| # | Column | Data Type | Nullable | Default | Key / Reference |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `documents_id` | `varchar` | NO |  | PK |
+| 2 | `source_type` | `varchar` | YES |  |  |
+| 3 | `category` | `varchar` | YES |  |  |
+| 4 | `title` | `varchar` | YES |  |  |
+| 5 | `raw_content` | `text` | YES |  |  |
+| 6 | `source_url` | `varchar` | YES |  |  |
+| 7 | `published_at` | `timestamp` | YES |  |  |
+| 8 | `updated_at` | `timestamp` | YES |  |  |
+
+- Indexes:
+  - `documents_pkey`: `UNIQUE documents_pkey ON documents USING btree (documents_id)`
 
 ### `documents_chunks`
 
+- Purpose: Searchable chunks split from source documents
+- Estimated Rows: 3,864
 - Primary Key: `chunk_id`
-- Unique: `document_id`, `chunk_order`
-- Foreign Key: `document_id` -> `documents.documents_id`
+- Primary Key Default: none
+- Unique: `uq_documents_chunks_document_order` (`document_id`, `chunk_order`)
+- Foreign Keys: `document_id` -> `documents.documents_id` (CASCADE)
 - Columns:
-  - `chunk_id varchar NOT NULL`
-  - `document_id varchar NOT NULL`
-  - `chunk_text text NOT NULL`
-  - `chunk_order integer NOT NULL`
-  - `token_count integer NULL`
-  - `created_at timestamp NULL DEFAULT CURRENT_TIMESTAMP`
+
+| # | Column | Data Type | Nullable | Default | Key / Reference |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `chunk_id` | `varchar` | NO |  | PK |
+| 2 | `document_id` | `varchar` | NO |  | UNIQUE, FK -> `documents.documents_id` |
+| 3 | `chunk_text` | `text` | NO |  |  |
+| 4 | `chunk_order` | `integer` | NO |  | UNIQUE |
+| 5 | `token_count` | `integer` | YES |  |  |
+| 6 | `created_at` | `timestamp` | YES | `CURRENT_TIMESTAMP` |  |
+
+- Indexes:
+  - `documents_chunks_pkey`: `UNIQUE documents_chunks_pkey ON documents_chunks USING btree (chunk_id)`
+  - `idx_documents_chunks_document_id`: `idx_documents_chunks_document_id ON documents_chunks USING btree (document_id)`
+  - `idx_documents_chunks_document_order`: `idx_documents_chunks_document_order ON documents_chunks USING btree (document_id, chunk_order)`
+  - `uq_documents_chunks_document_order`: `UNIQUE uq_documents_chunks_document_order ON documents_chunks USING btree (document_id, chunk_order)`
 
 ### `documents_embeddings`
 
+- Purpose: Vector embeddings for document chunks
+- Estimated Rows: 3,864
 - Primary Key: `embedding_id`
-- Unique: `chunk_id`
-- Foreign Key: `chunk_id` -> `documents_chunks.chunk_id`
+- Primary Key Default: none
+- Unique: `uq_documents_embeddings_chunk_id` (`chunk_id`)
+- Foreign Keys: `chunk_id` -> `documents_chunks.chunk_id` (CASCADE)
 - Columns:
-  - `embedding_id varchar NOT NULL`
-  - `chunk_id varchar NOT NULL`
-  - `embedding_vector vector NOT NULL`
-  - `embedding_model varchar NOT NULL`
-  - `source_type varchar NULL`
-  - `category varchar NULL`
-  - `created_at timestamp NULL DEFAULT CURRENT_TIMESTAMP`
+
+| # | Column | Data Type | Nullable | Default | Key / Reference |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `embedding_id` | `varchar` | NO |  | PK |
+| 2 | `chunk_id` | `varchar` | NO |  | UNIQUE, FK -> `documents_chunks.chunk_id` |
+| 3 | `embedding_vector` | `vector` | NO |  |  |
+| 4 | `embedding_model` | `varchar` | NO |  |  |
+| 5 | `source_type` | `varchar` | YES |  |  |
+| 6 | `category` | `varchar` | YES |  |  |
+| 7 | `created_at` | `timestamp` | YES | `CURRENT_TIMESTAMP` |  |
+
+- Indexes:
+  - `documents_embeddings_pkey`: `UNIQUE documents_embeddings_pkey ON documents_embeddings USING btree (embedding_id)`
+  - `idx_documents_embeddings_chunk_id`: `idx_documents_embeddings_chunk_id ON documents_embeddings USING btree (chunk_id)`
+  - `idx_documents_embeddings_source_category`: `idx_documents_embeddings_source_category ON documents_embeddings USING btree (source_type, category)`
+  - `idx_documents_embeddings_vector_cosine`: `idx_documents_embeddings_vector_cosine ON documents_embeddings USING ivfflat (embedding_vector vector_cosine_ops) WITH (lists='100')`
+  - `uq_documents_embeddings_chunk_id`: `UNIQUE uq_documents_embeddings_chunk_id ON documents_embeddings USING btree (chunk_id)`
 
 ### `evidence_docs`
 
+- Purpose: Retrieved evidence saved for answer drafts
+- Estimated Rows: 195
 - Primary Key: `evidence_id`
-- Live DB behavior: application-assigned integer id, no default sequence in the table definition.
-- Foreign Key: `draft_id` -> `answer_draft.draft_id`
+- Primary Key Default: none
+- Foreign Keys: `draft_id` -> `answer_draft.draft_id` (CASCADE)
 - Columns:
-  - `evidence_id integer NOT NULL`
-  - `draft_id integer NOT NULL`
-  - `source_type varchar NULL`
-  - `source_id varchar NULL`
-  - `evidence_text text NULL`
-  - `relevance_score double precision NULL`
-  - `retrieval_rank integer NULL`
+
+| # | Column | Data Type | Nullable | Default | Key / Reference |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `evidence_id` | `integer` | NO |  | PK |
+| 2 | `draft_id` | `integer` | NO |  | FK -> `answer_draft.draft_id` |
+| 3 | `source_type` | `varchar` | YES |  |  |
+| 4 | `source_id` | `varchar` | YES |  |  |
+| 5 | `evidence_text` | `text` | YES |  |  |
+| 6 | `relevance_score` | `double precision` | YES |  |  |
+| 7 | `retrieval_rank` | `integer` | YES |  |  |
+
+- Indexes:
+  - `evidence_docs_pkey`: `UNIQUE evidence_docs_pkey ON evidence_docs USING btree (evidence_id)`
 
 ### `failed_queries`
 
+- Purpose: Failed ticket/query processing logs
+- Estimated Rows: 9
 - Primary Key: `failed_query_id`
-- Foreign Key: `ticket_id` -> `qa_ticket.ticket_id`
+- Primary Key Default: none
+- Foreign Keys: `ticket_id` -> `qa_ticket.ticket_id` (NO ACTION)
 - Columns:
-  - `failed_query_id integer NOT NULL DEFAULT nextval('failed_queries_failed_query_id_seq'::regclass)`
-  - `ticket_id integer NOT NULL`
-  - `query text NOT NULL`
-  - `category varchar(100) NULL`
-  - `reason text NULL`
-  - `created_at timestamp NULL DEFAULT CURRENT_TIMESTAMP`
+
+| # | Column | Data Type | Nullable | Default | Key / Reference |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `failed_query_id` | `integer` | NO |  | PK |
+| 2 | `ticket_id` | `integer` | NO |  | FK -> `qa_ticket.ticket_id` |
+| 3 | `query` | `text` | NO |  |  |
+| 4 | `category` | `varchar(100)` | YES |  |  |
+| 5 | `reason` | `text` | YES |  |  |
+| 6 | `created_at` | `timestamp` | YES | `CURRENT_TIMESTAMP` |  |
+
+- Indexes:
+  - `failed_queries_pkey`: `UNIQUE failed_queries_pkey ON failed_queries USING btree (failed_query_id)`
 
 ### `final_response`
 
+- Purpose: Final customer-facing responses
+- Estimated Rows: 80
 - Primary Key: `response_id`
-- Foreign Key: `draft_id` -> `answer_draft.draft_id`, `ticket_id` -> `qa_ticket.ticket_id`
+- Primary Key Default: none
+- Foreign Keys: `draft_id` -> `answer_draft.draft_id` (NO ACTION), `ticket_id` -> `qa_ticket.ticket_id` (NO ACTION)
 - Columns:
-  - `response_id integer NOT NULL DEFAULT nextval('final_response_response_id_seq'::regclass)`
-  - `ticket_id integer NOT NULL`
-  - `draft_id integer NULL`
-  - `final_text text NOT NULL`
-  - `safety_action varchar(50) NULL`
-  - `created_at timestamp NULL DEFAULT CURRENT_TIMESTAMP`
+
+| # | Column | Data Type | Nullable | Default | Key / Reference |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `response_id` | `integer` | NO |  | PK |
+| 2 | `ticket_id` | `integer` | NO |  | FK -> `qa_ticket.ticket_id` |
+| 3 | `draft_id` | `integer` | YES |  | FK -> `answer_draft.draft_id` |
+| 4 | `final_text` | `text` | NO |  |  |
+| 5 | `safety_action` | `varchar(50)` | YES |  |  |
+| 6 | `created_at` | `timestamp` | YES | `CURRENT_TIMESTAMP` |  |
+
+- Indexes:
+  - `final_response_pkey`: `UNIQUE final_response_pkey ON final_response USING btree (response_id)`
 
 ### `gacha_logs`
 
+- Purpose: Gacha pull history per game account
+- Estimated Rows: 5
 - Primary Key: `gacha_id`
-- Foreign Key: `account_id` -> `game_accounts.account_id`
+- Primary Key Default: none
+- Foreign Keys: `account_id` -> `game_accounts.account_id` (CASCADE)
 - Columns:
-  - `gacha_id integer NOT NULL`
-  - `account_id integer NOT NULL`
-  - `banner_name varchar NULL`
-  - `item_name varchar NULL`
-  - `item_type varchar NULL`
-  - `rarity varchar NULL`
-  - `pity_count integer NULL`
-  - `pulled_at timestamp NULL`
+
+| # | Column | Data Type | Nullable | Default | Key / Reference |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `gacha_id` | `integer` | NO |  | PK |
+| 2 | `account_id` | `integer` | NO |  | FK -> `game_accounts.account_id` |
+| 3 | `banner_name` | `varchar` | YES |  |  |
+| 4 | `item_name` | `varchar` | YES |  |  |
+| 5 | `item_type` | `varchar` | YES |  |  |
+| 6 | `rarity` | `varchar` | YES |  |  |
+| 7 | `pity_count` | `integer` | YES |  |  |
+| 8 | `pulled_at` | `timestamp` | YES |  |  |
+
+- Indexes:
+  - `gacha_logs_pkey`: `UNIQUE gacha_logs_pkey ON gacha_logs USING btree (gacha_id)`
 
 ### `game_accounts`
 
+- Purpose: Game account data linked to community users
+- Estimated Rows: 6,288
 - Primary Key: `account_id`
-- Foreign Key: `user_id` -> `community_users.user_id`
+- Primary Key Default: none
+- Foreign Keys: `user_id` -> `community_users.user_id` (CASCADE)
 - Columns:
-  - `account_id integer NOT NULL`
-  - `user_id integer NOT NULL`
-  - `game_name varchar NULL`
-  - `uid varchar NULL`
-  - `server_region varchar NULL`
-  - `progression_level integer NULL`
-  - `account_status varchar NULL`
-  - `created_at timestamp NULL`
+
+| # | Column | Data Type | Nullable | Default | Key / Reference |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `account_id` | `integer` | NO |  | PK |
+| 2 | `user_id` | `integer` | NO |  | FK -> `community_users.user_id` |
+| 3 | `game_name` | `varchar` | YES |  |  |
+| 4 | `uid` | `varchar` | YES |  |  |
+| 5 | `server_region` | `varchar` | YES |  |  |
+| 6 | `progression_level` | `integer` | YES |  |  |
+| 7 | `account_status` | `varchar` | YES |  |  |
+| 8 | `created_at` | `timestamp` | YES |  |  |
+
+- Indexes:
+  - `game_accounts_pkey`: `UNIQUE game_accounts_pkey ON game_accounts USING btree (account_id)`
 
 ### `insight`
 
+- Purpose: Ticket/user/account-level insight analysis data
+- Estimated Rows: 5
 - Primary Key: `insight_id`
-- Foreign Keys: `account_id` -> `game_accounts.account_id`, `ticket_id` -> `qa_ticket.ticket_id`, `user_id` -> `community_users.user_id`
+- Primary Key Default: none
+- Foreign Keys: `account_id` -> `game_accounts.account_id` (SET NULL), `ticket_id` -> `qa_ticket.ticket_id` (CASCADE), `user_id` -> `community_users.user_id` (CASCADE)
 - Columns:
-  - `insight_id integer NOT NULL`
-  - `user_id integer NOT NULL`
-  - `ticket_id integer NOT NULL`
-  - `account_id integer NULL`
-  - `content_summary text NULL`
-  - `category varchar NULL`
-  - `sentiment varchar NULL`
-  - `risk_level varchar NULL`
-  - `pattern_risk_level varchar NULL`
-  - `inquiry_created_at timestamp NULL`
+
+| # | Column | Data Type | Nullable | Default | Key / Reference |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `insight_id` | `integer` | NO |  | PK |
+| 2 | `user_id` | `integer` | NO |  | FK -> `community_users.user_id` |
+| 3 | `ticket_id` | `integer` | NO |  | FK -> `qa_ticket.ticket_id` |
+| 4 | `account_id` | `integer` | YES |  | FK -> `game_accounts.account_id` |
+| 5 | `content_summary` | `text` | YES |  |  |
+| 6 | `category` | `varchar` | YES |  |  |
+| 7 | `sentiment` | `varchar` | YES |  |  |
+| 8 | `risk_level` | `varchar` | YES |  |  |
+| 9 | `pattern_risk_level` | `varchar` | YES |  |  |
+| 10 | `inquiry_created_at` | `timestamp` | YES |  |  |
+
+- Indexes:
+  - `insight_pkey`: `UNIQUE insight_pkey ON insight USING btree (insight_id)`
 
 ### `item_delivery_logs`
 
+- Purpose: Paid or reward item delivery history
+- Estimated Rows: 5
 - Primary Key: `delivery_id`
-- Foreign Keys: `account_id` -> `game_accounts.account_id`, `payment_id` -> `payments.payment_id`
+- Primary Key Default: none
+- Foreign Keys: `account_id` -> `game_accounts.account_id` (CASCADE), `payment_id` -> `payments.payment_id` (SET NULL)
 - Columns:
-  - `delivery_id integer NOT NULL`
-  - `payment_id integer NULL`
-  - `account_id integer NOT NULL`
-  - `source_type varchar NULL`
-  - `item_name varchar NULL`
-  - `quantity integer NULL`
-  - `delivery_status varchar NULL`
-  - `expected_at timestamp NULL`
-  - `delivered_at timestamp NULL`
+
+| # | Column | Data Type | Nullable | Default | Key / Reference |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `delivery_id` | `integer` | NO |  | PK |
+| 2 | `payment_id` | `integer` | YES |  | FK -> `payments.payment_id` |
+| 3 | `account_id` | `integer` | NO |  | FK -> `game_accounts.account_id` |
+| 4 | `source_type` | `varchar` | YES |  |  |
+| 5 | `item_name` | `varchar` | YES |  |  |
+| 6 | `quantity` | `integer` | YES |  |  |
+| 7 | `delivery_status` | `varchar` | YES |  |  |
+| 8 | `expected_at` | `timestamp` | YES |  |  |
+| 9 | `delivered_at` | `timestamp` | YES |  |  |
+
+- Indexes:
+  - `item_delivery_logs_pkey`: `UNIQUE item_delivery_logs_pkey ON item_delivery_logs USING btree (delivery_id)`
 
 ### `notification_logs`
 
+- Purpose: Notification send results and errors
+- Estimated Rows: 0
 - Primary Key: `notification_id`
-- Foreign Key: `ticket_id` -> `qa_ticket.ticket_id`
+- Primary Key Default: `nextval('notification_logs_notification_id_seq'::regclass)`
+- Foreign Keys: `ticket_id` -> `qa_ticket.ticket_id` (NO ACTION)
 - Columns:
-  - `notification_id integer NOT NULL DEFAULT nextval('notification_logs_notification_id_seq'::regclass)`
-  - `ticket_id integer NOT NULL`
-  - `channel varchar(50) NULL`
-  - `status varchar(50) NULL`
-  - `message text NULL`
-  - `error_message text NULL`
-  - `error_category varchar(100) NULL`
-  - `sent_at timestamp NULL DEFAULT CURRENT_TIMESTAMP`
+
+| # | Column | Data Type | Nullable | Default | Key / Reference |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `notification_id` | `integer` | NO | `nextval('notification_logs_notification_id_seq'::regclass)` | PK |
+| 2 | `ticket_id` | `integer` | NO |  | FK -> `qa_ticket.ticket_id` |
+| 3 | `channel` | `varchar(50)` | YES |  |  |
+| 4 | `status` | `varchar(50)` | YES |  |  |
+| 5 | `message` | `text` | YES |  |  |
+| 6 | `error_message` | `text` | YES |  |  |
+| 7 | `error_category` | `varchar(100)` | YES |  |  |
+| 8 | `sent_at` | `timestamp` | YES | `CURRENT_TIMESTAMP` |  |
+
+- Indexes:
+  - `notification_logs_pkey`: `UNIQUE notification_logs_pkey ON notification_logs USING btree (notification_id)`
 
 ### `payments`
 
+- Purpose: Payment transaction history
+- Estimated Rows: 11
 - Primary Key: `payment_id`
-- Foreign Key: `account_id` -> `game_accounts.account_id`
+- Primary Key Default: none
+- Foreign Keys: `account_id` -> `game_accounts.account_id` (CASCADE)
 - Columns:
-  - `payment_id integer NOT NULL`
-  - `account_id integer NOT NULL`
-  - `product_name varchar NULL`
-  - `product_type varchar NULL`
-  - `amount numeric NULL`
-  - `currency varchar NULL`
-  - `payment_method varchar NULL`
-  - `payment_status varchar NULL`
-  - `transaction_id varchar NULL`
-  - `paid_at timestamp NULL`
+
+| # | Column | Data Type | Nullable | Default | Key / Reference |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `payment_id` | `integer` | NO |  | PK |
+| 2 | `account_id` | `integer` | NO |  | FK -> `game_accounts.account_id` |
+| 3 | `product_name` | `varchar` | YES |  |  |
+| 4 | `product_type` | `varchar` | YES |  |  |
+| 5 | `amount` | `numeric` | YES |  |  |
+| 6 | `currency` | `varchar` | YES |  |  |
+| 7 | `payment_method` | `varchar` | YES |  |  |
+| 8 | `payment_status` | `varchar` | YES |  |  |
+| 9 | `transaction_id` | `varchar` | YES |  |  |
+| 10 | `paid_at` | `timestamp` | YES |  |  |
+
+- Indexes:
+  - `payments_pkey`: `UNIQUE payments_pkey ON payments USING btree (payment_id)`
 
 ### `qa_ticket`
 
+- Purpose: Customer inquiry/QA tickets
+- Estimated Rows: 9,243
 - Primary Key: `ticket_id`
-- Foreign Keys: `account_id` -> `game_accounts.account_id`, `user_id` -> `community_users.user_id`
+- Primary Key Default: none
+- Foreign Keys: `account_id` -> `game_accounts.account_id` (SET NULL), `user_id` -> `community_users.user_id` (CASCADE)
 - Columns:
-  - `ticket_id integer NOT NULL`
-  - `account_id integer NULL`
-  - `user_id integer NOT NULL`
-  - `title varchar NULL`
-  - `raw_query text NULL`
-  - `source_type varchar NULL`
-  - `status varchar NULL`
-  - `inquiry_created_at timestamp NULL`
-  - `session_id integer NULL`
-  - `responder_type varchar(100) NULL`
+
+| # | Column | Data Type | Nullable | Default | Key / Reference |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `ticket_id` | `integer` | NO |  | PK |
+| 2 | `account_id` | `integer` | YES |  | FK -> `game_accounts.account_id` |
+| 3 | `user_id` | `integer` | NO |  | FK -> `community_users.user_id` |
+| 4 | `title` | `varchar` | YES |  |  |
+| 5 | `raw_query` | `text` | YES |  |  |
+| 6 | `source_type` | `varchar` | YES |  |  |
+| 7 | `status` | `varchar` | YES |  |  |
+| 8 | `inquiry_created_at` | `timestamp` | YES |  |  |
+| 9 | `session_id` | `integer` | YES |  |  |
+| 10 | `responder_type` | `varchar(100)` | YES |  |  |
+
+- Indexes:
+  - `qa_ticket_pkey`: `UNIQUE qa_ticket_pkey ON qa_ticket USING btree (ticket_id)`
 
 ### `refunds`
 
+- Purpose: Refund request and processing history
+- Estimated Rows: 5
 - Primary Key: `refund_id`
-- Foreign Key: `payment_id` -> `payments.payment_id`
+- Primary Key Default: none
+- Foreign Keys: `payment_id` -> `payments.payment_id` (CASCADE)
 - Columns:
-  - `refund_id integer NOT NULL`
-  - `payment_id integer NOT NULL`
-  - `refund_status varchar NULL`
-  - `refund_reason text NULL`
-  - `requested_at timestamp NULL`
-  - `processed_at timestamp NULL`
+
+| # | Column | Data Type | Nullable | Default | Key / Reference |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `refund_id` | `integer` | NO |  | PK |
+| 2 | `payment_id` | `integer` | NO |  | FK -> `payments.payment_id` |
+| 3 | `refund_status` | `varchar` | YES |  |  |
+| 4 | `refund_reason` | `text` | YES |  |  |
+| 5 | `requested_at` | `timestamp` | YES |  |  |
+| 6 | `processed_at` | `timestamp` | YES |  |  |
+
+- Indexes:
+  - `refunds_pkey`: `UNIQUE refunds_pkey ON refunds USING btree (refund_id)`
 
 ### `safety_results`
 
+- Purpose: Safety and grounding check results for drafts
+- Estimated Rows: 95
 - Primary Key: `safety_id`
-- Live DB behavior: application-assigned integer id, no default sequence in the table definition.
-- Foreign Key: `draft_id` -> `answer_draft.draft_id`
+- Primary Key Default: none
+- Foreign Keys: `draft_id` -> `answer_draft.draft_id` (CASCADE)
 - Columns:
-  - `safety_id integer NOT NULL`
-  - `draft_id integer NOT NULL`
-  - `hallucination_score double precision NULL`
-  - `toxicity_score double precision NULL`
-  - `policy_violation_score double precision NULL`
-  - `factuality_score double precision NULL`
-  - `checked_at timestamp NULL`
-  - `safety_action varchar(100) NULL`
-  - `safety_reason varchar(255) NULL`
-  - `retry_count integer NULL DEFAULT 0`
+
+| # | Column | Data Type | Nullable | Default | Key / Reference |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `safety_id` | `integer` | NO |  | PK |
+| 2 | `draft_id` | `integer` | NO |  | FK -> `answer_draft.draft_id` |
+| 3 | `hallucination_score` | `double precision` | YES |  |  |
+| 4 | `toxicity_score` | `double precision` | YES |  |  |
+| 5 | `policy_violation_score` | `double precision` | YES |  |  |
+| 6 | `factuality_score` | `double precision` | YES |  |  |
+| 7 | `checked_at` | `timestamp` | YES |  |  |
+| 8 | `safety_action` | `varchar(100)` | YES |  |  |
+| 9 | `safety_reason` | `varchar(255)` | YES |  |  |
+| 10 | `retry_count` | `integer` | YES | `0` |  |
+
+- Indexes:
+  - `safety_results_pkey`: `UNIQUE safety_results_pkey ON safety_results USING btree (safety_id)`
 
 ### `ticket_analysis`
 
+- Purpose: Ticket classification, risk, sentiment, and routing analysis
+- Estimated Rows: 118
 - Primary Key: `analysis_id`
-- Live DB behavior: application-assigned integer id, no default sequence in the table definition.
-- Foreign Key: `ticket_id` -> `qa_ticket.ticket_id`
+- Primary Key Default: none
+- Foreign Keys: `ticket_id` -> `qa_ticket.ticket_id` (CASCADE)
 - Columns:
-  - `analysis_id integer NOT NULL`
-  - `ticket_id integer NOT NULL`
-  - `category varchar NULL`
-  - `responder_type varchar NULL`
-  - `enriched_query text NULL`
-  - `risk_level varchar NULL`
-  - `sentiment varchar NULL`
-  - `routing_target varchar NULL`
-  - `summary text NULL`
-  - `analyzed_at timestamp NULL`
+
+| # | Column | Data Type | Nullable | Default | Key / Reference |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `analysis_id` | `integer` | NO |  | PK |
+| 2 | `ticket_id` | `integer` | NO |  | FK -> `qa_ticket.ticket_id` |
+| 3 | `category` | `varchar` | YES |  |  |
+| 4 | `responder_type` | `varchar` | YES |  |  |
+| 5 | `enriched_query` | `text` | YES |  |  |
+| 6 | `risk_level` | `varchar` | YES |  |  |
+| 7 | `sentiment` | `varchar` | YES |  |  |
+| 8 | `routing_target` | `varchar` | YES |  |  |
+| 9 | `summary` | `text` | YES |  |  |
+| 10 | `analyzed_at` | `timestamp` | YES |  |  |
+
+- Indexes:
+  - `ticket_analysis_pkey`: `UNIQUE ticket_analysis_pkey ON ticket_analysis USING btree (analysis_id)`
 
 ### `voc_feedback`
 
+- Purpose: VOC feedback and topic keyword records
+- Estimated Rows: 5
 - Primary Key: `voc_id`
-- Foreign Keys: `account_id` -> `game_accounts.account_id`, `ticket_id` -> `qa_ticket.ticket_id`, `user_id` -> `community_users.user_id`
+- Primary Key Default: none
+- Foreign Keys: `account_id` -> `game_accounts.account_id` (NO ACTION), `ticket_id` -> `qa_ticket.ticket_id` (NO ACTION), `user_id` -> `community_users.user_id` (NO ACTION)
 - Columns:
-  - `voc_id integer NOT NULL DEFAULT nextval('voc_feedback_voc_id_seq'::regclass)`
-  - `ticket_id integer NOT NULL`
-  - `user_id integer NOT NULL`
-  - `account_id integer NULL`
-  - `voc_type varchar(100) NULL`
-  - `sentiment varchar(50) NULL`
-  - `raw_content text NOT NULL`
-  - `topic_keywords json NULL`
-  - `created_at timestamp NULL DEFAULT CURRENT_TIMESTAMP`
+
+| # | Column | Data Type | Nullable | Default | Key / Reference |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `voc_id` | `integer` | NO |  | PK |
+| 2 | `ticket_id` | `integer` | NO |  | FK -> `qa_ticket.ticket_id` |
+| 3 | `user_id` | `integer` | NO |  | FK -> `community_users.user_id` |
+| 4 | `account_id` | `integer` | YES |  | FK -> `game_accounts.account_id` |
+| 5 | `voc_type` | `varchar(100)` | YES |  |  |
+| 6 | `sentiment` | `varchar(50)` | YES |  |  |
+| 7 | `raw_content` | `text` | NO |  |  |
+| 8 | `topic_keywords` | `json` | YES |  |  |
+| 9 | `created_at` | `timestamp` | YES | `CURRENT_TIMESTAMP` |  |
+
+- Indexes:
+  - `voc_feedback_pkey`: `UNIQUE voc_feedback_pkey ON voc_feedback USING btree (voc_id)`
