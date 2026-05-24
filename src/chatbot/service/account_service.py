@@ -44,7 +44,7 @@ def get_server_regions() -> list[str]:
     process_outputs=_login_outputs,
 )
 def login_with_credentials(email: str, password: str, server_region: str) -> dict[str, Any]:
-    normalized_email = email.strip().lower()
+    normalized_email = email.strip()
     normalized_region = server_region.strip()
     if not normalized_email or not password or not normalized_region:
         response = {
