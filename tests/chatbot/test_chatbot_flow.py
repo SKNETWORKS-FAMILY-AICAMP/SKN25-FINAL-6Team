@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from tests.chatbot._orchestrator_routing_cases import *  # noqa: F403
 
 from chatbot.constants import VOC_FIXED_RESPONSE
@@ -16,7 +18,7 @@ from chatbot.generation.response.fixed_responses import (
     SAFE_FALLBACK_RESPONSE,
 )
 from chatbot.safety import safety_layer
-from chatbot.service.chatbot_service import build_state
+from chatbot.service.chatbot_service import build_state, last_message_text
 
 
 def test_build_state_keeps_conversation_summary() -> None:
@@ -27,6 +29,18 @@ def test_build_state_keeps_conversation_summary() -> None:
     )
 
     assert state["conversation_summary"] == "이전 문의는 계정 진행도 관련 질문이었다."
+
+
+def test_last_message_text_requires_final_text() -> None:
+    with pytest.raises(RuntimeError, match="without final_text"):
+        last_message_text({
+            "draft_text": "draft should not be exposed",
+            "messages": [{"role": "assistant", "content": "message should not be exposed"}],
+        })
+
+
+def test_last_message_text_returns_final_text() -> None:
+    assert last_message_text({"final_text": "final answer", "draft_text": "draft"}) == "final answer"
 
 
 def test_evidence_grounding_scores_use_retrieved_documents() -> None:

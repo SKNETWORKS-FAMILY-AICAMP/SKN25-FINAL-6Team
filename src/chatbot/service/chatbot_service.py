@@ -57,24 +57,10 @@ def build_state(
 
 
 def last_message_text(result: dict[str, Any]) -> str:
-    if result.get("final_text"):
-        return str(result["final_text"])
-    if result.get("draft_text"):
-        return str(result["draft_text"])
-
-    messages = result.get("messages", [])
-    if not messages:
-        return ""
-
-    last_message = messages[-1]
-    content = (
-        last_message.get("content", "")
-        if isinstance(last_message, dict)
-        else getattr(last_message, "content", "")
-    )
-    if isinstance(content, list):
-        return "\n".join(str(item) for item in content)
-    return str(content)
+    final_text = result.get("final_text")
+    if final_text:
+        return str(final_text)
+    raise RuntimeError("chatbot workflow completed without final_text")
 
 
 def _node_summary(node_name: str, node_update: dict[str, Any], state_snapshot: dict[str, Any]) -> dict[str, Any]:
