@@ -7,13 +7,19 @@ from chatbot.frontend.state.session_state import update_state_from_chatbot
 from chatbot.service.chatbot_service import stream_chatbot
 
 
-def handle_user_message(user_input: str, account_id: int | None) -> None:
-    with st.chat_message("user"):
-        st.markdown(user_input)
+def queue_user_message(user_input: str) -> None:
     st.session_state.messages.append({"role": "user", "content": user_input})
 
     st.session_state.ticket_counter += 1
-    ticket_id = st.session_state.ticket_counter
+    st.session_state.pending_user_input = user_input
+    st.session_state.pending_ticket_id = st.session_state.ticket_counter
+
+
+def resolve_pending_message(account_id: int | None) -> None:
+    user_input = st.session_state.get("pending_user_input")
+    ticket_id = st.session_state.get("pending_ticket_id")
+    if not user_input or not ticket_id:
+        return
 
     with st.chat_message("assistant"):
         with st.spinner("문의 내용을 확인하고 있어요."):
@@ -24,11 +30,10 @@ def handle_user_message(user_input: str, account_id: int | None) -> None:
                 user_id=st.session_state.user_id,
                 session_id=st.session_state.session_id,
                 previous_messages=st.session_state.graph_messages,
+                conversation_summary=st.session_state.get("conversation_summary"),
             )
 
-        answer = str(output["answer"])
-        st.markdown(answer)
-
+    answer = str(output["answer"])
     st.session_state.messages.append({"role": "assistant", "content": answer})
 
     result = output["state"]
@@ -40,9 +45,15 @@ def handle_user_message(user_input: str, account_id: int | None) -> None:
         for message in (to_chat_message(item) for item in raw_messages)
         if message is not None
     ]
+    if not st.session_state.graph_messages or st.session_state.graph_messages[-1] != {"role": "assistant", "content": answer}:
+        st.session_state.graph_messages.append({"role": "assistant", "content": answer})
+    st.session_state.pending_user_input = None
+    st.session_state.pending_ticket_id = None
+    st.rerun()
 
 
 def render_chat_input(account_id: int | None, *, disabled: bool = False) -> None:
-    placeholder = "로그인 후 문의를 입력할 수 있습니다." if disabled else "문의 내용을 입력하세요."
+    placeholder = "로그인하면 문의를 입력할 수 있습니다." if disabled else "문의 내용을 입력하세요."
     if user_input := st.chat_input(placeholder, disabled=disabled):
-        handle_user_message(user_input, account_id)
+        queue_user_message(user_input)
+        st.rerun()

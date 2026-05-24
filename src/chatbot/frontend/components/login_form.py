@@ -6,7 +6,6 @@ from chatbot.frontend.state.session_state import clear_login_state, set_login_st
 from chatbot.service.account_service import get_server_regions, login_with_credentials
 
 
-@st.cache_data(ttl=300)
 def _cached_server_regions() -> list[str]:
     return get_server_regions()
 

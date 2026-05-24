@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from html import escape
+
 import streamlit as st
 
 
@@ -26,5 +28,23 @@ def to_chat_message(message) -> dict | None:
 
 def render_chat_history() -> None:
     for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+        role = message["role"]
+        content = escape(str(message["content"]))
+        if role == "user":
+            label = "나"
+            row_class = "chat-row-user"
+            bubble_class = "chat-bubble-user"
+        else:
+            label = "AI"
+            row_class = "chat-row-assistant"
+            bubble_class = "chat-bubble-assistant"
+
+        st.markdown(
+            f"""
+            <div class="chat-row {row_class}">
+                <div class="chat-avatar">{label}</div>
+                <div class="chat-bubble {bubble_class}">{content}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )

@@ -16,6 +16,11 @@ TRACKED_STATE_FIELDS = (
     "routing_target",
     "classification_method",
     "classification_reason",
+    "intent_relation",
+    "active_issue_summary",
+    "needs_retrieval",
+    "retrieval_type",
+    "selected_context",
     "analysis_id",
     "draft_id",
     "draft_text",
@@ -68,6 +73,10 @@ def init_chat_state() -> None:
         st.session_state.account_id = None
     else:
         st.session_state.account_id = _coerce_optional_positive_int(st.session_state.account_id)
+    if "pending_user_input" not in st.session_state:
+        st.session_state.pending_user_input = None
+    if "pending_ticket_id" not in st.session_state:
+        st.session_state.pending_ticket_id = None
     for field in TRACKED_STATE_FIELDS:
         if field not in st.session_state:
             st.session_state[field] = None
@@ -105,6 +114,8 @@ def update_state_from_chatbot(result_state: dict) -> None:
 def reset_chat_state(ticket_start: int = 1000) -> None:
     st.session_state.messages = []
     st.session_state.graph_messages = []
+    st.session_state.pending_user_input = None
+    st.session_state.pending_ticket_id = None
     st.session_state.ticket_counter = ticket_start
     st.session_state.session_id = _coerce_positive_int(st.session_state.get("session_id", 1))
     for field in TRACKED_STATE_FIELDS:

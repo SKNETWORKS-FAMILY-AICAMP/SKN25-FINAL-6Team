@@ -1,9 +1,29 @@
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+SRC_ROOT = PROJECT_ROOT / "src"
+for path in (PROJECT_ROOT, SRC_ROOT):
+    path_text = str(path)
+    while path_text in sys.path:
+        sys.path.remove(path_text)
+sys.path.insert(0, str(PROJECT_ROOT))
+sys.path.insert(0, str(SRC_ROOT))
+
+loaded_chatbot = sys.modules.get("chatbot")
+loaded_chatbot_file = getattr(loaded_chatbot, "__file__", "") if loaded_chatbot else ""
+if loaded_chatbot_file and not str(loaded_chatbot_file).startswith(str(SRC_ROOT)):
+    for module_name in list(sys.modules):
+        if module_name == "chatbot" or module_name.startswith("chatbot."):
+            del sys.modules[module_name]
+
 from dotenv import load_dotenv
 import streamlit as st
 
-from chatbot.frontend.components.chat_input import render_chat_input
+from chatbot.frontend.components.chat_input import render_chat_input, resolve_pending_message
 from chatbot.frontend.components.chat_message import render_chat_history
 from chatbot.frontend.components.login_form import render_login_form, render_login_status
 from chatbot.frontend.state.session_state import init_chat_state, reset_chat_state
@@ -124,6 +144,57 @@ def _inject_styles() -> None:
             background: #f0f9ff;
             color: #0f172a;
         }
+        .chat-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.7rem;
+            margin: 0.75rem 0;
+            width: 100%;
+        }
+        .chat-row-user {
+            flex-direction: row-reverse;
+            justify-content: flex-start;
+        }
+        .chat-row-assistant {
+            justify-content: flex-start;
+        }
+        .chat-avatar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 2.25rem;
+            height: 2.25rem;
+            flex: 0 0 2.25rem;
+            border-radius: 8px;
+            background: #f2a737;
+            color: #ffffff;
+            font-size: 0.82rem;
+            font-weight: 800;
+            line-height: 1;
+        }
+        .chat-row-user .chat-avatar {
+            background: #ef5b58;
+        }
+        .chat-bubble {
+            max-width: min(74%, 720px);
+            padding: 0.85rem 1rem;
+            border-radius: 8px;
+            color: #1f2937;
+            font-size: 0.98rem;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            word-break: keep-all;
+        }
+        .chat-bubble-user {
+            background: #eef2f7;
+            text-align: left;
+        }
+        .chat-bubble-assistant {
+            background: #ffffff;
+            border: 1px solid #e5edf6;
+            text-align: left;
+        }
         [data-testid="stChatInputSubmitButton"] {
             background: #7dd3fc !important;
             color: #0f172a !important;
@@ -145,8 +216,10 @@ def _inject_styles() -> None:
             padding-bottom: 0.95rem !important;
             font-size: 1rem !important;
         }
-        div[data-testid="stChatMessage"] {
-            border-radius: 8px;
+        @media (max-width: 640px) {
+            .chat-bubble {
+                max-width: calc(100% - 3rem);
+            }
         }
         </style>
         """,
@@ -202,6 +275,7 @@ def main() -> None:
         _render_header()
         _render_welcome_message()
         render_chat_history()
+        resolve_pending_message(account_id=account_id)
         if st.session_state.messages:
             st.markdown('<div class="new-chat-row">', unsafe_allow_html=True)
             if st.button("새 채팅", use_container_width=False):
