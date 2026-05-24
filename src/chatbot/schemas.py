@@ -8,6 +8,17 @@ from typing_extensions import NotRequired
 
 Category = Literal["결제", "인게임/버그", "FAQ", "VOC"]
 RoutingTarget = Literal["rag_reply", "urgent_alert"]
+RoutingIntentName = Literal[
+    "payment_how_to",
+    "payment_missing_item",
+    "refund_request",
+    "payment_dispute",
+    "bug_how_to",
+    "bug_account_specific",
+    "policy_question",
+    "faq_question",
+    "voc",
+]
 SafetyAction = Literal[
     "AUTO_RESPONSE",
     "MASKING",
@@ -36,6 +47,9 @@ class ChatbotState(AgentState):
     routing_target: NotRequired[RoutingTarget | str]
     classification_method: NotRequired[str | None]
     classification_reason: NotRequired[str | None]
+    is_actionable: NotRequired[bool | None]
+    should_use_rag: NotRequired[bool | None]
+    fallback_reason: NotRequired[str | None]
 
     # Drafting, retrieval, safety, and review state.
     analysis_id: NotRequired[int | None]
@@ -47,11 +61,18 @@ class ChatbotState(AgentState):
     retrieval_query: NotRequired[str | None]
     retrieval_enrichment: NotRequired[dict[str, Any] | None]
     retrieved_documents: NotRequired[list[dict[str, Any]]]
+    payment_context: NotRequired[dict[str, Any] | None]
     faq_failure_reason: NotRequired[str | None]
     safety_passed: NotRequired[bool | None]
     safety_action: NotRequired[SafetyAction | str | None]
     safety_reason: NotRequired[str | None]
+    factuality_score: NotRequired[float | None]
+    hallucination_score: NotRequired[float | None]
+    toxicity_score: NotRequired[float | None]
+    policy_violation_score: NotRequired[float | None]
     review_required: NotRequired[bool | None]
+    masking_applied: NotRequired[bool | None]
+    masking_labels: NotRequired[list[str]]
     voc_type: NotRequired[str | None]
     sentiment: NotRequired[str | None]
     topic_keywords: NotRequired[list[str]]
@@ -69,6 +90,18 @@ class OrchestratorOutput(BaseModel):
     ticket_id: int
     category: Category
     routing_target: RoutingTarget
+    reason: str
+
+
+class RoutingIntent(BaseModel):
+    """Normalized user intent used before final category routing."""
+
+    intent: RoutingIntentName
+    normalized_query: str
+    is_actionable: bool = True
+    requires_account_lookup: bool = False
+    should_use_rag: bool = False
+    fallback_reason: str | None = None
     reason: str
 
 

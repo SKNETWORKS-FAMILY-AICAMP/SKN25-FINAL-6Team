@@ -2,28 +2,15 @@ from __future__ import annotations
 
 import json
 
+from chatbot.generation.response.fixed_responses import (
+    BLOCK_RESPONSE,
+    REVIEW_QUEUE_RESPONSE,
+    fallback_response_for_category,
+)
 from chatbot.notifications.dispatcher import dispatch_urgent_alert
 from chatbot.observability.logger import EVENT_FINAL_RESPONSE_CREATED, log_event
 from chatbot.schemas import ChatbotState
 from chatbot.tools.db_tools import write_final_response
-
-
-def _fallback_answer() -> str:
-    return (
-        "문의 내용을 바로 확인하기 어려워 일반 안내로 답변드립니다. "
-        "담당자가 확인할 수 있도록 접수해 두겠습니다."
-    )
-
-
-def _block_answer() -> str:
-    return "안전한 상담 진행을 위해 해당 답변은 제공할 수 없습니다."
-
-
-def _review_answer() -> str:
-    return (
-        "문의하신 내용은 추가 확인이 필요한 사항으로 접수되었습니다. "
-        "담당자가 검토한 뒤 안내드리겠습니다."
-    )
 
 
 def final_response_node(state: ChatbotState) -> dict:
@@ -31,11 +18,11 @@ def final_response_node(state: ChatbotState) -> dict:
     draft_text = state["draft_text"]
 
     if decision == "BLOCK_RESPONSE":
-        final_text = _block_answer()
+        final_text = BLOCK_RESPONSE
     elif decision in ("SAFE_FALLBACK", "MASKING"):
-        final_text = _fallback_answer()
+        final_text = fallback_response_for_category(state.get("category"))
     elif decision == "REVIEW_QUEUE":
-        final_text = _review_answer()
+        final_text = REVIEW_QUEUE_RESPONSE
     else:
         final_text = draft_text
 
