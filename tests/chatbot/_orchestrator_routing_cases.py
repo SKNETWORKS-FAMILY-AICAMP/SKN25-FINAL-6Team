@@ -23,6 +23,9 @@ def test_llm_intent_normalizes_slang_payment_how_to_to_faq(monkeypatch) -> None:
         "llm_intent",
         "intent:payment_how_to; slang payment how-to",
         "갤럭시 스토어 결제 방법",
+        True,
+        True,
+        None,
     )
 
 
@@ -44,6 +47,9 @@ def test_llm_intent_routes_missing_payment_to_operation(monkeypatch) -> None:
         "llm_intent",
         "intent:payment_missing_item; paid item is missing",
         "결제 상품 미지급",
+        True,
+        False,
+        None,
     )
 
 
@@ -65,6 +71,9 @@ def test_llm_intent_keeps_payment_how_to_in_faq_even_with_account(monkeypatch) -
         "llm_intent",
         "intent:payment_how_to; payment how-to but account is present",
         "갤럭시 스토어 결제 방법",
+        True,
+        True,
+        None,
     )
 
 
@@ -78,6 +87,46 @@ def test_route_from_intent_sends_bug_how_to_to_faq() -> None:
             reason="general troubleshooting",
         )
     ) == ("FAQ", "rag_reply", "intent:bug_how_to; general troubleshooting")
+
+
+def test_route_from_intent_prioritizes_general_rag_over_account_lookup() -> None:
+    assert _route_from_intent(
+        RoutingIntent(
+            intent="payment_how_to",
+            normalized_query="갤럭시 스토어 결제 방법",
+            is_actionable=True,
+            requires_account_lookup=True,
+            should_use_rag=True,
+            reason="general payment guide despite logged-in account",
+        ),
+        account_id=101,
+    ) == ("FAQ", "rag_reply", "intent:payment_how_to; general payment guide despite logged-in account")
+
+
+def test_llm_intent_routes_non_actionable_complaint_to_voc_without_rag(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "chatbot.generation.orchestrator._normalize_intent_with_llm",
+        lambda query: RoutingIntent(
+            intent="voc",
+            normalized_query="게임 이용 불만",
+            is_actionable=False,
+            requires_account_lookup=False,
+            should_use_rag=False,
+            fallback_reason="low_information_complaint",
+            reason="vague emotional complaint without a concrete issue",
+        ),
+    )
+
+    assert _classify(1, "게임 왜 이따위임?", account_id=None) == (
+        "VOC",
+        "rag_reply",
+        "llm_intent",
+        "intent:voc; vague emotional complaint without a concrete issue",
+        "게임 이용 불만",
+        False,
+        False,
+        "low_information_complaint",
+    )
 
 
 def test_classify_falls_back_to_structured_classifier_when_intent_fails(monkeypatch) -> None:
@@ -101,6 +150,9 @@ def test_classify_falls_back_to_structured_classifier_when_intent_fails(monkeypa
         "llm",
         "classifier fallback",
         "갤럭시 스토어 결제 방법 알려주세요",
+        None,
+        None,
+        None,
     )
 
 
@@ -114,6 +166,9 @@ def test_classify_defaults_to_faq_when_all_llm_routing_fails(monkeypatch) -> Non
         "fallback",
         "intent_and_classifier_unavailable",
         "갤럭시 스토어 결제 방법 알려주세요",
+        None,
+        None,
+        None,
     )
 
 

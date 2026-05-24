@@ -127,6 +127,11 @@ def enrich_retrieval_query(text: str) -> RetrievalQuery:
                     "For privacy policy questions prefer hoyoverse_policy and category privacy. "
                     "For terms-of-service questions prefer hoyoverse_policy and category terms. "
                     "For payment/account/client troubleshooting prefer hoyoverse_qna_common or hoyoverse_qna_onlygenshin. "
+                    "Normalize slang, typos, and equivalent phrases into the same canonical Korean FAQ search query. "
+                    "For example, '스토리 초기화 어캐함?', '진행도 초기화 어캐함?', and "
+                    "'게임 진행도 리셋 어캐함?' should all become query_text='게임 진행도 리셋 방법' "
+                    "with preferred_source_types including hoyoverse_qna_onlygenshin and preferred_categories including 계정_문제. "
+                    "Do not preserve vague slang when a clearer FAQ title-style query is possible. "
                     "Do not answer the user.",
                 ),
                 ("user", text),

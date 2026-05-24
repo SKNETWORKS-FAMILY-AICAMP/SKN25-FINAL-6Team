@@ -6,6 +6,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from chatbot.constants import VOC_FIXED_RESPONSE
 from chatbot.schemas import ChatbotState
 from chatbot.tools.db_tools import write_answer_draft, write_evidence_docs, write_voc_feedback
 
@@ -90,9 +91,16 @@ def _build_voc_response(voc_type: str) -> str:
 
 def voc_agent_node(state: ChatbotState) -> dict:
     raw_content = _active_text(state)
-    voc_type, sentiment, topic_keywords = _classify_voc(raw_content)
+    if state.get("is_actionable") is False and state.get("should_use_rag") is False:
+        voc_type, sentiment, topic_keywords = "other", "negative", []
+        answer = VOC_FIXED_RESPONSE
+        safety_reason = str(state.get("fallback_reason") or "non_actionable_voc_fallback")
+    else:
+        voc_type, sentiment, topic_keywords = _classify_voc(raw_content)
+        answer = _build_voc_response(voc_type)
+        safety_reason = "VOC template response skips LLM safety validation."
+
     ticket_id = state["ticket_id"]
-    answer = _build_voc_response(voc_type)
 
     write_voc_feedback.invoke({
         "payload": {
@@ -135,7 +143,7 @@ def voc_agent_node(state: ChatbotState) -> dict:
         "reasoning_node": "voc_agent",
         "safety_passed": True,
         "safety_action": "AUTO_RESPONSE",
-        "safety_reason": "VOC template response skips LLM safety validation.",
+        "safety_reason": safety_reason,
         "voc_type": voc_type,
         "sentiment": sentiment,
         "topic_keywords": topic_keywords,

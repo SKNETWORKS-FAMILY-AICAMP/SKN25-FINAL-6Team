@@ -71,6 +71,19 @@ def read_gacha_logs(account_id: int) -> str:
 
 
 @tool(parse_docstring=True)
+def collect_user_payment_context(user_id: int, account_id: int | None = None) -> str:
+    """Read payment, refund, item delivery, and gacha records owned by the logged-in user.
+
+    Args:
+        user_id: Logged-in community user ID. This is the ownership boundary.
+        account_id: Optional game account ID to narrow the lookup, only if it belongs to user_id.
+    """
+    from chatbot.repository.operation_log_repository import collect_payment_context_by_user
+
+    return _json(collect_payment_context_by_user(user_id=user_id, account_id=account_id))
+
+
+@tool(parse_docstring=True)
 def write_qa_ticket(payload: dict) -> str:
     """Write a new QA ticket record.
 

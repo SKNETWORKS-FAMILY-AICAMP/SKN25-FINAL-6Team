@@ -164,9 +164,11 @@ def _evaluate_safety(text: str, documents: list[dict[str, Any]] | None = None) -
 
 
 def _requires_document_grounding(state: ChatbotState, documents: list[dict[str, Any]]) -> bool:
-    if documents:
-        return True
-    return state.get("reasoning_node") == "faq_agent" or state.get("category") == "FAQ"
+    return (
+        state.get("reasoning_node") == "faq_agent"
+        or state.get("category") == "FAQ"
+        or state.get("should_use_rag") is True
+    )
 
 
 def _decide_safety_action(

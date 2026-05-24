@@ -207,7 +207,7 @@ def _answer_checks() -> list[Check]:
         faq_agent._embed_query = lambda text: "[1.0,0.0]"
         faq_agent.search_document_chunks = lambda **kwargs: docs
         faq_agent._rerank_documents = lambda documents, query: documents
-        faq_agent._generate_evidence_answer = lambda query, documents: calls.append((query, documents)) or "answer"
+        faq_agent._generate_evidence_answer = lambda **kwargs: calls.append(kwargs) or "answer"
         try:
             result = faq_agent.run_faq_rag(state)
         finally:

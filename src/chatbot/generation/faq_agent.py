@@ -87,7 +87,58 @@ def _is_low_evidence(documents: list[dict[str, Any]]) -> tuple[bool, str | None]
     return False, None
 
 
-def _generate_evidence_answer(query: str, documents: list[dict[str, Any]]) -> str:
+def _passes_relevance_gate(documents: list[dict[str, Any]]) -> tuple[bool, str | None]:
+    if not documents:
+        return False, "no_retrieved_documents"
+
+    min_field_match = float(os.environ.get("FAQ_MIN_FIELD_MATCH_SCORE", "0"))
+    min_bm25 = float(os.environ.get("FAQ_MIN_BM25_SCORE", "0"))
+    min_cosine = float(os.environ.get("FAQ_MIN_COSINE_SCORE", "0"))
+
+    if min_field_match <= 0 and min_bm25 <= 0 and min_cosine <= 0:
+        return True, None
+
+    for document in documents:
+        field_match = float(document.get("field_match_score") or 0)
+        bm25 = float(document.get("bm25_score") or 0)
+        cosine = float(document.get("cosine_score") or 0)
+        if field_match >= min_field_match and bm25 >= min_bm25 and cosine >= min_cosine:
+            return True, None
+
+    return False, "retrieval_relevance_gate_failed"
+
+
+def _print_retrieval_summary(
+    *,
+    original_query: str,
+    retrieval_query: str,
+    documents: list[dict[str, Any]],
+) -> None:
+    print("\n[FAQ/RAG 검색 요약]")
+    print(f"original_query: {original_query}")
+    print(f"retrieval_query: {retrieval_query}")
+    print(f"result_count: {len(documents)}")
+    for index, doc in enumerate(documents[:5], start=1):
+        title = doc.get("title") or "untitled"
+        source_type = doc.get("source_type") or "unknown"
+        category = doc.get("category") or "unknown"
+        score = doc.get("score")
+        bm25 = doc.get("bm25_score")
+        cosine = doc.get("cosine_score")
+        field_match = doc.get("field_match_score")
+        print(
+            f"{index}. {title} | source={source_type} | category={category} | "
+            f"hybrid={score} bm25={bm25} cosine={cosine} field={field_match}"
+        )
+    print()
+
+
+def _generate_evidence_answer(
+    *,
+    original_query: str,
+    retrieval_query: str,
+    documents: list[dict[str, Any]],
+) -> str:
     api_key = os.environ.get("LLM_API_KEY")
     model = os.environ.get("LLM_MODEL")
     if not api_key or not model:
@@ -116,9 +167,11 @@ def _generate_evidence_answer(query: str, documents: list[dict[str, Any]]) -> st
             ),
             HumanMessage(
                 content=(
-                    f"Customer question:\n{query}\n\n"
+                    f"Customer question:\n{original_query}\n\n"
+                    f"Normalized FAQ search question:\n{retrieval_query}\n\n"
                     f"Evidence documents:\n{evidence}\n\n"
-                    "Write a concise, polite Korean customer-facing answer."
+                    "Write a concise, polite Korean customer-facing answer. "
+                    "Use the normalized FAQ search question as the intended meaning when it is clearer than the customer's slang."
                 )
             ),
         ]
@@ -129,6 +182,18 @@ def _generate_evidence_answer(query: str, documents: list[dict[str, Any]]) -> st
 def run_faq_rag(state: ChatbotState) -> dict[str, Any]:
     """Run deterministic FAQ/RAG: refine, embed, search, rerank, then answer once."""
     query = _active_query(state)
+
+    if state.get("is_actionable") is False or state.get("should_use_rag") is False:
+        reason = str(state.get("fallback_reason") or "rag_not_requested")
+        _record_failed_query(state, query, reason)
+        return {
+            "draft_text": SAFE_FALLBACK_RESPONSE,
+            "retrieved_documents": [],
+            "retrieval_query": query,
+            "retrieval_enrichment": None,
+            "faq_failure_reason": reason,
+        }
+
     enriched = enrich_retrieval_query(query)
     retrieval_query = enriched.query_text
     if not retrieval_query:
@@ -150,6 +215,11 @@ def run_faq_rag(state: ChatbotState) -> dict[str, Any]:
         enrichment=enriched,
     )
     documents = _rerank_documents(documents, retrieval_query)
+    _print_retrieval_summary(
+        original_query=query,
+        retrieval_query=retrieval_query,
+        documents=documents,
+    )
 
     low_evidence, reason = _is_low_evidence(documents)
     if low_evidence:
@@ -163,7 +233,23 @@ def run_faq_rag(state: ChatbotState) -> dict[str, Any]:
             "faq_failure_reason": reason,
         }
 
-    answer = _generate_evidence_answer(query, documents)
+    relevance_ok, relevance_reason = _passes_relevance_gate(documents)
+    if not relevance_ok:
+        reason = relevance_reason or "retrieval_relevance_gate_failed"
+        _record_failed_query(state, retrieval_query, reason)
+        return {
+            "draft_text": SAFE_FALLBACK_RESPONSE,
+            "retrieved_documents": documents,
+            "retrieval_query": retrieval_query,
+            "retrieval_enrichment": enriched.model_dump(),
+            "faq_failure_reason": reason,
+        }
+
+    answer = _generate_evidence_answer(
+        original_query=query,
+        retrieval_query=retrieval_query,
+        documents=documents,
+    )
     return {
         "draft_text": answer,
         "retrieved_documents": documents,

@@ -1,6 +1,20 @@
 from __future__ import annotations
 
-from chatbot.generation.response.fixed_responses import SAFE_FALLBACK_RESPONSE
+import json
+
+from tests.chatbot._orchestrator_routing_cases import *  # noqa: F403
+
+from chatbot.constants import VOC_FIXED_RESPONSE
+from chatbot.generation import voc_agent
+from chatbot.generation.response.final_response import final_response_node
+from chatbot.generation.response.fixed_responses import (
+    BLOCK_RESPONSE,
+    BUG_FALLBACK_RESPONSE,
+    FAQ_FALLBACK_RESPONSE,
+    PAYMENT_FALLBACK_RESPONSE,
+    REVIEW_QUEUE_RESPONSE,
+    SAFE_FALLBACK_RESPONSE,
+)
 from chatbot.safety import safety_layer
 
 
@@ -262,6 +276,47 @@ def test_safety_layer_does_not_fallback_payment_agent_without_rag_docs(monkeypat
     assert payloads[0]["safety_action"] == "AUTO_RESPONSE"
 
 
+def test_safety_layer_does_not_ground_non_faq_payment_context_documents(monkeypatch) -> None:
+    payloads = []
+
+    monkeypatch.setattr(
+        safety_layer,
+        "_moderation_safety_check",
+        lambda text: (
+            False,
+            {"toxicity_score": 0.01, "policy_violation_score": 0.02},
+            "moderation ok",
+        ),
+    )
+    monkeypatch.setattr(safety_layer, "_write_safety_results", lambda payload: payloads.append(payload) or "{}")
+
+    update = safety_layer.safety_layer_node(
+        {
+            "ticket_id": 1,
+            "draft_id": 2,
+            "draft_text": "결제 내역을 확인한 뒤 담당자가 지급 여부를 안내드리겠습니다.",
+            "retrieved_documents": [
+                {
+                    "source_type": "payments",
+                    "category": "결제",
+                    "chunk_text": "payment_id=201 payment_status=paid amount=12000",
+                }
+            ],
+            "retry_count": 0,
+            "category": "결제",
+            "routing_target": "urgent_alert",
+            "reasoning_node": "payment_agent",
+            "should_use_rag": False,
+        }
+    )
+
+    assert update["safety_passed"] is True
+    assert update["safety_action"] == "AUTO_RESPONSE"
+    assert update["review_required"] is False
+    assert payloads[0]["factuality_score"] == 1.0
+    assert payloads[0]["hallucination_score"] == 0.0
+
+
 def test_mask_sensitive_text_masks_common_private_values() -> None:
     masked_text, labels = safety_layer._mask_sensitive_text(
         "email test@example.com phone 010-1234-5678 account_id=abc12345"
@@ -338,3 +393,112 @@ def test_safety_layer_fallbacks_after_masking_retry_exhausted(monkeypatch) -> No
     assert update["draft_text"] == SAFE_FALLBACK_RESPONSE
     assert update["retry_count"] == 3
     assert payloads[0]["safety_action"] == "SAFE_FALLBACK"
+
+
+def _final_state(category: str, safety_action: str = "SAFE_FALLBACK") -> dict:
+    return {
+        "ticket_id": 1,
+        "session_id": 1,
+        "draft_id": 10,
+        "draft_text": "draft",
+        "category": category,
+        "routing_target": "rag_reply",
+        "safety_action": safety_action,
+    }
+
+
+def _patch_final_response_writes(monkeypatch) -> list[dict]:
+    payloads = []
+
+    class FakeWriteFinalResponse:
+        @staticmethod
+        def invoke(args):
+            payloads.append(args["payload"])
+            return json.dumps({"stored": True, "response_id": 123})
+
+    monkeypatch.setattr(
+        "chatbot.generation.response.final_response.write_final_response",
+        FakeWriteFinalResponse,
+    )
+    monkeypatch.setattr(
+        "chatbot.generation.response.final_response.dispatch_urgent_alert",
+        lambda state: {"status": "skipped"},
+    )
+    return payloads
+
+
+def test_final_response_uses_category_fallbacks(monkeypatch) -> None:
+    payloads = _patch_final_response_writes(monkeypatch)
+
+    cases = [
+        ("결제", PAYMENT_FALLBACK_RESPONSE),
+        ("인게임/버그", BUG_FALLBACK_RESPONSE),
+        ("FAQ", FAQ_FALLBACK_RESPONSE),
+        ("VOC", VOC_FIXED_RESPONSE),
+    ]
+
+    for category, expected in cases:
+        result = final_response_node(_final_state(category))
+        assert result["final_text"] == expected
+
+    assert [payload["final_text"] for payload in payloads] == [expected for _, expected in cases]
+
+
+def test_final_response_uses_fixed_block_and_review_responses(monkeypatch) -> None:
+    _patch_final_response_writes(monkeypatch)
+
+    assert final_response_node(_final_state("FAQ", "BLOCK_RESPONSE"))["final_text"] == BLOCK_RESPONSE
+    assert final_response_node(_final_state("FAQ", "REVIEW_QUEUE"))["final_text"] == REVIEW_QUEUE_RESPONSE
+
+
+def test_voc_agent_uses_fallback_for_non_actionable_non_rag_intent(monkeypatch) -> None:
+    voc_payloads = []
+    evidence_payloads = []
+
+    class FakeWriteVocFeedback:
+        @staticmethod
+        def invoke(args):
+            voc_payloads.append(args["payload"])
+            return json.dumps({"stored": True})
+
+    class FakeWriteAnswerDraft:
+        @staticmethod
+        def invoke(args):
+            return json.dumps({"stored": True, "draft_id": 55})
+
+    class FakeWriteEvidenceDocs:
+        @staticmethod
+        def invoke(args):
+            evidence_payloads.append(args["payload"])
+            return json.dumps({"stored": True, "evidence_id": 77})
+
+    monkeypatch.setattr(voc_agent, "write_voc_feedback", FakeWriteVocFeedback)
+    monkeypatch.setattr(voc_agent, "write_answer_draft", FakeWriteAnswerDraft)
+    monkeypatch.setattr(voc_agent, "write_evidence_docs", FakeWriteEvidenceDocs)
+    monkeypatch.setattr(
+        voc_agent,
+        "_classify_voc",
+        lambda text: (_ for _ in ()).throw(AssertionError("Non-actionable VOC should not need another LLM call")),
+    )
+
+    result = voc_agent.voc_agent_node(
+        {
+            "ticket_id": 1,
+            "analysis_id": 10,
+            "user_id": 1,
+            "account_id": 101,
+            "enriched_query": "게임 이용 불만",
+            "routing_target": "rag_reply",
+            "retry_count": 0,
+            "is_actionable": False,
+            "should_use_rag": False,
+            "fallback_reason": "low_information_complaint",
+        }
+    )
+
+    assert result["draft_text"] == VOC_FIXED_RESPONSE
+    assert result["safety_action"] == "AUTO_RESPONSE"
+    assert result["safety_reason"] == "low_information_complaint"
+    assert voc_payloads[0]["voc_type"] == "other"
+    assert voc_payloads[0]["sentiment"] == "negative"
+    assert evidence_payloads
