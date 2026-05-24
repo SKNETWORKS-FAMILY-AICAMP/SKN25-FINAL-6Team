@@ -37,6 +37,8 @@ def wait_for_api() -> None:
 def main() -> None:
     env = os.environ.copy()
     env["OPERATION_API_BASE_URL"] = API_BASE_URL
+    # LangSmith 프로젝트를 operation 전용으로 고정해 dashboard 트레이스와 분리한다
+    env["LANGSMITH_PROJECT"] = "skn25-operation"
 
     api_process = subprocess.Popen(
         [

@@ -231,7 +231,15 @@ def run_workflow(ticket_id: int) -> RunWorkflowResponse:
                 )
 
     graph = build_operation_graph()
-    result = graph.invoke(OperationState(ticket_id=str(ticket_id)))
+    result = graph.invoke(
+        OperationState(ticket_id=str(ticket_id)),
+        # LangSmith 트레이스 식별자: run_name으로 티켓별 실행을 구분하고
+        # metadata로 ticket_id를 필터 키로 사용할 수 있게 한다
+        config={
+            "run_name": f"operation-workflow-{ticket_id}",
+            "metadata": {"ticket_id": ticket_id, "workflow": "operation"},
+        },
+    )
 
     return RunWorkflowResponse(
         ticket_id=ticket_id,

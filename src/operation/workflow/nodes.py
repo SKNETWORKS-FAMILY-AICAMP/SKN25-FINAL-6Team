@@ -9,6 +9,7 @@ from pathlib import Path
 from time import perf_counter
 from typing import Any, Callable, Literal, cast
 
+from langsmith import traceable
 from psycopg.rows import dict_row
 from pydantic import BaseModel, ConfigDict, ValidationError
 
@@ -209,6 +210,7 @@ def _dump_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [DbRow.model_validate(row).model_dump(mode="json") for row in rows]
 
 
+@traceable(name="rrf_merge", tags=["rag", "retrieval"])
 def _rrf_merge(
     keyword_rows: dict[str, dict[str, Any]],
     vector_rows: dict[str, dict[str, Any]],
