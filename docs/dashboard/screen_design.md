@@ -4,7 +4,7 @@
 
 이 문서는 `src/dashboard/frontend` Streamlit 대시보드의 화면 설계 기준을 정의한다. 기준 데이터와 지표는 다음 문서를 따른다.
 
-- `docs/dashboard/architecture.md`: Dashboard API, LangGraph workflow, Streamlit frontend 구조
+- `docs/dashboard/architecture.md`: Dashboard API, summary pipeline, Streamlit frontend 구조
 - `docs/dashboard/api_spec.md`: `/summary/*`, `/tickets`, `/tickets/{ticket_id}` 응답 필드
 - `docs/dashboard/metrics.md`: 운영 현황, 리스크 분석, 응답 품질 지표 산식
 - `docs/DB/descriptions.md`: `qa_ticket`, `ticket_analysis`, `answer_draft`, `evidence_docs`, `safety_results`, `final_response`, `notification_logs`, `insight`, `voc_feedback` 관계
@@ -452,4 +452,3 @@ button[kind="secondary"] {
 | 리스크 분석 | safety score가 없을 때 `-`, 고위험 테이블이 비어 있으면 빈 상태 표시 |
 | 응답 품질 | `/summary/quality` 호출 성공, coverage metric과 quality candidates 표시 |
 | 공통 | API URL이 비어 있어도 `Invalid URL '/summary/...'`가 발생하지 않음 |
-

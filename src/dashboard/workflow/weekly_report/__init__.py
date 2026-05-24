@@ -1,4 +1,4 @@
-"""Weekly report agent for dashboard operations."""
+"""Weekly report helpers for dashboard operations."""
 
 from .graph import build_weekly_report_graph, run_weekly_report_workflow
 from .pdf import render_report_pdf

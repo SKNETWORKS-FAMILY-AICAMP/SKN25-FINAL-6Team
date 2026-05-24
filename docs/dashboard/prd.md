@@ -13,7 +13,7 @@
 | `docs/chatbot/prd.md` | 챗봇 문의 유입, 자동 응답, 상담원 패싱, 만족도, 챗봇 운영 지표 |
 | `docs/operation/prd.md` | 운영배치 처리 단계, Human-in-the-loop, 운영 인사이트, Observability, 운영자 검수 |
 | `docs/DB/descriptions.md` | 실제 PostgreSQL 테이블, 컬럼, 관계 |
-| `docs/dashboard/architecture.md` | Dashboard API, LangGraph workflow, Streamlit 구조 |
+| `docs/dashboard/architecture.md` | Dashboard API, summary pipeline, Streamlit 구조 |
 | `docs/dashboard/api_spec.md` | `/summary/*`, `/tickets`, `/tickets/{ticket_id}` 응답 기준 |
 | `docs/dashboard/metrics.md` | 지표 산식과 조회 기간 기준 |
 | `docs/dashboard/screen_design.md` | 운영자 화면 구조와 화면별 표시 기준 |

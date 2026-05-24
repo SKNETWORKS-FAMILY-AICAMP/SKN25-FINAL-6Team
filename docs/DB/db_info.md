@@ -1,13 +1,13 @@
 # DB Info
 
-Last verified from the live database on 2026-05-22.
+Last verified from the live database on 2026-05-24.
 
 ## Connection
 
 | Item | Value |
 | --- | --- |
 | DBMS | PostgreSQL |
-| Version | `PostgreSQL 16.13 (Ubuntu 16.13-0ubuntu0.24.04.1)` |
+| Version | `PostgreSQL 16.14 (Ubuntu 16.14-0ubuntu0.24.04.1)` |
 | Host | `100.97.235.15` |
 | Server Address | `100.97.235.15/32` |
 | Port | `5432` |
@@ -17,7 +17,7 @@ Last verified from the live database on 2026-05-22.
 | Schema | `public` |
 | Extensions | `plpgsql 1.0`, `vector 0.6.0` |
 | Public Tables | 20 |
-| Public Columns | 163 |
+| Public Columns | 165 |
 
 ## Test Connection
 

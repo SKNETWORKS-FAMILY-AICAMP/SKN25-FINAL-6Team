@@ -178,12 +178,6 @@ def weekly_report_slack(request: WeeklyReportSendRequest) -> dict[str, Any]:
             "slack_result": result["slack_result"],
         }
     )
-    return jsonable_encoder(
-        {
-            "report": result["report"],
-            "slack_result": result["slack_result"],
-        }
-    )
 
 
 @app.post("/reports/weekly/slack/now")

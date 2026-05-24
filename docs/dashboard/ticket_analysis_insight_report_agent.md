@@ -173,7 +173,7 @@ flowchart LR
 ### 5.2 체인 선택
 
 - 데이터 집계와 계산은 LCEL 또는 순수 함수로 처리한다.
-- 주간 보고서의 흐름 제어와 재시도, human review 분기는 LangGraph로 관리한다.
+- 주간 보고서의 흐름 제어와 재시도, human review 분기는 별도 보고서 파이프라인으로 관리한다.
 - 반복되는 템플릿 생성은 prompt + structured output으로 고정한다.
 
 ### 5.3 추천 산출물 예시

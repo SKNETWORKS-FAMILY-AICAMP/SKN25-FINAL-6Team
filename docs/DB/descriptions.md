@@ -1,13 +1,13 @@
 # DB Descriptions
 
-Generated from the live PostgreSQL database on 2026-05-22.
+Generated from the live PostgreSQL database on 2026-05-24.
 
 ## Basic Info
 
 | Item | Value |
 | --- | --- |
 | DBMS | PostgreSQL |
-| Version | `PostgreSQL 16.13 (Ubuntu 16.13-0ubuntu0.24.04.1)` |
+| Version | `PostgreSQL 16.14 (Ubuntu 16.14-0ubuntu0.24.04.1)` |
 | Host | `100.97.235.15` |
 | Server Address | `100.97.235.15/32` |
 | Port | `5432` |
@@ -16,7 +16,7 @@ Generated from the live PostgreSQL database on 2026-05-22.
 | Schema | `public` |
 | Extensions | `plpgsql 1.0`, `vector 0.6.0` |
 | Public Tables | 20 |
-| Public Columns | 163 |
+| Public Columns | 165 |
 
 ## Table Summary
 
@@ -25,25 +25,25 @@ Row counts are PostgreSQL `pg_stat_user_tables.n_live_tup` estimates at verifica
 | Table | Estimated Rows | Columns | Primary Key | PK Default | Purpose |
 | --- | ---: | ---: | --- | --- | --- |
 | `admin_event_logs` | 0 | 13 | `log_id` | `nextval('admin_event_logs_log_id_seq'::regclass)` | Operation/admin workflow event and error logs |
-| `answer_draft` | 42 | 6 | `draft_id` | none | Generated answer drafts for tickets |
-| `community_users` | 6,288 | 6 | `user_id` | none | Community user profile data |
+| `answer_draft` | 97 | 6 | `draft_id` | none | Generated answer drafts for tickets |
+| `community_users` | 6,288 | 8 | `user_id` | none | Community user profile data |
 | `documents` | 1,201 | 8 | `documents_id` | none | Source documents for policy, notice, guide, incident, and RAG retrieval |
 | `documents_chunks` | 3,864 | 6 | `chunk_id` | none | Searchable chunks split from source documents |
 | `documents_embeddings` | 3,864 | 7 | `embedding_id` | none | Vector embeddings for document chunks |
-| `evidence_docs` | 42 | 7 | `evidence_id` | none | Retrieved evidence saved for answer drafts |
-| `failed_queries` | 4 | 6 | `failed_query_id` | none | Failed ticket/query processing logs |
-| `final_response` | 25 | 6 | `response_id` | none | Final customer-facing responses |
+| `evidence_docs` | 195 | 7 | `evidence_id` | none | Retrieved evidence saved for answer drafts |
+| `failed_queries` | 9 | 6 | `failed_query_id` | none | Failed ticket/query processing logs |
+| `final_response` | 80 | 6 | `response_id` | none | Final customer-facing responses |
 | `gacha_logs` | 5 | 8 | `gacha_id` | none | Gacha pull history per game account |
 | `game_accounts` | 6,288 | 8 | `account_id` | none | Game account data linked to community users |
 | `insight` | 5 | 10 | `insight_id` | none | Ticket/user/account-level insight analysis data |
 | `item_delivery_logs` | 5 | 9 | `delivery_id` | none | Paid or reward item delivery history |
 | `notification_logs` | 0 | 8 | `notification_id` | `nextval('notification_logs_notification_id_seq'::regclass)` | Notification send results and errors |
 | `payments` | 11 | 10 | `payment_id` | none | Payment transaction history |
-| `qa_ticket` | 9,230 | 10 | `ticket_id` | none | Customer inquiry/QA tickets |
+| `qa_ticket` | 9,243 | 10 | `ticket_id` | none | Customer inquiry/QA tickets |
 | `refunds` | 5 | 6 | `refund_id` | none | Refund request and processing history |
-| `safety_results` | 41 | 10 | `safety_id` | none | Safety and grounding check results for drafts |
-| `ticket_analysis` | 60 | 10 | `analysis_id` | none | Ticket classification, risk, sentiment, and routing analysis |
-| `voc_feedback` | 4 | 9 | `voc_id` | none | VOC feedback and topic keyword records |
+| `safety_results` | 95 | 10 | `safety_id` | none | Safety and grounding check results for drafts |
+| `ticket_analysis` | 118 | 10 | `analysis_id` | none | Ticket classification, risk, sentiment, and routing analysis |
+| `voc_feedback` | 5 | 9 | `voc_id` | none | VOC feedback and topic keyword records |
 
 ## Data Type Summary
 
@@ -55,8 +55,8 @@ Row counts are PostgreSQL `pg_stat_user_tables.n_live_tup` estimates at verifica
 | `integer` | `int4` | 50 |
 | `json` | `json` | 2 |
 | `numeric` | `numeric` | 1 |
-| `text` | `text` | 16 |
-| `timestamp without time zone` | `timestamp` | 23 |
+| `text` | `text` | 17 |
+| `timestamp without time zone` | `timestamp` | 24 |
 
 ## Data Load Sources
 
@@ -161,7 +161,7 @@ Live DB note: these workflow write tables currently have primary keys with no da
 ### `answer_draft`
 
 - Purpose: Generated answer drafts for tickets
-- Estimated Rows: 42
+- Estimated Rows: 97
 - Primary Key: `draft_id`
 - Primary Key Default: none
 - Foreign Keys: `analysis_id` -> `ticket_analysis.analysis_id` (CASCADE), `ticket_id` -> `qa_ticket.ticket_id` (CASCADE)
@@ -195,6 +195,8 @@ Live DB note: these workflow write tables currently have primary keys with no da
 | 4 | `created_at` | `timestamp` | YES |  |  |
 | 5 | `user_status` | `varchar` | YES |  |  |
 | 6 | `last_login_at` | `timestamp` | YES |  |  |
+| 7 | `password_hash` | `text` | YES |  |  |
+| 8 | `password_updated_at` | `timestamp` | YES |  |  |
 
 - Indexes:
   - `community_users_pkey`: `UNIQUE community_users_pkey ON community_users USING btree (user_id)`
@@ -276,7 +278,7 @@ Live DB note: these workflow write tables currently have primary keys with no da
 ### `evidence_docs`
 
 - Purpose: Retrieved evidence saved for answer drafts
-- Estimated Rows: 42
+- Estimated Rows: 195
 - Primary Key: `evidence_id`
 - Primary Key Default: none
 - Foreign Keys: `draft_id` -> `answer_draft.draft_id` (CASCADE)
@@ -298,7 +300,7 @@ Live DB note: these workflow write tables currently have primary keys with no da
 ### `failed_queries`
 
 - Purpose: Failed ticket/query processing logs
-- Estimated Rows: 4
+- Estimated Rows: 9
 - Primary Key: `failed_query_id`
 - Primary Key Default: none
 - Foreign Keys: `ticket_id` -> `qa_ticket.ticket_id` (NO ACTION)
@@ -319,7 +321,7 @@ Live DB note: these workflow write tables currently have primary keys with no da
 ### `final_response`
 
 - Purpose: Final customer-facing responses
-- Estimated Rows: 25
+- Estimated Rows: 80
 - Primary Key: `response_id`
 - Primary Key Default: none
 - Foreign Keys: `draft_id` -> `answer_draft.draft_id` (NO ACTION), `ticket_id` -> `qa_ticket.ticket_id` (NO ACTION)
@@ -483,7 +485,7 @@ Live DB note: these workflow write tables currently have primary keys with no da
 ### `qa_ticket`
 
 - Purpose: Customer inquiry/QA tickets
-- Estimated Rows: 9,230
+- Estimated Rows: 9,243
 - Primary Key: `ticket_id`
 - Primary Key Default: none
 - Foreign Keys: `account_id` -> `game_accounts.account_id` (SET NULL), `user_id` -> `community_users.user_id` (CASCADE)
@@ -529,7 +531,7 @@ Live DB note: these workflow write tables currently have primary keys with no da
 ### `safety_results`
 
 - Purpose: Safety and grounding check results for drafts
-- Estimated Rows: 41
+- Estimated Rows: 95
 - Primary Key: `safety_id`
 - Primary Key Default: none
 - Foreign Keys: `draft_id` -> `answer_draft.draft_id` (CASCADE)
@@ -554,7 +556,7 @@ Live DB note: these workflow write tables currently have primary keys with no da
 ### `ticket_analysis`
 
 - Purpose: Ticket classification, risk, sentiment, and routing analysis
-- Estimated Rows: 60
+- Estimated Rows: 118
 - Primary Key: `analysis_id`
 - Primary Key Default: none
 - Foreign Keys: `ticket_id` -> `qa_ticket.ticket_id` (CASCADE)
@@ -579,7 +581,7 @@ Live DB note: these workflow write tables currently have primary keys with no da
 ### `voc_feedback`
 
 - Purpose: VOC feedback and topic keyword records
-- Estimated Rows: 4
+- Estimated Rows: 5
 - Primary Key: `voc_id`
 - Primary Key Default: none
 - Foreign Keys: `account_id` -> `game_accounts.account_id` (NO ACTION), `ticket_id` -> `qa_ticket.ticket_id` (NO ACTION), `user_id` -> `community_users.user_id` (NO ACTION)

@@ -10,6 +10,7 @@ from typing import Any
 from psycopg.rows import dict_row
 
 from src.common.db.connection import db_connection
+from src.dashboard.ai import generate_dashboard_interpretation, generate_review_row_interpretations
 from src.dashboard.util import build_window, clamp_days, format_minutes, rate, safe_average
 from src.dashboard.workflow.graph import run_dashboard_workflow
 
@@ -179,9 +180,6 @@ def build_weekly_report_payload(data: dict[str, Any]) -> dict[str, Any]:
     risk_counts = _counts(current_rows, "risk_level")
     sentiment_counts = _counts(current_rows, "sentiment")
     routing_counts = _counts(current_rows, "routing_target")
-    insight_risk_counts = _counts(current_rows, "insight_risk_level")
-    pattern_risk_counts = _counts(current_rows, "pattern_risk_level")
-
     summary_section = dashboard_summary["overview"]
     risk_section = dashboard_summary["risk"]
     quality_section = dashboard_summary["quality"]
@@ -220,13 +218,6 @@ def build_weekly_report_payload(data: dict[str, Any]) -> dict[str, Any]:
     current_routing_top = _top_items(routing_counts, limit=3)
     current_responder_top = _top_items(responder_counts, limit=3)
 
-    previous_category_counts = _counts(previous_rows, "category")
-    previous_risk_counts = _counts(previous_rows, "risk_level")
-    previous_sentiment_counts = _counts(previous_rows, "sentiment")
-    previous_routing_counts = _counts(previous_rows, "routing_target")
-    previous_responder_counts = _counts(previous_rows, "responder_type")
-
-    total_previous = total_previous or 0
     current_total = total_current or 0
 
     high_risk_rate = rate(high_risk_count, current_total)
@@ -307,99 +298,19 @@ def build_weekly_report_payload(data: dict[str, Any]) -> dict[str, Any]:
         },
     }
 
-    narrative_insights: list[str] = []
-    if current_total == 0:
-        narrative_insights.append("이번 기간 ticket_analysis 데이터가 없습니다.")
-    else:
-        if high_risk_rate >= 0.2 or insight_high_rate >= 0.2:
-            narrative_insights.append(
-                f"고위험 분석 비중이 {high_risk_rate:.1%}이며, 인사이트 위험도까지 포함하면 {insight_high_rate:.1%}로 운영자 검토가 필요합니다."
-            )
-        if negative_sentiment_rate >= 0.25:
-            narrative_insights.append(
-                f"부정 감성 비중이 {negative_sentiment_rate:.1%}로 높아 게임 체감 이슈 또는 정책 불만을 우선 점검해야 합니다."
-            )
-        if human_review_rate >= 0.15 or current_final_response_rate < current_draft_ticket_rate:
-            narrative_insights.append(
-                f"human_review 비중이 {human_review_rate:.1%}이며 최종 응답 전환율이 초안 커버리지 대비 낮아 수동 검수 병목을 확인해야 합니다."
-            )
-        if blank_query_rate >= 0.05 or blank_summary_rate >= 0.05:
-            narrative_insights.append(
-                f"enriched_query 누락률 {blank_query_rate:.1%}, summary 누락률 {blank_summary_rate:.1%}로 분석 입력 품질 보완이 필요합니다."
-            )
-        if avg_analysis_age_minutes is not None and avg_analysis_age_minutes >= 24 * 60:
-            narrative_insights.append(
-                f"분석 신선도가 평균 {format_minutes(avg_analysis_age_minutes)} 수준으로 지연되어 재분석 배치나 라우팅 기준 점검이 필요합니다."
-            )
-        if current_category_top and current_category_top[0]["value"] / current_total >= 0.4:
-            narrative_insights.append(
-                f"{current_category_top[0]['label']} 카테고리가 전체의 {current_category_top[0]['value'] / current_total:.1%}를 차지해 특정 이슈에 쏠림이 있습니다."
-            )
-
-    column_insights = [
-        {
-            "column": "analysis_id",
-            "metric": f"{min(row['analysis_id'] for row in current_rows) if current_rows else '-'} ~ {max(row['analysis_id'] for row in current_rows) if current_rows else '-'}",
-            "insight": f"이번 기간 {current_total}건의 분석이 생성되었고, 분석 ID는 증가 순으로 정상 누적되었습니다.",
-            "severity": "info",
-        },
-        {
-            "column": "ticket_id",
-            "metric": f"{distinct_ticket_ids_current} tickets / {repeat_analysis_count} repeated analyses",
-            "insight": "동일 티켓의 재분석 비중이 높으면 검수 루프 또는 재판단 이슈가 반복된다는 뜻입니다.",
-            "severity": "warning" if repeat_analysis_count > distinct_ticket_ids_current * 0.2 else "info",
-        },
-        {
-            "column": "category",
-            "metric": ", ".join(f"{item['label']} {item['value']}" for item in current_category_top) or "-",
-            "insight": "상위 카테고리를 중심으로 FAQ 보강, 게임기획 조정, 정책 수정 후보를 확인합니다.",
-            "severity": "info",
-        },
-        {
-            "column": "responder_type",
-            "metric": ", ".join(f"{item['label']} {item['value']}" for item in current_responder_top) or "-",
-            "insight": "자동/수동 응답의 비중을 통해 운영 인력과 자동화 경로의 균형을 점검합니다.",
-            "severity": "info",
-        },
-        {
-            "column": "enriched_query",
-            "metric": f"avg {avg_query_length:.1f} chars / blank {blank_query_rate:.1%}" if avg_query_length is not None else f"blank {blank_query_rate:.1%}",
-            "insight": "보강 질의가 충분히 길고 명확한지 확인하면 분석 모델이 올바른 문맥을 받는지 판단할 수 있습니다.",
-            "severity": _severity_for_rate(blank_query_rate, high=0.1, warning=0.05),
-        },
-        {
-            "column": "risk_level",
-            "metric": ", ".join(f"{item['label']} {item['value']}" for item in current_risk_top) or "-",
-            "insight": f"HIGH/critical 비율은 {high_risk_rate:.1%}이며, 위험도 급증 시 운영자 우선 검토로 연결해야 합니다.",
-            "severity": _severity_for_rate(high_risk_rate, high=0.2, warning=0.1),
-        },
-        {
-            "column": "sentiment",
-            "metric": ", ".join(f"{item['label']} {item['value']}" for item in current_sentiment_top) or "-",
-            "insight": f"negative 감성 비중은 {negative_sentiment_rate:.1%}로, 커뮤니티 체감 악화 여부를 빨리 확인해야 합니다.",
-            "severity": _severity_for_rate(negative_sentiment_rate, high=0.25, warning=0.15),
-        },
-        {
-            "column": "routing_target",
-            "metric": ", ".join(f"{item['label']} {item['value']}" for item in current_routing_top) or "-",
-            "insight": f"human_review {human_review_rate:.1%}, urgent_alert {urgent_rate:.1%}는 운영 인력 부담과 긴급성의 직접 신호입니다.",
-            "severity": "critical" if urgent_rate >= 0.05 else "warning" if human_review_rate >= 0.15 else "info",
-        },
-        {
-            "column": "summary",
-            "metric": f"avg {avg_summary_length:.1f} chars / blank {blank_summary_rate:.1%}" if avg_summary_length is not None else f"blank {blank_summary_rate:.1%}",
-            "insight": "summary가 짧거나 누락되면 티켓의 핵심 원인을 빠르게 읽기 어렵습니다.",
-            "severity": _severity_for_rate(blank_summary_rate, high=0.1, warning=0.05),
-        },
-        {
-            "column": "analyzed_at",
-            "metric": "avg " + format_minutes(avg_analysis_age_minutes) if avg_analysis_age_minutes is not None else "-",
-            "insight": "분석 신선도는 운영 대응 속도와 직결되므로 평균 지연이 길어지면 배치 주기를 조정해야 합니다.",
-            "severity": "warning" if avg_analysis_age_minutes is not None and avg_analysis_age_minutes >= 12 * 60 else "info",
-        },
-    ]
-
     review_rows = _pick_rows(current_rows, limit=12)
+    row_interpretations = generate_review_row_interpretations(review_rows)
+    interpretation_by_key = {
+        (item.get("analysis_id"), item.get("ticket_id")): item.get("interpretation")
+        for item in row_interpretations
+    }
+    review_rows = [
+        {
+            **row,
+            "ai_row_interpretation": interpretation_by_key.get((row.get("analysis_id"), row.get("ticket_id")), ""),
+        }
+        for row in review_rows
+    ]
 
     analysis_table_rows = [
         {
@@ -420,9 +331,9 @@ def build_weekly_report_payload(data: dict[str, Any]) -> dict[str, Any]:
         for row in current_rows
     ]
 
-    report_title = f"Dashboard Weekly Report - {window['window_end'].date().isoformat()}"
+    report_title = f"운영 주간 보고서 - {window['window_end'].date().isoformat()}"
 
-    return {
+    report_payload = {
         "title": report_title,
         "generated_at": generated_at.isoformat(),
         "window": {
@@ -437,8 +348,6 @@ def build_weekly_report_payload(data: dict[str, Any]) -> dict[str, Any]:
         },
         "summary": current_summary,
         "comparisons": comparisons,
-        "narrative_insights": narrative_insights,
-        "column_insights": column_insights,
         "category_distribution": _distribution(current_rows, "category"),
         "responder_distribution": _distribution(current_rows, "responder_type"),
         "risk_distribution": _distribution(current_rows, "risk_level"),
@@ -447,37 +356,50 @@ def build_weekly_report_payload(data: dict[str, Any]) -> dict[str, Any]:
         "analysis_rows": analysis_table_rows,
         "review_rows": review_rows,
         "dashboard_summary": dashboard_summary,
-        "report_sections": [
-            {
-                "kind": "heading",
-                "text": "Executive summary",
-            },
-            *[{"kind": "bullet", "text": item} for item in narrative_insights],
-            {
-                "kind": "heading",
-                "text": "Column insights",
-            },
-            *[
-                {
-                    "kind": "bullet",
-                    "text": f"{item['column']}: {item['metric']} | {item['insight']}",
-                }
-                for item in column_insights
-            ],
-            {
-                "kind": "heading",
-                "text": "Priority review tickets",
-            },
-            *[
-                {
-                    "kind": "table_row",
-                    "text": (
-                        f"#{row['ticket_id']} | {row['category']} | {row['risk_level']} | "
-                        f"{row['routing_target']} | {shorten(str(row['summary'] or ''), width=80, placeholder='...')}"
-                    ),
-                }
-                for row in review_rows
-            ],
-        ],
     }
-
+    ai_interpretation = generate_dashboard_interpretation("weekly_report", report_payload)
+    report_payload["ai_interpretation"] = ai_interpretation
+    report_payload["narrative_insights"] = ai_interpretation.get("bullets", [])
+    report_payload["column_insights"] = [
+        {
+            "column": "AI 종합 해석",
+            "metric": ai_interpretation.get("headline", ""),
+            "insight": ai_interpretation.get("summary", ""),
+            "severity": "info",
+        },
+        *[
+            {
+                "column": "바로 볼 내용",
+                "metric": f"항목 {index}",
+                "insight": item,
+                "severity": "info",
+            }
+            for index, item in enumerate(ai_interpretation.get("bullets", []), start=1)
+        ],
+    ]
+    report_payload["report_sections"] = [
+        {
+            "kind": "heading",
+            "text": ai_interpretation.get("headline", "AI 종합 해석"),
+        },
+        {
+            "kind": "body",
+            "text": ai_interpretation.get("summary", ""),
+        },
+        *[{"kind": "bullet", "text": item} for item in ai_interpretation.get("bullets", [])],
+        {
+            "kind": "heading",
+            "text": "우선 확인할 문의",
+        },
+        *[
+            {
+                "kind": "table_row",
+                "text": (
+                    f"#{row['ticket_id']} | {row['category']} | {row['risk_level']} | "
+                    f"{row['routing_target']} | {shorten(str(row.get('ai_row_interpretation') or ''), width=80, placeholder='...')}"
+                ),
+            }
+            for row in review_rows
+        ],
+    ]
+    return report_payload

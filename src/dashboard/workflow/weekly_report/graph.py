@@ -1,20 +1,14 @@
-"""LangGraph orchestration for the weekly dashboard report."""
+"""Service orchestration for the weekly dashboard report."""
 
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Literal, cast
-
-from langchain_core.runnables import RunnableLambda
-from langgraph.graph import END, StateGraph
+from typing import Any
 
 from .pdf import render_report_pdf
 from .service import build_weekly_report_payload, fetch_weekly_report_data
 from .slack import send_weekly_report_pdf
 from .state import WeeklyReportState
-
-
-Route = Literal["publish", "stop"]
 
 
 def _state(state: WeeklyReportState | dict[str, Any]) -> WeeklyReportState:
@@ -35,46 +29,32 @@ def load_data_node(state: WeeklyReportState) -> dict[str, Any]:
         "current_rows": data["current_rows"],
         "previous_rows": data["previous_rows"],
     }
-
-
-def _compose_report_from_state(payload: dict[str, Any]) -> dict[str, Any]:
-    return build_weekly_report_payload(
-        {
-            "window": {
-                "days": payload["days"],
-                "window_start": payload["window_start"],
-                "window_end": payload["window_end"],
-            },
-            "previous_window": {
-                "days": payload["days"],
-                "window_start": payload["previous_window_start"],
-                "window_end": payload["previous_window_end"],
-            },
-            "dashboard_summary": payload["dashboard_summary"],
-            "current_rows": payload["current_rows"],
-            "previous_rows": payload["previous_rows"],
-            "generated_at": payload.get("generated_at") or datetime.now(),
-        }
-    )
-
-
-REPORT_COMPUTE_CHAIN = RunnableLambda(_compose_report_from_state)
-
-
 def compose_report_node(state: WeeklyReportState) -> dict[str, Any]:
     current = _state(state)
-    report = REPORT_COMPUTE_CHAIN.invoke(current.model_dump())
+    report = build_weekly_report_payload(
+        {
+            "window": {
+                "days": current.days,
+                "window_start": current.window_start,
+                "window_end": current.window_end,
+            },
+            "previous_window": {
+                "days": current.days,
+                "window_start": current.previous_window_start,
+                "window_end": current.previous_window_end,
+            },
+            "dashboard_summary": current.dashboard_summary,
+            "current_rows": current.current_rows,
+            "previous_rows": current.previous_rows,
+            "generated_at": current.generated_at or datetime.now(),
+        }
+    )
     return {"report": report}
 
 
 def render_pdf_node(state: WeeklyReportState) -> dict[str, Any]:
     current = _state(state)
     return {"pdf_bytes": render_report_pdf(current.report)}
-
-
-def route_after_pdf(state: WeeklyReportState) -> Route:
-    current = _state(state)
-    return cast(Route, "publish" if current.send_to_slack else "stop")
 
 
 def publish_slack_node(state: WeeklyReportState) -> dict[str, Any]:
@@ -93,19 +73,27 @@ def publish_slack_node(state: WeeklyReportState) -> dict[str, Any]:
     return {"slack_result": result}
 
 
-def build_weekly_report_graph():
-    graph = StateGraph(WeeklyReportState)
-    graph.add_node("load_data", load_data_node)
-    graph.add_node("compose_report", compose_report_node)
-    graph.add_node("render_pdf", render_pdf_node)
-    graph.add_node("publish_slack", publish_slack_node)
+class WeeklyReportWorkflowRunner:
+    """Thin compatibility runner that executes the weekly report pipeline in-process."""
 
-    graph.set_entry_point("load_data")
-    graph.add_edge("load_data", "compose_report")
-    graph.add_edge("compose_report", "render_pdf")
-    graph.add_conditional_edges("render_pdf", route_after_pdf, {"publish": "publish_slack", "stop": END})
-    graph.add_edge("publish_slack", END)
-    return graph.compile()
+    def invoke(self, state: WeeklyReportState | dict[str, Any]) -> dict[str, Any]:
+        current = WeeklyReportState.model_validate(state)
+        updates = load_data_node(current)
+        current = current.model_copy(update=updates)
+        updates = compose_report_node(current)
+        current = current.model_copy(update=updates)
+        updates = render_pdf_node(current)
+        current = current.model_copy(update=updates)
+        if current.send_to_slack:
+            updates = publish_slack_node(current)
+            current = current.model_copy(update=updates)
+        return current.model_dump()
+
+
+def build_weekly_report_graph() -> WeeklyReportWorkflowRunner:
+    """Build the weekly report workflow runner."""
+
+    return WeeklyReportWorkflowRunner()
 
 
 def run_weekly_report_workflow(

@@ -53,7 +53,7 @@ def format_minutes(value: float | int | None) -> str:
 
     if value is None:
         return "-"
-    return f"{float(value):.1f} min"
+    return f"{float(value):.1f}분"
 
 
 def mask_identifier(value: object, *, keep_start: int = 3, keep_end: int = 2) -> str:

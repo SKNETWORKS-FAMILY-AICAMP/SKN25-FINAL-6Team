@@ -4,7 +4,7 @@
 Dashboard FastAPI가 제공해야 하는 읽기 전용 API 계약을 정의한다.
 
 Dashboard API는 `src/dashboard/api/main.py`에서 제공하며, `/summary/*`는
-`src/dashboard/workflow`의 LangGraph workflow를 통해 PostgreSQL 집계와 계산을 수행한다.
+`src/dashboard/workflow`의 서비스 파이프라인을 통해 PostgreSQL 집계와 계산을 수행한다.
 `/tickets`와 `/tickets/{ticket_id}`는 화면 탐색과 상세 확인에 필요한 원천 데이터를
 실제 DB 테이블명과 컬럼명 기준으로 반환한다.
 

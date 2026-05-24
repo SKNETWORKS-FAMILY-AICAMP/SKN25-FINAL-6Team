@@ -24,6 +24,7 @@ class WeeklyReportState(BaseModel):
     dashboard_summary: dict[str, Any] = Field(default_factory=dict)
     current_rows: list[dict[str, Any]] = Field(default_factory=list)
     previous_rows: list[dict[str, Any]] = Field(default_factory=list)
+    generated_at: datetime | None = None
     report: dict[str, Any] = Field(default_factory=dict)
     pdf_bytes: bytes | None = None
     slack_result: dict[str, Any] = Field(default_factory=dict)

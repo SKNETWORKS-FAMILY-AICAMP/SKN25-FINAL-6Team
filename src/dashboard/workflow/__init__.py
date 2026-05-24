@@ -1,4 +1,4 @@
-"""LangGraph workflow for dashboard aggregate computation."""
+"""Dashboard workflow helpers for aggregate computation."""
 
 from .graph import build_dashboard_graph, run_dashboard_workflow
 from .state import DashboardState

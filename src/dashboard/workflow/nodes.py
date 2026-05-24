@@ -1,10 +1,9 @@
-"""LangGraph nodes and calculation helpers for the dashboard."""
+"""Pipeline steps and calculation helpers for the dashboard."""
 
 from __future__ import annotations
 
 from typing import Any, Callable, Literal, cast
 
-from langchain_core.runnables import RunnableLambda
 from psycopg.rows import dict_row
 
 from src.common.db.connection import db_connection
@@ -119,6 +118,7 @@ def _window_end(current: DashboardState) -> Any:
 def load_window_node(state: DashboardState) -> StateUpdate:
     current = _state(state)
     days = clamp_days(current.days)
+    # Downstream SQL nodes all read the same computed window from state.
     window = build_window(days)
     return {
         "days": window["days"],
@@ -266,10 +266,7 @@ def fetch_overview_node(state: DashboardState) -> StateUpdate:
             "recent_tickets": recent_tickets,
         }
     }
-
-
-def _build_overview_from_state(payload: dict[str, Any]) -> dict[str, Any]:
-    raw = payload["overview"]
+def _build_overview_payload(raw: dict[str, Any]) -> dict[str, Any]:
     return build_overview_payload(
         window=raw["window"],
         raw_counts=raw["raw_counts"],
@@ -281,12 +278,9 @@ def _build_overview_from_state(payload: dict[str, Any]) -> dict[str, Any]:
     )
 
 
-OVERVIEW_COMPUTE_CHAIN = RunnableLambda(_build_overview_from_state)
-
-
 def compute_overview_node(state: DashboardState) -> StateUpdate:
     current = _state(state)
-    return {"overview": OVERVIEW_COMPUTE_CHAIN.invoke({"overview": current.overview})}
+    return {"overview": _build_overview_payload(current.overview)}
 
 
 def fetch_risk_node(state: DashboardState) -> StateUpdate:
@@ -444,10 +438,7 @@ def fetch_risk_node(state: DashboardState) -> StateUpdate:
             "safety_breach_candidates": safety_breach_candidates,
         }
     }
-
-
-def _build_risk_from_state(payload: dict[str, Any]) -> dict[str, Any]:
-    raw = payload["risk"]
+def _build_risk_payload(raw: dict[str, Any]) -> dict[str, Any]:
     return build_risk_payload(
         window=raw["window"],
         analysis_risk_distribution=raw["analysis_risk_distribution"],
@@ -460,12 +451,9 @@ def _build_risk_from_state(payload: dict[str, Any]) -> dict[str, Any]:
     )
 
 
-RISK_COMPUTE_CHAIN = RunnableLambda(_build_risk_from_state)
-
-
 def compute_risk_node(state: DashboardState) -> StateUpdate:
     current = _state(state)
-    return {"risk": RISK_COMPUTE_CHAIN.invoke({"risk": current.risk})}
+    return {"risk": _build_risk_payload(current.risk)}
 
 
 def fetch_quality_node(state: DashboardState) -> StateUpdate:
@@ -631,10 +619,7 @@ def fetch_quality_node(state: DashboardState) -> StateUpdate:
             "notification_failures": notification_failures,
         }
     }
-
-
-def _build_quality_from_state(payload: dict[str, Any]) -> dict[str, Any]:
-    raw = payload["quality"]
+def _build_quality_payload(raw: dict[str, Any]) -> dict[str, Any]:
     return build_quality_payload(
         window=raw["window"],
         ticket_summary=raw["ticket_summary"],
@@ -648,12 +633,9 @@ def _build_quality_from_state(payload: dict[str, Any]) -> dict[str, Any]:
     )
 
 
-QUALITY_COMPUTE_CHAIN = RunnableLambda(_build_quality_from_state)
-
-
 def compute_quality_node(state: DashboardState) -> StateUpdate:
     current = _state(state)
-    return {"quality": QUALITY_COMPUTE_CHAIN.invoke({"quality": current.quality})}
+    return {"quality": _build_quality_payload(current.quality)}
 
 
 def route_after_window(state: DashboardState) -> Route:
