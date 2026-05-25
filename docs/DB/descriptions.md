@@ -1,6 +1,6 @@
 # DB Descriptions
 
-Generated from the live PostgreSQL database on 2026-05-24.
+Generated from the live PostgreSQL database on 2026-05-26.
 
 ## Basic Info
 
@@ -15,48 +15,68 @@ Generated from the live PostgreSQL database on 2026-05-24.
 | User | `game_cs_user` |
 | Schema | `public` |
 | Extensions | `plpgsql 1.0`, `vector 0.6.0` |
-| Public Tables | 20 |
-| Public Columns | 165 |
+| Public Tables | 40 |
+| Public Columns | 330 |
 
 ## Table Summary
 
-Row counts are PostgreSQL `pg_stat_user_tables.n_live_tup` estimates at verification time.
+Row counts are PostgreSQL `pg_stat_user_tables.n_live_tup` estimates at verification time. The current public schema contains 20 main tables and 20 `_ex` template/mirror tables.
 
 | Table | Estimated Rows | Columns | Primary Key | PK Default | Purpose |
 | --- | ---: | ---: | --- | --- | --- |
 | `admin_event_logs` | 0 | 13 | `log_id` | `nextval('admin_event_logs_log_id_seq'::regclass)` | Operation/admin workflow event and error logs |
-| `answer_draft` | 97 | 6 | `draft_id` | none | Generated answer drafts for tickets |
-| `community_users` | 6,288 | 8 | `user_id` | none | Community user profile data |
+| `admin_event_logs_ex` | 3 | 13 | none | none | Template/example copy of `admin_event_logs` |
+| `answer_draft` | 0 | 6 | `draft_id` | none | Generated answer drafts for tickets |
+| `answer_draft_ex` | 329 | 6 | none | none | Template/example copy of `answer_draft` |
+| `community_users` | 630 | 8 | `user_id` | none | Reduced community user profile data |
+| `community_users_ex` | 6,288 | 8 | none | none | Template/source-scale copy of `community_users` |
 | `documents` | 1,201 | 8 | `documents_id` | none | Source documents for policy, notice, guide, incident, and RAG retrieval |
-| `documents_chunks` | 3,864 | 6 | `chunk_id` | none | Searchable chunks split from source documents |
-| `documents_embeddings` | 3,864 | 7 | `embedding_id` | none | Vector embeddings for document chunks |
-| `evidence_docs` | 195 | 7 | `evidence_id` | none | Retrieved evidence saved for answer drafts |
-| `failed_queries` | 9 | 6 | `failed_query_id` | none | Failed ticket/query processing logs |
-| `final_response` | 80 | 6 | `response_id` | none | Final customer-facing responses |
-| `gacha_logs` | 5 | 8 | `gacha_id` | none | Gacha pull history per game account |
-| `game_accounts` | 6,288 | 8 | `account_id` | none | Game account data linked to community users |
-| `insight` | 5 | 10 | `insight_id` | none | Ticket/user/account-level insight analysis data |
-| `item_delivery_logs` | 5 | 9 | `delivery_id` | none | Paid or reward item delivery history |
+| `documents_chunks` | 0 | 6 | `chunk_id` | none | Searchable chunks split from source documents |
+| `documents_chunks_ex` | 3,864 | 6 | none | none | Template/example copy of `documents_chunks` |
+| `documents_embeddings` | 0 | 7 | `embedding_id` | none | Vector embeddings for document chunks |
+| `documents_embeddings_ex` | 3,864 | 7 | none | none | Template/example copy of `documents_embeddings` |
+| `documents_ex` | 1,201 | 8 | none | none | Template/example copy of `documents` |
+| `evidence_docs` | 0 | 7 | `evidence_id` | none | Retrieved evidence saved for answer drafts |
+| `evidence_docs_ex` | 837 | 7 | none | none | Template/example copy of `evidence_docs` |
+| `failed_queries` | 0 | 6 | `failed_query_id` | none | Failed ticket/query processing logs |
+| `failed_queries_ex` | 11 | 6 | none | none | Template/example copy of `failed_queries` |
+| `final_response` | 0 | 6 | `response_id` | none | Final customer-facing responses |
+| `final_response_ex` | 311 | 6 | none | none | Template/example copy of `final_response` |
+| `gacha_logs` | 180 | 8 | `gacha_id` | none | Reduced gacha pull history per game account |
+| `gacha_logs_ex` | 5 | 8 | none | none | Template/example copy of `gacha_logs` |
+| `game_accounts` | 630 | 8 | `account_id` | none | Reduced game account data linked to community users |
+| `game_accounts_ex` | 6,288 | 8 | none | none | Template/source-scale copy of `game_accounts` |
+| `insight` | 0 | 10 | `insight_id` | none | Ticket/user/account-level insight analysis data |
+| `insight_ex` | 5 | 10 | none | none | Template/example copy of `insight` |
+| `item_delivery_logs` | 140 | 9 | `delivery_id` | none | Reduced paid or reward item delivery history |
+| `item_delivery_logs_ex` | 5 | 9 | none | none | Template/example copy of `item_delivery_logs` |
 | `notification_logs` | 0 | 8 | `notification_id` | `nextval('notification_logs_notification_id_seq'::regclass)` | Notification send results and errors |
-| `payments` | 11 | 10 | `payment_id` | none | Payment transaction history |
-| `qa_ticket` | 9,243 | 10 | `ticket_id` | none | Customer inquiry/QA tickets |
-| `refunds` | 5 | 6 | `refund_id` | none | Refund request and processing history |
-| `safety_results` | 95 | 10 | `safety_id` | none | Safety and grounding check results for drafts |
-| `ticket_analysis` | 118 | 10 | `analysis_id` | none | Ticket classification, risk, sentiment, and routing analysis |
-| `voc_feedback` | 5 | 9 | `voc_id` | none | VOC feedback and topic keyword records |
+| `notification_logs_ex` | 2 | 8 | none | none | Template/example copy of `notification_logs` |
+| `payments` | 320 | 10 | `payment_id` | none | Reduced payment transaction history |
+| `payments_ex` | 11 | 10 | none | none | Template/example copy of `payments` |
+| `qa_ticket` | 950 | 10 | `ticket_id` | none | Reduced customer inquiry/QA tickets |
+| `qa_ticket_ex` | 9,349 | 10 | none | none | Template/source-scale copy of `qa_ticket` |
+| `refunds` | 55 | 6 | `refund_id` | none | Reduced refund request and processing history |
+| `refunds_ex` | 5 | 6 | none | none | Template/example copy of `refunds` |
+| `safety_results` | 0 | 10 | `safety_id` | none | Safety and grounding check results for drafts |
+| `safety_results_ex` | 287 | 10 | none | none | Template/example copy of `safety_results` |
+| `ticket_analysis` | 0 | 10 | `analysis_id` | none | Ticket classification, risk, sentiment, and routing analysis |
+| `ticket_analysis_ex` | 351 | 10 | none | none | Template/example copy of `ticket_analysis` |
+| `voc_feedback` | 0 | 9 | `voc_id` | none | VOC feedback and topic keyword records |
+| `voc_feedback_ex` | 43 | 9 | none | none | Template/example copy of `voc_feedback` |
 
 ## Data Type Summary
 
 | Data Type | PostgreSQL UDT | Column Count |
 | --- | --- | ---: |
-| `USER-DEFINED` | `vector` | 1 |
-| `character varying` | `varchar` | 65 |
-| `double precision` | `float8` | 5 |
-| `integer` | `int4` | 50 |
-| `json` | `json` | 2 |
-| `numeric` | `numeric` | 1 |
-| `text` | `text` | 17 |
-| `timestamp without time zone` | `timestamp` | 24 |
+| `USER-DEFINED` | `vector` | 2 |
+| `character varying` | `varchar` | 130 |
+| `double precision` | `float8` | 10 |
+| `integer` | `int4` | 100 |
+| `json` | `json` | 4 |
+| `numeric` | `numeric` | 2 |
+| `text` | `text` | 34 |
+| `timestamp without time zone` | `timestamp` | 48 |
 
 ## Data Load Sources
 
@@ -66,6 +86,22 @@ Row counts are PostgreSQL `pg_stat_user_tables.n_live_tup` estimates at verifica
 | `data/processed/qa_ticket.csv` | `qa_ticket` | `source_type` appears twice in the CSV header and `notebooks/insert_processed_data.ipynb` keeps the first occurrence. |
 | `notebooks/insert_processed_data.ipynb` | `community_users`, `game_accounts`, `qa_ticket` | Derives game account rows from distinct non-null `qa_ticket.account_id` to `user_id` mappings before loading tickets. |
 | `notebooks/generate_operation_workflow_sample_data.ipynb` | `payments`, `refunds`, `item_delivery_logs`, `gacha_logs`, `insight`, `voc_feedback` | Adds operation workflow sample context rows used by the LangGraph workflow. |
+
+## Reduced Dataset Reference
+
+The reduced dataset workflow documented in `docs/data_generation/` reuses this live schema as its baseline.
+
+- `docs/data_generation/plan.md` defines the reduced-table scope and target counts for `community_users`, `game_accounts`, `qa_ticket`, `payments`, `refunds`, `item_delivery_logs`, and `gacha_logs`.
+- `docs/data_generation/repopulate_reduced_dataset.py` truncates and repopulates those seven tables using live `_ex` templates plus target-count logic.
+- `docs/data_generation/paper_description.md` records the methodological rationale: preserve real `qa_ticket` structure where possible, supplement only limited hard cases, and keep synthetic rows explainable through game-domain operation logs.
+
+## `_ex` Mirror Table Note
+
+The `_ex` tables are template or source-scale mirrors paired with the 20 main tables.
+
+- Main tables reflect the current reduced dataset and current workflow output state.
+- `_ex` tables preserve template/example rows or source-scale reference data.
+- Detailed column descriptions below focus on the 20 main tables. Each `_ex` table mirrors the column layout of its corresponding base table.
 
 ## Search Indexes
 
