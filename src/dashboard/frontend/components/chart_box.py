@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from itertools import count
 from typing import Any
 
 import pandas as pd
@@ -20,8 +21,10 @@ PLOTLY_COLORS = [
     "#475569",
 ]
 
+_CHART_SEQUENCE = count()
 
-def _render_plotly_chart(data: pd.DataFrame, *, kind: str) -> None:
+
+def _render_plotly_chart(data: pd.DataFrame, *, kind: str, chart_key: str) -> None:
     frame = data.reset_index()
     if frame.empty:
         st.info("보여드릴 내용이 아직 없습니다.")
@@ -75,10 +78,10 @@ def _render_plotly_chart(data: pd.DataFrame, *, kind: str) -> None:
         figure.update_xaxes(title=None)
         figure.update_yaxes(title=None, showgrid=True, gridcolor="#e5e7eb", zeroline=False)
 
-    st.plotly_chart(figure, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(figure, key=chart_key, use_container_width=True, config={"displayModeBar": False})
 
 
-def render_chart_box(title: str, data: Any, *, kind: str = "bar") -> None:
+def render_chart_box(title: str, data: Any, *, kind: str = "bar", chart_key: str | None = None) -> None:
     with st.container(border=True):
         st.markdown(f"**{title}**")
         if data is None:
@@ -88,6 +91,6 @@ def render_chart_box(title: str, data: Any, *, kind: str = "bar") -> None:
             if data.empty:
                 st.info("보여드릴 내용이 아직 없습니다.")
             else:
-                _render_plotly_chart(data, kind=kind)
+                _render_plotly_chart(data, kind=kind, chart_key=chart_key or f"chart:{kind}:{title}:{next(_CHART_SEQUENCE)}")
             return
         st.write(data)

@@ -32,6 +32,20 @@ class ReviewRowInterpretationPayload(BaseModel):
     items: list[ReviewRowInterpretationItem] = Field(default_factory=list, description="Row-by-row Korean interpretations.")
 
 
+def _langsmith_tracing_enabled() -> bool:
+    tracing_flag = (os.environ.get("LANGSMITH_TRACING") or os.environ.get("LANGCHAIN_TRACING_V2") or "").strip().lower()
+    return tracing_flag in {"1", "true", "yes", "on"} and bool(os.environ.get("LANGSMITH_API_KEY", "").strip())
+
+
+def _traceable_if_enabled(*, name: str, tags: list[str]):
+    def decorator(func):
+        if not _langsmith_tracing_enabled():
+            return func
+        return traceable(name=name, tags=tags)(func)
+
+    return decorator
+
+
 def _llm_available() -> bool:
     return bool(os.environ.get("LLM_MODEL") and os.environ.get("LLM_API_KEY"))
 
@@ -124,7 +138,7 @@ def _compact_payload(page: DashboardPage, payload: dict[str, Any]) -> dict[str, 
     }
 
 
-@traceable(name="generate_dashboard_interpretation", tags=["dashboard", "interpretation"])
+@_traceable_if_enabled(name="generate_dashboard_interpretation", tags=["dashboard", "interpretation"])
 def generate_dashboard_interpretation(page: DashboardPage, payload: dict[str, Any]) -> dict[str, Any]:
     """Return an LLM-generated interpretation for a dashboard page."""
 
@@ -160,7 +174,7 @@ def _fallback_row_interpretation(row: dict[str, Any]) -> str:
     return f"'{title}' 문의는 {category} 유형으로 보이며 위험도는 {risk}{sentiment_text}이고, 다음 처리는 {next_step}로 잡혀 있어 지금 확인이 필요합니다."
 
 
-@traceable(name="generate_review_row_interpretations", tags=["dashboard", "weekly_report"])
+@_traceable_if_enabled(name="generate_review_row_interpretations", tags=["dashboard", "weekly_report"])
 def generate_review_row_interpretations(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Generate concise Korean interpretations for weekly report review rows."""
 

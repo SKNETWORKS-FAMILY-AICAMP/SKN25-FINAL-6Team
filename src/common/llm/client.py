@@ -16,6 +16,18 @@ load_dotenv()
 StructuredModel = TypeVar("StructuredModel", bound=BaseModel)
 
 
+def _disable_tracing_without_langsmith_key() -> None:
+    """Prevent tracing auth noise when LangSmith is not configured."""
+
+    if os.environ.get("LANGSMITH_API_KEY", "").strip():
+        return
+    os.environ["LANGSMITH_TRACING"] = "false"
+    os.environ["LANGCHAIN_TRACING_V2"] = "false"
+
+
+_disable_tracing_without_langsmith_key()
+
+
 def get_query_embedding(query: str) -> list[float] | None:
     """쿼리 텍스트의 임베딩 벡터를 반환합니다. 실패 시 None을 반환합니다.
 

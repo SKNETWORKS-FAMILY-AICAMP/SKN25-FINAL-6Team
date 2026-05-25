@@ -22,6 +22,15 @@ FRONTEND_PORT = os.environ.get("DASHBOARD_FRONTEND_PORT", "8510")
 API_BASE_URL = f"http://{API_HOST}:{API_PORT}"
 
 
+def configure_runtime_env(env: dict[str, str]) -> dict[str, str]:
+    """Normalize optional tracing settings before starting child processes."""
+
+    if not env.get("LANGSMITH_API_KEY", "").strip():
+        env["LANGSMITH_TRACING"] = "false"
+        env["LANGCHAIN_TRACING_V2"] = "false"
+    return env
+
+
 def wait_for_api() -> None:
     for _ in range(30):
         try:
@@ -34,7 +43,7 @@ def wait_for_api() -> None:
 
 
 def main() -> None:
-    env = os.environ.copy()
+    env = configure_runtime_env(os.environ.copy())
     env["DASHBOARD_API_BASE_URL"] = API_BASE_URL
     # LangSmith 프로젝트를 dashboard 전용으로 고정해 operation 트레이스와 분리한다
     env["LANGSMITH_PROJECT"] = "skn25-dashboard"
