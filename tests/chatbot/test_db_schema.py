@@ -36,6 +36,23 @@ AUTO_ID_COLUMNS = {
     "voc_feedback": "voc_id",
 }
 
+LOGIN_COLUMNS = {
+    "community_users": {
+        "user_id",
+        "email",
+        "password_hash",
+        "password_updated_at",
+        "user_status",
+    },
+    "game_accounts": {
+        "account_id",
+        "user_id",
+        "uid",
+        "server_region",
+        "account_status",
+    },
+}
+
 
 class TestChatbotDbSchema(unittest.TestCase):
     def setUp(self) -> None:
@@ -98,6 +115,27 @@ class TestChatbotDbSchema(unittest.TestCase):
                                 "(SERIAL, IDENTITY, or sequence default)."
                             ),
                         )
+        finally:
+            db_context.__exit__(None, None, None)
+
+    def test_login_columns_exist(self) -> None:
+        db_context, conn = self._db_context_or_skip()
+        try:
+            with conn.cursor() as cur:
+                for table_name, required_columns in LOGIN_COLUMNS.items():
+                    with self.subTest(table=table_name):
+                        cur.execute(
+                            """
+                            SELECT column_name
+                            FROM information_schema.columns
+                            WHERE table_schema = 'public'
+                              AND table_name = %s
+                            """,
+                            (table_name,),
+                        )
+                        existing = {row[0] for row in cur.fetchall()}
+                        missing = sorted(required_columns - existing)
+                        self.assertEqual([], missing)
         finally:
             db_context.__exit__(None, None, None)
 

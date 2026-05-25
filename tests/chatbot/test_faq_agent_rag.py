@@ -42,7 +42,14 @@ def test_run_faq_rag_blocks_llm_when_no_documents(monkeypatch) -> None:
 
     assert result["faq_failure_reason"] == "no_retrieved_documents"
     assert result["retrieved_documents"] == []
-    assert failed_payloads
+    assert failed_payloads == [
+        {
+            "ticket_id": 123,
+            "query": "payment item delivery",
+            "category": "FAQ",
+            "reason": "no_retrieved_documents",
+        }
+    ]
 
 
 def test_run_faq_rag_generates_once_with_evidence(monkeypatch) -> None:

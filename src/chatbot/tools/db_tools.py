@@ -10,16 +10,17 @@ def _json(data: object) -> str:
 
 
 @tool(parse_docstring=True)
-def verify_user_login(email: str, password: str) -> str:
+def verify_user_login(email: str, password: str, server_region: str | None = None) -> str:
     """Verify chatbot login credentials and return linked game account metadata.
 
     Args:
         email: Login email stored in community_users.email.
         password: Plain-text password entered by the user.
+        server_region: Optional game server region to select a linked account.
     """
     from chatbot.repository.account_repository import verify_user_login as verify_login
 
-    return _json(verify_login(email=email, password=password))
+    return _json(verify_login(email=email, password=password, server_region=server_region))
 
 
 @tool(parse_docstring=True)
