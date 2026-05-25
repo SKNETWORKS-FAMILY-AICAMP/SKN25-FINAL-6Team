@@ -6,6 +6,7 @@ import json
 import os
 from typing import Any, Literal
 
+from langsmith import traceable
 from pydantic import BaseModel, Field
 
 from src.common.llm.client import invoke_structured_llm
@@ -123,6 +124,7 @@ def _compact_payload(page: DashboardPage, payload: dict[str, Any]) -> dict[str, 
     }
 
 
+@traceable(name="generate_dashboard_interpretation", tags=["dashboard", "interpretation"])
 def generate_dashboard_interpretation(page: DashboardPage, payload: dict[str, Any]) -> dict[str, Any]:
     """Return an LLM-generated interpretation for a dashboard page."""
 
@@ -158,6 +160,7 @@ def _fallback_row_interpretation(row: dict[str, Any]) -> str:
     return f"'{title}' 문의는 {category} 유형으로 보이며 위험도는 {risk}{sentiment_text}이고, 다음 처리는 {next_step}로 잡혀 있어 지금 확인이 필요합니다."
 
 
+@traceable(name="generate_review_row_interpretations", tags=["dashboard", "weekly_report"])
 def generate_review_row_interpretations(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Generate concise Korean interpretations for weekly report review rows."""
 
