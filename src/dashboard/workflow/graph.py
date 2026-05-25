@@ -1,47 +1,61 @@
-"""LangGraph declaration for dashboard aggregate computation."""
+"""Service orchestration for dashboard aggregate computation."""
 
 from __future__ import annotations
 
 from typing import Any
 
-from .nodes import NODE_FUNCTIONS, route_after_window
+from src.dashboard.ai import generate_dashboard_interpretation
+
+from .nodes import (
+    compute_overview_node,
+    compute_quality_node,
+    compute_risk_node,
+    fetch_overview_node,
+    fetch_quality_node,
+    fetch_risk_node,
+    load_window_node,
+)
 from .state import DashboardSection, DashboardState
 
 
-SECTION_TARGETS = {
-    "overview": "fetch_overview_node",
-    "risk": "fetch_risk_node",
-    "quality": "fetch_quality_node",
-    "all": "fetch_overview_node",
-}
+class DashboardWorkflowRunner:
+    """Thin compatibility runner that executes the dashboard pipeline in-process."""
+
+    def invoke(self, state: DashboardState | dict[str, Any]) -> dict[str, Any]:
+        current = DashboardState.model_validate(state)
+        updates = load_window_node(current) or {}
+        current = current.model_copy(update=updates)
+
+        if current.section in {"overview", "all"}:
+            updates = fetch_overview_node(current) or {}
+            current = current.model_copy(update=updates)
+            updates = compute_overview_node(current) or {}
+            current = current.model_copy(update=updates)
+
+        if current.section in {"risk", "all"}:
+            updates = fetch_risk_node(current) or {}
+            current = current.model_copy(update=updates)
+            updates = compute_risk_node(current) or {}
+            current = current.model_copy(update=updates)
+
+        if current.section in {"quality", "all"}:
+            updates = fetch_quality_node(current) or {}
+            current = current.model_copy(update=updates)
+            updates = compute_quality_node(current) or {}
+            current = current.model_copy(update=updates)
+
+        return current.model_dump()
 
 
-def build_dashboard_graph(*, compile_graph: bool = True):
-    """Build the dashboard LangGraph.
+def build_dashboard_graph(*, compile_graph: bool = True) -> DashboardWorkflowRunner:
+    """Build the dashboard workflow runner.
 
-    The graph keeps dashboard calculation deterministic: it loads the time
-    window, fetches DB aggregates, computes presentation ratios, and returns
-    JSON-ready state for the API layer.
+    `compile_graph` is kept for backward compatibility with the former
+    graph-based implementation.
     """
 
-    from langgraph.graph import END, START, StateGraph
-
-    graph = StateGraph(DashboardState)
-    for node_name, node_handler in NODE_FUNCTIONS.items():
-        graph.add_node(node_name, node_handler)
-
-    graph.add_edge(START, "load_window_node")
-    graph.add_conditional_edges("load_window_node", route_after_window, SECTION_TARGETS)
-    graph.add_edge("fetch_overview_node", "compute_overview_node")
-    graph.add_edge("compute_overview_node", "fetch_risk_node")
-    graph.add_edge("fetch_risk_node", "compute_risk_node")
-    graph.add_edge("compute_risk_node", "fetch_quality_node")
-    graph.add_edge("fetch_quality_node", "compute_quality_node")
-    graph.add_edge("compute_quality_node", END)
-
-    if compile_graph:
-        return graph.compile()
-    return graph
+    _ = compile_graph
+    return DashboardWorkflowRunner()
 
 
 def run_dashboard_workflow(section: DashboardSection, days: int) -> dict[str, Any]:
@@ -51,14 +65,26 @@ def run_dashboard_workflow(section: DashboardSection, days: int) -> dict[str, An
     result = app.invoke(DashboardState(section=section, days=days))
     state = DashboardState.model_validate(result)
     if section == "overview":
-        return state.overview
+        overview = dict(state.overview)
+        overview["ai_interpretation"] = generate_dashboard_interpretation("overview", overview)
+        return overview
     if section == "risk":
-        return state.risk
+        risk = dict(state.risk)
+        risk["ai_interpretation"] = generate_dashboard_interpretation("risk", risk)
+        return risk
     if section == "quality":
-        return state.quality
+        quality = dict(state.quality)
+        quality["ai_interpretation"] = generate_dashboard_interpretation("quality", quality)
+        return quality
+    overview = dict(state.overview)
+    risk = dict(state.risk)
+    quality = dict(state.quality)
+    overview["ai_interpretation"] = generate_dashboard_interpretation("overview", overview)
+    risk["ai_interpretation"] = generate_dashboard_interpretation("risk", risk)
+    quality["ai_interpretation"] = generate_dashboard_interpretation("quality", quality)
     return {
         "window_days": state.days,
-        "overview": state.overview,
-        "risk": state.risk,
-        "quality": state.quality,
+        "overview": overview,
+        "risk": risk,
+        "quality": quality,
     }
