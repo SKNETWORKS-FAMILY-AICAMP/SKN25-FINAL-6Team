@@ -9,6 +9,10 @@ import time
 from pathlib import Path
 from urllib.request import urlopen
 
+from dotenv import load_dotenv
+
+# .env 로드: os.environ.copy() 전에 실행해야 LangSmith 변수가 서브프로세스 env에 포함된다
+load_dotenv()
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 API_HOST = os.environ.get("OPERATION_API_HOST", "127.0.0.1")
@@ -19,6 +23,7 @@ API_BASE_URL = f"http://{API_HOST}:{API_PORT}"
 
 
 def wait_for_api() -> None:
+    # range(30): uvicorn 콜드 스타트 최대 30초 가정, 1초 간격 폴링 (dashboard/run.py와 동일 기준)
     for _ in range(30):
         try:
             with urlopen(f"{API_BASE_URL}/health", timeout=1) as response:
@@ -32,6 +37,8 @@ def wait_for_api() -> None:
 def main() -> None:
     env = os.environ.copy()
     env["OPERATION_API_BASE_URL"] = API_BASE_URL
+    # LangSmith 프로젝트를 operation 전용으로 고정해 dashboard 트레이스와 분리한다
+    env["LANGSMITH_PROJECT"] = "skn25-operation"
 
     api_process = subprocess.Popen(
         [
