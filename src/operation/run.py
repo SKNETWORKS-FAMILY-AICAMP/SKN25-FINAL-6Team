@@ -9,12 +9,19 @@ import time
 from pathlib import Path
 from urllib.request import urlopen
 
+ROOT_DIR = Path(__file__).resolve().parents[2]
+ROOT_DIR_STR = str(ROOT_DIR)
+if ROOT_DIR_STR not in sys.path:
+    sys.path.insert(0, ROOT_DIR_STR)
+
 from dotenv import load_dotenv
+
+from src.common.observability.langsmith import configure_langsmith
 
 # .env 로드: os.environ.copy() 전에 실행해야 LangSmith 변수가 서브프로세스 env에 포함된다
 load_dotenv()
+configure_langsmith("operation")
 
-ROOT_DIR = Path(__file__).resolve().parents[2]
 API_HOST = os.environ.get("OPERATION_API_HOST", "127.0.0.1")
 API_PORT = os.environ.get("OPERATION_API_PORT", "8001")
 FRONTEND_HOST = os.environ.get("OPERATION_FRONTEND_HOST", "127.0.0.1")
@@ -38,7 +45,6 @@ def main() -> None:
     env = os.environ.copy()
     env["OPERATION_API_BASE_URL"] = API_BASE_URL
     # LangSmith 프로젝트를 operation 전용으로 고정해 dashboard 트레이스와 분리한다
-    env["LANGSMITH_PROJECT"] = "skn25-operation"
 
     api_process = subprocess.Popen(
         [

@@ -5,6 +5,10 @@ from typing import Any
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
 
+from src.common.observability.langsmith import configure_langsmith
+
+configure_langsmith("chatbot")
+
 from chatbot.service.chatbot_service import run_chatbot
 
 

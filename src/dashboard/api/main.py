@@ -12,6 +12,10 @@ from fastapi.responses import Response
 from psycopg.rows import dict_row
 from pydantic import BaseModel, Field
 
+from src.common.observability.langsmith import configure_langsmith
+
+configure_langsmith("dashboard")
+
 from src.common.db.connection import db_connection
 from src.dashboard.util import clamp_days
 from src.dashboard.workflow import run_dashboard_workflow, run_weekly_report_workflow, start_weekly_report_scheduler

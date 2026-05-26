@@ -9,6 +9,10 @@ from psycopg.rows import dict_row
 from psycopg.types.json import Json
 from pydantic import BaseModel, Field
 
+from src.common.observability.langsmith import configure_langsmith
+
+configure_langsmith("operation")
+
 from src.common.db.connection import db_connection
 from src.operation.workflow import OperationState, build_operation_graph
 
