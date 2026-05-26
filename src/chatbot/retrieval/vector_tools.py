@@ -45,6 +45,12 @@ class RetrievalQuery(BaseModel):
     preferred_categories: list[str] = Field(default_factory=list, description="우선 검색할 documents.category")
 
 
+class RerankResult(BaseModel):
+    """Ordered chunk ids selected by the reranker."""
+
+    ordered_chunk_ids: list[str] = Field(description="Most relevant chunk_ids in descending relevance order")
+
+
 def _embedding_model_name() -> str:
     """환경변수에서 OpenAI 임베딩 모델명을 읽고 openai:<model> 형식도 처리한다."""
     raw = os.environ.get("EMBEDDING_MODEL", "text-embedding-3-small")
@@ -224,6 +230,97 @@ def _field_match_boost(query: str, chunk: dict[str, Any]) -> float:
     text_score = _overlap_ratio(query_terms, str(chunk.get("chunk_text") or ""))
 
     return title_score * title_weight + category_score * category_weight + text_score * text_weight
+
+
+def _env_flag(name: str, default: bool) -> bool:
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() not in {"0", "false", "no", "off"}
+
+
+def _truncate_for_rerank(text: str, max_chars: int = 700) -> str:
+    collapsed = " ".join(text.split())
+    return collapsed[:max_chars]
+
+
+def _fallback_rerank(documents: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    reranked = []
+    for index, document in enumerate(documents, start=1):
+        result = dict(document)
+        result["rerank_rank"] = index
+        result["rerank_method"] = "hybrid_pass_through"
+        reranked.append(result)
+    return reranked
+
+
+def _llm_rerank_documents(documents: list[dict[str, Any]], query: str) -> list[dict[str, Any]]:
+    api_key = os.environ.get("LLM_API_KEY")
+    model = os.environ.get("RERANKER_MODEL") or os.environ.get("LLM_MODEL")
+    if not api_key or not model:
+        return _fallback_rerank(documents)
+
+    from langchain_openai import ChatOpenAI
+
+    candidates = []
+    for document in documents:
+        candidates.append(
+            {
+                "chunk_id": str(document.get("chunk_id") or ""),
+                "title": document.get("title") or "",
+                "category": document.get("category") or "",
+                "source_type": document.get("source_type") or "",
+                "content": _truncate_for_rerank(str(document.get("chunk_text") or "")),
+            }
+        )
+
+    reranker = ChatOpenAI(
+        model=model,
+        api_key=api_key,
+        temperature=0,
+        timeout=float(os.environ.get("LLM_TIMEOUT_SECONDS", "60")),
+    ).with_structured_output(RerankResult)
+
+    result = reranker.invoke(
+        [
+            (
+                "system",
+                "You rerank Korean game customer-support FAQ evidence. "
+                "Order chunk_ids by direct usefulness for answering the user's exact question. "
+                "Prefer documents whose title and content explicitly answer the requested topic. "
+                "Demote adjacent but different topics, notices, incidents, and partial keyword matches. "
+                "Return only the structured ordered_chunk_ids field.",
+            ),
+            (
+                "user",
+                json.dumps({"question": query, "candidates": candidates}, ensure_ascii=False),
+            ),
+        ]
+    )
+
+    by_id = {str(document.get("chunk_id") or ""): document for document in documents}
+    seen: set[str] = set()
+    ordered: list[dict[str, Any]] = []
+    for chunk_id in result.ordered_chunk_ids:
+        chunk_id = str(chunk_id)
+        document = by_id.get(chunk_id)
+        if document is None or chunk_id in seen:
+            continue
+        seen.add(chunk_id)
+        ordered.append(document)
+
+    for document in documents:
+        chunk_id = str(document.get("chunk_id") or "")
+        if chunk_id not in seen:
+            ordered.append(document)
+
+    reranked = []
+    for index, document in enumerate(ordered, start=1):
+        result_doc = dict(document)
+        result_doc["rerank_rank"] = index
+        result_doc["rerank_method"] = "llm"
+        reranked.append(result_doc)
+    return reranked
 
 
 def _rrf_fuse(
@@ -559,9 +656,25 @@ def rerank_documents(docs_json: str, query: str) -> str:
         docs_json: JSON-encoded list of document chunks from search_documents.
         query: Original user query for relevance comparison.
     """
+    input_documents = json.loads(docs_json)
+    enabled = _env_flag("RERANKER_ENABLED", True)
+    if enabled and input_documents:
+        try:
+            output_documents = _llm_rerank_documents(input_documents, query)
+        except Exception:
+            output_documents = _fallback_rerank(input_documents)
+    else:
+        output_documents = _fallback_rerank(input_documents)
+
     log_event(
         EVENT_TOOL_COMPLETED,
         tool_name="rerank_documents",
-        metadata={"query_length": len(query), "docs_json_length": len(docs_json)},
+        metadata={
+            "query_length": len(query),
+            "input_count": len(input_documents),
+            "output_count": len(output_documents),
+            "reranker_enabled": enabled,
+            "reranker_model": os.environ.get("RERANKER_MODEL") or os.environ.get("LLM_MODEL"),
+        },
     )
-    return docs_json
+    return json.dumps(output_documents, ensure_ascii=False)
