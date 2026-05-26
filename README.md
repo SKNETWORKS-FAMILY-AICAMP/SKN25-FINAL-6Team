@@ -1,11 +1,11 @@
 # GameOps Support Platform
 
-게임 문의 처리, 운영 검수, 운영 대시보드를 하나의 저장소에서 관리하는 Python 모노레포입니다. 저장소는 세 개의 서비스와 공통 모듈로 구성됩니다.
+게임 문의 처리, 답변 초안 생성, 운영 검수, 운영 대시보드를 하나의 저장소에서 관리하는 Python 기반 프로젝트입니다. 저장소는 `chatbot`, `operation`, `dashboard`, `common` 모듈을 중심으로 구성되어 있습니다.
 
 - `chatbot`: 사용자 문의를 분류하고 답변 초안을 생성하는 상담 챗봇
-- `operation`: 초안 검수, 승인, 반려를 수행하는 운영자 검수 도구
-- `dashboard`: 운영 현황, 리스크, 품질, 주간 보고서를 제공하는 분석 대시보드
-- `common`: DB 연결, 문서 임베딩 파이프라인, 공통 설정과 관측 기능
+- `operation`: 초안 검수, 승인, 반려를 처리하는 운영 검수 도구
+- `dashboard`: 운영 현황, 리스크, 주간 보고서를 제공하는 분석 대시보드
+- `common`: DB 연결, 문서 처리 파이프라인, 공통 설정과 관측 기능
 
 ## 주요 기능
 
@@ -16,39 +16,39 @@
 - 문의를 `payment`, `bug`, `faq`, `voc` 계열로 분류
 - 유형별 에이전트에서 답변 초안 생성
 - FAQ 계열은 문서 검색과 RAG 기반 응답 생성 수행
-- 초안, 근거 문서, 안전성 검사 결과를 DB에 저장
-- 안전성 레이어에서 환각성, 독성, 정책 위반 가능성을 검사
-- 최종 응답 또는 운영 검토 필요 상태를 반환
+- 초안, 근거 문서, 안전성 검토 결과를 DB에 저장
+- 안전성 레이어에서 민감성, 적합성, 정책 위반 가능성 검토
+- 최종 응답 또는 운영 검수 필요 상태 반환
 - FastAPI `POST /chat` API와 Streamlit UI 제공
 
-워크플로우 구성은 `orchestrator -> domain agent -> draft_persistence -> safety_layer -> final_response` 구조입니다. VOC 문의는 초안 저장 단계를 거치지 않고 바로 최종 응답으로 연결됩니다.
+워크플로우 구성은 `orchestrator -> domain agent -> draft_persistence -> safety_layer -> final_response` 구조입니다. VOC 문의는 초안 생성 단계를 거치지 않고 바로 최종 응답으로 연결됩니다.
 
 ### 2. 운영 검수 서비스
 
-`src/operation`은 챗봇이 만든 답변 초안을 운영자가 검토하는 서비스입니다.
+`src/operation`은 챗봇이 만든 답변 초안을 운영자가 검수하는 서비스입니다.
 
-- 오늘 확인할 문의 또는 상태별 문의 목록 조회
-- 특정 티켓의 분석 결과, 초안, 근거 문서, 안전성 검사, 검수 이력 조회
+- 오늘 접수된 문의와 상태별 문의 목록 조회
+- 특정 티켓의 분석 결과, 초안, 근거 문서, 안전성 검토 이력 조회
 - 티켓 단위 워크플로우 재실행으로 초안 재생성
 - 초안 수정 `PATCH /drafts/{draft_id}`
-- 초안 승인 후 `final_response` 저장 및 티켓 종료
-- 초안 반려 후 티켓을 `pending` 상태로 되돌리고 재실행 URL 제공
-- Streamlit UI에서 문의 목록, 상세, 검수 액션을 함께 처리
+- 초안 승인 시 `final_response` 저장 후 티켓 종료
+- 초안 반려 시 티켓을 `pending` 상태로 되돌리고 재처리 URL 제공
+- Streamlit UI에서 목록, 상세, 검수 액션 제공
 
 ### 3. 운영 대시보드
 
-`src/dashboard`는 DB에 저장된 문의 처리 결과를 집계해 운영 현황을 시각화합니다.
+`src/dashboard`는 DB에 저장된 문의 처리 결과를 집계하고 시각화합니다.
 
 - 기간별 전체 문의 처리 현황 요약
-- 리스크 수준, 감성, 라우팅 타깃 분포 집계
-- 답변 초안/최종 응답/안전성 검사 커버리지 확인
-- 티켓 목록과 티켓 상세 이력 조회
+- 리스크 점수, 감성, 이슈 분포 집계
+- 초안, 최종 응답, 안전성 검토 품질 확인
+- 티켓 목록과 상세 이력 조회
 - 주간 보고서 미리보기 생성
 - 주간 보고서 PDF 생성
 - Slack 채널로 주간 보고서 전송
 - APScheduler 기반 자동 발송 스케줄러 제공
 
-기본 스케줄러는 `Asia/Seoul` 기준 매주 월요일 09:00에 Slack 전송을 시도합니다.
+기본 스케줄러는 `Asia/Seoul` 기준 매주 월요일 `09:00`에 Slack 전송을 시도합니다.
 
 ### 4. 공통 데이터 처리
 
@@ -56,10 +56,10 @@
 
 - PostgreSQL 연결 관리
 - LangSmith 관측 설정
-- 문서 정규화, 청킹, 임베딩, 저장 파이프라인
-- CLI 기반 문서 임베딩 재구축
+- 문서 정규화, 청킹, 임베딩 파이프라인
+- CLI 기반 문서 처리 도구 제공
 
-문서 파이프라인 CLI:
+문서 처리 CLI 예시:
 
 ```bash
 python -m src.common.documents_processing.cli --source-type faq --limit 100
@@ -76,32 +76,279 @@ python -m src.common.documents_processing.cli --source-type faq --limit 100
 ## 저장소 구조
 
 ```text
-src/
-  chatbot/
-    api/
-    frontend/
-    chains/
-    generation/
-    retrieval/
-    repository/
-    service/
-  operation/
-    api/
-    frontend/
-    workflow/
-  dashboard/
-    api/
-    frontend/
-    workflow/
-  common/
-    db/
-    documents_processing/
-    observability/
-    utils/
-tests/
-docs/
-deploy/
-data/
+C:\SKN25-FINAL-6Team
+├─ .env.example
+├─ docker-compose.yml
+├─ README.md
+├─ requirements.txt
+├─ data
+│  ├─ __init__.py
+│  ├─ generate_seed_embeddings.py
+│  ├─ seed_payload.py
+│  └─ processed
+│     ├─ community_users.csv
+│     └─ qa_ticket.csv
+├─ deploy
+│  ├─ README.md
+│  ├─ docker
+│  │  └─ python-app.Dockerfile
+│  └─ nginx
+│     └─ default.conf
+├─ docs
+│  ├─ documents_processings.md
+│  ├─ chatbot
+│  │  ├─ api_spec.md
+│  │  ├─ architecture.md
+│  │  ├─ prd.md
+│  │  └─ prompts.md
+│  ├─ dashboard
+│  │  ├─ api_spec.md
+│  │  ├─ architecture.md
+│  │  ├─ metrics.md
+│  │  ├─ prd.md
+│  │  ├─ screen_design.md
+│  │  └─ ticket_analysis_insight_report_agent.md
+│  ├─ DB
+│  │  ├─ db_info.md
+│  │  ├─ descriptions.md
+│  │  ├─ notion_data.md
+│  │  └─ migrations
+│  │     └─ 20260521_operation_workflow_identity_defaults.sql
+│  ├─ data_generation
+│  │  ├─ paper_description.md
+│  │  ├─ plan.md
+│  │  ├─ ppt_data_generation_narrative.md
+│  │  ├─ ppt_slide_citation_lines.md
+│  │  ├─ repopulate_reduced_dataset.py
+│  │  └─ docs
+│  │     ├─ DB
+│  │     │  ├─ db_info.md
+│  │     │  ├─ descriptions.md
+│  │     │  ├─ notion_data.md
+│  │     │  └─ migrations
+│  │     │     └─ 20260521_operation_workflow_identity_defaults.sql
+│  │     └─ raw_pdf
+│  │        ├─ self-instruct.pdf
+│  │        ├─ synthetic_data_generation.pdf
+│  │        └─ Simulating Human Opinions with Large Language Model.pdf
+│  ├─ deploy
+│  │  └─ deploy_tailscale.md
+│  └─ operation
+│     ├─ README.md
+│     ├─ api_frontend.md
+│     ├─ api_spec.md
+│     ├─ prd.md
+│     ├─ prompts.md
+│     ├─ todolist.md
+│     ├─ architecture
+│     │  ├─ langgraph.mmd
+│     │  └─ langgraph.png
+│     └─ workflow.md
+├─ src
+│  ├─ chatbot
+│  │  ├─ CLAUDE.md
+│  │  ├─ README.md
+│  │  ├─ __init__.py
+│  │  ├─ agent.py
+│  │  ├─ constants.py
+│  │  ├─ schemas.py
+│  │  ├─ api
+│  │  │  ├─ __init__.py
+│  │  │  └─ main.py
+│  │  ├─ chains
+│  │  │  ├─ __init__.py
+│  │  │  ├─ faq_rag.py
+│  │  │  ├─ persistence.py
+│  │  │  ├─ routing.py
+│  │  │  └─ workflow.py
+│  │  ├─ evals
+│  │  │  ├─ __init__.py
+│  │  │  ├─ build_faq_eval_dataset.py
+│  │  │  ├─ faq_ragas_eval.py
+│  │  │  ├─ generate_faq_responses.py
+│  │  │  ├─ run_chatbot_test_report.py
+│  │  │  ├─ run_rag_quality_checks.py
+│  │  │  └─ run_routing_latency_eval.py
+│  │  ├─ frontend
+│  │  │  ├─ README.md
+│  │  │  ├─ __init__.py
+│  │  │  ├─ app.py
+│  │  │  ├─ components
+│  │  │  │  ├─ __init__.py
+│  │  │  │  ├─ chat_input.py
+│  │  │  │  ├─ chat_message.py
+│  │  │  │  ├─ login_form.py
+│  │  │  │  └─ source_box.py
+│  │  │  ├─ pages
+│  │  │  │  └─ 1_챗봇.py
+│  │  │  └─ state
+│  │  │     ├─ __init__.py
+│  │  │     └─ session_state.py
+│  │  ├─ generation
+│  │  │  ├─ __init__.py
+│  │  │  ├─ bug_agent.py
+│  │  │  ├─ drafting_agent.py
+│  │  │  ├─ faq_agent.py
+│  │  │  ├─ orchestrator.py
+│  │  │  ├─ payment_agent.py
+│  │  │  ├─ policies.py
+│  │  │  ├─ voc_agent.py
+│  │  │  ├─ prompts
+│  │  │  │  ├─ __init__.py
+│  │  │  │  ├─ bug_prompt.py
+│  │  │  │  ├─ faq_prompt.py
+│  │  │  │  ├─ orchestrator_prompt.py
+│  │  │  │  ├─ payment_prompt.py
+│  │  │  │  └─ system_prompt.py
+│  │  │  └─ response
+│  │  │     ├─ __init__.py
+│  │  │     ├─ final_response.py
+│  │  │     └─ fixed_responses.py
+│  │  ├─ memory
+│  │  │  ├─ __init__.py
+│  │  │  └─ chat_history.py
+│  │  ├─ notifications
+│  │  │  ├─ __init__.py
+│  │  │  ├─ dispatcher.py
+│  │  │  └─ slack.py
+│  │  ├─ observability
+│  │  │  ├─ __init__.py
+│  │  │  ├─ error_classifier.py
+│  │  │  ├─ langsmith.py
+│  │  │  └─ logger.py
+│  │  ├─ repository
+│  │  │  ├─ __init__.py
+│  │  │  ├─ account_repository.py
+│  │  │  ├─ analysis_repository.py
+│  │  │  ├─ base.py
+│  │  │  ├─ draft_repository.py
+│  │  │  ├─ failed_query_repository.py
+│  │  │  ├─ final_response_repository.py
+│  │  │  ├─ operation_log_repository.py
+│  │  │  ├─ safety_repository.py
+│  │  │  ├─ ticket_repository.py
+│  │  │  └─ voc_repository.py
+│  │  ├─ retrieval
+│  │  │  ├─ __init__.py
+│  │  │  ├─ cache_store.py
+│  │  │  ├─ cache_tools.py
+│  │  │  ├─ embeddings.py
+│  │  │  ├─ retriever.py
+│  │  │  ├─ vector_store.py
+│  │  │  └─ vector_tools.py
+│  │  ├─ safety
+│  │  │  ├─ __init__.py
+│  │  │  └─ safety_layer.py
+│  │  ├─ service
+│  │  │  ├─ __init__.py
+│  │  │  ├─ account_service.py
+│  │  │  └─ chatbot_service.py
+│  │  ├─ tools
+│  │  │  ├─ __init__.py
+│  │  │  ├─ CLAUDE.md
+│  │  │  ├─ db_tools.py
+│  │  │  └─ registry.py
+│  │  └─ utils
+│  │     ├─ __init__.py
+│  │     ├─ errors.py
+│  │     └─ passwords.py
+│  ├─ common
+│  │  ├─ db
+│  │  │  └─ connection.py
+│  │  ├─ documents_processing
+│  │  │  ├─ __init__.py
+│  │  │  ├─ chunking.py
+│  │  │  ├─ cli.py
+│  │  │  ├─ embed.py
+│  │  │  ├─ normalize.py
+│  │  │  ├─ pipeline.py
+│  │  │  ├─ repository.py
+│  │  │  └─ types.py
+│  │  ├─ llm
+│  │  │  └─ client.py
+│  │  ├─ observability
+│  │  │  ├─ __init__.py
+│  │  │  └─ langsmith.py
+│  │  └─ utils
+│  │     ├─ config.py
+│  │     └─ logger.py
+│  ├─ dashboard
+│  │  ├─ ai.py
+│  │  ├─ run.py
+│  │  ├─ api
+│  │  │  └─ main.py
+│  │  ├─ frontend
+│  │  │  ├─ app.py
+│  │  │  ├─ session_state.py
+│  │  │  ├─ components
+│  │  │  │  ├─ chart_box.py
+│  │  │  │  └─ data_table.py
+│  │  │  └─ pages
+│  │  │     ├─ 1_운영_현황.py
+│  │  │     ├─ 2_리스크_분석.py
+│  │  │     ├─ 3_응답_품질.py
+│  │  │     └─ 4_주간_보고서.py
+│  │  ├─ util
+│  │  │  ├─ __init__.py
+│  │  │  ├─ metrics.py
+│  │  │  ├─ text.py
+│  │  │  └─ views.py
+│  │  └─ workflow
+│  │     ├─ __init__.py
+│  │     ├─ graph.py
+│  │     ├─ nodes.py
+│  │     ├─ state.py
+│  │     └─ weekly_report
+│  │        ├─ __init__.py
+│  │        ├─ graph.py
+│  │        ├─ pdf.py
+│  │        ├─ scheduler.py
+│  │        ├─ service.py
+│  │        ├─ slack.py
+│  │        └─ state.py
+│  └─ operation
+│     ├─ run.py
+│     ├─ api
+│     │  └─ main.py
+│     ├─ frontend
+│     │  ├─ app.py
+│     │  ├─ components
+│     │  │  ├─ answer_panel.py
+│     │  │  ├─ safety_result_box.py
+│     │  │  └─ ticket_card.py
+│     │  ├─ pages
+│     │  │  ├─ 1_문의_목록.py
+│     │  │  ├─ 2_답변_생성.py
+│     │  │  └─ 3_검수_결과.py
+│     │  └─ state
+│     │     └─ session_state.py
+│     └─ workflow
+│        ├─ __init__.py
+│        ├─ graph.py
+│        ├─ nodes.py
+│        ├─ prompts.py
+│        └─ state.py
+└─ tests
+   ├─ __init__.py
+   ├─ chatbot
+   │  ├─ __init__.py
+   │  ├─ _hybrid_retrieval_cases.py
+   │  ├─ _orchestrator_routing_cases.py
+   │  ├─ _persistence_evidence_cases.py
+   │  ├─ test_account_service.py
+   │  ├─ test_chatbot_flow.py
+   │  ├─ test_db_schema.py
+   │  ├─ test_payment_flow.py
+   │  └─ test_rag_pipeline.py
+   ├─ common
+   │  ├─ test_db_connection.py
+   │  └─ test_documents_processing.py
+   ├─ dashboard
+   │  └─ test_dashboard_service.py
+   └─ operation
+      ├─ test_operation_workflow_graph_image.py
+      ├─ test_workflow_full.py
+      └─ test_workflow_unit.py
 ```
 
 ## 기술 스택
@@ -110,7 +357,7 @@ data/
 - UI: Streamlit
 - 워크플로우: LangGraph
 - LLM 연동: `langchain-openai`
-- 데이터 저장: PostgreSQL, pgvector
+- 데이터 저장소: PostgreSQL, pgvector
 - 대시보드 시각화: Pandas, Plotly
 - 스케줄링: APScheduler
 - 알림: Slack SDK
@@ -119,9 +366,9 @@ data/
 
 ## 환경 변수
 
-기본 환경 변수는 `.env.example`에 정의되어 있습니다. 로컬 실행 전 `.env`를 준비해야 합니다.
+기본 환경 변수는 `.env.example`에 정의되어 있습니다. 로컬 실행 시 `.env`를 준비하면 됩니다.
 
-핵심 항목:
+필수 항목:
 
 ```env
 DB_HOST=
