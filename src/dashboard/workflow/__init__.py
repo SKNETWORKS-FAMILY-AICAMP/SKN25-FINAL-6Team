@@ -1,13 +1,31 @@
 """Dashboard workflow helpers for aggregate computation."""
 
-from .graph import build_dashboard_graph, run_dashboard_workflow
+from __future__ import annotations
+
+from typing import Any
+
+from .service import DashboardWorkflowService, run_dashboard_workflow
 from .state import DashboardState
-from .weekly_report.graph import run_weekly_report_workflow
-from .weekly_report.scheduler import start_weekly_report_scheduler
+
+
+def run_weekly_report_workflow(*args: Any, **kwargs: Any) -> dict[str, Any]:
+    from .weekly_report.service import run_weekly_report_workflow as _run_weekly_report_workflow
+
+    return _run_weekly_report_workflow(*args, **kwargs)
+
+
+def start_weekly_report_scheduler() -> Any:
+    try:
+        from .weekly_report.scheduler import start_weekly_report_scheduler as _start_weekly_report_scheduler
+    except ModuleNotFoundError:
+        return None
+
+    return _start_weekly_report_scheduler()
+
 
 __all__ = [
     "DashboardState",
-    "build_dashboard_graph",
+    "DashboardWorkflowService",
     "run_dashboard_workflow",
     "run_weekly_report_workflow",
     "start_weekly_report_scheduler",

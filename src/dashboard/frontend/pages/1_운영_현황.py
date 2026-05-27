@@ -17,11 +17,11 @@ st.title("운영 현황")
 
 control_cols = st.columns([1.5, 1, 1], gap="large")
 with control_cols[0]:
-    st.text_input("연결 주소", key="dashboard_api_base_url")
+    st.text_input("API 주소", key="dashboard_api_base_url")
 with control_cols[1]:
     days = st.slider("조회 기간", min_value=1, max_value=365, value=30, step=1, key="ops_days")
 with control_cols[2]:
-    ticket_limit = st.slider("최근 문의 표시 개수", min_value=5, max_value=50, value=20, step=5, key="ops_ticket_limit")
+    ticket_limit = st.slider("최근 문의 표시 수", min_value=5, max_value=50, value=20, step=5, key="ops_ticket_limit")
 
 client = DashboardClient(api_base_url())
 

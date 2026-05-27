@@ -1,8 +1,8 @@
-"""Pipeline steps and calculation helpers for the dashboard."""
+"""Dashboard workflow built from plain classes and functions."""
 
 from __future__ import annotations
 
-from typing import Any, Callable, Literal, cast
+from typing import Any
 
 from psycopg.rows import dict_row
 
@@ -13,19 +13,11 @@ from src.dashboard.util import (
     build_risk_payload,
     build_window,
     clamp_days,
+    generate_dashboard_interpretation,
+    rate,
 )
 
-from .state import DashboardState
-
-
-StateUpdate = dict[str, Any] | None
-NodeHandler = Callable[[DashboardState], StateUpdate]
-Route = Literal["overview", "risk", "quality", "all"]
-NextAfterSection = Literal["all", "stop"]
-
-
-def _state(state: DashboardState | dict[str, Any]) -> DashboardState:
-    return DashboardState.model_validate(state)
+from .state import DashboardSection
 
 
 def _fetch_one(cur: Any, sql: str, params: tuple[Any, ...] = ()) -> dict[str, Any] | None:
@@ -94,7 +86,8 @@ def _latest_safety_join_sql() -> str:
                 s.factuality_score,
                 s.checked_at,
                 s.safety_action,
-                s.safety_reason
+                s.safety_reason,
+                s.retry_count
             FROM safety_results s
             WHERE s.draft_id = d.draft_id
             ORDER BY s.checked_at DESC NULLS LAST, s.safety_id DESC
@@ -103,34 +96,28 @@ def _latest_safety_join_sql() -> str:
     """
 
 
-def _window_start(current: DashboardState) -> Any:
-    if current.window_start is None:
-        raise ValueError("dashboard workflow requires window_start")
-    return current.window_start
+def _distribution_rows(rows: list[dict[str, Any]], *, key: str) -> list[dict[str, Any]]:
+    counts: dict[str, int] = {}
+    for row in rows:
+        label = str(row.get(key) or "unknown").strip() or "unknown"
+        counts[label] = counts.get(label, 0) + 1
+    return [
+        {"label": label, "value": value}
+        for label, value in sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+    ]
 
 
-def _window_end(current: DashboardState) -> Any:
-    if current.window_end is None:
-        raise ValueError("dashboard workflow requires window_end")
-    return current.window_end
+def _window(days: int) -> dict[str, Any]:
+    return build_window(clamp_days(days))
 
 
-def load_window_node(state: DashboardState) -> StateUpdate:
-    current = _state(state)
-    days = clamp_days(current.days)
-    # Downstream SQL nodes all read the same computed window from state.
-    window = build_window(days)
-    return {
-        "days": window["days"],
-        "window_start": window["window_start"],
-        "window_end": window["window_end"],
-    }
+def _apply_ai(page: DashboardSection, payload: dict[str, Any]) -> dict[str, Any]:
+    payload["ai_interpretation"] = generate_dashboard_interpretation(page, payload)
+    return payload
 
 
-def fetch_overview_node(state: DashboardState) -> StateUpdate:
-    current = _state(state)
-    window_start = _window_start(current)
-    with db_connection() as conn:
+def _overview_summary(window: dict[str, Any], *, connection_factory: Any = db_connection) -> dict[str, Any]:
+    with connection_factory() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
             raw_counts = _fetch_one(
                 cur,
@@ -150,7 +137,7 @@ def fetch_overview_node(state: DashboardState) -> StateUpdate:
                 FROM qa_ticket t
                 WHERE t.inquiry_created_at >= %s
                 """,
-                (window_start,),
+                (window["window_start"],),
             ) or {}
             response_metrics = _fetch_one(
                 cur,
@@ -163,7 +150,14 @@ def fetch_overview_node(state: DashboardState) -> StateUpdate:
                         FILTER (
                             WHERE latest_response.created_at IS NOT NULL
                               AND t.inquiry_created_at IS NOT NULL
-                        ) AS avg_response_latency_minutes
+                        ) AS avg_response_latency_minutes,
+                    COUNT(*) FILTER (
+                        WHERE latest_response.created_at IS NOT NULL
+                          AND latest_response.created_at <= t.inquiry_created_at + INTERVAL '24 hours'
+                    ) AS responded_within_24h,
+                    COUNT(*) FILTER (
+                        WHERE latest_response.response_id IS NULL
+                    ) AS unanswered_tickets
                 FROM qa_ticket t
                 LEFT JOIN LATERAL (
                     SELECT response_id, created_at
@@ -186,7 +180,7 @@ def fetch_overview_node(state: DashboardState) -> StateUpdate:
                 ) a ON TRUE
                 WHERE t.inquiry_created_at >= %s
                 """,
-                (window_start,),
+                (window["window_start"],),
             ) or {}
             source_distribution = _fetch_all(
                 cur,
@@ -197,7 +191,7 @@ def fetch_overview_node(state: DashboardState) -> StateUpdate:
                 GROUP BY 1
                 ORDER BY value DESC, label ASC
                 """,
-                (window_start,),
+                (window["window_start"],),
             )
             status_distribution = _fetch_all(
                 cur,
@@ -208,7 +202,7 @@ def fetch_overview_node(state: DashboardState) -> StateUpdate:
                 GROUP BY 1
                 ORDER BY value DESC, label ASC
                 """,
-                (window_start,),
+                (window["window_start"],),
             )
             routing_distribution = _fetch_all(
                 cur,
@@ -220,7 +214,7 @@ def fetch_overview_node(state: DashboardState) -> StateUpdate:
                 GROUP BY 1
                 ORDER BY value DESC, label ASC
                 """,
-                (window_start,),
+                (window["window_start"],),
             )
             recent_tickets = _fetch_all(
                 cur,
@@ -233,6 +227,7 @@ def fetch_overview_node(state: DashboardState) -> StateUpdate:
                     t.inquiry_created_at,
                     u.nickname,
                     latest_analysis.category,
+                    latest_analysis.responder_type,
                     latest_analysis.risk_level,
                     latest_analysis.sentiment,
                     latest_analysis.routing_target,
@@ -249,44 +244,58 @@ def fetch_overview_node(state: DashboardState) -> StateUpdate:
                 ORDER BY t.inquiry_created_at DESC NULLS LAST, t.ticket_id DESC
                 LIMIT 50
                 """,
-                (window_start,),
+                (window["window_start"],),
             )
-    return {
-        "overview": {
-            "window": {
-                "days": current.days,
-                "window_start": _window_start(current),
-                "window_end": _window_end(current),
-            },
-            "raw_counts": raw_counts,
-            "response_metrics": response_metrics,
-            "source_distribution": source_distribution,
-            "status_distribution": status_distribution,
-            "routing_distribution": routing_distribution,
-            "recent_tickets": recent_tickets,
-        }
-    }
-def _build_overview_payload(raw: dict[str, Any]) -> dict[str, Any]:
-    return build_overview_payload(
-        window=raw["window"],
-        raw_counts=raw["raw_counts"],
-        response_metrics=raw["response_metrics"],
-        source_distribution=raw["source_distribution"],
-        status_distribution=raw["status_distribution"],
-        routing_distribution=raw["routing_distribution"],
-        recent_tickets=raw["recent_tickets"],
+
+    payload = build_overview_payload(
+        window=window,
+        raw_counts=raw_counts,
+        response_metrics=response_metrics,
+        source_distribution=source_distribution,
+        status_distribution=status_distribution,
+        routing_distribution=routing_distribution,
+        recent_tickets=recent_tickets,
     )
+    total = int(payload["ticket_counts"]["total"] or 0)
+    pending_priority_rows = [row for row in recent_tickets if str(row.get("status") or "").lower() == "pending"]
+    payload["category_distribution"] = _distribution_rows(recent_tickets, key="category")
+    payload["responder_distribution"] = _distribution_rows(recent_tickets, key="responder_type")
+    payload["sla_metrics"] = {
+        "responded_within_24h_rate": rate(response_metrics.get("responded_within_24h"), total),
+        "unanswered_rate": rate(response_metrics.get("unanswered_tickets"), total),
+        "avg_response_latency_minutes": response_metrics.get("avg_response_latency_minutes"),
+    }
+    payload["backlog_metrics"] = {
+        "pending_tickets": payload["ticket_counts"]["pending"],
+        "old_pending_count": payload["old_pending_count"],
+        "urgent_unanswered_count": sum(
+            1 for row in pending_priority_rows if str(row.get("routing_target") or "").lower() == "urgent_alert"
+        ),
+        "human_review_backlog_count": sum(
+            1 for row in pending_priority_rows if str(row.get("routing_target") or "").lower() == "human_review"
+        ),
+    }
+    payload["priority_tickets"] = [
+        {
+            **row,
+            "queue_reason": ", ".join(
+                reason
+                for reason, enabled in [
+                    ("high_risk", str(row.get("risk_level") or "").lower() in {"high", "critical"}),
+                    ("negative_sentiment", str(row.get("sentiment") or "").lower() in {"negative", "very_negative"}),
+                    ("needs_human_review", str(row.get("routing_target") or "").lower() == "human_review"),
+                    ("urgent_alert", str(row.get("routing_target") or "").lower() == "urgent_alert"),
+                ]
+                if enabled
+            ) or "pending"
+        }
+        for row in pending_priority_rows[:12]
+    ]
+    return _apply_ai("overview", payload)
 
 
-def compute_overview_node(state: DashboardState) -> StateUpdate:
-    current = _state(state)
-    return {"overview": _build_overview_payload(current.overview)}
-
-
-def fetch_risk_node(state: DashboardState) -> StateUpdate:
-    current = _state(state)
-    window_start = _window_start(current)
-    with db_connection() as conn:
+def _risk_summary(window: dict[str, Any], *, connection_factory: Any = db_connection) -> dict[str, Any]:
+    with connection_factory() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
             analysis_risk_distribution = _fetch_all(
                 cur,
@@ -298,7 +307,7 @@ def fetch_risk_node(state: DashboardState) -> StateUpdate:
                 GROUP BY 1
                 ORDER BY value DESC, label ASC
                 """,
-                (window_start,),
+                (window["window_start"],),
             )
             sentiment_distribution = _fetch_all(
                 cur,
@@ -310,7 +319,7 @@ def fetch_risk_node(state: DashboardState) -> StateUpdate:
                 GROUP BY 1
                 ORDER BY value DESC, label ASC
                 """,
-                (window_start,),
+                (window["window_start"],),
             )
             insight_risk_distribution = _fetch_all(
                 cur,
@@ -322,7 +331,7 @@ def fetch_risk_node(state: DashboardState) -> StateUpdate:
                 GROUP BY 1
                 ORDER BY value DESC, label ASC
                 """,
-                (window_start,),
+                (window["window_start"],),
             )
             pattern_risk_distribution = _fetch_all(
                 cur,
@@ -334,7 +343,7 @@ def fetch_risk_node(state: DashboardState) -> StateUpdate:
                 GROUP BY 1
                 ORDER BY value DESC, label ASC
                 """,
-                (window_start,),
+                (window["window_start"],),
             )
             safety_score_summary = _fetch_one(
                 cur,
@@ -350,7 +359,7 @@ def fetch_risk_node(state: DashboardState) -> StateUpdate:
                 JOIN qa_ticket t ON t.ticket_id = d.ticket_id
                 WHERE t.inquiry_created_at >= %s
                 """,
-                (window_start,),
+                (window["window_start"],),
             ) or {}
             high_risk_tickets = _fetch_all(
                 cur,
@@ -359,6 +368,7 @@ def fetch_risk_node(state: DashboardState) -> StateUpdate:
                     t.ticket_id,
                     t.title,
                     t.status,
+                    t.source_type,
                     t.inquiry_created_at,
                     latest_analysis.analysis_id,
                     latest_analysis.category,
@@ -386,7 +396,7 @@ def fetch_risk_node(state: DashboardState) -> StateUpdate:
                 ORDER BY t.inquiry_created_at DESC NULLS LAST, t.ticket_id DESC
                 LIMIT 25
                 """,
-                (window_start,),
+                (window["window_start"],),
             )
             safety_breach_candidates = _fetch_all(
                 cur,
@@ -402,7 +412,8 @@ def fetch_risk_node(state: DashboardState) -> StateUpdate:
                     latest_safety.policy_violation_score,
                     latest_safety.factuality_score,
                     latest_safety.safety_action,
-                    latest_safety.checked_at
+                    latest_safety.checked_at,
+                    latest_safety.retry_count
                 FROM qa_ticket t
                 JOIN answer_draft d ON d.ticket_id = t.ticket_id
                 {_latest_safety_join_sql()}
@@ -420,46 +431,56 @@ def fetch_risk_node(state: DashboardState) -> StateUpdate:
                     t.ticket_id DESC
                 LIMIT 25
                 """,
-                (window_start,),
+                (window["window_start"],),
             )
-    return {
-        "risk": {
-            "window": {
-                "days": current.days,
-                "window_start": _window_start(current),
-                "window_end": _window_end(current),
-            },
-            "analysis_risk_distribution": analysis_risk_distribution,
-            "sentiment_distribution": sentiment_distribution,
-            "insight_risk_distribution": insight_risk_distribution,
-            "pattern_risk_distribution": pattern_risk_distribution,
-            "safety_score_summary": safety_score_summary,
-            "high_risk_tickets": high_risk_tickets,
-            "safety_breach_candidates": safety_breach_candidates,
-        }
-    }
-def _build_risk_payload(raw: dict[str, Any]) -> dict[str, Any]:
-    return build_risk_payload(
-        window=raw["window"],
-        analysis_risk_distribution=raw["analysis_risk_distribution"],
-        sentiment_distribution=raw["sentiment_distribution"],
-        insight_risk_distribution=raw["insight_risk_distribution"],
-        pattern_risk_distribution=raw["pattern_risk_distribution"],
-        safety_score_summary=raw["safety_score_summary"],
-        high_risk_tickets=raw["high_risk_tickets"],
-        safety_breach_candidates=raw["safety_breach_candidates"],
+
+    payload = build_risk_payload(
+        window=window,
+        analysis_risk_distribution=analysis_risk_distribution,
+        sentiment_distribution=sentiment_distribution,
+        insight_risk_distribution=insight_risk_distribution,
+        pattern_risk_distribution=pattern_risk_distribution,
+        safety_score_summary=safety_score_summary,
+        high_risk_tickets=high_risk_tickets,
+        safety_breach_candidates=safety_breach_candidates,
     )
+    payload["risk_summary"] = {
+        "high_risk_count": sum(
+            1 for row in high_risk_tickets if str(row.get("risk_level") or "").lower() in {"high", "critical"}
+        ),
+        "critical_risk_count": sum(1 for row in high_risk_tickets if str(row.get("risk_level") or "").lower() == "critical"),
+        "human_review_count": sum(
+            1 for row in high_risk_tickets if str(row.get("routing_target") or "").lower() == "human_review"
+        ),
+        "negative_sentiment_count": sum(
+            1 for row in high_risk_tickets if str(row.get("sentiment") or "").lower() in {"negative", "very_negative"}
+        ),
+    }
+    payload["risk_hotspots"] = {
+        "category_distribution": _distribution_rows(high_risk_tickets, key="category"),
+        "source_distribution": _distribution_rows(high_risk_tickets, key="source_type"),
+    }
+    payload["escalation_queue"] = [
+        {
+            **row,
+            "escalation_reason": ", ".join(
+                reason
+                for reason, enabled in [
+                    ("critical_risk", str(row.get("risk_level") or "").lower() == "critical"),
+                    ("human_review", str(row.get("routing_target") or "").lower() == "human_review"),
+                    ("negative_sentiment", str(row.get("sentiment") or "").lower() in {"negative", "very_negative"}),
+                    ("pattern_risk", str(row.get("pattern_risk_level") or "").lower() in {"high", "critical"}),
+                ]
+                if enabled
+            ) or "high_risk"
+        }
+        for row in high_risk_tickets[:12]
+    ]
+    return _apply_ai("risk", payload)
 
 
-def compute_risk_node(state: DashboardState) -> StateUpdate:
-    current = _state(state)
-    return {"risk": _build_risk_payload(current.risk)}
-
-
-def fetch_quality_node(state: DashboardState) -> StateUpdate:
-    current = _state(state)
-    window_start = _window_start(current)
-    with db_connection() as conn:
+def _quality_summary(window: dict[str, Any], *, connection_factory: Any = db_connection) -> dict[str, Any]:
+    with connection_factory() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
             ticket_summary = _fetch_one(
                 cur,
@@ -468,7 +489,7 @@ def fetch_quality_node(state: DashboardState) -> StateUpdate:
                 FROM qa_ticket t
                 WHERE t.inquiry_created_at >= %s
                 """,
-                (window_start,),
+                (window["window_start"],),
             ) or {}
             draft_summary = _fetch_one(
                 cur,
@@ -489,7 +510,7 @@ def fetch_quality_node(state: DashboardState) -> StateUpdate:
                 LEFT JOIN answer_draft d ON d.ticket_id = t.ticket_id
                 WHERE t.inquiry_created_at >= %s
                 """,
-                (window_start,),
+                (window["window_start"],),
             ) or {}
             evidence_summary = _fetch_one(
                 cur,
@@ -503,7 +524,7 @@ def fetch_quality_node(state: DashboardState) -> StateUpdate:
                 JOIN qa_ticket t ON t.ticket_id = d.ticket_id
                 WHERE t.inquiry_created_at >= %s
                 """,
-                (window_start,),
+                (window["window_start"],),
             ) or {}
             safety_summary = _fetch_one(
                 cur,
@@ -519,7 +540,7 @@ def fetch_quality_node(state: DashboardState) -> StateUpdate:
                 JOIN qa_ticket t ON t.ticket_id = d.ticket_id
                 WHERE t.inquiry_created_at >= %s
                 """,
-                (window_start,),
+                (window["window_start"],),
             ) or {}
             final_response_summary = _fetch_one(
                 cur,
@@ -536,7 +557,7 @@ def fetch_quality_node(state: DashboardState) -> StateUpdate:
                 LEFT JOIN final_response fr ON fr.ticket_id = t.ticket_id
                 WHERE t.inquiry_created_at >= %s
                 """,
-                (window_start,),
+                (window["window_start"],),
             ) or {}
             notification_summary = _fetch_all(
                 cur,
@@ -548,7 +569,7 @@ def fetch_quality_node(state: DashboardState) -> StateUpdate:
                 GROUP BY 1
                 ORDER BY value DESC, label ASC
                 """,
-                (window_start,),
+                (window["window_start"],),
             )
             quality_candidates = _fetch_all(
                 cur,
@@ -563,7 +584,8 @@ def fetch_quality_node(state: DashboardState) -> StateUpdate:
                     latest_safety.toxicity_score,
                     latest_safety.policy_violation_score,
                     latest_safety.factuality_score,
-                    latest_safety.safety_action
+                    latest_safety.safety_action,
+                    latest_safety.retry_count
                 FROM qa_ticket t
                 JOIN answer_draft d ON d.ticket_id = t.ticket_id
                 {_latest_safety_join_sql()}
@@ -579,7 +601,7 @@ def fetch_quality_node(state: DashboardState) -> StateUpdate:
                     t.ticket_id DESC
                 LIMIT 25
                 """,
-                (window_start,),
+                (window["window_start"],),
             )
             notification_failures = _fetch_all(
                 cur,
@@ -600,65 +622,112 @@ def fetch_quality_node(state: DashboardState) -> StateUpdate:
                 ORDER BY n.sent_at DESC NULLS LAST, n.notification_id DESC
                 LIMIT 25
                 """,
-                (window_start,),
+                (window["window_start"],),
             )
-    return {
-        "quality": {
-            "window": {
-                "days": current.days,
-                "window_start": _window_start(current),
-                "window_end": _window_end(current),
-            },
-            "ticket_summary": ticket_summary,
-            "draft_summary": draft_summary,
-            "evidence_summary": evidence_summary,
-            "safety_summary": safety_summary,
-            "final_response_summary": final_response_summary,
-            "notification_summary": notification_summary,
-            "quality_candidates": quality_candidates,
-            "notification_failures": notification_failures,
-        }
-    }
-def _build_quality_payload(raw: dict[str, Any]) -> dict[str, Any]:
-    return build_quality_payload(
-        window=raw["window"],
-        ticket_summary=raw["ticket_summary"],
-        draft_summary=raw["draft_summary"],
-        evidence_summary=raw["evidence_summary"],
-        safety_summary=raw["safety_summary"],
-        final_response_summary=raw["final_response_summary"],
-        notification_summary=raw["notification_summary"],
-        quality_candidates=raw["quality_candidates"],
-        notification_failures=raw["notification_failures"],
+            pipeline_counts = _fetch_one(
+                cur,
+                """
+                SELECT
+                    COUNT(*) AS ticket_count,
+                    COUNT(*) FILTER (
+                        WHERE NOT EXISTS (
+                            SELECT 1 FROM ticket_analysis a WHERE a.ticket_id = t.ticket_id
+                        )
+                    ) AS tickets_without_analysis,
+                    COUNT(*) FILTER (
+                        WHERE NOT EXISTS (
+                            SELECT 1 FROM answer_draft d WHERE d.ticket_id = t.ticket_id
+                        )
+                    ) AS tickets_without_draft,
+                    COUNT(*) FILTER (
+                        WHERE NOT EXISTS (
+                            SELECT 1 FROM final_response fr WHERE fr.ticket_id = t.ticket_id
+                        )
+                    ) AS tickets_without_response
+                FROM qa_ticket t
+                WHERE t.inquiry_created_at >= %s
+                """,
+                (window["window_start"],),
+            ) or {}
+
+    payload = build_quality_payload(
+        window=window,
+        ticket_summary=ticket_summary,
+        draft_summary=draft_summary,
+        evidence_summary=evidence_summary,
+        safety_summary=safety_summary,
+        final_response_summary=final_response_summary,
+        notification_summary=notification_summary,
+        quality_candidates=quality_candidates,
+        notification_failures=notification_failures,
     )
+    ticket_count = int(ticket_summary.get("ticket_count") or 0)
+    draft_count = int(draft_summary.get("draft_count") or 0)
+    payload["pipeline_gaps"] = {
+        "tickets_without_analysis": int(pipeline_counts.get("tickets_without_analysis") or 0),
+        "tickets_without_draft": int(pipeline_counts.get("tickets_without_draft") or 0),
+        "tickets_without_response": int(pipeline_counts.get("tickets_without_response") or 0),
+        "drafts_without_evidence": max(draft_count - int(draft_summary.get("evidence_linked_drafts") or 0), 0),
+        "quality_watch_rate": rate(len(quality_candidates), ticket_count),
+    }
+    payload["failure_distribution"] = {
+        "notification_channel_distribution": _distribution_rows(notification_failures, key="channel"),
+        "notification_error_distribution": _distribution_rows(notification_failures, key="error_category"),
+    }
+    payload["coaching_queue"] = [
+        {
+            **row,
+            "coaching_reason": ", ".join(
+                reason
+                for reason, enabled in [
+                    ("low_factuality", (row.get("factuality_score") or 1) <= 0.3),
+                    ("hallucination_risk", (row.get("hallucination_score") or 0) >= 0.7),
+                    ("retry_detected", int(row.get("retry_count") or 0) > 0),
+                ]
+                if enabled
+            ) or "quality_review"
+        }
+        for row in quality_candidates[:12]
+    ]
+    return _apply_ai("quality", payload)
 
 
-def compute_quality_node(state: DashboardState) -> StateUpdate:
-    current = _state(state)
-    return {"quality": _build_quality_payload(current.quality)}
+class DashboardWorkflowService:
+    """Section-oriented dashboard service without graph/node orchestration."""
+
+    def __init__(self, *, connection_factory: Any = db_connection) -> None:
+        self._connection_factory = connection_factory
+
+    def overview(self, days: int) -> dict[str, Any]:
+        return _overview_summary(_window(days), connection_factory=self._connection_factory)
+
+    def risk(self, days: int) -> dict[str, Any]:
+        return _risk_summary(_window(days), connection_factory=self._connection_factory)
+
+    def quality(self, days: int) -> dict[str, Any]:
+        return _quality_summary(_window(days), connection_factory=self._connection_factory)
+
+    def all(self, days: int) -> dict[str, Any]:
+        days = clamp_days(days)
+        return {
+            "window_days": days,
+            "overview": self.overview(days),
+            "risk": self.risk(days),
+            "quality": self.quality(days),
+        }
 
 
-def route_after_window(state: DashboardState) -> Route:
-    current = _state(state)
-    return cast(Route, current.section)
+_SERVICE = DashboardWorkflowService()
 
 
-def route_after_overview(state: DashboardState) -> NextAfterSection:
-    current = _state(state)
-    return "all" if current.section == "all" else "stop"
+def run_dashboard_workflow(section: DashboardSection, days: int) -> dict[str, Any]:
+    """Return dashboard summary payloads through the service implementation."""
 
-
-def route_after_risk(state: DashboardState) -> NextAfterSection:
-    current = _state(state)
-    return "all" if current.section == "all" else "stop"
-
-
-NODE_FUNCTIONS: dict[str, NodeHandler] = {
-    "load_window_node": load_window_node,
-    "fetch_overview_node": fetch_overview_node,
-    "compute_overview_node": compute_overview_node,
-    "fetch_risk_node": fetch_risk_node,
-    "compute_risk_node": compute_risk_node,
-    "fetch_quality_node": fetch_quality_node,
-    "compute_quality_node": compute_quality_node,
-}
+    normalized_section: DashboardSection = section
+    if normalized_section == "overview":
+        return _SERVICE.overview(days)
+    if normalized_section == "risk":
+        return _SERVICE.risk(days)
+    if normalized_section == "quality":
+        return _SERVICE.quality(days)
+    return _SERVICE.all(days)

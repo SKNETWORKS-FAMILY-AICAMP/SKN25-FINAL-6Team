@@ -17,7 +17,7 @@ st.title("위험 신호")
 
 control_cols = st.columns([1.5, 1], gap="large")
 with control_cols[0]:
-    st.text_input("연결 주소", key="dashboard_api_base_url")
+    st.text_input("API 주소", key="dashboard_api_base_url")
 with control_cols[1]:
     days = st.slider("조회 기간", min_value=1, max_value=365, value=30, step=1, key="risk_days")
 

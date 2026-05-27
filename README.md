@@ -81,69 +81,21 @@ C:\SKN25-FINAL-6Team
 ├─ docker-compose.yml
 ├─ README.md
 ├─ requirements.txt
-├─ data
-│  ├─ __init__.py
-│  ├─ generate_seed_embeddings.py
-│  ├─ seed_payload.py
-│  └─ processed
-│     ├─ community_users.csv
-│     └─ qa_ticket.csv
+├─ data     
 ├─ deploy
 │  ├─ README.md
 │  ├─ docker
 │  │  └─ python-app.Dockerfile
 │  └─ nginx
 │     └─ default.conf
-├─ docs
+├─ docs #각 기능별 정리.md
 │  ├─ documents_processings.md
 │  ├─ chatbot
-│  │  ├─ api_spec.md
-│  │  ├─ architecture.md
-│  │  ├─ prd.md
-│  │  └─ prompts.md
 │  ├─ dashboard
-│  │  ├─ api_spec.md
-│  │  ├─ architecture.md
-│  │  ├─ metrics.md
-│  │  ├─ prd.md
-│  │  ├─ screen_design.md
-│  │  └─ ticket_analysis_insight_report_agent.md
 │  ├─ DB
-│  │  ├─ db_info.md
-│  │  ├─ descriptions.md
-│  │  ├─ notion_data.md
-│  │  └─ migrations
-│  │     └─ 20260521_operation_workflow_identity_defaults.sql
 │  ├─ data_generation
-│  │  ├─ paper_description.md
-│  │  ├─ plan.md
-│  │  ├─ ppt_data_generation_narrative.md
-│  │  ├─ ppt_slide_citation_lines.md
-│  │  ├─ repopulate_reduced_dataset.py
-│  │  └─ docs
-│  │     ├─ DB
-│  │     │  ├─ db_info.md
-│  │     │  ├─ descriptions.md
-│  │     │  ├─ notion_data.md
-│  │     │  └─ migrations
-│  │     │     └─ 20260521_operation_workflow_identity_defaults.sql
-│  │     └─ raw_pdf
-│  │        ├─ self-instruct.pdf
-│  │        ├─ synthetic_data_generation.pdf
-│  │        └─ Simulating Human Opinions with Large Language Model.pdf
 │  ├─ deploy
-│  │  └─ deploy_tailscale.md
 │  └─ operation
-│     ├─ README.md
-│     ├─ api_frontend.md
-│     ├─ api_spec.md
-│     ├─ prd.md
-│     ├─ prompts.md
-│     ├─ todolist.md
-│     ├─ architecture
-│     │  ├─ langgraph.mmd
-│     │  └─ langgraph.png
-│     └─ workflow.md
 ├─ src
 │  ├─ chatbot
 │  │  ├─ CLAUDE.md

@@ -9,9 +9,7 @@ from typing import Any
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 
-
-class SlackReportError(RuntimeError):
-    """Raised when Slack rejects the report upload."""
+from .errors import SlackReportError
 
 
 def _resolve_channel_id(client: WebClient, channel: str) -> str:

@@ -2,11 +2,15 @@ from __future__ import annotations
 
 import os
 from datetime import datetime, timedelta
+from typing import Any
 
 import pytest
 
 from src.common.db.connection import db_connection
-from src.dashboard.workflow import run_dashboard_workflow, run_weekly_report_workflow
+from src.dashboard.api import main as dashboard_api_main
+from src.dashboard.workflow import DashboardWorkflowService, run_dashboard_workflow, run_weekly_report_workflow
+from src.dashboard.workflow import service as dashboard_service
+from src.dashboard.workflow.weekly_report import service as weekly_report_service
 
 
 def _window_start(days: int = 30) -> datetime:
@@ -131,7 +135,13 @@ def test_dashboard_workflow_reads_db_and_computes_kpis() -> None:
     assert "safety_score_summary" in risk
     assert "high_risk_tickets" in risk
     assert "safety_breach_candidates" in risk
+    assert "escalation_queue" in risk
     assert "coverage_metrics" in quality
+    assert "pipeline_gaps" in quality
+    assert "coaching_queue" in quality
+    assert "priority_tickets" in overview
+    assert "sla_metrics" in overview
+    assert "backlog_metrics" in overview
     assert quality["draft_summary"]["draft_count"] == draft_count
     assert quality["draft_summary"]["draft_ticket_count"] == quality_draft_tickets
     assert quality["final_response_summary"]["final_response_ticket_count"] == final_response_tickets
@@ -166,3 +176,97 @@ def test_weekly_report_reads_db_and_contains_all_ticket_analysis_columns() -> No
     }
     first_row = rows[0]
     assert required_columns.issubset(first_row.keys())
+
+
+def test_dashboard_workflow_service_aggregates_sections(monkeypatch: pytest.MonkeyPatch) -> None:
+    service = DashboardWorkflowService()
+    monkeypatch.setattr(service, "overview", lambda days: {"section": "overview", "days": days})
+    monkeypatch.setattr(service, "risk", lambda days: {"section": "risk", "days": days})
+    monkeypatch.setattr(service, "quality", lambda days: {"section": "quality", "days": days})
+
+    result = service.all(14)
+
+    assert result["window_days"] == 14
+    assert result["overview"]["section"] == "overview"
+    assert result["risk"]["section"] == "risk"
+    assert result["quality"]["section"] == "quality"
+
+
+def test_weekly_report_preview_skips_pdf_and_slack_steps(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        weekly_report_service._WEEKLY_REPORT_SERVICE,
+        "load_data",
+        lambda state: {
+            "days": state.days,
+            "window_start": datetime(2026, 1, 1),
+            "window_end": datetime(2026, 1, 8),
+            "previous_window_start": datetime(2025, 12, 25),
+            "previous_window_end": datetime(2026, 1, 1),
+            "generated_at": datetime(2026, 1, 8),
+            "dashboard_summary": {},
+            "current_rows": [],
+            "previous_rows": [],
+        },
+    )
+    monkeypatch.setattr(
+        weekly_report_service._WEEKLY_REPORT_SERVICE,
+        "compose_report",
+        lambda state: {"report": {"title": "preview-only", "summary": {}}},
+    )
+
+    def _should_not_run(_: Any) -> dict[str, Any]:
+        raise AssertionError("preview path should not render PDF or publish Slack")
+
+    monkeypatch.setattr(weekly_report_service._WEEKLY_REPORT_SERVICE, "render_pdf", _should_not_run)
+    monkeypatch.setattr(weekly_report_service._WEEKLY_REPORT_SERVICE, "publish_slack", _should_not_run)
+
+    result = run_weekly_report_workflow(7)
+
+    assert result["report"]["title"] == "preview-only"
+    assert result["pdf_bytes"] is None
+    assert result["slack_result"] == {}
+
+
+def test_weekly_report_render_pdf_path_and_slack_path_are_lazy(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        weekly_report_service._WEEKLY_REPORT_SERVICE,
+        "load_data",
+        lambda state: {
+            "days": state.days,
+            "window_start": datetime(2026, 1, 1),
+            "window_end": datetime(2026, 1, 8),
+            "previous_window_start": datetime(2025, 12, 25),
+            "previous_window_end": datetime(2026, 1, 1),
+            "generated_at": datetime(2026, 1, 8),
+            "dashboard_summary": {},
+            "current_rows": [],
+            "previous_rows": [],
+        },
+    )
+    monkeypatch.setattr(
+        weekly_report_service._WEEKLY_REPORT_SERVICE,
+        "compose_report",
+        lambda state: {"report": {"title": "weekly", "summary": {}}},
+    )
+    monkeypatch.setattr(
+        weekly_report_service._WEEKLY_REPORT_SERVICE,
+        "render_pdf",
+        lambda state: {"pdf_bytes": b"%PDF-FAKE"},
+    )
+    monkeypatch.setattr(
+        weekly_report_service._WEEKLY_REPORT_SERVICE,
+        "publish_slack",
+        lambda state: {"slack_result": {"status": "success", "channel": state.slack_channel}},
+    )
+
+    pdf_result = run_weekly_report_workflow(7, render_pdf=True)
+    slack_result = run_weekly_report_workflow(7, send_to_slack=True, slack_channel="#ops")
+
+    assert pdf_result["pdf_bytes"] == b"%PDF-FAKE"
+    assert pdf_result["slack_result"] == {}
+    assert slack_result["pdf_bytes"] == b"%PDF-FAKE"
+    assert slack_result["slack_result"]["channel"] == "#ops"
+
+
+def test_dashboard_api_import_does_not_require_slack_sdk_runtime() -> None:
+    assert dashboard_api_main.app.title == "Dashboard API"

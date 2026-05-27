@@ -27,7 +27,7 @@ _CHART_SEQUENCE = count()
 def _render_plotly_chart(data: pd.DataFrame, *, kind: str, chart_key: str) -> None:
     frame = data.reset_index()
     if frame.empty:
-        st.info("보여드릴 내용이 아직 없습니다.")
+        st.info("표시할 데이터가 아직 없습니다.")
         return
 
     if kind == "line":
@@ -85,11 +85,11 @@ def render_chart_box(title: str, data: Any, *, kind: str = "bar", chart_key: str
     with st.container(border=True):
         st.markdown(f"**{title}**")
         if data is None:
-            st.info("보여드릴 내용이 아직 없습니다.")
+            st.info("표시할 데이터가 아직 없습니다.")
             return
         if isinstance(data, pd.DataFrame):
             if data.empty:
-                st.info("보여드릴 내용이 아직 없습니다.")
+                st.info("표시할 데이터가 아직 없습니다.")
             else:
                 _render_plotly_chart(data, kind=kind, chart_key=chart_key or f"chart:{kind}:{title}:{next(_CHART_SEQUENCE)}")
             return

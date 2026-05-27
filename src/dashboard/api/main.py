@@ -19,7 +19,7 @@ configure_langsmith("dashboard")
 from src.common.db.connection import db_connection
 from src.dashboard.util import clamp_days
 from src.dashboard.workflow import run_dashboard_workflow, run_weekly_report_workflow, start_weekly_report_scheduler
-from src.dashboard.workflow.weekly_report.slack import SlackReportError
+from src.dashboard.workflow.weekly_report.errors import SlackReportError
 
 
 app = FastAPI(title="Dashboard API", version="1.0.0")
@@ -154,7 +154,7 @@ def weekly_report_preview(days: int = Query(default=7, ge=1, le=365)) -> dict[st
 
 @app.get("/reports/weekly/pdf")
 def weekly_report_pdf(days: int = Query(default=7, ge=1, le=365)) -> Response:
-    result = run_weekly_report_workflow(days)
+    result = run_weekly_report_workflow(days, render_pdf=True)
     filename = f"dashboard_weekly_report_{clamp_days(days)}d.pdf"
     return Response(
         content=result["pdf_bytes"] or b"",
