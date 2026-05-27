@@ -23,7 +23,7 @@ st.set_page_config(page_title="운영 대시보드", layout="wide")
 init_session_state()
 inject_dashboard_css()
 
-st.title("운영 대시보드")
+st.title("인사이트 대시보드")
 st.caption("문의 처리 현황, 위험 신호, 응답 품질, 주간 보고서를 한 화면에서 점검합니다.")
 
 control_cols = st.columns([1.5, 1, 1, 1], gap="large")
