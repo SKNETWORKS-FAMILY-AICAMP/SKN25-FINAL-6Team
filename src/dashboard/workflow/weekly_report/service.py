@@ -10,9 +10,16 @@ from typing import Any
 from psycopg.rows import dict_row
 
 from src.common.db.connection import db_connection
-from src.dashboard.ai import generate_dashboard_interpretation, generate_review_row_interpretations
-from src.dashboard.util import build_window, clamp_days, format_minutes, rate, safe_average
-from src.dashboard.workflow.graph import run_dashboard_workflow
+from src.dashboard.util import (
+    build_window,
+    clamp_days,
+    generate_dashboard_interpretation,
+    generate_review_row_interpretations,
+    rate,
+    safe_average,
+)
+from src.dashboard.workflow import run_dashboard_workflow
+from .state import WeeklyReportState
 
 
 def _fetch_all(cur: Any, sql: str, params: tuple[Any, ...] = ()) -> list[dict[str, Any]]:
@@ -97,16 +104,12 @@ def fetch_weekly_report_data(days: int, *, now: datetime | None = None) -> dict[
         "window_end": window["window_start"],
     }
 
-    dashboard_summary = run_dashboard_workflow("all", days)
-    current_rows = _fetch_analysis_rows(window["window_start"], window["window_end"])
-    previous_rows = _fetch_analysis_rows(previous_window["window_start"], previous_window["window_end"])
-
     return {
         "window": window,
         "previous_window": previous_window,
-        "dashboard_summary": dashboard_summary,
-        "current_rows": current_rows,
-        "previous_rows": previous_rows,
+        "dashboard_summary": run_dashboard_workflow("all", days),
+        "current_rows": _fetch_analysis_rows(window["window_start"], window["window_end"]),
+        "previous_rows": _fetch_analysis_rows(previous_window["window_start"], previous_window["window_end"]),
         "generated_at": current_now,
     }
 
@@ -117,8 +120,7 @@ def _distribution(rows: list[dict[str, Any]], key: str) -> list[dict[str, Any]]:
 
 
 def _counts(rows: list[dict[str, Any]], key: str) -> dict[str, int]:
-    counts = Counter(_normalize_text(row.get(key)) for row in rows)
-    return dict(counts)
+    return dict(Counter(_normalize_text(row.get(key)) for row in rows))
 
 
 def _format_change(current: int | float, previous: int | float) -> str:
@@ -126,23 +128,7 @@ def _format_change(current: int | float, previous: int | float) -> str:
         if current == 0:
             return "0"
         return f"+{current}"
-    change = (current - previous) / previous * 100
-    return f"{change:+.1f}%"
-
-
-def _severity_for_rate(rate_value: float, *, high: float, warning: float) -> str:
-    if rate_value >= high:
-        return "critical"
-    if rate_value >= warning:
-        return "warning"
-    return "info"
-
-
-def _top_items(counts: dict[str, int], *, limit: int = 3) -> list[dict[str, Any]]:
-    return [
-        {"label": label, "value": value}
-        for label, value in sorted(counts.items(), key=lambda item: (-item[1], item[0]))[:limit]
-    ]
+    return f"{((current - previous) / previous * 100):+.1f}%"
 
 
 def _pick_rows(rows: list[dict[str, Any]], *, limit: int = 10) -> list[dict[str, Any]]:
@@ -154,9 +140,28 @@ def _pick_rows(rows: list[dict[str, Any]], *, limit: int = 10) -> list[dict[str,
         or _normalize_text(row.get("sentiment")).lower() in {"negative", "very_negative"}
         or not _normalize_text(row.get("summary"), fallback="").strip()
     ]
-    if flagged:
-        return flagged[:limit]
-    return rows[:limit]
+    return flagged[:limit] if flagged else rows[:limit]
+
+
+def _build_analysis_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        {
+            "analysis_id": row.get("analysis_id"),
+            "ticket_id": row.get("ticket_id"),
+            "title": row.get("title"),
+            "status": row.get("status"),
+            "source_type": row.get("source_type"),
+            "category": row.get("category"),
+            "responder_type": row.get("responder_type"),
+            "enriched_query": row.get("enriched_query"),
+            "risk_level": row.get("risk_level"),
+            "sentiment": row.get("sentiment"),
+            "routing_target": row.get("routing_target"),
+            "summary": row.get("summary"),
+            "analyzed_at": row.get("analyzed_at").isoformat() if row.get("analyzed_at") else None,
+        }
+        for row in rows
+    ]
 
 
 def build_weekly_report_payload(data: dict[str, Any]) -> dict[str, Any]:
@@ -171,23 +176,31 @@ def build_weekly_report_payload(data: dict[str, Any]) -> dict[str, Any]:
 
     total_current = len(current_rows)
     total_previous = len(previous_rows)
-    ticket_ids_current = [row.get("ticket_id") for row in current_rows if row.get("ticket_id") is not None]
-    distinct_ticket_ids_current = len(set(ticket_ids_current))
+    distinct_ticket_ids_current = len({row.get("ticket_id") for row in current_rows if row.get("ticket_id") is not None})
     repeat_analysis_count = total_current - distinct_ticket_ids_current
 
-    category_counts = _counts(current_rows, "category")
-    responder_counts = _counts(current_rows, "responder_type")
-    risk_counts = _counts(current_rows, "risk_level")
-    sentiment_counts = _counts(current_rows, "sentiment")
-    routing_counts = _counts(current_rows, "routing_target")
     summary_section = dashboard_summary["overview"]
     risk_section = dashboard_summary["risk"]
     quality_section = dashboard_summary["quality"]
-
     response_metrics = summary_section.get("response_metrics", {})
     coverage_metrics = quality_section.get("coverage_metrics", {})
     draft_summary = quality_section.get("draft_summary", {})
     safety_summary = risk_section.get("safety_score_summary", {})
+
+    blank_query_count = sum(1 for row in current_rows if not _normalize_text(row.get("enriched_query"), fallback="").strip())
+    blank_summary_count = sum(1 for row in current_rows if not _normalize_text(row.get("summary"), fallback="").strip())
+    high_risk_count = sum(1 for row in current_rows if _normalize_text(row.get("risk_level")).lower() in {"high", "critical"})
+    urgent_count = sum(1 for row in current_rows if _normalize_text(row.get("routing_target")).lower() == "urgent_alert")
+    human_review_count = sum(1 for row in current_rows if _normalize_text(row.get("routing_target")).lower() == "human_review")
+    negative_sentiment_count = sum(
+        1 for row in current_rows if _normalize_text(row.get("sentiment")).lower() in {"negative", "very_negative"}
+    )
+    insight_high_count = sum(
+        1
+        for row in current_rows
+        if _normalize_text(row.get("insight_risk_level")).lower() in {"high", "critical"}
+        or _normalize_text(row.get("pattern_risk_level")).lower() in {"high", "critical"}
+    )
 
     avg_query_length = safe_average([len(str(row.get("enriched_query") or "")) for row in current_rows])
     avg_summary_length = safe_average([len(str(row.get("summary") or "")) for row in current_rows])
@@ -199,42 +212,7 @@ def build_weekly_report_payload(data: dict[str, Any]) -> dict[str, Any]:
         ]
     )
 
-    blank_query_count = sum(1 for row in current_rows if not _normalize_text(row.get("enriched_query"), fallback="").strip())
-    blank_summary_count = sum(1 for row in current_rows if not _normalize_text(row.get("summary"), fallback="").strip())
-    high_risk_count = sum(1 for row in current_rows if _normalize_text(row.get("risk_level")).lower() in {"high", "critical"})
-    urgent_count = sum(1 for row in current_rows if _normalize_text(row.get("routing_target")).lower() == "urgent_alert")
-    human_review_count = sum(1 for row in current_rows if _normalize_text(row.get("routing_target")).lower() == "human_review")
-    negative_sentiment_count = sum(1 for row in current_rows if _normalize_text(row.get("sentiment")).lower() in {"negative", "very_negative"})
-    insight_high_count = sum(
-        1
-        for row in current_rows
-        if _normalize_text(row.get("insight_risk_level")).lower() in {"high", "critical"}
-        or _normalize_text(row.get("pattern_risk_level")).lower() in {"high", "critical"}
-    )
-
-    current_category_top = _top_items(category_counts, limit=3)
-    current_risk_top = _top_items(risk_counts, limit=3)
-    current_sentiment_top = _top_items(sentiment_counts, limit=3)
-    current_routing_top = _top_items(routing_counts, limit=3)
-    current_responder_top = _top_items(responder_counts, limit=3)
-
     current_total = total_current or 0
-
-    high_risk_rate = rate(high_risk_count, current_total)
-    negative_sentiment_rate = rate(negative_sentiment_count, current_total)
-    human_review_rate = rate(human_review_count, current_total)
-    urgent_rate = rate(urgent_count, current_total)
-    blank_query_rate = rate(blank_query_count, current_total)
-    blank_summary_rate = rate(blank_summary_count, current_total)
-    insight_high_rate = rate(insight_high_count, current_total)
-
-    current_dashboard_overview = summary_section.get("ticket_counts", {})
-    current_response_rate = response_metrics.get("response_rate") or 0.0
-    current_analysis_coverage = response_metrics.get("analysis_coverage_rate") or 0.0
-    current_draft_coverage = response_metrics.get("draft_coverage_rate") or 0.0
-    current_draft_ticket_rate = coverage_metrics.get("draft_ticket_rate") or 0.0
-    current_final_response_rate = coverage_metrics.get("final_response_ticket_rate") or 0.0
-
     current_summary = {
         "analysis_count": current_total,
         "distinct_ticket_count": distinct_ticket_ids_current,
@@ -248,19 +226,19 @@ def build_weekly_report_payload(data: dict[str, Any]) -> dict[str, Any]:
         "analysis_freshness_hours": None if avg_analysis_age_minutes is None else avg_analysis_age_minutes / 60.0,
         "avg_query_length": avg_query_length,
         "avg_summary_length": avg_summary_length,
-        "high_risk_rate": high_risk_rate,
-        "negative_sentiment_rate": negative_sentiment_rate,
-        "human_review_rate": human_review_rate,
-        "urgent_alert_rate": urgent_rate,
-        "blank_query_rate": blank_query_rate,
-        "blank_summary_rate": blank_summary_rate,
-        "insight_high_rate": insight_high_rate,
-        "response_rate": current_response_rate,
-        "analysis_coverage_rate": current_analysis_coverage,
-        "draft_coverage_rate": current_draft_coverage,
-        "draft_ticket_rate": current_draft_ticket_rate,
-        "final_response_ticket_rate": current_final_response_rate,
-        "ticket_counts": current_dashboard_overview,
+        "high_risk_rate": rate(high_risk_count, current_total),
+        "negative_sentiment_rate": rate(negative_sentiment_count, current_total),
+        "human_review_rate": rate(human_review_count, current_total),
+        "urgent_alert_rate": rate(urgent_count, current_total),
+        "blank_query_rate": rate(blank_query_count, current_total),
+        "blank_summary_rate": rate(blank_summary_count, current_total),
+        "insight_high_rate": rate(insight_high_count, current_total),
+        "response_rate": response_metrics.get("response_rate") or 0.0,
+        "analysis_coverage_rate": response_metrics.get("analysis_coverage_rate") or 0.0,
+        "draft_coverage_rate": response_metrics.get("draft_coverage_rate") or 0.0,
+        "draft_ticket_rate": coverage_metrics.get("draft_ticket_rate") or 0.0,
+        "final_response_ticket_rate": coverage_metrics.get("final_response_ticket_rate") or 0.0,
+        "ticket_counts": summary_section.get("ticket_counts", {}),
         "safety_check_count": safety_summary.get("safety_check_count") or 0,
         "draft_count": draft_summary.get("draft_count") or 0,
     }
@@ -282,10 +260,14 @@ def build_weekly_report_payload(data: dict[str, Any]) -> dict[str, Any]:
         },
         "negative_sentiment_count": {
             "current": negative_sentiment_count,
-            "previous": sum(1 for row in previous_rows if _normalize_text(row.get("sentiment")).lower() in {"negative", "very_negative"}),
+            "previous": sum(
+                1 for row in previous_rows if _normalize_text(row.get("sentiment")).lower() in {"negative", "very_negative"}
+            ),
             "change_rate": _format_change(
                 negative_sentiment_count,
-                sum(1 for row in previous_rows if _normalize_text(row.get("sentiment")).lower() in {"negative", "very_negative"}),
+                sum(
+                    1 for row in previous_rows if _normalize_text(row.get("sentiment")).lower() in {"negative", "very_negative"}
+                ),
             ),
         },
         "human_review_count": {
@@ -312,29 +294,8 @@ def build_weekly_report_payload(data: dict[str, Any]) -> dict[str, Any]:
         for row in review_rows
     ]
 
-    analysis_table_rows = [
-        {
-            "analysis_id": row.get("analysis_id"),
-            "ticket_id": row.get("ticket_id"),
-            "title": row.get("title"),
-            "status": row.get("status"),
-            "source_type": row.get("source_type"),
-            "category": row.get("category"),
-            "responder_type": row.get("responder_type"),
-            "enriched_query": row.get("enriched_query"),
-            "risk_level": row.get("risk_level"),
-            "sentiment": row.get("sentiment"),
-            "routing_target": row.get("routing_target"),
-            "summary": row.get("summary"),
-            "analyzed_at": row.get("analyzed_at").isoformat() if row.get("analyzed_at") else None,
-        }
-        for row in current_rows
-    ]
-
-    report_title = f"운영 주간 보고서 - {window['window_end'].date().isoformat()}"
-
     report_payload = {
-        "title": report_title,
+        "title": f"운영 주간 보고서 - {window['window_end'].date().isoformat()}",
         "generated_at": generated_at.isoformat(),
         "window": {
             "days": window["days"],
@@ -353,9 +314,15 @@ def build_weekly_report_payload(data: dict[str, Any]) -> dict[str, Any]:
         "risk_distribution": _distribution(current_rows, "risk_level"),
         "sentiment_distribution": _distribution(current_rows, "sentiment"),
         "routing_distribution": _distribution(current_rows, "routing_target"),
-        "analysis_rows": analysis_table_rows,
+        "analysis_rows": _build_analysis_rows(current_rows),
         "review_rows": review_rows,
         "dashboard_summary": dashboard_summary,
+        "top_breakdowns": {
+            "categories": _counts(current_rows, "category"),
+            "responders": _counts(current_rows, "responder_type"),
+            "risk_levels": _counts(current_rows, "risk_level"),
+            "routing_targets": _counts(current_rows, "routing_target"),
+        },
     }
     ai_interpretation = generate_dashboard_interpretation("weekly_report", report_payload)
     report_payload["ai_interpretation"] = ai_interpretation
@@ -378,19 +345,10 @@ def build_weekly_report_payload(data: dict[str, Any]) -> dict[str, Any]:
         ],
     ]
     report_payload["report_sections"] = [
-        {
-            "kind": "heading",
-            "text": ai_interpretation.get("headline", "AI 종합 해석"),
-        },
-        {
-            "kind": "body",
-            "text": ai_interpretation.get("summary", ""),
-        },
+        {"kind": "heading", "text": ai_interpretation.get("headline", "AI 종합 해석")},
+        {"kind": "body", "text": ai_interpretation.get("summary", "")},
         *[{"kind": "bullet", "text": item} for item in ai_interpretation.get("bullets", [])],
-        {
-            "kind": "heading",
-            "text": "우선 확인할 문의",
-        },
+        {"kind": "heading", "text": "우선 확인 문의"},
         *[
             {
                 "kind": "table_row",
@@ -403,3 +361,117 @@ def build_weekly_report_payload(data: dict[str, Any]) -> dict[str, Any]:
         ],
     ]
     return report_payload
+
+
+class WeeklyReportService:
+    """Weekly report service built from plain methods and helper functions."""
+
+    def load_data(self, state: WeeklyReportState) -> dict[str, Any]:
+        current = WeeklyReportState.model_validate(state)
+        data = fetch_weekly_report_data(current.days)
+        return {
+            "days": current.days,
+            "window_start": data["window"]["window_start"],
+            "window_end": data["window"]["window_end"],
+            "previous_window_start": data["previous_window"]["window_start"],
+            "previous_window_end": data["previous_window"]["window_end"],
+            "generated_at": data["generated_at"],
+            "dashboard_summary": data["dashboard_summary"],
+            "current_rows": data["current_rows"],
+            "previous_rows": data["previous_rows"],
+        }
+
+    def compose_report(self, state: WeeklyReportState) -> dict[str, Any]:
+        current = WeeklyReportState.model_validate(state)
+        report = build_weekly_report_payload(
+            {
+                "window": {
+                    "days": current.days,
+                    "window_start": current.window_start,
+                    "window_end": current.window_end,
+                },
+                "previous_window": {
+                    "days": current.days,
+                    "window_start": current.previous_window_start,
+                    "window_end": current.previous_window_end,
+                },
+                "dashboard_summary": current.dashboard_summary,
+                "current_rows": current.current_rows,
+                "previous_rows": current.previous_rows,
+                "generated_at": current.generated_at or datetime.now(),
+            }
+        )
+        return {"report": report}
+
+    def render_pdf(self, state: WeeklyReportState) -> dict[str, Any]:
+        current = WeeklyReportState.model_validate(state)
+        from .pdf import render_report_pdf
+
+        return {"pdf_bytes": render_report_pdf(current.report)}
+
+    def publish_slack(self, state: WeeklyReportState) -> dict[str, Any]:
+        current = WeeklyReportState.model_validate(state)
+        channel = (current.slack_channel or "").strip()
+        if not channel:
+            raise ValueError("slack_channel is required when send_to_slack is enabled")
+        from .slack import send_weekly_report_pdf
+
+        filename = f"dashboard_weekly_report_{current.days}d.pdf"
+        result = send_weekly_report_pdf(
+            pdf_bytes=current.pdf_bytes or b"",
+            channel=channel,
+            filename=filename,
+            title=current.report.get("title") or filename,
+            comment=current.slack_comment,
+        )
+        return {"slack_result": result}
+
+    def run(
+        self,
+        days: int = 7,
+        *,
+        render_pdf: bool = False,
+        send_to_slack: bool = False,
+        slack_channel: str | None = None,
+        slack_comment: str | None = None,
+    ) -> dict[str, Any]:
+        state = WeeklyReportState(
+            days=days,
+            send_to_slack=send_to_slack,
+            slack_channel=slack_channel,
+            slack_comment=slack_comment,
+            pdf_bytes=b"" if render_pdf or send_to_slack else None,
+        )
+        state = state.model_copy(update=self.load_data(state))
+        state = state.model_copy(update=self.compose_report(state))
+        if state.send_to_slack or state.pdf_bytes is not None:
+            state = state.model_copy(update=self.render_pdf(state))
+        if state.send_to_slack:
+            state = state.model_copy(update=self.publish_slack(state))
+        return {
+            "report": state.report,
+            "pdf_bytes": state.pdf_bytes,
+            "slack_result": state.slack_result,
+        }
+
+
+_WEEKLY_REPORT_SERVICE = WeeklyReportService()
+
+
+def run_weekly_report_workflow(
+    days: int = 7,
+    *,
+    render_pdf: bool = False,
+    send_to_slack: bool = False,
+    slack_channel: str | None = None,
+    slack_comment: str | None = None,
+) -> dict[str, Any]:
+    """Run weekly report generation without graph-style orchestration."""
+
+    return _WEEKLY_REPORT_SERVICE.run(
+        days,
+        render_pdf=render_pdf,
+        send_to_slack=send_to_slack,
+        slack_channel=slack_channel,
+        slack_comment=slack_comment,
+    )

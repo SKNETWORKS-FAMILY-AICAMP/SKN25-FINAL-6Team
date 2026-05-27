@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-from .graph import run_weekly_report_workflow
+from .service import run_weekly_report_workflow
 
 
 LOGGER = logging.getLogger(__name__)

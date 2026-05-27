@@ -11,8 +11,8 @@ import streamlit as st
 
 from src.dashboard.frontend.components.chart_box import render_chart_box
 from src.dashboard.frontend.components.data_table import render_data_table
-from src.dashboard.util.text import SECTION_LABELS, localized_rows, translate_value
 from src.dashboard.util import format_minutes, mask_email, mask_identifier
+from src.dashboard.util.text import SECTION_LABELS, localized_rows, translate_value
 
 
 def as_table_rows(rows: list[dict[str, Any]], columns: list[str]) -> list[dict[str, Any]]:
@@ -70,9 +70,9 @@ def render_slack_delivery_result(result: dict[str, Any]) -> None:
     delivery_mode = slack_result.get("delivery_mode")
     channel = result.get("channel", "기본 채널")
     if delivery_mode == "fallback_chat_link":
-        st.error(f"{channel}에 파일로 보내지 못해 대화방 링크로 대신 보냈습니다.")
+        st.error(f"{channel}에 PDF를 직접 보내지 못해 대체 링크로 전송했습니다.")
     else:
-        st.success(f"{channel}로 보고서를 보냈습니다.")
+        st.success(f"{channel}로 보고서를 전송했습니다.")
     st.json(localized_rows([slack_result])[0] if slack_result else {})
 
 
@@ -85,7 +85,7 @@ def session_bytes(key: str) -> bytes | None:
 
 
 def render_ai_interpretation(payload: dict[str, Any]) -> None:
-    """Render an AI-generated interpretation block in consistent Korean UI."""
+    """Render an AI-generated interpretation block in consistent UI."""
 
     interpretation = payload.get("ai_interpretation", {}) or {}
     if not interpretation:
@@ -97,12 +97,12 @@ def render_ai_interpretation(payload: dict[str, Any]) -> None:
             st.write(summary)
         bullets = interpretation.get("bullets", [])
         if bullets:
-            st.markdown("**AI가 먼저 짚은 내용**")
+            st.markdown("**핵심 포인트**")
             for item in bullets:
                 st.write(f"- {item}")
         actions = interpretation.get("actions", [])
         if actions:
-            st.markdown("**운영팀이 바로 볼 일**")
+            st.markdown("**바로 볼 액션**")
             for item in actions:
                 st.write(f"- {item}")
 
@@ -237,68 +237,102 @@ class DashboardClient:
         return response.json()
 
 
+def _render_window_caption(window: dict[str, Any], prefix: str) -> None:
+    st.caption(
+        f"{prefix} 최근 {window.get('days', '-')}일 기준입니다. "
+        f"({window.get('window_start', '-')} ~ {window.get('window_end', '-')})"
+    )
+
+
+def _render_priority_table(rows: list[dict[str, Any]], *, title: str, columns: list[str], kind: str) -> None:
+    st.subheader(title)
+    render_data_table(as_table_rows(rows, columns), kind=kind)  # type: ignore[arg-type]
+
+
 def render_overview_section(summary: dict[str, Any], client: DashboardClient | None = None, *, ticket_limit: int = 20) -> None:
     window = summary.get("window", {})
     counts = summary.get("ticket_counts", {})
     response = summary.get("response_metrics", {})
     coverage = summary.get("coverage_metrics", {})
+    backlog = summary.get("backlog_metrics", {})
+    sla = summary.get("sla_metrics", {})
 
     render_ai_interpretation(summary)
-    st.caption(
-        f"최근 {window.get('days', '-')}일을 기준으로 보고 있습니다. "
-        f"({window.get('window_start', '-')} ~ {window.get('window_end', '-')})"
-    )
+    _render_window_caption(window, "운영 현황")
 
     metric_cols = st.columns(4)
     metric_cols[0].metric("전체 문의", counts.get("total", 0))
     metric_cols[1].metric("처리 대기", counts.get("pending", 0))
     metric_cols[2].metric("처리 완료", counts.get("closed", 0))
-    metric_cols[3].metric("오늘 들어온 문의", counts.get("today", 0))
+    metric_cols[3].metric("오늘 접수", counts.get("today", 0))
 
     metric_cols = st.columns(4)
-    metric_cols[0].metric("답변까지 끝난 비율", f"{response.get('response_rate', 0):.1%}")
-    metric_cols[1].metric("초안까지 만든 비율", f"{coverage.get('draft_coverage_rate', 0):.1%}")
-    metric_cols[2].metric("분석까지 끝난 비율", f"{coverage.get('analysis_coverage_rate', 0):.1%}")
-    metric_cols[3].metric("답변까지 걸린 평균 시간", format_minutes(response.get("avg_response_latency_minutes")))
+    metric_cols[0].metric("응답 완료 비율", f"{response.get('response_rate', 0):.1%}")
+    metric_cols[1].metric("초안 작성 비율", f"{coverage.get('draft_coverage_rate', 0):.1%}")
+    metric_cols[2].metric("분석 완료 비율", f"{coverage.get('analysis_coverage_rate', 0):.1%}")
+    metric_cols[3].metric("첫 응답 평균 시간", format_minutes(response.get("avg_response_latency_minutes")))
+
+    metric_cols = st.columns(4)
+    metric_cols[0].metric("24시간 내 응답", f"{sla.get('responded_within_24h_rate', 0):.1%}")
+    metric_cols[1].metric("미응답 비율", f"{sla.get('unanswered_rate', 0):.1%}")
+    metric_cols[2].metric("24시간 이상 대기", backlog.get("old_pending_count", 0))
+    metric_cols[3].metric("긴급 미응답", backlog.get("urgent_unanswered_count", 0))
 
     if int(summary.get("old_pending_count") or 0) > 0:
-        st.warning(f"하루 넘게 처리 대기인 문의가 {summary.get('old_pending_count')}건 있습니다.")
+        st.warning(f"24시간 이상 처리 대기 중인 문의가 {summary.get('old_pending_count')}건 있습니다.")
 
     left, right = st.columns(2, gap="large")
     with left:
-        render_chart_box("어디로 들어온 문의인지", as_bar_chart(summary.get("source_distribution", [])))
-        render_chart_box("지금 처리 상태", as_bar_chart(summary.get("status_distribution", [])))
+        render_chart_box("접수 경로 분포", as_bar_chart(summary.get("source_distribution", [])))
+        render_chart_box("문의 분류 분포", as_bar_chart(summary.get("category_distribution", [])))
+        render_chart_box("처리 상태 분포", as_bar_chart(summary.get("status_distribution", [])))
     with right:
-        render_chart_box("다음에 어떻게 처리되는지", as_bar_chart(summary.get("routing_distribution", [])))
+        render_chart_box("다음 처리 분포", as_bar_chart(summary.get("routing_distribution", [])))
+        render_chart_box("응답 주체 분포", as_bar_chart(summary.get("responder_distribution", [])))
         render_chart_box(
-            "최근 문의가 들어온 흐름",
+            "최근 문의 유입 추이",
             as_line_chart(summary.get("recent_tickets", []), x_key="inquiry_created_at", y_key="ticket_id"),
             kind="line",
         )
 
+    _render_priority_table(
+        summary.get("priority_tickets", []),
+        title="우선 처리 큐",
+        columns=[
+            "ticket_id",
+            "title",
+            "status",
+            "category",
+            "risk_level",
+            "sentiment",
+            "routing_target",
+            "queue_reason",
+            "inquiry_created_at",
+        ],
+        kind="priority",
+    )
+
     recent_tickets = summary.get("recent_tickets", [])
-    st.subheader("최근 들어온 문의")
-    render_data_table(
-        as_table_rows(
-            recent_tickets[:ticket_limit],
-            [
-                "ticket_id",
-                "title",
-                "status",
-                "source_type",
-                "nickname",
-                "category",
-                "risk_level",
-                "sentiment",
-                "routing_target",
-                "inquiry_created_at",
-            ],
-        ),
+    _render_priority_table(
+        recent_tickets[:ticket_limit],
+        title="최근 접수 문의",
+        columns=[
+            "ticket_id",
+            "title",
+            "status",
+            "source_type",
+            "nickname",
+            "category",
+            "risk_level",
+            "sentiment",
+            "routing_target",
+            "inquiry_created_at",
+        ],
         kind="inbox",
     )
 
     if client and recent_tickets:
-        st.subheader("문의 한 건 자세히 보기")
+        st.subheader("문의 상세 보기")
         selected_ticket_id = st.selectbox(
             "확인할 문의를 고르세요",
             [row["ticket_id"] for row in recent_tickets],
@@ -307,7 +341,7 @@ def render_overview_section(summary: dict[str, Any], client: DashboardClient | N
         try:
             detail = client.ticket_detail(int(selected_ticket_id))
         except requests.RequestException as exc:
-            st.error(f"문의 자세한 내용을 불러오지 못했습니다. {exc}")
+            st.error(f"문의 상세를 불러오지 못했습니다. {exc}")
             return
         render_ticket_detail(detail)
 
@@ -316,67 +350,90 @@ def render_risk_section(summary: dict[str, Any]) -> None:
     window = summary.get("window", {})
     safety = summary.get("safety_score_summary", {})
     alerts = summary.get("safety_alerts", {})
+    risk_summary = summary.get("risk_summary", {})
+    hotspots = summary.get("risk_hotspots", {})
 
     render_ai_interpretation(summary)
-    st.caption(
-        f"최근 {window.get('days', '-')}일 동안 위험 신호를 모아 봤습니다. "
-        f"({window.get('window_start', '-')} ~ {window.get('window_end', '-')})"
-    )
+    _render_window_caption(window, "위험 신호")
 
     metric_cols = st.columns(4)
-    metric_cols[0].metric("사실과 다른 내용 위험 평균", "-" if safety.get("avg_hallucination_score") is None else f"{safety['avg_hallucination_score']:.2f}")
-    metric_cols[1].metric("공격적 표현 위험 평균", "-" if safety.get("avg_toxicity_score") is None else f"{safety['avg_toxicity_score']:.2f}")
-    metric_cols[2].metric("운영 정책 위반 위험 평균", "-" if safety.get("avg_policy_violation_score") is None else f"{safety['avg_policy_violation_score']:.2f}")
+    metric_cols[0].metric("환각 위험 평균", "-" if safety.get("avg_hallucination_score") is None else f"{safety['avg_hallucination_score']:.2f}")
+    metric_cols[1].metric("독성 위험 평균", "-" if safety.get("avg_toxicity_score") is None else f"{safety['avg_toxicity_score']:.2f}")
+    metric_cols[2].metric("정책 위반 평균", "-" if safety.get("avg_policy_violation_score") is None else f"{safety['avg_policy_violation_score']:.2f}")
     metric_cols[3].metric("사실성 평균", "-" if safety.get("avg_factuality_score") is None else f"{safety['avg_factuality_score']:.2f}")
 
+    metric_cols = st.columns(4)
+    metric_cols[0].metric("고위험 문의", risk_summary.get("high_risk_count", 0))
+    metric_cols[1].metric("치명 위험 문의", risk_summary.get("critical_risk_count", 0))
+    metric_cols[2].metric("사람 검토 필요", risk_summary.get("human_review_count", 0))
+    metric_cols[3].metric("부정 반응 포함", risk_summary.get("negative_sentiment_count", 0))
+
     alert_cols = st.columns(4)
-    alert_cols[0].metric("사실과 다른 내용 위험 경고", "켜짐" if alerts.get("high_hallucination") else "꺼짐")
-    alert_cols[1].metric("공격적 표현 위험 경고", "켜짐" if alerts.get("high_toxicity") else "꺼짐")
-    alert_cols[2].metric("운영 정책 위반 경고", "켜짐" if alerts.get("high_policy_violation") else "꺼짐")
-    alert_cols[3].metric("사실성 부족 경고", "켜짐" if alerts.get("low_factuality") else "꺼짐")
+    alert_cols[0].metric("환각 경보", "켜짐" if alerts.get("high_hallucination") else "꺼짐")
+    alert_cols[1].metric("독성 경보", "켜짐" if alerts.get("high_toxicity") else "꺼짐")
+    alert_cols[2].metric("정책 위반 경보", "켜짐" if alerts.get("high_policy_violation") else "꺼짐")
+    alert_cols[3].metric("사실성 부족 경보", "켜짐" if alerts.get("low_factuality") else "꺼짐")
 
     left, right = st.columns(2, gap="large")
     with left:
-        render_chart_box("문의 분석에서 본 위험도", as_bar_chart(summary.get("analysis_risk_distribution", [])))
-        render_chart_box("이용자 반응 분위기", as_bar_chart(summary.get("sentiment_distribution", [])))
+        render_chart_box("분석 위험도 분포", as_bar_chart(summary.get("analysis_risk_distribution", [])))
+        render_chart_box("이용자 반응 분포", as_bar_chart(summary.get("sentiment_distribution", [])))
+        render_chart_box("고위험 문의 분류", as_bar_chart(hotspots.get("category_distribution", [])))
     with right:
-        render_chart_box("인사이트에서 본 위험도", as_bar_chart(summary.get("insight_risk_distribution", [])))
-        render_chart_box("반복 패턴에서 본 위험도", as_bar_chart(summary.get("pattern_risk_distribution", [])))
+        render_chart_box("인사이트 위험도 분포", as_bar_chart(summary.get("insight_risk_distribution", [])))
+        render_chart_box("반복 패턴 위험도", as_bar_chart(summary.get("pattern_risk_distribution", [])))
+        render_chart_box("고위험 유입 경로", as_bar_chart(hotspots.get("source_distribution", [])))
 
-    st.subheader("우선 봐야 할 고위험 문의")
-    render_data_table(
-        as_table_rows(
-            summary.get("high_risk_tickets", []),
-            [
-                "ticket_id",
-                "title",
-                "status",
-                "category",
-                "risk_level",
-                "sentiment",
-                "routing_target",
-                "pattern_risk_level",
-                "inquiry_created_at",
-            ],
-        ),
+    _render_priority_table(
+        summary.get("escalation_queue", []),
+        title="에스컬레이션 큐",
+        columns=[
+            "ticket_id",
+            "title",
+            "status",
+            "source_type",
+            "category",
+            "risk_level",
+            "sentiment",
+            "routing_target",
+            "pattern_risk_level",
+            "escalation_reason",
+            "inquiry_created_at",
+        ],
         kind="priority",
     )
 
-    st.subheader("답변 전에 다시 봐야 할 안전성 후보")
-    render_data_table(
-        as_table_rows(
-            summary.get("safety_breach_candidates", []),
-            [
-                "ticket_id",
-                "title",
-                "draft_id",
-                "hallucination_score",
-                "toxicity_score",
-                "policy_violation_score",
-                "factuality_score",
-                "safety_action",
-            ],
-        ),
+    _render_priority_table(
+        summary.get("high_risk_tickets", []),
+        title="우선 확인할 고위험 문의",
+        columns=[
+            "ticket_id",
+            "title",
+            "status",
+            "category",
+            "risk_level",
+            "sentiment",
+            "routing_target",
+            "pattern_risk_level",
+            "inquiry_created_at",
+        ],
+        kind="priority",
+    )
+
+    _render_priority_table(
+        summary.get("safety_breach_candidates", []),
+        title="응답 전 재점검이 필요한 안전 경보",
+        columns=[
+            "ticket_id",
+            "title",
+            "draft_id",
+            "hallucination_score",
+            "toxicity_score",
+            "policy_violation_score",
+            "factuality_score",
+            "retry_count",
+            "safety_action",
+        ],
         kind="safety",
     )
 
@@ -388,33 +445,40 @@ def render_quality_section(summary: dict[str, Any]) -> None:
     safety = summary.get("safety_summary", {})
     final_response = summary.get("final_response_summary", {})
     coverage = summary.get("coverage_metrics", {})
+    pipeline_gaps = summary.get("pipeline_gaps", {})
+    failure_distribution = summary.get("failure_distribution", {})
 
     render_ai_interpretation(summary)
-    st.caption(
-        f"최근 {window.get('days', '-')}일 동안 답변 품질을 이렇게 봤습니다. "
-        f"({window.get('window_start', '-')} ~ {window.get('window_end', '-')})"
-    )
+    _render_window_caption(window, "응답 품질")
 
     metric_cols = st.columns(4)
-    metric_cols[0].metric("만든 초안 수", draft.get("draft_count", 0))
-    metric_cols[1].metric("근거까지 붙은 초안 수", draft.get("evidence_linked_drafts", 0))
-    metric_cols[2].metric("보낸 최종 답변 수", final_response.get("final_response_count", 0))
-    metric_cols[3].metric("안전성 점검 수", safety.get("safety_check_count", 0))
+    metric_cols[0].metric("생성된 초안", draft.get("draft_count", 0))
+    metric_cols[1].metric("근거 첨부 초안", draft.get("evidence_linked_drafts", 0))
+    metric_cols[2].metric("최종 응답", final_response.get("final_response_count", 0))
+    metric_cols[3].metric("안전 점검", safety.get("safety_check_count", 0))
     st.caption(f"초안이 만들어진 문의는 {draft.get('draft_ticket_count', 0)}건입니다.")
 
     metric_cols = st.columns(4)
-    metric_cols[0].metric("문의 대비 초안 작성 비율", f"{coverage.get('draft_ticket_rate', 0):.1%}")
-    metric_cols[1].metric("초안 대비 근거 첨부 비율", f"{coverage.get('evidence_attachment_rate', 0):.1%}")
-    metric_cols[2].metric("문의 대비 최종 답변 완료 비율", f"{coverage.get('final_response_ticket_rate', 0):.1%}")
-    metric_cols[3].metric("최종 답변까지 걸린 평균 시간", format_minutes(final_response.get("avg_final_latency_minutes")))
+    metric_cols[0].metric("초안 작성 비율", f"{coverage.get('draft_ticket_rate', 0):.1%}")
+    metric_cols[1].metric("근거 첨부 비율", f"{coverage.get('evidence_attachment_rate', 0):.1%}")
+    metric_cols[2].metric("최종 응답 완료 비율", f"{coverage.get('final_response_ticket_rate', 0):.1%}")
+    metric_cols[3].metric("최종 응답 평균 시간", format_minutes(final_response.get("avg_final_latency_minutes")))
+
+    metric_cols = st.columns(4)
+    metric_cols[0].metric("분석 누락", pipeline_gaps.get("tickets_without_analysis", 0))
+    metric_cols[1].metric("초안 누락", pipeline_gaps.get("tickets_without_draft", 0))
+    metric_cols[2].metric("응답 누락", pipeline_gaps.get("tickets_without_response", 0))
+    metric_cols[3].metric("품질 점검 비율", f"{pipeline_gaps.get('quality_watch_rate', 0):.1%}")
 
     left, right = st.columns(2, gap="large")
     with left:
-        render_chart_box("알림이 잘 전달됐는지", as_bar_chart(summary.get("notification_summary", [])))
-        render_chart_box("붙인 근거 수", as_bar_chart([{"label": "evidence", "value": evidence.get("evidence_count") or 0}]))
+        render_chart_box("알림 상태 분포", as_bar_chart(summary.get("notification_summary", [])))
+        render_chart_box("실패 채널 분포", as_bar_chart(failure_distribution.get("notification_channel_distribution", [])))
+        render_chart_box("근거 수", as_bar_chart([{"label": "evidence", "value": evidence.get("evidence_count") or 0}]))
     with right:
+        render_chart_box("실패 유형 분포", as_bar_chart(failure_distribution.get("notification_error_distribution", [])))
         render_chart_box(
-            "안전성 점수 한눈에 보기",
+            "안전 점수 평균",
             as_bar_chart(
                 [
                     {"label": "hallucination", "value": safety.get("avg_hallucination_score") or 0},
@@ -425,39 +489,52 @@ def render_quality_section(summary: dict[str, Any]) -> None:
             ),
         )
 
-    st.subheader("품질 점검이 필요한 초안")
-    render_data_table(
-        as_table_rows(
-            summary.get("quality_candidates", []),
-            [
-                "ticket_id",
-                "title",
-                "draft_id",
-                "hallucination_score",
-                "toxicity_score",
-                "policy_violation_score",
-                "factuality_score",
-                "safety_action",
-            ],
-        ),
+    _render_priority_table(
+        summary.get("coaching_queue", []),
+        title="품질 코칭 큐",
+        columns=[
+            "ticket_id",
+            "title",
+            "draft_id",
+            "hallucination_score",
+            "policy_violation_score",
+            "factuality_score",
+            "retry_count",
+            "coaching_reason",
+        ],
         kind="quality",
     )
 
-    st.subheader("알림 전송이 실패한 내역")
-    render_data_table(
-        as_table_rows(
-            summary.get("notification_failures", []),
-            [
-                "notification_id",
-                "ticket_id",
-                "title",
-                "channel",
-                "status",
-                "error_category",
-                "error_message",
-                "sent_at",
-            ],
-        ),
+    _render_priority_table(
+        summary.get("quality_candidates", []),
+        title="품질 점검이 필요한 초안",
+        columns=[
+            "ticket_id",
+            "title",
+            "draft_id",
+            "hallucination_score",
+            "toxicity_score",
+            "policy_violation_score",
+            "factuality_score",
+            "retry_count",
+            "safety_action",
+        ],
+        kind="quality",
+    )
+
+    _render_priority_table(
+        summary.get("notification_failures", []),
+        title="알림 전송 실패 이력",
+        columns=[
+            "notification_id",
+            "ticket_id",
+            "title",
+            "channel",
+            "status",
+            "error_category",
+            "error_message",
+            "sent_at",
+        ],
         kind="failure_log",
     )
 
@@ -486,30 +563,30 @@ def render_ticket_detail(detail: dict[str, Any]) -> None:
 
     account_cols = st.columns(4)
     account_cols[0].metric("이메일", mask_email(account.get("email")))
-    account_cols[1].metric("게임 계정 식별값", account.get("uid") or "-")
+    account_cols[1].metric("게임 계정 UID", account.get("uid") or "-")
     account_cols[2].metric("서버 권역", account.get("server_region") or "-")
     account_cols[3].metric("계정 상태", account.get("account_status") or "-")
 
     if analyses:
-        with st.expander("문의를 어떻게 분석했는지", expanded=True):
+        with st.expander("문의 분석 이력", expanded=True):
             render_data_table(analyses, kind="analysis")
     if drafts:
-        with st.expander("작성된 초안", expanded=True):
+        with st.expander("생성된 초안", expanded=True):
             render_data_table(drafts, kind="history")
     if evidence_docs:
-        with st.expander("답변에 붙인 근거", expanded=False):
+        with st.expander("첨부된 근거", expanded=False):
             render_data_table(evidence_docs, kind="history")
     if safety_results:
-        with st.expander("안전성 점검 결과", expanded=True):
+        with st.expander("안전 점검 결과", expanded=True):
             render_data_table(safety_results, kind="safety")
     if final_responses:
-        with st.expander("실제로 보낸 답변", expanded=True):
+        with st.expander("실제 전송 응답", expanded=True):
             render_data_table(final_responses, kind="history")
     if notifications:
-        with st.expander("보낸 알림", expanded=False):
+        with st.expander("전송 알림 이력", expanded=False):
             render_data_table(notifications, kind="failure_log")
     if voc_feedback:
-        with st.expander("이용자 의견 기록", expanded=False):
+        with st.expander("이용자 피드백", expanded=False):
             render_data_table(voc_feedback, kind="history")
 
     operation_payload = {
@@ -519,7 +596,7 @@ def render_ticket_detail(detail: dict[str, Any]) -> None:
         "gacha_logs": operation_logs.get("gacha_logs", []),
     }
     if any(operation_payload.values()):
-        with st.expander("업무 처리 이력", expanded=False):
+        with st.expander("운영 처리 로그", expanded=False):
             for key, rows in operation_payload.items():
                 if rows:
                     st.markdown(f"**{SECTION_LABELS.get(key, key)}**")
@@ -530,7 +607,7 @@ def render_ticket_detail(detail: dict[str, Any]) -> None:
         "failed_queries": workflow_logs.get("failed_queries", []),
     }
     if any(workflow_payload.values()):
-        with st.expander("운영 처리 로그", expanded=False):
+        with st.expander("워크플로 로그", expanded=False):
             for key, rows in workflow_payload.items():
                 if rows:
                     st.markdown(f"**{SECTION_LABELS.get(key, key)}**")
@@ -548,26 +625,24 @@ def render_weekly_report_section(
     comparisons = report.get("comparisons", {})
 
     render_ai_interpretation(report)
-    st.caption(
-        f"최근 {window.get('days', '-')}일 기준 주간 흐름입니다. "
-        f"({window.get('window_start', '-')} ~ {window.get('window_end', '-')})"
-    )
+    _render_window_caption(window, "주간 보고서")
+
     metric_cols = st.columns(4)
     metric_cols[0].metric("분석 건수", summary.get("analysis_count", 0), delta=comparisons.get("analysis_count", {}).get("change_rate"))
-    metric_cols[1].metric("위험도가 높은 문의", summary.get("high_risk_count", 0), delta=comparisons.get("high_risk_count", {}).get("change_rate"))
+    metric_cols[1].metric("고위험 문의", summary.get("high_risk_count", 0), delta=comparisons.get("high_risk_count", {}).get("change_rate"))
     metric_cols[2].metric("부정 반응 문의", summary.get("negative_sentiment_count", 0), delta=comparisons.get("negative_sentiment_count", {}).get("change_rate"))
-    metric_cols[3].metric("사람 확인이 필요한 문의", summary.get("human_review_count", 0), delta=comparisons.get("human_review_count", {}).get("change_rate"))
+    metric_cols[3].metric("사람 검토 필요", summary.get("human_review_count", 0), delta=comparisons.get("human_review_count", {}).get("change_rate"))
 
     left, right = st.columns(2, gap="large")
     with left:
-        render_chart_box("문의가 어떤 종류였는지", as_bar_chart(report.get("category_distribution", [])))
-        render_chart_box("위험도가 어떻게 나뉘는지", as_bar_chart(report.get("risk_distribution", [])))
-        render_chart_box("누가 답변을 맡았는지", as_bar_chart(report.get("responder_distribution", [])))
+        render_chart_box("문의 분류", as_bar_chart(report.get("category_distribution", [])))
+        render_chart_box("위험도 분포", as_bar_chart(report.get("risk_distribution", [])))
+        render_chart_box("응답 주체 분포", as_bar_chart(report.get("responder_distribution", [])))
     with right:
-        render_chart_box("이용자 반응 분위기", as_bar_chart(report.get("sentiment_distribution", [])))
-        render_chart_box("AI 응대 시도 & 담당자 즉시 알림", as_bar_chart(report.get("routing_distribution", [])))
+        render_chart_box("이용자 반응 분포", as_bar_chart(report.get("sentiment_distribution", [])))
+        render_chart_box("다음 처리 분포", as_bar_chart(report.get("routing_distribution", [])))
         render_chart_box(
-            "처리 단계별 진행 비율",
+            "처리 단계 비율",
             as_bar_chart(
                 [
                     {"label": "response_rate", "value": summary.get("response_rate", 0)},
@@ -578,27 +653,25 @@ def render_weekly_report_section(
             ),
         )
 
-    st.subheader("우선 확인이 필요한 문의")
-    render_data_table(
-        as_table_rows(
-            report.get("review_rows", []),
-            [
-                "analysis_id",
-                "ticket_id",
-                "title",
-                "category",
-                "responder_type",
-                "risk_level",
-                "sentiment",
-                "routing_target",
-                "ai_row_interpretation",
-                "analyzed_at",
-            ],
-        ),
+    _render_priority_table(
+        report.get("review_rows", []),
+        title="우선 확인이 필요한 문의",
+        columns=[
+            "analysis_id",
+            "ticket_id",
+            "title",
+            "category",
+            "responder_type",
+            "risk_level",
+            "sentiment",
+            "routing_target",
+            "ai_row_interpretation",
+            "analyzed_at",
+        ],
         kind="priority",
     )
 
-    with st.expander("분석 원본을 전체로 보기", expanded=False):
+    with st.expander("분석 원본 전체 보기", expanded=False):
         render_data_table(report.get("analysis_rows", []), kind="analysis")
 
     if pdf_bytes:

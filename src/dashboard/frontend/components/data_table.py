@@ -14,14 +14,14 @@ TableKind = Literal["default", "inbox", "priority", "safety", "quality", "failur
 
 
 TABLE_NOTES: dict[TableKind, tuple[str, str]] = {
-    "default": ("일반 목록", "지금 보고 있는 데이터를 한눈에 정리했습니다."),
-    "inbox": ("문의 목록", "최근에 들어온 문의를 빠르게 훑어볼 수 있게 정리했습니다."),
-    "priority": ("우선 확인", "위험도가 높거나 바로 확인이 필요한 항목만 앞에 오도록 보여줍니다."),
-    "safety": ("안전 점검", "답변 전 다시 확인해야 할 안전성 관련 항목을 모았습니다."),
-    "quality": ("품질 점검", "답변 품질이나 근거 부족 가능성이 있는 항목을 모았습니다."),
-    "failure_log": ("실패 기록", "전송이나 처리 중 문제가 난 항목을 중심으로 보여줍니다."),
-    "history": ("처리 이력", "시간 순서로 흐름을 따라갈 수 있게 차분한 형태로 보여줍니다."),
-    "analysis": ("원본 분석", "세부 값이 많아 원문에 가깝게 확인할 수 있도록 유지했습니다."),
+    "default": ("일반 목록", "현재 보고 있는 데이터를 표 형태로 정리했습니다."),
+    "inbox": ("문의 목록", "최근에 들어온 문의를 빠르게 확인할 수 있도록 정리했습니다."),
+    "priority": ("우선 확인", "위험도가 높거나 바로 확인이 필요한 항목을 앞쪽에 배치했습니다."),
+    "safety": ("안전 점검", "응답 전에 다시 확인해야 할 안전 관련 항목입니다."),
+    "quality": ("품질 점검", "응답 품질이나 근거 부족 가능성이 있는 항목입니다."),
+    "failure_log": ("실패 기록", "전송이나 처리 중 문제가 있었던 항목을 모았습니다."),
+    "history": ("처리 이력", "시간 순서대로 흐름을 따라가기 쉽게 정리했습니다."),
+    "analysis": ("분석 원본", "컬럼이 많아 상세 확인에 적합한 형태로 보여줍니다."),
 }
 
 
@@ -42,14 +42,14 @@ def _row_tone(row: pd.Series, kind: TableKind) -> str:
     status = _normalize_text(row.get("처리 상태")).lower()
     next_step = _normalize_text(row.get("다음 처리")).lower()
     failure_type = _normalize_text(row.get("실패 유형")).lower()
-    hallucination = _score(row.get("사실과 다른 내용 위험"))
-    toxicity = _score(row.get("공격적 표현 위험"))
-    policy = _score(row.get("운영 정책 위반 위험"))
+    hallucination = _score(row.get("환각 위험 점수"))
+    toxicity = _score(row.get("독성 점수"))
+    policy = _score(row.get("정책 위반 점수"))
     factuality = _score(row.get("사실성 점수"))
 
     if risk in {"매우 높음", "높음"} or pattern_risk in {"매우 높음", "높음"}:
         return "critical"
-    if next_step in {"즉시 확인 필요", "사람 확인 필요"}:
+    if next_step in {"즉시 알림", "사람 검토 필요"}:
         return "warning"
     if status in {"실패", "오류"} or failure_type in {"실패", "오류"}:
         return "critical"
@@ -84,8 +84,6 @@ def _format_frame(frame: pd.DataFrame) -> pd.DataFrame:
             formatted[column] = formatted[column].map(lambda value: f"{value:.1%}" if pd.notna(value) else "-")
         elif "평균" in column and pd.api.types.is_numeric_dtype(formatted[column]):
             formatted[column] = formatted[column].map(lambda value: f"{value:.2f}" if pd.notna(value) else "-")
-        elif "위험" in column and pd.api.types.is_numeric_dtype(formatted[column]):
-            formatted[column] = formatted[column].map(lambda value: f"{value:.2f}" if pd.notna(value) else "-")
         elif "점수" in column and pd.api.types.is_numeric_dtype(formatted[column]):
             formatted[column] = formatted[column].map(lambda value: f"{value:.2f}" if pd.notna(value) else "-")
     return formatted
@@ -112,7 +110,7 @@ def _render_table_header(kind: TableKind, row_count: int) -> None:
 
 def render_data_table(rows: list[dict[str, Any]], *, kind: TableKind = "default") -> None:
     if not rows:
-        st.info("보여드릴 내용이 아직 없습니다.")
+        st.info("표시할 데이터가 아직 없습니다.")
         return
 
     localized = localized_rows(rows)

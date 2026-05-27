@@ -31,34 +31,18 @@ def _number(value: object) -> str:
 def _change_text(value: object) -> str:
     text = _text(value)
     if text == "-":
-        return "전주 비교 정보 없음"
+        return "이전 주 비교 정보 없음"
     if text in {"0", "0.0%", "+0", "+0.0%", "-0.0%"}:
-        return "전주와 비슷함"
-    return f"전주 대비 {text}"
+        return "이전 주와 비슷함"
+    return f"이전 주 대비 {text}"
 
 
 def _build_metric_cards(summary: dict[str, Any], comparisons: dict[str, Any]) -> str:
     cards = [
-        (
-            "분석 건수",
-            _number(summary.get("analysis_count")),
-            _change_text(comparisons.get("analysis_count", {}).get("change_rate")),
-        ),
-        (
-            "위험도가 높은 문의",
-            _number(summary.get("high_risk_count")),
-            _change_text(comparisons.get("high_risk_count", {}).get("change_rate")),
-        ),
-        (
-            "부정 반응 문의",
-            _number(summary.get("negative_sentiment_count")),
-            _change_text(comparisons.get("negative_sentiment_count", {}).get("change_rate")),
-        ),
-        (
-            "사람 확인이 필요한 문의",
-            _number(summary.get("human_review_count")),
-            _change_text(comparisons.get("human_review_count", {}).get("change_rate")),
-        ),
+        ("분석 건수", _number(summary.get("analysis_count")), _change_text(comparisons.get("analysis_count", {}).get("change_rate"))),
+        ("고위험 문의", _number(summary.get("high_risk_count")), _change_text(comparisons.get("high_risk_count", {}).get("change_rate"))),
+        ("부정 반응 문의", _number(summary.get("negative_sentiment_count")), _change_text(comparisons.get("negative_sentiment_count", {}).get("change_rate"))),
+        ("사람 검토 필요 문의", _number(summary.get("human_review_count")), _change_text(comparisons.get("human_review_count", {}).get("change_rate"))),
     ]
     return "".join(
         f"""
@@ -74,14 +58,14 @@ def _build_metric_cards(summary: dict[str, Any], comparisons: dict[str, Any]) ->
 
 def _build_summary_table(summary: dict[str, Any]) -> str:
     rows = [
-        ("응답까지 완료한 비율", _percent(summary.get("response_rate"))),
-        ("분석까지 완료한 비율", _percent(summary.get("analysis_coverage_rate"))),
-        ("초안까지 만든 비율", _percent(summary.get("draft_coverage_rate"))),
-        ("최종 응답까지 끝낸 비율", _percent(summary.get("final_response_ticket_rate"))),
-        ("위험 문의 비율", _percent(summary.get("high_risk_rate"))),
+        ("응답 완료 비율", _percent(summary.get("response_rate"))),
+        ("분석 완료 비율", _percent(summary.get("analysis_coverage_rate"))),
+        ("초안 작성 비율", _percent(summary.get("draft_coverage_rate"))),
+        ("최종 응답 완료 비율", _percent(summary.get("final_response_ticket_rate"))),
+        ("고위험 문의 비율", _percent(summary.get("high_risk_rate"))),
         ("부정 반응 문의 비율", _percent(summary.get("negative_sentiment_rate"))),
-        ("사람 확인 필요 비율", _percent(summary.get("human_review_rate"))),
-        ("즉시 대응 필요 비율", _percent(summary.get("urgent_alert_rate"))),
+        ("사람 검토 필요 비율", _percent(summary.get("human_review_rate"))),
+        ("즉시 알림 필요 비율", _percent(summary.get("urgent_alert_rate"))),
     ]
     return "".join(
         f"""
@@ -146,21 +130,19 @@ def _build_analysis_table(rows: list[dict[str, Any]]) -> str:
     if not rows:
         return "<tr><td colspan='6' class='muted'>표시할 분석 원본이 없습니다.</td></tr>"
 
-    body: list[str] = []
-    for row in rows[:12]:
-        body.append(
-            f"""
-            <tr>
-                <td>{escape(_text(row.get('analysis_id')))}</td>
-                <td>{escape(_text(row.get('ticket_id')))}</td>
-                <td>{escape(_text(row.get('title')))}</td>
-                <td>{escape(_text(row.get('category')))}</td>
-                <td>{escape(_text(row.get('risk_level')))}</td>
-                <td>{escape(_text(row.get('routing_target')))}</td>
-            </tr>
-            """
-        )
-    return "".join(body)
+    return "".join(
+        f"""
+        <tr>
+            <td>{escape(_text(row.get('analysis_id')))}</td>
+            <td>{escape(_text(row.get('ticket_id')))}</td>
+            <td>{escape(_text(row.get('title')))}</td>
+            <td>{escape(_text(row.get('category')))}</td>
+            <td>{escape(_text(row.get('risk_level')))}</td>
+            <td>{escape(_text(row.get('routing_target')))}</td>
+        </tr>
+        """
+        for row in rows[:12]
+    )
 
 
 def _build_html(report: dict[str, Any]) -> str:
@@ -373,7 +355,7 @@ def _build_html(report: dict[str, Any]) -> str:
         </div>
 
         <div class="section">
-            <div class="section-title">핵심 지표 요약</div>
+            <div class="section-title">주간 지표 요약</div>
             <table>
                 <tr>{_build_metric_cards(summary, comparisons)}</tr>
             </table>
@@ -388,11 +370,11 @@ def _build_html(report: dict[str, Any]) -> str:
             <table>
                 <tr>
                     <td width="52%" style="vertical-align: top; padding-right: 8px;">
-                        <div class="column-title">AI가 먼저 짚은 내용</div>
+                        <div class="column-title">AI가 짚은 핵심 내용</div>
                         <ul>{_build_bullet_list(interpretation.get("bullets", []))}</ul>
                     </td>
                     <td width="48%" style="vertical-align: top; padding-left: 8px;">
-                        <div class="column-title">운영팀이 바로 볼 일</div>
+                        <div class="column-title">바로 볼 액션</div>
                         {_build_actions(interpretation.get("actions", []))}
                     </td>
                 </tr>
@@ -400,7 +382,7 @@ def _build_html(report: dict[str, Any]) -> str:
         </div>
 
         <div class="section">
-            <div class="section-title">주요 비율과 진행 상황</div>
+            <div class="section-title">주요 비율과 진행 현황</div>
             <table>{_build_summary_table(summary)}</table>
         </div>
 
@@ -426,6 +408,7 @@ def _build_html(report: dict[str, Any]) -> str:
     </body>
     </html>
     """
+
 
 def render_report_pdf(report: dict[str, Any]) -> bytes:
     """Render the weekly report payload into a styled PDF byte stream."""
