@@ -249,6 +249,47 @@ def _render_priority_table(rows: list[dict[str, Any]], *, title: str, columns: l
     render_data_table(as_table_rows(rows, columns), kind=kind)  # type: ignore[arg-type]
 
 
+def _limit_rows(rows: list[dict[str, Any]], limit: int | None) -> list[dict[str, Any]]:
+    if limit is None or limit <= 0:
+        return rows
+    return rows[:limit]
+
+
+def _weekly_report_detail_items(summary: dict[str, Any]) -> list[tuple[str, str]]:
+    return [
+        ("응답률", f"{summary.get('response_rate', 0):.1%}"),
+        ("분석 커버리지", f"{summary.get('analysis_coverage_rate', 0):.1%}"),
+        ("초안 커버리지", f"{summary.get('draft_coverage_rate', 0):.1%}"),
+        ("최종 답변 전환", f"{summary.get('final_response_ticket_rate', 0):.1%}"),
+    ]
+
+
+def _render_weekly_report_compact_summary(report: dict[str, Any]) -> None:
+    summary = report.get("summary", {})
+    interpretation = report.get("ai_interpretation", {}) or {}
+    insights = report.get("narrative_insights", []) or interpretation.get("bullets", [])
+    actions = interpretation.get("actions", [])
+
+    left, right = st.columns([1.2, 1], gap="large")
+    with left:
+        with st.container(border=True):
+            st.markdown("#### PDF 반영용 핵심 요약")
+            for label, value in _weekly_report_detail_items(summary):
+                st.write(f"**{label}**: {value}")
+    with right:
+        with st.container(border=True):
+            st.markdown("#### 바로 옮길 메모")
+            if insights:
+                for item in insights[:3]:
+                    st.write(f"- {item}")
+            if actions:
+                st.markdown("**권장 액션**")
+                for item in actions[:2]:
+                    st.write(f"- {item}")
+            if not insights and not actions:
+                st.caption("요약 메모가 아직 없습니다.")
+
+
 def render_overview_section(summary: dict[str, Any], client: DashboardClient | None = None, *, ticket_limit: int = 20) -> None:
     window = summary.get("window", {})
     counts = summary.get("ticket_counts", {})
@@ -619,6 +660,9 @@ def render_weekly_report_section(
     *,
     pdf_bytes: bytes | None = None,
     default_pdf_name: str = "dashboard_weekly_report.pdf",
+    compact: bool = False,
+    review_limit: int | None = None,
+    analysis_preview_limit: int | None = None,
 ) -> None:
     window = report.get("window", {})
     summary = report.get("summary", {})
@@ -633,28 +677,51 @@ def render_weekly_report_section(
     metric_cols[2].metric("부정 반응 문의", summary.get("negative_sentiment_count", 0), delta=comparisons.get("negative_sentiment_count", {}).get("change_rate"))
     metric_cols[3].metric("사람 검토 필요", summary.get("human_review_count", 0), delta=comparisons.get("human_review_count", {}).get("change_rate"))
 
-    left, right = st.columns(2, gap="large")
-    with left:
-        render_chart_box("문의 분류", as_bar_chart(report.get("category_distribution", [])))
-        render_chart_box("위험도 분포", as_bar_chart(report.get("risk_distribution", [])))
-        render_chart_box("응답 주체 분포", as_bar_chart(report.get("responder_distribution", [])))
-    with right:
-        render_chart_box("이용자 반응 분포", as_bar_chart(report.get("sentiment_distribution", [])))
-        render_chart_box("다음 처리 분포", as_bar_chart(report.get("routing_distribution", [])))
-        render_chart_box(
-            "처리 단계 비율",
-            as_bar_chart(
-                [
-                    {"label": "response_rate", "value": summary.get("response_rate", 0)},
-                    {"label": "analysis_coverage", "value": summary.get("analysis_coverage_rate", 0)},
-                    {"label": "draft_coverage", "value": summary.get("draft_coverage_rate", 0)},
-                    {"label": "final_response", "value": summary.get("final_response_ticket_rate", 0)},
-                ]
-            ),
-        )
+    if compact:
+        _render_weekly_report_compact_summary(report)
+        with st.expander("분포 차트 보기", expanded=False):
+            left, right = st.columns(2, gap="large")
+            with left:
+                render_chart_box("문의 분류", as_bar_chart(report.get("category_distribution", [])))
+                render_chart_box("위험도 분포", as_bar_chart(report.get("risk_distribution", [])))
+                render_chart_box("응답 주체 분포", as_bar_chart(report.get("responder_distribution", [])))
+            with right:
+                render_chart_box("이용자 반응 분포", as_bar_chart(report.get("sentiment_distribution", [])))
+                render_chart_box("다음 처리 분포", as_bar_chart(report.get("routing_distribution", [])))
+                render_chart_box(
+                    "처리 단계 비율",
+                    as_bar_chart(
+                        [
+                            {"label": "response_rate", "value": summary.get("response_rate", 0)},
+                            {"label": "analysis_coverage", "value": summary.get("analysis_coverage_rate", 0)},
+                            {"label": "draft_coverage", "value": summary.get("draft_coverage_rate", 0)},
+                            {"label": "final_response", "value": summary.get("final_response_ticket_rate", 0)},
+                        ]
+                    ),
+                )
+    else:
+        left, right = st.columns(2, gap="large")
+        with left:
+            render_chart_box("문의 분류", as_bar_chart(report.get("category_distribution", [])))
+            render_chart_box("위험도 분포", as_bar_chart(report.get("risk_distribution", [])))
+            render_chart_box("응답 주체 분포", as_bar_chart(report.get("responder_distribution", [])))
+        with right:
+            render_chart_box("이용자 반응 분포", as_bar_chart(report.get("sentiment_distribution", [])))
+            render_chart_box("다음 처리 분포", as_bar_chart(report.get("routing_distribution", [])))
+            render_chart_box(
+                "처리 단계 비율",
+                as_bar_chart(
+                    [
+                        {"label": "response_rate", "value": summary.get("response_rate", 0)},
+                        {"label": "analysis_coverage", "value": summary.get("analysis_coverage_rate", 0)},
+                        {"label": "draft_coverage", "value": summary.get("draft_coverage_rate", 0)},
+                        {"label": "final_response", "value": summary.get("final_response_ticket_rate", 0)},
+                    ]
+                ),
+            )
 
     _render_priority_table(
-        report.get("review_rows", []),
+        _limit_rows(report.get("review_rows", []), review_limit),
         title="우선 확인이 필요한 문의",
         columns=[
             "analysis_id",
@@ -670,9 +737,22 @@ def render_weekly_report_section(
         ],
         kind="priority",
     )
+    if compact and review_limit is not None and len(report.get("review_rows", [])) > review_limit:
+        st.caption(f"우선 확인 표는 상위 {review_limit}건만 표시합니다.")
 
-    with st.expander("분석 원본 전체 보기", expanded=False):
-        render_data_table(report.get("analysis_rows", []), kind="analysis")
+    analysis_rows = report.get("analysis_rows", [])
+    analysis_preview_rows = _limit_rows(analysis_rows, analysis_preview_limit)
+
+    if compact:
+        st.subheader("분석 원본 미리보기")
+        render_data_table(analysis_preview_rows, kind="analysis")
+        if analysis_preview_limit is not None and len(analysis_rows) > analysis_preview_limit:
+            st.caption(f"분석 원본은 상위 {analysis_preview_limit}건만 먼저 보여주며, 전체 데이터는 PDF에서 확인할 수 있습니다.")
+        with st.expander("분석 원본 전체 보기", expanded=False):
+            render_data_table(analysis_rows, kind="analysis")
+    else:
+        with st.expander("분석 원본 전체 보기", expanded=False):
+            render_data_table(analysis_rows, kind="analysis")
 
     if pdf_bytes:
         st.download_button(
