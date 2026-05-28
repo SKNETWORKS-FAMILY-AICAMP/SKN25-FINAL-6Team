@@ -72,6 +72,11 @@ def _rerank_documents(documents: list[dict[str, Any]], query: str) -> list[dict[
     return json.loads(reranked_json)
 
 
+def _retrieval_candidate_top_k(final_top_k: int) -> int:
+    configured = int(os.environ.get("FAQ_RERANK_CANDIDATE_TOP_K", "10"))
+    return max(configured, final_top_k)
+
+
 def _is_low_evidence(documents: list[dict[str, Any]]) -> tuple[bool, str | None]:
     if not documents:
         return True, "no_retrieved_documents"
@@ -207,14 +212,16 @@ def run_faq_rag(state: ChatbotState) -> dict[str, Any]:
         }
 
     embedding_json = _embed_query(retrieval_query)
+    final_top_k = int(os.environ.get("FAQ_RETRIEVAL_TOP_K", os.environ.get("RETRIEVAL_TOP_K", "3")))
+    candidate_top_k = _retrieval_candidate_top_k(final_top_k)
     documents = search_document_chunks(
         embedding_json=embedding_json,
         query_text=retrieval_query,
-        top_k=int(os.environ.get("FAQ_RETRIEVAL_TOP_K", os.environ.get("RETRIEVAL_TOP_K", "5"))),
+        top_k=candidate_top_k,
         prefer_faq=True,
         enrichment=enriched,
     )
-    documents = _rerank_documents(documents, retrieval_query)
+    documents = _rerank_documents(documents, retrieval_query)[:final_top_k]
     _print_retrieval_summary(
         original_query=query,
         retrieval_query=retrieval_query,

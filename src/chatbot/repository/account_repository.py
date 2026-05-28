@@ -16,7 +16,7 @@ def verify_user_login(
     server_region: str | None = None,
 ) -> dict[str, Any]:
     """Verify a user login with community_users.email/password_hash and an optional server."""
-    normalized_email = email.strip().lower()
+    normalized_email = email.strip()
     normalized_region = server_region.strip() if server_region else None
 
     def _read() -> dict[str, Any]:
@@ -39,7 +39,7 @@ def verify_user_login(
                         FROM public.community_users cu
                         LEFT JOIN public.game_accounts ga
                             ON ga.user_id = cu.user_id
-                        WHERE lower(cu.email) = %s
+                        WHERE cu.email = %s
                           AND ga.server_region = %s
                         ORDER BY
                             CASE WHEN ga.account_status = 'active' THEN 0 ELSE 1 END,
@@ -65,7 +65,7 @@ def verify_user_login(
                         FROM public.community_users cu
                         LEFT JOIN public.game_accounts ga
                             ON ga.user_id = cu.user_id
-                        WHERE lower(cu.email) = %s
+                        WHERE cu.email = %s
                         ORDER BY
                             CASE WHEN ga.account_status = 'active' THEN 0 ELSE 1 END,
                             ga.account_id

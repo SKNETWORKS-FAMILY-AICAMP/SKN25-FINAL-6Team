@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
 from typing import Any
 
@@ -16,15 +17,16 @@ class FaqRagContext:
     retrieval_trace: list[dict[str, Any]]
 
 
-def retrieve_faq_context(raw_query: str, *, top_k: int = 5) -> FaqRagContext:
+def retrieve_faq_context(raw_query: str, *, top_k: int = 3) -> FaqRagContext:
     """Run the same function-based retrieval path used by the FAQ agent."""
     enrichment = enrich_retrieval_query(raw_query)
     retrieval_query = enrichment.query_text
     embedding_json = embed_query.invoke({"text": retrieval_query})
+    candidate_top_k = max(int(os.environ.get("FAQ_RERANK_CANDIDATE_TOP_K", "10")), top_k)
     documents = search_document_chunks(
         embedding_json=embedding_json,
         query_text=retrieval_query,
-        top_k=top_k,
+        top_k=candidate_top_k,
         prefer_faq=True,
         enrichment=enrichment,
     )
@@ -34,7 +36,8 @@ def retrieve_faq_context(raw_query: str, *, top_k: int = 5) -> FaqRagContext:
             "query": retrieval_query,
         }
     )
-    documents = json.loads(reranked_json)
+    reranked_documents = json.loads(reranked_json)
+    documents = reranked_documents[:top_k]
     return FaqRagContext(
         raw_query=raw_query,
         retrieval_query=retrieval_query,
@@ -43,8 +46,8 @@ def retrieve_faq_context(raw_query: str, *, top_k: int = 5) -> FaqRagContext:
         retrieval_trace=[
             {"step": "enrich_retrieval_query", "input": raw_query, "output": enrichment.model_dump()},
             {"step": "embed_query", "input": retrieval_query},
-            {"step": "search_document_chunks", "top_k": top_k, "prefer_faq": True},
-            {"step": "rerank_documents", "input_count": len(documents)},
+            {"step": "search_document_chunks", "top_k": candidate_top_k, "prefer_faq": True},
+            {"step": "rerank_documents", "input_count": len(reranked_documents), "output_count": len(documents)},
         ],
     )
 
