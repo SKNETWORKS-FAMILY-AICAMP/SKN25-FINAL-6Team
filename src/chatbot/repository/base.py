@@ -42,6 +42,7 @@ def safe_read(
             tool_name=operation,
             status="error",
             error_message=str(exc),
+            error_category=error_category,
             metadata={"error_type": type(exc).__name__, "error_category": error_category},
         )
         return {
@@ -79,6 +80,7 @@ def safe_write(
             tool_name=operation,
             status="error",
             error_message=str(exc),
+            error_category=error_category,
             metadata={"error_type": type(exc).__name__, "error_category": error_category},
         )
         return {

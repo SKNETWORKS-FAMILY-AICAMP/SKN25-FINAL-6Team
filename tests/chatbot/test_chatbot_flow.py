@@ -15,6 +15,7 @@ from chatbot.generation.response.fixed_responses import (
     REVIEW_QUEUE_RESPONSE,
     SAFE_FALLBACK_RESPONSE,
 )
+from chatbot.notifications import dispatcher
 from chatbot.safety import safety_layer
 from chatbot.service.chatbot_service import build_state
 
@@ -427,9 +428,27 @@ def _patch_final_response_writes(monkeypatch) -> list[dict]:
             payloads.append(args["payload"])
             return json.dumps({"stored": True, "response_id": 123})
 
+    class FakeUpdateTicketStatus:
+        @staticmethod
+        def invoke(args):
+            return json.dumps({"stored": True, "ticket_status": args["payload"]["status"]})
+
+    class FakeWriteInsight:
+        @staticmethod
+        def invoke(args):
+            return json.dumps({"stored": True, "insight_id": 456})
+
     monkeypatch.setattr(
         "chatbot.generation.response.final_response.write_final_response",
         FakeWriteFinalResponse,
+    )
+    monkeypatch.setattr(
+        "chatbot.generation.response.final_response.update_qa_ticket_status",
+        FakeUpdateTicketStatus,
+    )
+    monkeypatch.setattr(
+        "chatbot.generation.response.final_response.write_insight",
+        FakeWriteInsight,
     )
     monkeypatch.setattr(
         "chatbot.generation.response.final_response.dispatch_urgent_alert",
@@ -460,6 +479,71 @@ def test_final_response_uses_fixed_block_and_review_responses(monkeypatch) -> No
 
     assert final_response_node(_final_state("FAQ", "BLOCK_RESPONSE"))["final_text"] == BLOCK_RESPONSE
     assert final_response_node(_final_state("FAQ", "REVIEW_QUEUE"))["final_text"] == REVIEW_QUEUE_RESPONSE
+
+
+def test_dispatch_urgent_alert_creates_github_issue_for_bug_agent(monkeypatch) -> None:
+    github_calls = []
+    notification_logs = []
+
+    monkeypatch.setattr(dispatcher, "send_slack_alert", lambda message: {"status": "ok"})
+    monkeypatch.setattr(
+        dispatcher,
+        "create_github_issue",
+        lambda title, body: github_calls.append((title, body))
+        or {"status": "ok", "issue_url": "https://github.com/acme/game/issues/1"},
+    )
+    monkeypatch.setattr(
+        dispatcher,
+        "save_notification_log",
+        lambda payload: notification_logs.append(payload) or {"status": "ok", "stored": True},
+    )
+    monkeypatch.setattr(dispatcher, "log_event", lambda *args, **kwargs: {})
+
+    result = dispatcher.dispatch_urgent_alert(
+        {
+            "ticket_id": 1,
+            "session_id": 2,
+            "user_id": 3,
+            "account_id": 4,
+            "category": "?멸쾶??踰꾧렇",
+            "routing_target": "urgent_alert",
+            "reasoning_node": "bug_agent",
+            "enriched_query": "게임 접속 시 로딩 후 종료됩니다.",
+            "final_text": "운영팀이 확인하겠습니다.",
+        }
+    )
+
+    assert result["status"] == "ok"
+    assert result["github_issue_result"]["status"] == "ok"
+    assert github_calls
+    assert github_calls[0][0] == "[인게임 버그] 게임 접속 시 로딩 후 종료됩니다."
+    assert [payload["channel"] for payload in notification_logs] == ["slack", "github_issue"]
+
+
+def test_dispatch_urgent_alert_skips_github_issue_for_non_bug(monkeypatch) -> None:
+    github_calls = []
+
+    monkeypatch.setattr(dispatcher, "send_slack_alert", lambda message: {"status": "ok"})
+    monkeypatch.setattr(
+        dispatcher,
+        "create_github_issue",
+        lambda title, body: github_calls.append((title, body)) or {"status": "ok"},
+    )
+    monkeypatch.setattr(dispatcher, "save_notification_log", lambda payload: {"status": "ok", "stored": True})
+    monkeypatch.setattr(dispatcher, "log_event", lambda *args, **kwargs: {})
+
+    result = dispatcher.dispatch_urgent_alert(
+        {
+            "ticket_id": 1,
+            "category": "寃곗젣",
+            "routing_target": "urgent_alert",
+            "reasoning_node": "payment_agent",
+            "enriched_query": "결제 아이템이 들어오지 않았습니다.",
+        }
+    )
+
+    assert result["github_issue_result"]["status"] == "skipped"
+    assert not github_calls
 
 
 def test_voc_agent_uses_fallback_for_non_actionable_non_rag_intent(monkeypatch) -> None:
