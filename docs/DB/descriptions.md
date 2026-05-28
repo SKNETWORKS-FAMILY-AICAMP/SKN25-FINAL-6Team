@@ -1,385 +1,639 @@
-# DB Descriptions
+ # DB Descriptions
 
-작성 기준: `tests/common/test_db_connection.py`에 등록된 접속 정보로 DB에 직접 접속하여 조회한 메타데이터
+Generated from the live PostgreSQL database on 2026-05-26.
 
-## 기본 정보
+## Basic Info
 
-| 항목 | 값 |
+| Item | Value |
 | --- | --- |
 | DBMS | PostgreSQL |
-| PostgreSQL 버전 | 16.13 |
+| Version | `PostgreSQL 16.14 (Ubuntu 16.14-0ubuntu0.24.04.1)` |
 | Host | `100.97.235.15` |
+| Server Address | `100.97.235.15/32` |
 | Port | `5432` |
 | Database | `game_cs` |
 | User | `game_cs_user` |
 | Schema | `public` |
 | Extensions | `plpgsql 1.0`, `vector 0.6.0` |
+| Public Tables | 40 |
+| Public Columns | 330 |
 
-## 전체 구성 요약
+## Table Summary
 
-- 사용자 테이블 수: 20개
-- 주요 데이터 성격: 게임 CS/QA 티켓, 유저/계정, 결제/환불, 아이템 지급, 가챠 로그, RAG 문서/임베딩, 답변 생성/검증/운영 로그
-- 벡터 검색 지원: `documents_embeddings.embedding_vector` 컬럼과 `ivfflat` cosine 인덱스 사용
-- 행 수는 `pg_stat_user_tables.n_live_tup` 기준 추정치이다.
+Row counts are PostgreSQL `pg_stat_user_tables.n_live_tup` estimates at verification time. The current public schema contains 20 main tables and 20 `_ex` template/mirror tables.
 
-## 테이블 목록
+| Table | Estimated Rows | Columns | Primary Key | PK Default | Purpose |
+| --- | ---: | ---: | --- | --- | --- |
+| `admin_event_logs` | 0 | 13 | `log_id` | `nextval('admin_event_logs_log_id_seq'::regclass)` | Operation/admin workflow event and error logs |
+| `admin_event_logs_ex` | 3 | 13 | none | none | Template/example copy of `admin_event_logs` |
+| `answer_draft` | 0 | 6 | `draft_id` | none | Generated answer drafts for tickets |
+| `answer_draft_ex` | 329 | 6 | none | none | Template/example copy of `answer_draft` |
+| `community_users` | 630 | 8 | `user_id` | none | Reduced community user profile data |
+| `community_users_ex` | 6,288 | 8 | none | none | Template/source-scale copy of `community_users` |
+| `documents` | 1,201 | 8 | `documents_id` | none | Source documents for policy, notice, guide, incident, and RAG retrieval |
+| `documents_chunks` | 0 | 6 | `chunk_id` | none | Searchable chunks split from source documents |
+| `documents_chunks_ex` | 3,864 | 6 | none | none | Template/example copy of `documents_chunks` |
+| `documents_embeddings` | 0 | 7 | `embedding_id` | none | Vector embeddings for document chunks |
+| `documents_embeddings_ex` | 3,864 | 7 | none | none | Template/example copy of `documents_embeddings` |
+| `documents_ex` | 1,201 | 8 | none | none | Template/example copy of `documents` |
+| `evidence_docs` | 0 | 7 | `evidence_id` | none | Retrieved evidence saved for answer drafts |
+| `evidence_docs_ex` | 837 | 7 | none | none | Template/example copy of `evidence_docs` |
+| `failed_queries` | 0 | 6 | `failed_query_id` | none | Failed ticket/query processing logs |
+| `failed_queries_ex` | 11 | 6 | none | none | Template/example copy of `failed_queries` |
+| `final_response` | 0 | 6 | `response_id` | none | Final customer-facing responses |
+| `final_response_ex` | 311 | 6 | none | none | Template/example copy of `final_response` |
+| `gacha_logs` | 180 | 8 | `gacha_id` | none | Reduced gacha pull history per game account |
+| `gacha_logs_ex` | 5 | 8 | none | none | Template/example copy of `gacha_logs` |
+| `game_accounts` | 630 | 8 | `account_id` | none | Reduced game account data linked to community users |
+| `game_accounts_ex` | 6,288 | 8 | none | none | Template/source-scale copy of `game_accounts` |
+| `insight` | 0 | 10 | `insight_id` | none | Ticket/user/account-level insight analysis data |
+| `insight_ex` | 5 | 10 | none | none | Template/example copy of `insight` |
+| `item_delivery_logs` | 140 | 9 | `delivery_id` | none | Reduced paid or reward item delivery history |
+| `item_delivery_logs_ex` | 5 | 9 | none | none | Template/example copy of `item_delivery_logs` |
+| `notification_logs` | 0 | 8 | `notification_id` | `nextval('notification_logs_notification_id_seq'::regclass)` | Notification send results and errors |
+| `notification_logs_ex` | 2 | 8 | none | none | Template/example copy of `notification_logs` |
+| `payments` | 320 | 10 | `payment_id` | none | Reduced payment transaction history |
+| `payments_ex` | 11 | 10 | none | none | Template/example copy of `payments` |
+| `qa_ticket` | 950 | 10 | `ticket_id` | none | Reduced customer inquiry/QA tickets |
+| `qa_ticket_ex` | 9,349 | 10 | none | none | Template/source-scale copy of `qa_ticket` |
+| `refunds` | 55 | 6 | `refund_id` | none | Reduced refund request and processing history |
+| `refunds_ex` | 5 | 6 | none | none | Template/example copy of `refunds` |
+| `safety_results` | 0 | 10 | `safety_id` | none | Safety and grounding check results for drafts |
+| `safety_results_ex` | 287 | 10 | none | none | Template/example copy of `safety_results` |
+| `ticket_analysis` | 0 | 10 | `analysis_id` | none | Ticket classification, risk, sentiment, and routing analysis |
+| `ticket_analysis_ex` | 351 | 10 | none | none | Template/example copy of `ticket_analysis` |
+| `voc_feedback` | 0 | 9 | `voc_id` | none | VOC feedback and topic keyword records |
+| `voc_feedback_ex` | 43 | 9 | none | none | Template/example copy of `voc_feedback` |
 
-| 테이블 | 추정 행 수 | 설명 |
-| --- | ---: | --- |
-| `admin_event_logs` | 0 | 운영/관리 워크플로우의 노드, 도구, 라우팅, 오류 이벤트 로그 |
-| `answer_draft` | 2 | 티켓 분석 결과를 바탕으로 생성된 답변 초안 |
-| `community_users` | 2 | 커뮤니티 사용자 기본 정보 |
-| `documents` | 1201 | RAG 검색 원천 문서 |
-| `documents_chunks` | 3864 | 문서를 청크 단위로 분할한 텍스트 |
-| `documents_embeddings` | 3864 | 문서 청크의 임베딩 벡터 |
-| `evidence_docs` | 2 | 답변 초안 생성에 사용된 근거 문서 |
-| `failed_queries` | 0 | 검색/처리 실패 질의 기록 |
-| `final_response` | 0 | 최종 고객 응답 |
-| `gacha_logs` | 2 | 게임 계정의 가챠 이력 |
-| `game_accounts` | 2 | 사용자별 게임 계정 정보 |
-| `insight` | 2 | 문의/사용자/계정 기반 인사이트 분석 결과 |
-| `item_delivery_logs` | 2 | 결제 또는 보상성 아이템 지급 이력 |
-| `notification_logs` | 0 | 알림 발송 결과 및 오류 로그 |
-| `payments` | 2 | 결제 내역 |
-| `qa_ticket` | 2 | 고객 문의/QA 티켓 |
-| `refunds` | 2 | 환불 요청 및 처리 내역 |
-| `safety_results` | 2 | 답변 초안의 안전성 검증 결과 |
-| `ticket_analysis` | 2 | QA 티켓 분류, 감성, 위험도, 라우팅 분석 결과 |
-| `voc_feedback` | 0 | VOC 피드백 및 키워드 기록 |
+## Data Type Summary
 
-## 주요 관계
+| Data Type | PostgreSQL UDT | Column Count |
+| --- | --- | ---: |
+| `USER-DEFINED` | `vector` | 2 |
+| `character varying` | `varchar` | 130 |
+| `double precision` | `float8` | 10 |
+| `integer` | `int4` | 100 |
+| `json` | `json` | 4 |
+| `numeric` | `numeric` | 2 |
+| `text` | `text` | 34 |
+| `timestamp without time zone` | `timestamp` | 48 |
 
-| From | To | 관계 |
+## Data Load Sources
+
+| Source | Target Tables | Notes |
 | --- | --- | --- |
-| `game_accounts.user_id` | `community_users.user_id` | 사용자의 게임 계정 |
-| `qa_ticket.user_id` | `community_users.user_id` | 사용자가 생성한 문의 |
-| `qa_ticket.account_id` | `game_accounts.account_id` | 문의와 게임 계정 연결 |
-| `payments.account_id` | `game_accounts.account_id` | 계정별 결제 |
-| `refunds.payment_id` | `payments.payment_id` | 결제 건의 환불 |
-| `gacha_logs.account_id` | `game_accounts.account_id` | 계정별 가챠 로그 |
-| `item_delivery_logs.account_id` | `game_accounts.account_id` | 계정별 아이템 지급 |
-| `item_delivery_logs.payment_id` | `payments.payment_id` | 결제 기반 아이템 지급 |
-| `ticket_analysis.ticket_id` | `qa_ticket.ticket_id` | 티켓 분석 결과 |
-| `answer_draft.ticket_id` | `qa_ticket.ticket_id` | 티켓별 답변 초안 |
-| `answer_draft.analysis_id` | `ticket_analysis.analysis_id` | 분석 결과 기반 답변 초안 |
-| `evidence_docs.draft_id` | `answer_draft.draft_id` | 답변 초안의 근거 문서 |
-| `safety_results.draft_id` | `answer_draft.draft_id` | 답변 초안 안전성 검증 |
-| `final_response.ticket_id` | `qa_ticket.ticket_id` | 티켓별 최종 응답 |
-| `final_response.draft_id` | `answer_draft.draft_id` | 초안 기반 최종 응답 |
-| `documents_chunks.document_id` | `documents.documents_id` | 문서와 청크 |
-| `documents_embeddings.chunk_id` | `documents_chunks.chunk_id` | 청크와 임베딩 |
-| `admin_event_logs.ticket_id` | `qa_ticket.ticket_id` | 티켓 처리 운영 로그 |
-| `failed_queries.ticket_id` | `qa_ticket.ticket_id` | 티켓 처리 중 실패 질의 |
-| `notification_logs.ticket_id` | `qa_ticket.ticket_id` | 티켓 관련 알림 |
-| `insight.user_id` | `community_users.user_id` | 사용자 기반 인사이트 |
-| `insight.ticket_id` | `qa_ticket.ticket_id` | 티켓 기반 인사이트 |
-| `insight.account_id` | `game_accounts.account_id` | 계정 기반 인사이트 |
-| `voc_feedback.user_id` | `community_users.user_id` | 사용자 VOC |
-| `voc_feedback.ticket_id` | `qa_ticket.ticket_id` | 티켓 VOC |
-| `voc_feedback.account_id` | `game_accounts.account_id` | 계정 VOC |
+| `data/processed/community_users.csv` | `community_users` | 9,221 source rows; upserted by `user_id`, resulting in 6,288 distinct users in the table. |
+| `data/processed/qa_ticket.csv` | `qa_ticket` | `source_type` appears twice in the CSV header and `notebooks/insert_processed_data.ipynb` keeps the first occurrence. |
+| `notebooks/insert_processed_data.ipynb` | `community_users`, `game_accounts`, `qa_ticket` | Derives game account rows from distinct non-null `qa_ticket.account_id` to `user_id` mappings before loading tickets. |
+| `notebooks/generate_operation_workflow_sample_data.ipynb` | `payments`, `refunds`, `item_delivery_logs`, `gacha_logs`, `insight`, `voc_feedback` | Adds operation workflow sample context rows used by the LangGraph workflow. |
 
-## 테이블 상세
+## Reduced Dataset Reference
+
+The reduced dataset workflow documented in `docs/data_generation/` reuses this live schema as its baseline.
+
+- `docs/data_generation/plan.md` defines the reduced-table scope and target counts for `community_users`, `game_accounts`, `qa_ticket`, `payments`, `refunds`, `item_delivery_logs`, and `gacha_logs`.
+- `docs/data_generation/repopulate_reduced_dataset.py` truncates and repopulates those seven tables using live `_ex` templates plus target-count logic.
+- `docs/data_generation/paper_description.md` records the methodological rationale: preserve real `qa_ticket` structure where possible, supplement only limited hard cases, and keep synthetic rows explainable through game-domain operation logs.
+
+## `_ex` Mirror Table Note
+
+The `_ex` tables are template or source-scale mirrors paired with the 20 main tables.
+
+- Main tables reflect the current reduced dataset and current workflow output state.
+- `_ex` tables preserve template/example rows or source-scale reference data.
+- Detailed column descriptions below focus on the 20 main tables. Each `_ex` table mirrors the column layout of its corresponding base table.
+
+## Search Indexes
+
+| Table | Index | Definition Summary |
+| --- | --- | --- |
+| `documents_chunks` | `idx_documents_chunks_document_id` | `idx_documents_chunks_document_id ON documents_chunks USING btree (document_id)` |
+| `documents_chunks` | `idx_documents_chunks_document_order` | `idx_documents_chunks_document_order ON documents_chunks USING btree (document_id, chunk_order)` |
+| `documents_chunks` | `uq_documents_chunks_document_order` | `UNIQUE uq_documents_chunks_document_order ON documents_chunks USING btree (document_id, chunk_order)` |
+| `documents_embeddings` | `idx_documents_embeddings_chunk_id` | `idx_documents_embeddings_chunk_id ON documents_embeddings USING btree (chunk_id)` |
+| `documents_embeddings` | `idx_documents_embeddings_source_category` | `idx_documents_embeddings_source_category ON documents_embeddings USING btree (source_type, category)` |
+| `documents_embeddings` | `idx_documents_embeddings_vector_cosine` | `idx_documents_embeddings_vector_cosine ON documents_embeddings USING ivfflat (embedding_vector vector_cosine_ops) WITH (lists='100')` |
+| `documents_embeddings` | `uq_documents_embeddings_chunk_id` | `UNIQUE uq_documents_embeddings_chunk_id ON documents_embeddings USING btree (chunk_id)` |
+
+## Operation Workflow Tables
+
+`src/operation/workflow/nodes.py`, `src/operation/api/main.py`, and `src/dashboard/workflow/nodes.py` use these tables.
+
+| Phase | Tables |
+| --- | --- |
+| Ticket load | `qa_ticket`, `community_users`, `game_accounts` |
+| Payment context | `payments`, `game_accounts` |
+| Refund context | `refunds`, `payments`, `game_accounts` |
+| Item delivery context | `item_delivery_logs`, `game_accounts` |
+| Gacha context | `gacha_logs`, `game_accounts` |
+| Abuse context | `insight`, `voc_feedback` |
+| Policy/outage context | `documents` |
+| RAG retrieval | `documents_chunks`, `documents`, `documents_embeddings` |
+| Workflow writes | `ticket_analysis`, `answer_draft`, `evidence_docs`, `safety_results`, `final_response`, `notification_logs`, `failed_queries`, `admin_event_logs` |
+
+Live DB note: these workflow write tables currently have primary keys with no database-side default, so inserts must provide IDs explicitly unless a migration adds defaults: `answer_draft`, `evidence_docs`, `failed_queries`, `final_response`, `safety_results`, `ticket_analysis`. `docs/DB/migrations/20260521_operation_workflow_identity_defaults.sql` is a reference migration for part of this ID strategy.
+
+## Key Relationships
+
+| From | To | On Update | On Delete |
+| --- | --- | --- | --- |
+| `admin_event_logs.ticket_id` | `qa_ticket.ticket_id` | NO ACTION | NO ACTION |
+| `answer_draft.analysis_id` | `ticket_analysis.analysis_id` | NO ACTION | CASCADE |
+| `answer_draft.ticket_id` | `qa_ticket.ticket_id` | NO ACTION | CASCADE |
+| `documents_chunks.document_id` | `documents.documents_id` | NO ACTION | CASCADE |
+| `documents_embeddings.chunk_id` | `documents_chunks.chunk_id` | NO ACTION | CASCADE |
+| `evidence_docs.draft_id` | `answer_draft.draft_id` | NO ACTION | CASCADE |
+| `failed_queries.ticket_id` | `qa_ticket.ticket_id` | NO ACTION | NO ACTION |
+| `final_response.draft_id` | `answer_draft.draft_id` | NO ACTION | NO ACTION |
+| `final_response.ticket_id` | `qa_ticket.ticket_id` | NO ACTION | NO ACTION |
+| `gacha_logs.account_id` | `game_accounts.account_id` | NO ACTION | CASCADE |
+| `game_accounts.user_id` | `community_users.user_id` | NO ACTION | CASCADE |
+| `insight.account_id` | `game_accounts.account_id` | NO ACTION | SET NULL |
+| `insight.ticket_id` | `qa_ticket.ticket_id` | NO ACTION | CASCADE |
+| `insight.user_id` | `community_users.user_id` | NO ACTION | CASCADE |
+| `item_delivery_logs.account_id` | `game_accounts.account_id` | NO ACTION | CASCADE |
+| `item_delivery_logs.payment_id` | `payments.payment_id` | NO ACTION | SET NULL |
+| `notification_logs.ticket_id` | `qa_ticket.ticket_id` | NO ACTION | NO ACTION |
+| `payments.account_id` | `game_accounts.account_id` | NO ACTION | CASCADE |
+| `qa_ticket.account_id` | `game_accounts.account_id` | NO ACTION | SET NULL |
+| `qa_ticket.user_id` | `community_users.user_id` | NO ACTION | CASCADE |
+| `refunds.payment_id` | `payments.payment_id` | NO ACTION | CASCADE |
+| `safety_results.draft_id` | `answer_draft.draft_id` | NO ACTION | CASCADE |
+| `ticket_analysis.ticket_id` | `qa_ticket.ticket_id` | NO ACTION | CASCADE |
+| `voc_feedback.account_id` | `game_accounts.account_id` | NO ACTION | NO ACTION |
+| `voc_feedback.ticket_id` | `qa_ticket.ticket_id` | NO ACTION | NO ACTION |
+| `voc_feedback.user_id` | `community_users.user_id` | NO ACTION | NO ACTION |
+
+## Table Details
 
 ### `admin_event_logs`
 
-- 설명: 운영/관리 자동화 처리 과정에서 발생한 이벤트, 라우팅, 도구 호출, 오류를 기록한다.
+- Purpose: Operation/admin workflow event and error logs
+- Estimated Rows: 0
 - Primary Key: `log_id`
-- Foreign Key: `ticket_id` -> `qa_ticket.ticket_id`
+- Primary Key Default: `nextval('admin_event_logs_log_id_seq'::regclass)`
+- Foreign Keys: `ticket_id` -> `qa_ticket.ticket_id` (NO ACTION)
 - Columns:
-  - `log_id integer NOT NULL DEFAULT nextval('admin_event_logs_log_id_seq'::regclass)`
-  - `ticket_id integer`
-  - `session_id integer`
-  - `node_name varchar(100)`
-  - `event_type varchar(100)`
-  - `category varchar(100)`
-  - `routing_target varchar(100)`
-  - `tool_name varchar(100)`
-  - `status varchar(50)`
-  - `error_message text`
-  - `error_category varchar(100)`
-  - `metadata json`
-  - `created_at timestamp DEFAULT CURRENT_TIMESTAMP`
+
+| # | Column | Data Type | Nullable | Default | Key / Reference |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `log_id` | `integer` | NO | `nextval('admin_event_logs_log_id_seq'::regclass)` | PK |
+| 2 | `ticket_id` | `integer` | YES |  | FK -> `qa_ticket.ticket_id` |
+| 3 | `session_id` | `integer` | YES |  |  |
+| 4 | `node_name` | `varchar(100)` | YES |  |  |
+| 5 | `event_type` | `varchar(100)` | YES |  |  |
+| 6 | `category` | `varchar(100)` | YES |  |  |
+| 7 | `routing_target` | `varchar(100)` | YES |  |  |
+| 8 | `tool_name` | `varchar(100)` | YES |  |  |
+| 9 | `status` | `varchar(50)` | YES |  |  |
+| 10 | `error_message` | `text` | YES |  |  |
+| 11 | `error_category` | `varchar(100)` | YES |  |  |
+| 12 | `metadata` | `json` | YES |  |  |
+| 13 | `created_at` | `timestamp` | YES | `CURRENT_TIMESTAMP` |  |
+
+- Indexes:
+  - `admin_event_logs_pkey`: `UNIQUE admin_event_logs_pkey ON admin_event_logs USING btree (log_id)`
 
 ### `answer_draft`
 
-- 설명: 티켓 분석 결과를 기반으로 생성된 답변 초안을 저장한다.
+- Purpose: Generated answer drafts for tickets
+- Estimated Rows: 97
 - Primary Key: `draft_id`
-- Foreign Key: `analysis_id` -> `ticket_analysis.analysis_id`, `ticket_id` -> `qa_ticket.ticket_id`
+- Primary Key Default: none
+- Foreign Keys: `analysis_id` -> `ticket_analysis.analysis_id` (CASCADE), `ticket_id` -> `qa_ticket.ticket_id` (CASCADE)
 - Columns:
-  - `draft_id integer NOT NULL`
-  - `ticket_id integer NOT NULL`
-  - `analysis_id integer NOT NULL`
-  - `draft_text text`
-  - `prompt_version varchar`
-  - `created_at timestamp`
+
+| # | Column | Data Type | Nullable | Default | Key / Reference |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `draft_id` | `integer` | NO |  | PK |
+| 2 | `ticket_id` | `integer` | NO |  | FK -> `qa_ticket.ticket_id` |
+| 3 | `analysis_id` | `integer` | NO |  | FK -> `ticket_analysis.analysis_id` |
+| 4 | `draft_text` | `text` | YES |  |  |
+| 5 | `prompt_version` | `varchar` | YES |  |  |
+| 6 | `created_at` | `timestamp` | YES |  |  |
+
+- Indexes:
+  - `answer_draft_pkey`: `UNIQUE answer_draft_pkey ON answer_draft USING btree (draft_id)`
 
 ### `community_users`
 
-- 설명: 커뮤니티 사용자 계정의 기본 식별자, 이메일, 닉네임, 상태 정보를 저장한다.
+- Purpose: Community user profile data
+- Estimated Rows: 6,288
 - Primary Key: `user_id`
+- Primary Key Default: none
 - Columns:
-  - `user_id integer NOT NULL`
-  - `email varchar`
-  - `nickname varchar`
-  - `created_at timestamp`
-  - `user_status varchar`
-  - `last_login_at timestamp`
+
+| # | Column | Data Type | Nullable | Default | Key / Reference |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `user_id` | `integer` | NO |  | PK |
+| 2 | `email` | `varchar` | YES |  |  |
+| 3 | `nickname` | `varchar` | YES |  |  |
+| 4 | `created_at` | `timestamp` | YES |  |  |
+| 5 | `user_status` | `varchar` | YES |  |  |
+| 6 | `last_login_at` | `timestamp` | YES |  |  |
+| 7 | `password_hash` | `text` | YES |  |  |
+| 8 | `password_updated_at` | `timestamp` | YES |  |  |
+
+- Indexes:
+  - `community_users_pkey`: `UNIQUE community_users_pkey ON community_users USING btree (user_id)`
 
 ### `documents`
 
-- 설명: RAG 검색에 사용되는 원천 문서와 출처 정보를 저장한다.
+- Purpose: Source documents for policy, notice, guide, incident, and RAG retrieval
+- Estimated Rows: 1,201
 - Primary Key: `documents_id`
+- Primary Key Default: none
 - Columns:
-  - `documents_id varchar NOT NULL`
-  - `source_type varchar`
-  - `category varchar`
-  - `title varchar`
-  - `raw_content text`
-  - `source_url varchar`
-  - `published_at timestamp`
-  - `updated_at timestamp`
+
+| # | Column | Data Type | Nullable | Default | Key / Reference |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `documents_id` | `varchar` | NO |  | PK |
+| 2 | `source_type` | `varchar` | YES |  |  |
+| 3 | `category` | `varchar` | YES |  |  |
+| 4 | `title` | `varchar` | YES |  |  |
+| 5 | `raw_content` | `text` | YES |  |  |
+| 6 | `source_url` | `varchar` | YES |  |  |
+| 7 | `published_at` | `timestamp` | YES |  |  |
+| 8 | `updated_at` | `timestamp` | YES |  |  |
+
+- Indexes:
+  - `documents_pkey`: `UNIQUE documents_pkey ON documents USING btree (documents_id)`
 
 ### `documents_chunks`
 
-- 설명: 원천 문서를 검색 가능한 청크 단위로 분할한 텍스트를 저장한다.
+- Purpose: Searchable chunks split from source documents
+- Estimated Rows: 3,864
 - Primary Key: `chunk_id`
-- Unique: `document_id`, `chunk_order`
-- Foreign Key: `document_id` -> `documents.documents_id`
-- Indexes: `idx_documents_chunks_document_id`, `idx_documents_chunks_document_order`, `uq_documents_chunks_document_order`
+- Primary Key Default: none
+- Unique: `uq_documents_chunks_document_order` (`document_id`, `chunk_order`)
+- Foreign Keys: `document_id` -> `documents.documents_id` (CASCADE)
 - Columns:
-  - `chunk_id varchar NOT NULL`
-  - `document_id varchar NOT NULL`
-  - `chunk_text text NOT NULL`
-  - `chunk_order integer NOT NULL`
-  - `token_count integer`
-  - `created_at timestamp DEFAULT CURRENT_TIMESTAMP`
+
+| # | Column | Data Type | Nullable | Default | Key / Reference |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `chunk_id` | `varchar` | NO |  | PK |
+| 2 | `document_id` | `varchar` | NO |  | UNIQUE, FK -> `documents.documents_id` |
+| 3 | `chunk_text` | `text` | NO |  |  |
+| 4 | `chunk_order` | `integer` | NO |  | UNIQUE |
+| 5 | `token_count` | `integer` | YES |  |  |
+| 6 | `created_at` | `timestamp` | YES | `CURRENT_TIMESTAMP` |  |
+
+- Indexes:
+  - `documents_chunks_pkey`: `UNIQUE documents_chunks_pkey ON documents_chunks USING btree (chunk_id)`
+  - `idx_documents_chunks_document_id`: `idx_documents_chunks_document_id ON documents_chunks USING btree (document_id)`
+  - `idx_documents_chunks_document_order`: `idx_documents_chunks_document_order ON documents_chunks USING btree (document_id, chunk_order)`
+  - `uq_documents_chunks_document_order`: `UNIQUE uq_documents_chunks_document_order ON documents_chunks USING btree (document_id, chunk_order)`
 
 ### `documents_embeddings`
 
-- 설명: 문서 청크별 임베딩 벡터와 임베딩 모델 정보를 저장한다.
+- Purpose: Vector embeddings for document chunks
+- Estimated Rows: 3,864
 - Primary Key: `embedding_id`
-- Unique: `chunk_id`
-- Foreign Key: `chunk_id` -> `documents_chunks.chunk_id`
-- Indexes: `idx_documents_embeddings_chunk_id`, `idx_documents_embeddings_source_category`, `idx_documents_embeddings_vector_cosine`, `uq_documents_embeddings_chunk_id`
+- Primary Key Default: none
+- Unique: `uq_documents_embeddings_chunk_id` (`chunk_id`)
+- Foreign Keys: `chunk_id` -> `documents_chunks.chunk_id` (CASCADE)
 - Columns:
-  - `embedding_id varchar NOT NULL`
-  - `chunk_id varchar NOT NULL`
-  - `embedding_vector vector NOT NULL`
-  - `embedding_model varchar NOT NULL`
-  - `source_type varchar`
-  - `category varchar`
-  - `created_at timestamp DEFAULT CURRENT_TIMESTAMP`
+
+| # | Column | Data Type | Nullable | Default | Key / Reference |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `embedding_id` | `varchar` | NO |  | PK |
+| 2 | `chunk_id` | `varchar` | NO |  | UNIQUE, FK -> `documents_chunks.chunk_id` |
+| 3 | `embedding_vector` | `vector` | NO |  |  |
+| 4 | `embedding_model` | `varchar` | NO |  |  |
+| 5 | `source_type` | `varchar` | YES |  |  |
+| 6 | `category` | `varchar` | YES |  |  |
+| 7 | `created_at` | `timestamp` | YES | `CURRENT_TIMESTAMP` |  |
+
+- Indexes:
+  - `documents_embeddings_pkey`: `UNIQUE documents_embeddings_pkey ON documents_embeddings USING btree (embedding_id)`
+  - `idx_documents_embeddings_chunk_id`: `idx_documents_embeddings_chunk_id ON documents_embeddings USING btree (chunk_id)`
+  - `idx_documents_embeddings_source_category`: `idx_documents_embeddings_source_category ON documents_embeddings USING btree (source_type, category)`
+  - `idx_documents_embeddings_vector_cosine`: `idx_documents_embeddings_vector_cosine ON documents_embeddings USING ivfflat (embedding_vector vector_cosine_ops) WITH (lists='100')`
+  - `uq_documents_embeddings_chunk_id`: `UNIQUE uq_documents_embeddings_chunk_id ON documents_embeddings USING btree (chunk_id)`
 
 ### `evidence_docs`
 
-- 설명: 답변 초안 생성 또는 검증에 사용된 근거 문서와 관련 점수를 저장한다.
+- Purpose: Retrieved evidence saved for answer drafts
+- Estimated Rows: 195
 - Primary Key: `evidence_id`
-- Foreign Key: `draft_id` -> `answer_draft.draft_id`
+- Primary Key Default: none
+- Foreign Keys: `draft_id` -> `answer_draft.draft_id` (CASCADE)
 - Columns:
-  - `evidence_id integer NOT NULL`
-  - `draft_id integer NOT NULL`
-  - `source_type varchar`
-  - `source_id varchar`
-  - `evidence_text text`
-  - `relevance_score double precision`
-  - `retrieval_rank integer`
+
+| # | Column | Data Type | Nullable | Default | Key / Reference |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `evidence_id` | `integer` | NO |  | PK |
+| 2 | `draft_id` | `integer` | NO |  | FK -> `answer_draft.draft_id` |
+| 3 | `source_type` | `varchar` | YES |  |  |
+| 4 | `source_id` | `varchar` | YES |  |  |
+| 5 | `evidence_text` | `text` | YES |  |  |
+| 6 | `relevance_score` | `double precision` | YES |  |  |
+| 7 | `retrieval_rank` | `integer` | YES |  |  |
+
+- Indexes:
+  - `evidence_docs_pkey`: `UNIQUE evidence_docs_pkey ON evidence_docs USING btree (evidence_id)`
 
 ### `failed_queries`
 
-- 설명: 티켓 처리 중 검색이나 질의 처리가 실패한 내용을 기록한다.
+- Purpose: Failed ticket/query processing logs
+- Estimated Rows: 9
 - Primary Key: `failed_query_id`
-- Foreign Key: `ticket_id` -> `qa_ticket.ticket_id`
+- Primary Key Default: none
+- Foreign Keys: `ticket_id` -> `qa_ticket.ticket_id` (NO ACTION)
 - Columns:
-  - `failed_query_id integer NOT NULL DEFAULT nextval('failed_queries_failed_query_id_seq'::regclass)`
-  - `ticket_id integer NOT NULL`
-  - `query text NOT NULL`
-  - `category varchar(100)`
-  - `reason text`
-  - `created_at timestamp DEFAULT CURRENT_TIMESTAMP`
+
+| # | Column | Data Type | Nullable | Default | Key / Reference |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `failed_query_id` | `integer` | NO |  | PK |
+| 2 | `ticket_id` | `integer` | NO |  | FK -> `qa_ticket.ticket_id` |
+| 3 | `query` | `text` | NO |  |  |
+| 4 | `category` | `varchar(100)` | YES |  |  |
+| 5 | `reason` | `text` | YES |  |  |
+| 6 | `created_at` | `timestamp` | YES | `CURRENT_TIMESTAMP` |  |
+
+- Indexes:
+  - `failed_queries_pkey`: `UNIQUE failed_queries_pkey ON failed_queries USING btree (failed_query_id)`
 
 ### `final_response`
 
-- 설명: 고객에게 전달할 최종 응답과 안전성 조치 결과를 저장한다.
+- Purpose: Final customer-facing responses
+- Estimated Rows: 80
 - Primary Key: `response_id`
-- Foreign Key: `draft_id` -> `answer_draft.draft_id`, `ticket_id` -> `qa_ticket.ticket_id`
+- Primary Key Default: none
+- Foreign Keys: `draft_id` -> `answer_draft.draft_id` (NO ACTION), `ticket_id` -> `qa_ticket.ticket_id` (NO ACTION)
 - Columns:
-  - `response_id integer NOT NULL DEFAULT nextval('final_response_response_id_seq'::regclass)`
-  - `ticket_id integer NOT NULL`
-  - `draft_id integer`
-  - `final_text text NOT NULL`
-  - `safety_action varchar(50)`
-  - `created_at timestamp DEFAULT CURRENT_TIMESTAMP`
+
+| # | Column | Data Type | Nullable | Default | Key / Reference |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `response_id` | `integer` | NO |  | PK |
+| 2 | `ticket_id` | `integer` | NO |  | FK -> `qa_ticket.ticket_id` |
+| 3 | `draft_id` | `integer` | YES |  | FK -> `answer_draft.draft_id` |
+| 4 | `final_text` | `text` | NO |  |  |
+| 5 | `safety_action` | `varchar(50)` | YES |  |  |
+| 6 | `created_at` | `timestamp` | YES | `CURRENT_TIMESTAMP` |  |
+
+- Indexes:
+  - `final_response_pkey`: `UNIQUE final_response_pkey ON final_response USING btree (response_id)`
 
 ### `gacha_logs`
 
-- 설명: 게임 계정의 가챠 배너, 획득 아이템, 희귀도, pity count, 획득 시각을 저장한다.
+- Purpose: Gacha pull history per game account
+- Estimated Rows: 5
 - Primary Key: `gacha_id`
-- Foreign Key: `account_id` -> `game_accounts.account_id`
+- Primary Key Default: none
+- Foreign Keys: `account_id` -> `game_accounts.account_id` (CASCADE)
 - Columns:
-  - `gacha_id integer NOT NULL`
-  - `account_id integer NOT NULL`
-  - `banner_name varchar`
-  - `item_name varchar`
-  - `item_type varchar`
-  - `rarity varchar`
-  - `pity_count integer`
-  - `pulled_at timestamp`
+
+| # | Column | Data Type | Nullable | Default | Key / Reference |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `gacha_id` | `integer` | NO |  | PK |
+| 2 | `account_id` | `integer` | NO |  | FK -> `game_accounts.account_id` |
+| 3 | `banner_name` | `varchar` | YES |  |  |
+| 4 | `item_name` | `varchar` | YES |  |  |
+| 5 | `item_type` | `varchar` | YES |  |  |
+| 6 | `rarity` | `varchar` | YES |  |  |
+| 7 | `pity_count` | `integer` | YES |  |  |
+| 8 | `pulled_at` | `timestamp` | YES |  |  |
+
+- Indexes:
+  - `gacha_logs_pkey`: `UNIQUE gacha_logs_pkey ON gacha_logs USING btree (gacha_id)`
 
 ### `game_accounts`
 
-- 설명: 사용자와 연결된 게임 계정, UID, 서버, 진행도, 계정 상태를 저장한다.
+- Purpose: Game account data linked to community users
+- Estimated Rows: 6,288
 - Primary Key: `account_id`
-- Foreign Key: `user_id` -> `community_users.user_id`
+- Primary Key Default: none
+- Foreign Keys: `user_id` -> `community_users.user_id` (CASCADE)
 - Columns:
-  - `account_id integer NOT NULL`
-  - `user_id integer NOT NULL`
-  - `game_name varchar`
-  - `uid varchar`
-  - `server_region varchar`
-  - `progression_level integer`
-  - `account_status varchar`
-  - `created_at timestamp`
+
+| # | Column | Data Type | Nullable | Default | Key / Reference |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `account_id` | `integer` | NO |  | PK |
+| 2 | `user_id` | `integer` | NO |  | FK -> `community_users.user_id` |
+| 3 | `game_name` | `varchar` | YES |  |  |
+| 4 | `uid` | `varchar` | YES |  |  |
+| 5 | `server_region` | `varchar` | YES |  |  |
+| 6 | `progression_level` | `integer` | YES |  |  |
+| 7 | `account_status` | `varchar` | YES |  |  |
+| 8 | `created_at` | `timestamp` | YES |  |  |
+
+- Indexes:
+  - `game_accounts_pkey`: `UNIQUE game_accounts_pkey ON game_accounts USING btree (account_id)`
 
 ### `insight`
 
-- 설명: 문의 내용을 요약하고 카테고리, 감성, 위험도, 패턴 위험도를 저장한다.
+- Purpose: Ticket/user/account-level insight analysis data
+- Estimated Rows: 5
 - Primary Key: `insight_id`
-- Foreign Key: `account_id` -> `game_accounts.account_id`, `ticket_id` -> `qa_ticket.ticket_id`, `user_id` -> `community_users.user_id`
+- Primary Key Default: none
+- Foreign Keys: `account_id` -> `game_accounts.account_id` (SET NULL), `ticket_id` -> `qa_ticket.ticket_id` (CASCADE), `user_id` -> `community_users.user_id` (CASCADE)
 - Columns:
-  - `insight_id integer NOT NULL`
-  - `user_id integer NOT NULL`
-  - `ticket_id integer NOT NULL`
-  - `account_id integer`
-  - `content_summary text`
-  - `category varchar`
-  - `sentiment varchar`
-  - `risk_level varchar`
-  - `pattern_risk_level varchar`
-  - `inquiry_created_at timestamp`
+
+| # | Column | Data Type | Nullable | Default | Key / Reference |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `insight_id` | `integer` | NO |  | PK |
+| 2 | `user_id` | `integer` | NO |  | FK -> `community_users.user_id` |
+| 3 | `ticket_id` | `integer` | NO |  | FK -> `qa_ticket.ticket_id` |
+| 4 | `account_id` | `integer` | YES |  | FK -> `game_accounts.account_id` |
+| 5 | `content_summary` | `text` | YES |  |  |
+| 6 | `category` | `varchar` | YES |  |  |
+| 7 | `sentiment` | `varchar` | YES |  |  |
+| 8 | `risk_level` | `varchar` | YES |  |  |
+| 9 | `pattern_risk_level` | `varchar` | YES |  |  |
+| 10 | `inquiry_created_at` | `timestamp` | YES |  |  |
+
+- Indexes:
+  - `insight_pkey`: `UNIQUE insight_pkey ON insight USING btree (insight_id)`
 
 ### `item_delivery_logs`
 
-- 설명: 계정별 아이템 지급 내역, 지급 상태, 예정/완료 시각을 저장한다.
+- Purpose: Paid or reward item delivery history
+- Estimated Rows: 5
 - Primary Key: `delivery_id`
-- Foreign Key: `account_id` -> `game_accounts.account_id`, `payment_id` -> `payments.payment_id`
+- Primary Key Default: none
+- Foreign Keys: `account_id` -> `game_accounts.account_id` (CASCADE), `payment_id` -> `payments.payment_id` (SET NULL)
 - Columns:
-  - `delivery_id integer NOT NULL`
-  - `payment_id integer`
-  - `account_id integer NOT NULL`
-  - `source_type varchar`
-  - `item_name varchar`
-  - `quantity integer`
-  - `delivery_status varchar`
-  - `expected_at timestamp`
-  - `delivered_at timestamp`
+
+| # | Column | Data Type | Nullable | Default | Key / Reference |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `delivery_id` | `integer` | NO |  | PK |
+| 2 | `payment_id` | `integer` | YES |  | FK -> `payments.payment_id` |
+| 3 | `account_id` | `integer` | NO |  | FK -> `game_accounts.account_id` |
+| 4 | `source_type` | `varchar` | YES |  |  |
+| 5 | `item_name` | `varchar` | YES |  |  |
+| 6 | `quantity` | `integer` | YES |  |  |
+| 7 | `delivery_status` | `varchar` | YES |  |  |
+| 8 | `expected_at` | `timestamp` | YES |  |  |
+| 9 | `delivered_at` | `timestamp` | YES |  |  |
+
+- Indexes:
+  - `item_delivery_logs_pkey`: `UNIQUE item_delivery_logs_pkey ON item_delivery_logs USING btree (delivery_id)`
 
 ### `notification_logs`
 
-- 설명: 티켓 관련 알림 발송 채널, 상태, 메시지, 오류 정보를 기록한다.
+- Purpose: Notification send results and errors
+- Estimated Rows: 0
 - Primary Key: `notification_id`
-- Foreign Key: `ticket_id` -> `qa_ticket.ticket_id`
+- Primary Key Default: `nextval('notification_logs_notification_id_seq'::regclass)`
+- Foreign Keys: `ticket_id` -> `qa_ticket.ticket_id` (NO ACTION)
 - Columns:
-  - `notification_id integer NOT NULL DEFAULT nextval('notification_logs_notification_id_seq'::regclass)`
-  - `ticket_id integer NOT NULL`
-  - `channel varchar(50)`
-  - `status varchar(50)`
-  - `message text`
-  - `error_message text`
-  - `error_category varchar(100)`
-  - `sent_at timestamp DEFAULT CURRENT_TIMESTAMP`
+
+| # | Column | Data Type | Nullable | Default | Key / Reference |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `notification_id` | `integer` | NO | `nextval('notification_logs_notification_id_seq'::regclass)` | PK |
+| 2 | `ticket_id` | `integer` | NO |  | FK -> `qa_ticket.ticket_id` |
+| 3 | `channel` | `varchar(50)` | YES |  |  |
+| 4 | `status` | `varchar(50)` | YES |  |  |
+| 5 | `message` | `text` | YES |  |  |
+| 6 | `error_message` | `text` | YES |  |  |
+| 7 | `error_category` | `varchar(100)` | YES |  |  |
+| 8 | `sent_at` | `timestamp` | YES | `CURRENT_TIMESTAMP` |  |
+
+- Indexes:
+  - `notification_logs_pkey`: `UNIQUE notification_logs_pkey ON notification_logs USING btree (notification_id)`
 
 ### `payments`
 
-- 설명: 게임 계정의 상품 결제 내역과 결제 상태, 거래 식별자를 저장한다.
+- Purpose: Payment transaction history
+- Estimated Rows: 11
 - Primary Key: `payment_id`
-- Foreign Key: `account_id` -> `game_accounts.account_id`
+- Primary Key Default: none
+- Foreign Keys: `account_id` -> `game_accounts.account_id` (CASCADE)
 - Columns:
-  - `payment_id integer NOT NULL`
-  - `account_id integer NOT NULL`
-  - `product_name varchar`
-  - `product_type varchar`
-  - `amount numeric`
-  - `currency varchar`
-  - `payment_method varchar`
-  - `payment_status varchar`
-  - `transaction_id varchar`
-  - `paid_at timestamp`
+
+| # | Column | Data Type | Nullable | Default | Key / Reference |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `payment_id` | `integer` | NO |  | PK |
+| 2 | `account_id` | `integer` | NO |  | FK -> `game_accounts.account_id` |
+| 3 | `product_name` | `varchar` | YES |  |  |
+| 4 | `product_type` | `varchar` | YES |  |  |
+| 5 | `amount` | `numeric` | YES |  |  |
+| 6 | `currency` | `varchar` | YES |  |  |
+| 7 | `payment_method` | `varchar` | YES |  |  |
+| 8 | `payment_status` | `varchar` | YES |  |  |
+| 9 | `transaction_id` | `varchar` | YES |  |  |
+| 10 | `paid_at` | `timestamp` | YES |  |  |
+
+- Indexes:
+  - `payments_pkey`: `UNIQUE payments_pkey ON payments USING btree (payment_id)`
 
 ### `qa_ticket`
 
-- 설명: 사용자 문의 티켓의 제목, 원문 질의, 접수 채널, 상태, 문의 시각을 저장한다.
+- Purpose: Customer inquiry/QA tickets
+- Estimated Rows: 9,243
 - Primary Key: `ticket_id`
-- Foreign Key: `account_id` -> `game_accounts.account_id`, `user_id` -> `community_users.user_id`
+- Primary Key Default: none
+- Foreign Keys: `account_id` -> `game_accounts.account_id` (SET NULL), `user_id` -> `community_users.user_id` (CASCADE)
 - Columns:
-  - `ticket_id integer NOT NULL`
-  - `account_id integer`
-  - `user_id integer NOT NULL`
-  - `title varchar`
-  - `raw_query text`
-  - `source_type varchar`
-  - `status varchar`
-  - `inquiry_created_at timestamp`
-  - `session_id integer`
+
+| # | Column | Data Type | Nullable | Default | Key / Reference |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `ticket_id` | `integer` | NO |  | PK |
+| 2 | `account_id` | `integer` | YES |  | FK -> `game_accounts.account_id` |
+| 3 | `user_id` | `integer` | NO |  | FK -> `community_users.user_id` |
+| 4 | `title` | `varchar` | YES |  |  |
+| 5 | `raw_query` | `text` | YES |  |  |
+| 6 | `source_type` | `varchar` | YES |  |  |
+| 7 | `status` | `varchar` | YES |  |  |
+| 8 | `inquiry_created_at` | `timestamp` | YES |  |  |
+| 9 | `session_id` | `integer` | YES |  |  |
+| 10 | `responder_type` | `varchar(100)` | YES |  |  |
+
+- Indexes:
+  - `qa_ticket_pkey`: `UNIQUE qa_ticket_pkey ON qa_ticket USING btree (ticket_id)`
 
 ### `refunds`
 
-- 설명: 결제 건별 환불 상태, 사유, 요청/처리 시각을 저장한다.
+- Purpose: Refund request and processing history
+- Estimated Rows: 5
 - Primary Key: `refund_id`
-- Foreign Key: `payment_id` -> `payments.payment_id`
+- Primary Key Default: none
+- Foreign Keys: `payment_id` -> `payments.payment_id` (CASCADE)
 - Columns:
-  - `refund_id integer NOT NULL`
-  - `payment_id integer NOT NULL`
-  - `refund_status varchar`
-  - `refund_reason text`
-  - `requested_at timestamp`
-  - `processed_at timestamp`
+
+| # | Column | Data Type | Nullable | Default | Key / Reference |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `refund_id` | `integer` | NO |  | PK |
+| 2 | `payment_id` | `integer` | NO |  | FK -> `payments.payment_id` |
+| 3 | `refund_status` | `varchar` | YES |  |  |
+| 4 | `refund_reason` | `text` | YES |  |  |
+| 5 | `requested_at` | `timestamp` | YES |  |  |
+| 6 | `processed_at` | `timestamp` | YES |  |  |
+
+- Indexes:
+  - `refunds_pkey`: `UNIQUE refunds_pkey ON refunds USING btree (refund_id)`
 
 ### `safety_results`
 
-- 설명: 답변 초안에 대한 환각, 독성, 정책 위반, 사실성 점수와 최종 안전 조치를 저장한다.
+- Purpose: Safety and grounding check results for drafts
+- Estimated Rows: 95
 - Primary Key: `safety_id`
-- Foreign Key: `draft_id` -> `answer_draft.draft_id`
+- Primary Key Default: none
+- Foreign Keys: `draft_id` -> `answer_draft.draft_id` (CASCADE)
 - Columns:
-  - `safety_id integer NOT NULL`
-  - `draft_id integer NOT NULL`
-  - `hallucination_score double precision`
-  - `toxicity_score double precision`
-  - `policy_violation_score double precision`
-  - `factuality_score double precision`
-  - `checked_at timestamp`
-  - `safety_action varchar(100)`
-  - `safety_reason varchar(255)`
-  - `retry_count integer DEFAULT 0`
+
+| # | Column | Data Type | Nullable | Default | Key / Reference |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `safety_id` | `integer` | NO |  | PK |
+| 2 | `draft_id` | `integer` | NO |  | FK -> `answer_draft.draft_id` |
+| 3 | `hallucination_score` | `double precision` | YES |  |  |
+| 4 | `toxicity_score` | `double precision` | YES |  |  |
+| 5 | `policy_violation_score` | `double precision` | YES |  |  |
+| 6 | `factuality_score` | `double precision` | YES |  |  |
+| 7 | `checked_at` | `timestamp` | YES |  |  |
+| 8 | `safety_action` | `varchar(100)` | YES |  |  |
+| 9 | `safety_reason` | `varchar(255)` | YES |  |  |
+| 10 | `retry_count` | `integer` | YES | `0` |  |
+
+- Indexes:
+  - `safety_results_pkey`: `UNIQUE safety_results_pkey ON safety_results USING btree (safety_id)`
 
 ### `ticket_analysis`
 
-- 설명: QA 티켓의 카테고리, 응답자 유형, 보강 질의, 위험도, 감성, 라우팅 대상, 요약을 저장한다.
+- Purpose: Ticket classification, risk, sentiment, and routing analysis
+- Estimated Rows: 118
 - Primary Key: `analysis_id`
-- Foreign Key: `ticket_id` -> `qa_ticket.ticket_id`
+- Primary Key Default: none
+- Foreign Keys: `ticket_id` -> `qa_ticket.ticket_id` (CASCADE)
 - Columns:
-  - `analysis_id integer NOT NULL`
-  - `ticket_id integer NOT NULL`
-  - `category varchar`
-  - `responder_type varchar`
-  - `enriched_query text`
-  - `risk_level varchar`
-  - `sentiment varchar`
-  - `routing_target varchar`
-  - `summary text`
-  - `analyzed_at timestamp`
+
+| # | Column | Data Type | Nullable | Default | Key / Reference |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `analysis_id` | `integer` | NO |  | PK |
+| 2 | `ticket_id` | `integer` | NO |  | FK -> `qa_ticket.ticket_id` |
+| 3 | `category` | `varchar` | YES |  |  |
+| 4 | `responder_type` | `varchar` | YES |  |  |
+| 5 | `enriched_query` | `text` | YES |  |  |
+| 6 | `risk_level` | `varchar` | YES |  |  |
+| 7 | `sentiment` | `varchar` | YES |  |  |
+| 8 | `routing_target` | `varchar` | YES |  |  |
+| 9 | `summary` | `text` | YES |  |  |
+| 10 | `analyzed_at` | `timestamp` | YES |  |  |
+
+- Indexes:
+  - `ticket_analysis_pkey`: `UNIQUE ticket_analysis_pkey ON ticket_analysis USING btree (analysis_id)`
 
 ### `voc_feedback`
 
-- 설명: 사용자 VOC 유형, 감성, 원문, 토픽 키워드를 저장한다.
+- Purpose: VOC feedback and topic keyword records
+- Estimated Rows: 5
 - Primary Key: `voc_id`
-- Foreign Key: `account_id` -> `game_accounts.account_id`, `ticket_id` -> `qa_ticket.ticket_id`, `user_id` -> `community_users.user_id`
+- Primary Key Default: none
+- Foreign Keys: `account_id` -> `game_accounts.account_id` (NO ACTION), `ticket_id` -> `qa_ticket.ticket_id` (NO ACTION), `user_id` -> `community_users.user_id` (NO ACTION)
 - Columns:
-  - `voc_id integer NOT NULL DEFAULT nextval('voc_feedback_voc_id_seq'::regclass)`
-  - `ticket_id integer NOT NULL`
-  - `user_id integer NOT NULL`
-  - `account_id integer`
-  - `voc_type varchar(100)`
-  - `sentiment varchar(50)`
-  - `raw_content text NOT NULL`
-  - `topic_keywords json`
-  - `created_at timestamp DEFAULT CURRENT_TIMESTAMP`
+
+| # | Column | Data Type | Nullable | Default | Key / Reference |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `voc_id` | `integer` | NO |  | PK |
+| 2 | `ticket_id` | `integer` | NO |  | FK -> `qa_ticket.ticket_id` |
+| 3 | `user_id` | `integer` | NO |  | FK -> `community_users.user_id` |
+| 4 | `account_id` | `integer` | YES |  | FK -> `game_accounts.account_id` |
+| 5 | `voc_type` | `varchar(100)` | YES |  |  |
+| 6 | `sentiment` | `varchar(50)` | YES |  |  |
+| 7 | `raw_content` | `text` | NO |  |  |
+| 8 | `topic_keywords` | `json` | YES |  |  |
+| 9 | `created_at` | `timestamp` | YES | `CURRENT_TIMESTAMP` |  |
+
+- Indexes:
+  - `voc_feedback_pkey`: `UNIQUE voc_feedback_pkey ON voc_feedback USING btree (voc_id)`

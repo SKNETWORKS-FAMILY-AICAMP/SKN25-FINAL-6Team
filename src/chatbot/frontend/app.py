@@ -23,6 +23,10 @@ if loaded_chatbot_file and not str(loaded_chatbot_file).startswith(str(SRC_ROOT)
 from dotenv import load_dotenv
 import streamlit as st
 
+from src.common.observability.langsmith import configure_langsmith
+
+configure_langsmith("chatbot")
+
 from chatbot.frontend.components.chat_input import render_chat_input, resolve_pending_message
 from chatbot.frontend.components.chat_message import render_chat_history
 from chatbot.frontend.components.login_form import render_login_form, render_login_status
@@ -254,6 +258,7 @@ def _render_welcome_message() -> None:
 
 def main() -> None:
     load_dotenv(override=True)
+    configure_langsmith("chatbot")
 
     st.set_page_config(page_title="게임 고객센터", layout="centered")
     _inject_styles()

@@ -1,0 +1,106 @@
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: gameops-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./deploy/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      # Chatbot is kept out of the MVP deployment until the real UI/API is implemented.
+      # - chatbot-frontend
+      # - chatbot-backend
+      - operation-frontend
+      - operation-backend
+      - dashboard-frontend
+      - dashboard-backend
+
+  # chatbot-frontend:
+  #   build:
+  #     context: .
+  #     dockerfile: deploy/docker/python-app.Dockerfile
+  #   container_name: chatbot-frontend
+  #   command:
+  #     - python
+  #     - -m
+  #     - streamlit
+  #     - run
+  #     - src/chatbot/frontend/app.py
+  #     - --server.address=0.0.0.0
+  #     - --server.port=8501
+  #     - --server.baseUrlPath=chatbot
+  #     - --server.enableCORS=false
+  #     - --server.enableXsrfProtection=false
+  #   environment:
+  #     CHATBOT_API_BASE_URL: http://chatbot-backend:8000
+  #   depends_on:
+  #     - chatbot-backend
+  #
+  # chatbot-backend:
+  #   build:
+  #     context: .
+  #     dockerfile: deploy/docker/python-app.Dockerfile
+  #   container_name: chatbot-backend
+  #   command: python -m uvicorn src.chatbot.api.main:app --host 0.0.0.0 --port 8000
+  #   env_file:
+  #     - .env
+
+  operation-frontend:
+    build:
+      context: .
+      dockerfile: deploy/docker/python-app.Dockerfile
+    container_name: operation-frontend
+    command:
+      - python
+      - -m
+      - streamlit
+      - run
+      - src/operation/frontend/app.py
+      - --server.address=0.0.0.0
+      - --server.port=8501
+      - --server.baseUrlPath=operation
+      - --server.enableCORS=false
+      - --server.enableXsrfProtection=false
+    environment:
+      OPERATION_API_BASE_URL: http://operation-backend:8000
+    depends_on:
+      - operation-backend
+
+  operation-backend:
+    build:
+      context: .
+      dockerfile: deploy/docker/python-app.Dockerfile
+    container_name: operation-backend
+    command: python -m uvicorn src.operation.api.main:app --host 0.0.0.0 --port 8000
+    env_file:
+      - .env
+
+  dashboard-frontend:
+    build:
+      context: .
+      dockerfile: deploy/docker/python-app.Dockerfile
+    container_name: dashboard-frontend
+    command:
+      - python
+      - -m
+      - streamlit
+      - run
+      - src/dashboard/frontend/app.py
+      - --server.address=0.0.0.0
+      - --server.port=8501
+      - --server.baseUrlPath=dashboard
+      - --server.enableCORS=false
+      - --server.enableXsrfProtection=false
+    environment:
+      DASHBOARD_API_BASE_URL: http://dashboard-backend:8000
+    depends_on:
+      - dashboard-backend
+
+  dashboard-backend:
+    build:
+      context: .
+      dockerfile: deploy/docker/python-app.Dockerfile
+    container_name: dashboard-backend
+    command: python -m uvicorn src.dashboard.api.main:app --host 0.0.0.0 --port 8000
+    env_file:
+      - .env
