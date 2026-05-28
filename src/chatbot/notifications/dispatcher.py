@@ -5,7 +5,7 @@ from typing import Any
 from chatbot.notifications.github_issue import create_github_issue
 from chatbot.notifications.slack import send_slack_alert
 from chatbot.observability.logger import EVENT_NOTIFICATION_DISPATCHED, log_event
-from chatbot.repository.notification_repository import save_notification_log
+from chatbot.repository.notification_repository import notification_log_exists, save_notification_log
 
 
 BUG_CATEGORY_VALUES = {"?멸쾶??踰꾧렇", "인게임/버그", "인게임버그"}
@@ -81,12 +81,14 @@ def _dispatch_github_issue_for_bug(state: dict[str, Any]) -> dict[str, Any]:
     return {**result, "notification_log_result": notification_log_result}
 
 
-def dispatch_urgent_alert(state: dict[str, Any]) -> dict[str, Any]:
-    """Dispatch urgent chatbot state to notification channels."""
-    if state.get("routing_target") != "urgent_alert":
-        return {"status": "skipped", "reason": "routing_target is not urgent_alert"}
+def _dispatch_slack_review_alert(state: dict[str, Any], message: str) -> dict[str, Any]:
+    if state.get("safety_action") != "REVIEW_QUEUE":
+        return {"status": "skipped", "reason": "safety_action is not REVIEW_QUEUE"}
 
-    message = _urgent_alert_message(state)
+    existing_log = notification_log_exists(state.get("ticket_id"), "slack")
+    if existing_log.get("exists"):
+        return {"status": "skipped", "reason": "slack alert already sent for ticket_id"}
+
     result = send_slack_alert(message)
     notification_log_result = save_notification_log(
         {
@@ -98,6 +100,16 @@ def dispatch_urgent_alert(state: dict[str, Any]) -> dict[str, Any]:
             "error_category": result.get("error_category"),
         }
     )
+    return {**result, "notification_log_result": notification_log_result}
+
+
+def dispatch_urgent_alert(state: dict[str, Any]) -> dict[str, Any]:
+    """Dispatch urgent chatbot state to notification channels."""
+    if state.get("routing_target") != "urgent_alert":
+        return {"status": "skipped", "reason": "routing_target is not urgent_alert"}
+
+    message = _urgent_alert_message(state)
+    slack_result = _dispatch_slack_review_alert(state, message)
     github_issue_result = _dispatch_github_issue_for_bug(state)
     log_event(
         EVENT_NOTIFICATION_DISPATCHED,
@@ -106,17 +118,15 @@ def dispatch_urgent_alert(state: dict[str, Any]) -> dict[str, Any]:
         node_name="final_response",
         category=state.get("category"),
         routing_target=state.get("routing_target"),
-        status=result.get("status", "unknown"),
-        error_category=result.get("error_category"),
+        status=slack_result.get("status", "unknown"),
+        error_category=slack_result.get("error_category"),
         metadata={
             "channel": "slack",
-            "result": result,
-            "notification_log_result": notification_log_result,
+            "result": slack_result,
             "github_issue_result": github_issue_result,
         },
     )
     return {
-        **result,
-        "notification_log_result": notification_log_result,
+        **slack_result,
         "github_issue_result": github_issue_result,
     }

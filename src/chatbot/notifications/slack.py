@@ -37,33 +37,23 @@ def _post_slack_api(method: str, token: str, payload: dict[str, str]) -> dict[st
 
 
 def send_slack_alert(message: str) -> dict[str, str]:
-    """Send Slack DM alert with a bot token; otherwise return mock result."""
+    """Send Slack channel alert with a bot token; otherwise return mock result."""
     bot_token = os.getenv("SLACK_BOT_TOKEN", "").strip()
-    target_user_id = os.getenv("SLACK_TARGET_USER_ID", "").strip()
+    channel_id = os.getenv("SLACK_CHANNEL_ID", "").strip()
     if not bot_token:
         return {"status": "mock", "reason": "slack bot token is not configured", "message": message}
-    if not target_user_id:
-        return {"status": "mock", "reason": "slack target user id is not configured", "message": message}
+    if not channel_id:
+        return {"status": "mock", "reason": "slack channel id is not configured", "message": message}
 
     try:
-        open_result = _post_slack_api(
-            "conversations.open",
-            bot_token,
-            {"users": target_user_id},
-        )
-        channel = open_result.get("channel") or {}
-        channel_id = channel.get("id") if isinstance(channel, dict) else None
-        if not channel_id:
-            raise RuntimeError("Slack API conversations.open response did not include channel.id")
-
         post_result = _post_slack_api(
             "chat.postMessage",
             bot_token,
-            {"channel": str(channel_id), "text": message},
+            {"channel": channel_id, "text": message},
         )
         return {
             "status": "ok",
-            "channel_id": str(channel_id),
+            "channel_id": channel_id,
             "message_ts": str(post_result.get("ts", "")),
         }
     except Exception as exc:

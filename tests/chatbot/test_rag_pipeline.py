@@ -1,17 +1,18 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-from tests.chatbot._hybrid_retrieval_cases import *  # noqa: F403
-from tests.chatbot._persistence_evidence_cases import *  # noqa: F403
+import json
 
+from chatbot.chains import persistence
 from chatbot.generation import faq_agent
-from chatbot.retrieval.vector_tools import RetrievalQuery
+from chatbot.retrieval import vector_tools
+from chatbot.retrieval.vector_tools import RetrievalQuery, hybrid_rank_documents, refine_query_text, search_document_chunks
 
 
 def _retrieval_query() -> RetrievalQuery:
     return RetrievalQuery(
         query_text="payment item delivery",
         preferred_source_types=["hoyoverse_qna_common"],
-        preferred_categories=["결제_관련_이슈"],
+        preferred_categories=["寃곗젣_愿???댁뒋"],
     )
 
 
@@ -59,8 +60,8 @@ def test_run_faq_rag_skips_retrieval_when_intent_says_rag_is_not_needed(monkeypa
     result = faq_agent.run_faq_rag(
         {
             **_state(),
-            "raw_query": "게임 왜 이따위임?",
-            "enriched_query": "게임 문제 해결 방법",
+            "raw_query": "寃뚯엫 ???대뵲?꾩엫?",
+            "enriched_query": "寃뚯엫 臾몄젣 ?닿껐 諛⑸쾿",
             "is_actionable": False,
             "should_use_rag": False,
             "fallback_reason": "low_information_complaint",
@@ -80,9 +81,9 @@ def test_run_faq_rag_blocks_answer_when_relevance_gate_fails(monkeypatch) -> Non
             "chunk_id": "doc-1",
             "document_id": "doc",
             "source_type": "hoyoverse_qna_common",
-            "category": "게임_문제",
-            "title": "별바다 세계 필터 기능 문제",
-            "chunk_text": "특정 상황에서 필터 기능이 올바르게 작동하지 않을 수 있습니다.",
+            "category": "寃뚯엫_臾몄젣",
+            "title": "蹂꾨컮???멸퀎 ?꾪꽣 湲곕뒫 臾몄젣",
+            "chunk_text": "?뱀젙 ?곹솴?먯꽌 ?꾪꽣 湲곕뒫???щ컮瑜닿쾶 ?묐룞?섏? ?딆쓣 ???덉뒿?덈떎.",
             "score": 0.02,
             "cosine_score": 0.2,
             "bm25_score": 0.0,
@@ -116,7 +117,7 @@ def test_run_faq_rag_generates_once_with_evidence(monkeypatch) -> None:
             "chunk_id": "doc-1",
             "document_id": "doc",
             "source_type": "hoyoverse_qna_common",
-            "category": "결제_관련_이슈",
+            "category": "寃곗젣_愿???댁뒋",
             "title": "payment guide",
             "chunk_text": "payment item delivery can be checked in logs",
             "score": 0.03,
@@ -153,9 +154,9 @@ def test_run_faq_rag_answers_with_canonical_retrieval_query(monkeypatch) -> None
             "chunk_id": "doc-1",
             "document_id": "doc",
             "source_type": "hoyoverse_qna_onlygenshin",
-            "category": "계정_문제",
-            "title": "게임 진행도는 어떻게 리셋할 수 있나요?",
-            "chunk_text": "로그인 화면 오른쪽 하단에서 로그아웃을 선택하신 뒤 새로운 계정으로 로그인하면 새로운 게임을 시작할 수 있습니다",
+            "category": "怨꾩젙_臾몄젣",
+            "title": "寃뚯엫 吏꾪뻾?꾨뒗 ?대뼸寃?由ъ뀑?????덈굹??",
+            "chunk_text": "濡쒓렇???붾㈃ ?ㅻⅨ履??섎떒?먯꽌 濡쒓렇?꾩썐???좏깮?섏떊 ???덈줈??怨꾩젙?쇰줈 濡쒓렇?명븯硫??덈줈??寃뚯엫???쒖옉?????덉뒿?덈떎",
             "score": 0.08,
             "cosine_score": 0.9,
             "bm25_score": 2.1,
@@ -167,25 +168,634 @@ def test_run_faq_rag_answers_with_canonical_retrieval_query(monkeypatch) -> None
         faq_agent,
         "enrich_retrieval_query",
         lambda text: RetrievalQuery(
-            query_text="게임 진행도 리셋 방법",
+            query_text="寃뚯엫 吏꾪뻾??由ъ뀑 諛⑸쾿",
             preferred_source_types=["hoyoverse_qna_onlygenshin"],
-            preferred_categories=["계정_문제"],
+            preferred_categories=["怨꾩젙_臾몄젣"],
         ),
     )
     monkeypatch.setattr(faq_agent, "search_document_chunks", lambda **kwargs: docs)
     monkeypatch.setattr(faq_agent, "_rerank_documents", lambda documents, query: documents)
-    monkeypatch.setattr(faq_agent, "_generate_evidence_answer", lambda **kwargs: calls.append(kwargs) or "진행도 리셋 답변")
+    monkeypatch.setattr(faq_agent, "_generate_evidence_answer", lambda **kwargs: calls.append(kwargs) or "吏꾪뻾??由ъ뀑 ?듬?")
 
     result = faq_agent.run_faq_rag(
         {
             **_state(),
-            "raw_query": "스토리 초기화 어캐함?",
-            "enriched_query": "스토리 초기화 어캐함?",
+            "raw_query": "?ㅽ넗由?珥덇린???댁틦??",
+            "enriched_query": "?ㅽ넗由?珥덇린???댁틦??",
             "should_use_rag": True,
         }
     )
 
-    assert result["draft_text"] == "진행도 리셋 답변"
-    assert result["retrieval_query"] == "게임 진행도 리셋 방법"
-    assert calls[0]["original_query"] == "스토리 초기화 어캐함?"
-    assert calls[0]["retrieval_query"] == "게임 진행도 리셋 방법"
+    assert result["draft_text"] == "吏꾪뻾??由ъ뀑 ?듬?"
+    assert result["retrieval_query"] == "寃뚯엫 吏꾪뻾??由ъ뀑 諛⑸쾿"
+    assert calls[0]["original_query"] == "?ㅽ넗由?珥덇린???댁틦??"
+    assert calls[0]["retrieval_query"] == "寃뚯엫 吏꾪뻾??由ъ뀑 諛⑸쾿"
+
+
+def test_refine_query_text_deduplicates_terms() -> None:
+    query = "hello hello payment payment item delivery help"
+
+    assert refine_query_text(query) == "hello payment item delivery help"
+
+
+def test_hybrid_rank_documents_combines_bm25_and_cosine() -> None:
+    rows = [
+        {
+            "chunk_id": "dense-match",
+            "document_id": "doc-1",
+            "source_type": "faq",
+            "category": "account",
+            "title": "account guide",
+            "chunk_text": "account linking and data deletion process",
+            "embedding_vector": "[1.0,0.0]",
+        },
+        {
+            "chunk_id": "keyword-match",
+            "document_id": "doc-2",
+            "source_type": "faq",
+            "category": "payment",
+            "title": "payment delivery guide",
+            "chunk_text": "payment item delivery missing check method",
+            "embedding_vector": "[0.0,1.0]",
+        },
+        {
+            "chunk_id": "weak",
+            "document_id": "doc-3",
+            "source_type": "notice",
+            "category": "event",
+            "title": "event",
+            "chunk_text": "attendance reward event",
+            "embedding_vector": "[0.2,0.1]",
+        },
+    ]
+
+    results = hybrid_rank_documents(
+        query_vector=[1.0, 0.0],
+        query_text="payment item delivery",
+        rows=rows,
+        top_k=2,
+    )
+
+    chunk_ids = {result["chunk_id"] for result in results}
+    assert chunk_ids == {"dense-match", "keyword-match"}
+    assert all("cosine_score" in result and "bm25_score" in result for result in results)
+
+
+def test_search_document_chunks_prefers_faq_then_falls_back(monkeypatch) -> None:
+    calls = []
+
+    def fake_fetch_candidate_rows(*, retrieval_query, candidate_limit, faq_only, enrichment=None, use_query_filter=True):
+        calls.append((faq_only, use_query_filter))
+        if faq_only and use_query_filter:
+            return []
+        if faq_only:
+            return []
+        return [
+            {
+                "chunk_id": "fallback-doc",
+                "document_id": "doc-1",
+                "source_type": "notice",
+                "category": "general",
+                "title": "fallback",
+                "chunk_text": "payment item delivery fallback",
+                "embedding_vector": "[1.0,0.0]",
+            }
+        ]
+
+    monkeypatch.setattr(vector_tools, "_fetch_candidate_rows", fake_fetch_candidate_rows)
+
+    results = search_document_chunks(
+        embedding_json="[1.0,0.0]",
+        query_text="payment item delivery",
+        top_k=1,
+        prefer_faq=True,
+    )
+
+    assert calls == [(True, True), (True, False), (False, True)]
+    assert results[0]["chunk_id"] == "fallback-doc"
+    assert results[0]["candidate_scope"] == "all"
+
+
+def test_search_document_chunks_adds_broad_faq_candidates_when_query_candidates_are_sparse(monkeypatch) -> None:
+    calls = []
+
+    def fake_fetch_candidate_rows(*, retrieval_query, candidate_limit, faq_only, enrichment=None, use_query_filter=True):
+        calls.append((faq_only, use_query_filter))
+        if use_query_filter:
+            return [
+                {
+                    "chunk_id": "notice",
+                    "document_id": "doc-1",
+                    "source_type": "naver_cafe_notice",
+                    "category": "notice",
+                    "title": "payment maintenance",
+                    "chunk_text": "payment maintenance notice",
+                    "embedding_vector": "[0.0,1.0]",
+                }
+            ]
+        return [
+            {
+                "chunk_id": "guide",
+                "document_id": "doc-2",
+                "source_type": "hoyoverse_qna_common",
+                "category": "payment",
+                "title": "payment guide",
+                "chunk_text": "payment item delivery guide",
+                "embedding_vector": "[1.0,0.0]",
+            }
+        ]
+
+    monkeypatch.setattr(vector_tools, "_fetch_candidate_rows", fake_fetch_candidate_rows)
+    monkeypatch.setenv("RETRIEVAL_MIN_CANDIDATES", "2")
+
+    results = search_document_chunks(
+        embedding_json="[1.0,0.0]",
+        query_text="payment item delivery",
+        top_k=1,
+        prefer_faq=True,
+    )
+
+    assert calls == [(True, True), (True, False)]
+    assert results[0]["chunk_id"] == "guide"
+    assert results[0]["candidate_scope"] == "faq_broad"
+
+
+def test_hybrid_rank_documents_prefers_qna_over_adjacent_notice_when_scores_are_close() -> None:
+    rows = [
+        {
+            "chunk_id": "notice",
+            "document_id": "notice-1",
+            "source_type": "naver_cafe_notice",
+            "category": "?먭?",
+            "title": "Galaxy Store 寃곗젣 ?쒖뒪???먭? ?덈궡",
+            "chunk_text": "Galaxy Store 寃곗젣 ?쒖뒪???먭? ?덈궡",
+            "embedding_vector": "[1.0,0.0]",
+        },
+        {
+            "chunk_id": "qna",
+            "document_id": "qna-1",
+            "source_type": "hoyoverse_qna_common",
+            "category": "寃곗젣_愿???댁뒋",
+            "title": "Galaxy Store 寃곗젣 愿??臾몄젣 ?닿껐",
+            "chunk_text": "Galaxy Store 寃곗젣 愿??臾몄젣 ?닿껐 諛⑸쾿",
+            "embedding_vector": "[0.99,0.01]",
+        },
+    ]
+
+    results = hybrid_rank_documents(
+        query_vector=[1.0, 0.0],
+        query_text="Galaxy Store 寃곗젣 諛⑸쾿",
+        rows=rows,
+        top_k=2,
+    )
+
+    assert results[0]["chunk_id"] == "qna"
+
+
+def test_hybrid_rank_documents_boosts_question_title_overlap() -> None:
+    rows = [
+        {
+            "chunk_id": "adjacent",
+            "document_id": "doc-1",
+            "source_type": "hoyoverse_qna_onlygenshin",
+            "category": "client",
+            "title": "???명꽣?룹뿉 ?곌껐?섏뿬 寃뚯엫???뚮젅?댄빐???섎굹??",
+            "chunk_text": "寃뚯엫 吏꾪뻾?꾨뒗 ?ㅽ듃?뚰겕 ?곌껐???듯빐 ?쒕쾭????λ맗?덈떎",
+            "embedding_vector": "[1.0,0.0]",
+        },
+        {
+            "chunk_id": "answer",
+            "document_id": "doc-2",
+            "source_type": "hoyoverse_qna_onlygenshin",
+            "category": "account",
+            "title": "寃뚯엫 吏꾪뻾?꾨뒗 ?대뼸寃?由ъ뀑?????덈굹??",
+            "chunk_text": "濡쒓렇???붾㈃ ?ㅻⅨ履??섎떒?먯꽌 濡쒓렇?꾩썐???좏깮?섏떊 ???덈줈??怨꾩젙?쇰줈 濡쒓렇?명븯硫??덈줈??寃뚯엫???쒖옉?????덉뒿?덈떎",
+            "embedding_vector": "[0.98,0.02]",
+        },
+    ]
+
+    results = hybrid_rank_documents(
+        query_vector=[1.0, 0.0],
+        query_text="寃뚯엫 吏꾪뻾??由ъ뀑 諛⑸쾿",
+        rows=rows,
+        top_k=2,
+    )
+
+    assert results[0]["chunk_id"] == "answer"
+    assert results[0]["field_match_score"] > results[1]["field_match_score"]
+
+
+def test_fetch_candidate_rows_broad_mode_orders_faq_sources_by_priority(monkeypatch) -> None:
+    captured_sql = {}
+
+    class FakeCursor:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return None
+
+        def execute(self, sql, params):
+            captured_sql["sql"] = sql
+            captured_sql["params"] = params
+
+        def fetchall(self):
+            return []
+
+    class FakeConnection:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return None
+
+        def cursor(self, row_factory=None):
+            return FakeCursor()
+
+    monkeypatch.setattr(vector_tools, "db_connection", lambda: FakeConnection())
+
+    vector_tools._fetch_candidate_rows(
+        retrieval_query="寃뚯엫 吏꾪뻾??由ъ뀑",
+        candidate_limit=10,
+        faq_only=True,
+        enrichment=None,
+        use_query_filter=False,
+    )
+
+    sql = captured_sql["sql"]
+    assert "hoyoverse_qna_onlygenshin" in sql
+    assert "hoyoverse_qna_common" in sql
+    assert "ORDER BY CASE" in sql
+
+
+def _base_state() -> dict:
+    return {
+        "ticket_id": 1,
+        "analysis_id": 2,
+        "draft_text": "draft answer",
+        "reasoning_node": "faq_agent",
+        "category": "FAQ",
+        "routing_target": "rag_reply",
+    }
+
+
+def test_draft_persistence_saves_retrieved_documents_as_evidence(monkeypatch) -> None:
+    evidence_payloads = []
+
+    monkeypatch.setattr(persistence, "_write_answer_draft", lambda payload: json.dumps({"draft_id": 10}))
+    monkeypatch.setattr(persistence, "_write_evidence_doc", lambda payload: evidence_payloads.append(payload) or "{}")
+
+    state = {
+        **_base_state(),
+        "retrieved_documents": [
+            {
+                "chunk_id": "chunk-1",
+                "document_id": "doc-1",
+                "source_type": "hoyoverse_qna_common",
+                "chunk_text": "first evidence",
+                "score": 0.05,
+            },
+            {
+                "chunk_id": "chunk-2",
+                "document_id": "doc-2",
+                "source_type": "naver_cafe_notice",
+                "chunk_text": "second evidence",
+                "score": 0.03,
+            },
+        ],
+    }
+
+    result = persistence.draft_persistence_node(state)
+
+    assert result == {"draft_id": 10, "evidence_count": 2}
+    assert evidence_payloads[0]["source_id"] == "chunk-1"
+    assert evidence_payloads[0]["source_type"] == "hoyoverse_qna_common"
+    assert evidence_payloads[0]["evidence_text"] == "first evidence"
+    assert evidence_payloads[0]["retrieval_rank"] == 1
+    assert evidence_payloads[1]["source_id"] == "chunk-2"
+
+
+def test_draft_persistence_falls_back_to_draft_evidence(monkeypatch) -> None:
+    evidence_payloads = []
+
+    monkeypatch.setattr(persistence, "_write_answer_draft", lambda payload: json.dumps({"draft_id": 11}))
+    monkeypatch.setattr(persistence, "_write_evidence_doc", lambda payload: evidence_payloads.append(payload) or "{}")
+
+    result = persistence.draft_persistence_node(_base_state())
+
+    assert result == {"draft_id": 11, "evidence_count": 1}
+    assert evidence_payloads == [
+        {
+            "draft_id": 11,
+            "source_type": "agent",
+            "source_id": "faq_agent_generated_draft",
+            "evidence_text": "draft answer",
+            "relevance_score": 1.0,
+            "retrieval_rank": 1,
+        }
+    ]
+
+
+def test_refine_query_text_deduplicates_terms() -> None:
+    query = "hello hello payment payment item delivery help"
+
+    assert refine_query_text(query) == "hello payment item delivery help"
+
+
+def test_hybrid_rank_documents_combines_bm25_and_cosine() -> None:
+    rows = [
+        {
+            "chunk_id": "dense-match",
+            "document_id": "doc-1",
+            "source_type": "faq",
+            "category": "account",
+            "title": "account guide",
+            "chunk_text": "account linking and data deletion process",
+            "embedding_vector": "[1.0,0.0]",
+        },
+        {
+            "chunk_id": "keyword-match",
+            "document_id": "doc-2",
+            "source_type": "faq",
+            "category": "payment",
+            "title": "payment delivery guide",
+            "chunk_text": "payment item delivery missing check method",
+            "embedding_vector": "[0.0,1.0]",
+        },
+        {
+            "chunk_id": "weak",
+            "document_id": "doc-3",
+            "source_type": "notice",
+            "category": "event",
+            "title": "event",
+            "chunk_text": "attendance reward event",
+            "embedding_vector": "[0.2,0.1]",
+        },
+    ]
+
+    results = hybrid_rank_documents(
+        query_vector=[1.0, 0.0],
+        query_text="payment item delivery",
+        rows=rows,
+        top_k=2,
+    )
+
+    chunk_ids = {result["chunk_id"] for result in results}
+    assert chunk_ids == {"dense-match", "keyword-match"}
+    assert all("cosine_score" in result and "bm25_score" in result for result in results)
+
+
+def test_search_document_chunks_prefers_faq_then_falls_back(monkeypatch) -> None:
+    calls = []
+
+    def fake_fetch_candidate_rows(*, retrieval_query, candidate_limit, faq_only, enrichment=None, use_query_filter=True):
+        calls.append((faq_only, use_query_filter))
+        if faq_only and use_query_filter:
+            return []
+        if faq_only:
+            return []
+        return [
+            {
+                "chunk_id": "fallback-doc",
+                "document_id": "doc-1",
+                "source_type": "notice",
+                "category": "general",
+                "title": "fallback",
+                "chunk_text": "payment item delivery fallback",
+                "embedding_vector": "[1.0,0.0]",
+            }
+        ]
+
+    monkeypatch.setattr(vector_tools, "_fetch_candidate_rows", fake_fetch_candidate_rows)
+
+    results = search_document_chunks(
+        embedding_json="[1.0,0.0]",
+        query_text="payment item delivery",
+        top_k=1,
+        prefer_faq=True,
+    )
+
+    assert calls == [(True, True), (True, False), (False, True)]
+    assert results[0]["chunk_id"] == "fallback-doc"
+    assert results[0]["candidate_scope"] == "all"
+
+
+def test_search_document_chunks_adds_broad_faq_candidates_when_query_candidates_are_sparse(monkeypatch) -> None:
+    calls = []
+
+    def fake_fetch_candidate_rows(*, retrieval_query, candidate_limit, faq_only, enrichment=None, use_query_filter=True):
+        calls.append((faq_only, use_query_filter))
+        if use_query_filter:
+            return [
+                {
+                    "chunk_id": "notice",
+                    "document_id": "doc-1",
+                    "source_type": "naver_cafe_notice",
+                    "category": "notice",
+                    "title": "payment maintenance",
+                    "chunk_text": "payment maintenance notice",
+                    "embedding_vector": "[0.0,1.0]",
+                }
+            ]
+        return [
+            {
+                "chunk_id": "guide",
+                "document_id": "doc-2",
+                "source_type": "hoyoverse_qna_common",
+                "category": "payment",
+                "title": "payment guide",
+                "chunk_text": "payment item delivery guide",
+                "embedding_vector": "[1.0,0.0]",
+            }
+        ]
+
+    monkeypatch.setattr(vector_tools, "_fetch_candidate_rows", fake_fetch_candidate_rows)
+    monkeypatch.setenv("RETRIEVAL_MIN_CANDIDATES", "2")
+
+    results = search_document_chunks(
+        embedding_json="[1.0,0.0]",
+        query_text="payment item delivery",
+        top_k=1,
+        prefer_faq=True,
+    )
+
+    assert calls == [(True, True), (True, False)]
+    assert results[0]["chunk_id"] == "guide"
+    assert results[0]["candidate_scope"] == "faq_broad"
+
+
+def test_hybrid_rank_documents_prefers_qna_over_adjacent_notice_when_scores_are_close() -> None:
+    rows = [
+        {
+            "chunk_id": "notice",
+            "document_id": "notice-1",
+            "source_type": "naver_cafe_notice",
+            "category": "?먭?",
+            "title": "Galaxy Store 寃곗젣 ?쒖뒪???먭? ?덈궡",
+            "chunk_text": "Galaxy Store 寃곗젣 ?쒖뒪???먭? ?덈궡",
+            "embedding_vector": "[1.0,0.0]",
+        },
+        {
+            "chunk_id": "qna",
+            "document_id": "qna-1",
+            "source_type": "hoyoverse_qna_common",
+            "category": "寃곗젣_愿???댁뒋",
+            "title": "Galaxy Store 寃곗젣 愿??臾몄젣 ?닿껐",
+            "chunk_text": "Galaxy Store 寃곗젣 愿??臾몄젣 ?닿껐 諛⑸쾿",
+            "embedding_vector": "[0.99,0.01]",
+        },
+    ]
+
+    results = hybrid_rank_documents(
+        query_vector=[1.0, 0.0],
+        query_text="Galaxy Store 寃곗젣 諛⑸쾿",
+        rows=rows,
+        top_k=2,
+    )
+
+    assert results[0]["chunk_id"] == "qna"
+
+
+def test_hybrid_rank_documents_boosts_question_title_overlap() -> None:
+    rows = [
+        {
+            "chunk_id": "adjacent",
+            "document_id": "doc-1",
+            "source_type": "hoyoverse_qna_onlygenshin",
+            "category": "client",
+            "title": "???명꽣?룹뿉 ?곌껐?섏뿬 寃뚯엫???뚮젅?댄빐???섎굹??",
+            "chunk_text": "寃뚯엫 吏꾪뻾?꾨뒗 ?ㅽ듃?뚰겕 ?곌껐???듯빐 ?쒕쾭????λ맗?덈떎",
+            "embedding_vector": "[1.0,0.0]",
+        },
+        {
+            "chunk_id": "answer",
+            "document_id": "doc-2",
+            "source_type": "hoyoverse_qna_onlygenshin",
+            "category": "account",
+            "title": "寃뚯엫 吏꾪뻾?꾨뒗 ?대뼸寃?由ъ뀑?????덈굹??",
+            "chunk_text": "濡쒓렇???붾㈃ ?ㅻⅨ履??섎떒?먯꽌 濡쒓렇?꾩썐???좏깮?섏떊 ???덈줈??怨꾩젙?쇰줈 濡쒓렇?명븯硫??덈줈??寃뚯엫???쒖옉?????덉뒿?덈떎",
+            "embedding_vector": "[0.98,0.02]",
+        },
+    ]
+
+    results = hybrid_rank_documents(
+        query_vector=[1.0, 0.0],
+        query_text="寃뚯엫 吏꾪뻾??由ъ뀑 諛⑸쾿",
+        rows=rows,
+        top_k=2,
+    )
+
+    assert results[0]["chunk_id"] == "answer"
+    assert results[0]["field_match_score"] > results[1]["field_match_score"]
+
+
+def test_fetch_candidate_rows_broad_mode_orders_faq_sources_by_priority(monkeypatch) -> None:
+    captured_sql = {}
+
+    class FakeCursor:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return None
+
+        def execute(self, sql, params):
+            captured_sql["sql"] = sql
+            captured_sql["params"] = params
+
+        def fetchall(self):
+            return []
+
+    class FakeConnection:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return None
+
+        def cursor(self, row_factory=None):
+            return FakeCursor()
+
+    monkeypatch.setattr(vector_tools, "db_connection", lambda: FakeConnection())
+
+    vector_tools._fetch_candidate_rows(
+        retrieval_query="寃뚯엫 吏꾪뻾??由ъ뀑",
+        candidate_limit=10,
+        faq_only=True,
+        enrichment=None,
+        use_query_filter=False,
+    )
+
+    sql = captured_sql["sql"]
+    assert "hoyoverse_qna_onlygenshin" in sql
+    assert "hoyoverse_qna_common" in sql
+    assert "ORDER BY CASE" in sql
+
+
+def _base_state() -> dict:
+    return {
+        "ticket_id": 1,
+        "analysis_id": 2,
+        "draft_text": "draft answer",
+        "reasoning_node": "faq_agent",
+        "category": "FAQ",
+        "routing_target": "rag_reply",
+    }
+
+
+def test_draft_persistence_saves_retrieved_documents_as_evidence(monkeypatch) -> None:
+    evidence_payloads = []
+
+    monkeypatch.setattr(persistence, "_write_answer_draft", lambda payload: json.dumps({"draft_id": 10}))
+    monkeypatch.setattr(persistence, "_write_evidence_doc", lambda payload: evidence_payloads.append(payload) or "{}")
+
+    state = {
+        **_base_state(),
+        "retrieved_documents": [
+            {
+                "chunk_id": "chunk-1",
+                "document_id": "doc-1",
+                "source_type": "hoyoverse_qna_common",
+                "chunk_text": "first evidence",
+                "score": 0.05,
+            },
+            {
+                "chunk_id": "chunk-2",
+                "document_id": "doc-2",
+                "source_type": "naver_cafe_notice",
+                "chunk_text": "second evidence",
+                "score": 0.03,
+            },
+        ],
+    }
+
+    result = persistence.draft_persistence_node(state)
+
+    assert result == {"draft_id": 10, "evidence_count": 2}
+    assert evidence_payloads[0]["source_id"] == "chunk-1"
+    assert evidence_payloads[0]["source_type"] == "hoyoverse_qna_common"
+    assert evidence_payloads[0]["evidence_text"] == "first evidence"
+    assert evidence_payloads[0]["retrieval_rank"] == 1
+    assert evidence_payloads[1]["source_id"] == "chunk-2"
+
+
+def test_draft_persistence_falls_back_to_draft_evidence(monkeypatch) -> None:
+    evidence_payloads = []
+
+    monkeypatch.setattr(persistence, "_write_answer_draft", lambda payload: json.dumps({"draft_id": 11}))
+    monkeypatch.setattr(persistence, "_write_evidence_doc", lambda payload: evidence_payloads.append(payload) or "{}")
+
+    result = persistence.draft_persistence_node(_base_state())
+
+    assert result == {"draft_id": 11, "evidence_count": 1}
+    assert evidence_payloads == [
+        {
+            "draft_id": 11,
+            "source_type": "agent",
+            "source_id": "faq_agent_generated_draft",
+            "evidence_text": "draft answer",
+            "relevance_score": 1.0,
+            "retrieval_rank": 1,
+        }
+    ]
+

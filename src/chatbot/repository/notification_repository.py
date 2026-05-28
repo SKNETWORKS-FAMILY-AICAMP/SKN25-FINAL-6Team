@@ -4,7 +4,30 @@ from typing import Any
 
 from src.common.db.connection import db_connection
 
-from chatbot.repository.base import safe_write
+from chatbot.repository.base import safe_read, safe_write
+
+
+def notification_log_exists(ticket_id: int | None, channel: str) -> dict[str, Any]:
+    if ticket_id is None:
+        return {"status": "ok", "exists": False, "count": 0}
+
+    def _read() -> dict[str, Any]:
+        with db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT 1
+                    FROM notification_logs
+                    WHERE ticket_id = %s
+                      AND channel = %s
+                    LIMIT 1
+                    """,
+                    (ticket_id, channel),
+                )
+                exists = cur.fetchone() is not None
+        return {"status": "ok", "exists": exists, "count": 1 if exists else 0}
+
+    return safe_read(operation="read_notification_log_exists", reader=_read, ticket_id=ticket_id)
 
 
 def save_notification_log(payload: dict[str, Any]) -> dict[str, Any]:

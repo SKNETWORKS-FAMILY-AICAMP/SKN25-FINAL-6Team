@@ -1,13 +1,14 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 
 import pytest
 
-from tests.chatbot._orchestrator_routing_cases import *  # noqa: F403
+from chatbot.chains.routing import route_by_category
 
 from chatbot.constants import VOC_FIXED_RESPONSE
 from chatbot.generation import voc_agent
+from chatbot.generation.orchestrator import _classify, _route_from_intent
 from chatbot.generation.response.final_response import final_response_node
 from chatbot.generation.response.fixed_responses import (
     BLOCK_RESPONSE,
@@ -19,17 +20,18 @@ from chatbot.generation.response.fixed_responses import (
 )
 from chatbot.notifications import dispatcher
 from chatbot.safety import safety_layer
+from chatbot.schemas import RoutingIntent
 from chatbot.service.chatbot_service import build_state, last_message_text
 
 
 def test_build_state_keeps_conversation_summary() -> None:
     state = build_state(
         ticket_id=1,
-        user_message="게임 진행도 리셋 어캐함?",
-        conversation_summary="이전 문의는 계정 진행도 관련 질문이었다.",
+        user_message="寃뚯엫 吏꾪뻾??由ъ뀑 ?댁틦??",
+        conversation_summary="?댁쟾 臾몄쓽??怨꾩젙 吏꾪뻾??愿??吏덈Ц?댁뿀??",
     )
 
-    assert state["conversation_summary"] == "이전 문의는 계정 진행도 관련 질문이었다."
+    assert state["conversation_summary"] == "?댁쟾 臾몄쓽??怨꾩젙 吏꾪뻾??愿??吏덈Ц?댁뿀??"
 
 
 def test_last_message_text_requires_final_text() -> None:
@@ -236,8 +238,8 @@ def test_safety_layer_marks_faq_answer_with_medium_overlap_for_review(monkeypatc
         {
             "ticket_id": 1,
             "draft_id": 2,
-            "draft_text": "갤럭시 스토어 결제는 스토어 앱에서 결제 수단을 선택해 진행할 수 있습니다.",
-            "retrieved_documents": [{"chunk_text": "갤럭시 스토어 결제 방법 안내 문서"}],
+            "draft_text": "payment item delivery can be checked from purchase history and logs",
+            "retrieved_documents": [{"chunk_text": "payment item delivery purchase history"}],
             "retry_count": 0,
             "category": "FAQ",
             "routing_target": "rag_reply",
@@ -260,7 +262,7 @@ def test_safety_action_allows_non_rag_agent_without_retrieved_documents() -> Non
             "factuality_score": 0.0,
             "hallucination_score": 1.0,
         },
-        draft_text="결제 내역을 확인한 뒤 안내드리겠습니다.",
+        draft_text="寃곗젣 ?댁뿭???뺤씤?????덈궡?쒕━寃좎뒿?덈떎.",
         documents=[],
         requires_grounding=False,
     )
@@ -288,10 +290,10 @@ def test_safety_layer_does_not_fallback_payment_agent_without_rag_docs(monkeypat
         {
             "ticket_id": 1,
             "draft_id": 2,
-            "draft_text": "갤럭시 스토어 결제 방법은 결제 화면에서 결제 수단을 선택해 진행할 수 있습니다.",
+            "draft_text": "媛ㅻ윮???ㅽ넗??寃곗젣 諛⑸쾿? 寃곗젣 ?붾㈃?먯꽌 寃곗젣 ?섎떒???좏깮??吏꾪뻾?????덉뒿?덈떎.",
             "retrieved_documents": [],
             "retry_count": 0,
-            "category": "결제",
+            "category": "寃곗젣",
             "routing_target": "urgent_alert",
             "reasoning_node": "payment_agent",
         }
@@ -320,16 +322,16 @@ def test_safety_layer_does_not_ground_non_faq_payment_context_documents(monkeypa
         {
             "ticket_id": 1,
             "draft_id": 2,
-            "draft_text": "결제 내역을 확인한 뒤 담당자가 지급 여부를 안내드리겠습니다.",
+            "draft_text": "寃곗젣 ?댁뿭???뺤씤?????대떦?먭? 吏湲??щ?瑜??덈궡?쒕━寃좎뒿?덈떎.",
             "retrieved_documents": [
                 {
                     "source_type": "payments",
-                    "category": "결제",
+                    "category": "寃곗젣",
                     "chunk_text": "payment_id=201 payment_status=paid amount=12000",
                 }
             ],
             "retry_count": 0,
-            "category": "결제",
+            "category": "寃곗젣",
             "routing_target": "urgent_alert",
             "reasoning_node": "payment_agent",
             "should_use_rag": False,
@@ -373,8 +375,8 @@ def test_safety_layer_masks_and_rechecks_only_masked_text(monkeypatch) -> None:
         {
             "ticket_id": 1,
             "draft_id": 2,
-            "draft_text": "문의 결과는 test@example.com 으로 안내됩니다.",
-            "retrieved_documents": [{"chunk_text": "문의 결과는 이메일로 안내됩니다."}],
+            "draft_text": "臾몄쓽 寃곌낵??test@example.com ?쇰줈 ?덈궡?⑸땲??",
+            "retrieved_documents": [{"chunk_text": "臾몄쓽 寃곌낵???대찓?쇰줈 ?덈궡?⑸땲??"}],
             "retry_count": 0,
             "category": "FAQ",
             "routing_target": "rag_reply",
@@ -407,8 +409,8 @@ def test_safety_layer_fallbacks_after_masking_retry_exhausted(monkeypatch) -> No
         {
             "ticket_id": 1,
             "draft_id": 2,
-            "draft_text": "문의 결과는 test@example.com 으로 안내됩니다.",
-            "retrieved_documents": [{"chunk_text": "문의 결과는 이메일로 안내됩니다."}],
+            "draft_text": "臾몄쓽 寃곌낵??test@example.com ?쇰줈 ?덈궡?⑸땲??",
+            "retrieved_documents": [{"chunk_text": "臾몄쓽 寃곌낵???대찓?쇰줈 ?덈궡?⑸땲??"}],
             "retry_count": 2,
             "category": "FAQ",
             "routing_target": "rag_reply",
@@ -519,19 +521,19 @@ def test_dispatch_urgent_alert_creates_github_issue_for_bug_agent(monkeypatch) -
             "session_id": 2,
             "user_id": 3,
             "account_id": 4,
-            "category": "?멸쾶??踰꾧렇",
+            "category": "in-game-bug",
             "routing_target": "urgent_alert",
             "reasoning_node": "bug_agent",
-            "enriched_query": "게임 접속 시 로딩 후 종료됩니다.",
-            "final_text": "운영팀이 확인하겠습니다.",
+            "enriched_query": "game closes after loading",
+            "final_text": "operator will review",
         }
     )
 
-    assert result["status"] == "ok"
+    assert result["status"] == "skipped"
     assert result["github_issue_result"]["status"] == "ok"
     assert github_calls
-    assert github_calls[0][0] == "[인게임 버그] 게임 접속 시 로딩 후 종료됩니다."
-    assert [payload["channel"] for payload in notification_logs] == ["slack", "github_issue"]
+    assert github_calls[0][0] == "[인게임 버그] game closes after loading"
+    assert [payload["channel"] for payload in notification_logs] == ["github_issue"]
 
 
 def test_dispatch_urgent_alert_skips_github_issue_for_non_bug(monkeypatch) -> None:
@@ -549,15 +551,61 @@ def test_dispatch_urgent_alert_skips_github_issue_for_non_bug(monkeypatch) -> No
     result = dispatcher.dispatch_urgent_alert(
         {
             "ticket_id": 1,
-            "category": "寃곗젣",
+            "category": "payment",
             "routing_target": "urgent_alert",
             "reasoning_node": "payment_agent",
-            "enriched_query": "결제 아이템이 들어오지 않았습니다.",
+            "enriched_query": "paid item was not delivered",
         }
     )
 
     assert result["github_issue_result"]["status"] == "skipped"
     assert not github_calls
+
+
+def test_dispatch_urgent_alert_sends_slack_only_for_review_queue_once(monkeypatch) -> None:
+    slack_calls = []
+    notification_logs = []
+
+    monkeypatch.setattr(dispatcher, "send_slack_alert", lambda message: slack_calls.append(message) or {"status": "ok"})
+    monkeypatch.setattr(dispatcher, "create_github_issue", lambda title, body: {"status": "skipped"})
+    monkeypatch.setattr(dispatcher, "notification_log_exists", lambda ticket_id, channel: {"exists": False})
+    monkeypatch.setattr(
+        dispatcher,
+        "save_notification_log",
+        lambda payload: notification_logs.append(payload) or {"status": "ok", "stored": True},
+    )
+    monkeypatch.setattr(dispatcher, "log_event", lambda *args, **kwargs: {})
+
+    result = dispatcher.dispatch_urgent_alert(
+        {
+            "ticket_id": 1,
+            "category": "FAQ",
+            "routing_target": "urgent_alert",
+            "reasoning_node": "faq_agent",
+            "safety_action": "REVIEW_QUEUE",
+            "enriched_query": "needs human review",
+        }
+    )
+
+    assert result["status"] == "ok"
+    assert len(slack_calls) == 1
+    assert [payload["channel"] for payload in notification_logs] == ["slack"]
+
+    monkeypatch.setattr(dispatcher, "notification_log_exists", lambda ticket_id, channel: {"exists": True})
+    result = dispatcher.dispatch_urgent_alert(
+        {
+            "ticket_id": 1,
+            "category": "FAQ",
+            "routing_target": "urgent_alert",
+            "reasoning_node": "faq_agent",
+            "safety_action": "REVIEW_QUEUE",
+            "enriched_query": "needs human review again",
+        }
+    )
+
+    assert result["status"] == "skipped"
+    assert result["reason"] == "slack alert already sent for ticket_id"
+    assert len(slack_calls) == 1
 
 
 def test_voc_agent_uses_fallback_for_non_actionable_non_rag_intent(monkeypatch) -> None:
@@ -596,7 +644,7 @@ def test_voc_agent_uses_fallback_for_non_actionable_non_rag_intent(monkeypatch) 
             "analysis_id": 10,
             "user_id": 1,
             "account_id": 101,
-            "enriched_query": "게임 이용 불만",
+            "enriched_query": "寃뚯엫 ?댁슜 遺덈쭔",
             "routing_target": "rag_reply",
             "retry_count": 0,
             "is_actionable": False,
@@ -611,3 +659,177 @@ def test_voc_agent_uses_fallback_for_non_actionable_non_rag_intent(monkeypatch) 
     assert voc_payloads[0]["voc_type"] == "other"
     assert voc_payloads[0]["sentiment"] == "negative"
     assert evidence_payloads
+
+
+def test_llm_intent_normalizes_slang_payment_how_to_to_faq(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "chatbot.generation.orchestrator._normalize_intent_with_llm",
+        lambda query: RoutingIntent(
+            intent="payment_how_to",
+            normalized_query="galaxy store payment guide",
+            requires_account_lookup=False,
+            should_use_rag=True,
+            reason="slang payment how-to",
+        ),
+    )
+
+    assert _classify(1, "galaxy store payment?", account_id=None) == (
+        "FAQ",
+        "rag_reply",
+        "llm_intent",
+        "intent:payment_how_to; slang payment how-to",
+        "galaxy store payment guide",
+        True,
+        True,
+        None,
+    )
+
+
+def test_llm_intent_routes_missing_payment_to_operation(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "chatbot.generation.orchestrator._normalize_intent_with_llm",
+        lambda query: RoutingIntent(
+            intent="payment_missing_item",
+            normalized_query="paid item missing",
+            requires_account_lookup=True,
+            should_use_rag=False,
+            reason="paid item is missing",
+        ),
+    )
+
+    assert _classify(1, "paid item missing", account_id=None) == (
+        "결제",
+        "urgent_alert",
+        "llm_intent",
+        "intent:payment_missing_item; paid item is missing",
+        "paid item missing",
+        True,
+        False,
+        None,
+    )
+
+
+def test_llm_intent_keeps_payment_how_to_in_faq_even_with_account(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "chatbot.generation.orchestrator._normalize_intent_with_llm",
+        lambda query: RoutingIntent(
+            intent="payment_how_to",
+            normalized_query="galaxy store payment guide",
+            requires_account_lookup=False,
+            should_use_rag=True,
+            reason="payment how-to but account is present",
+        ),
+    )
+
+    assert _classify(1, "galaxy store payment guide", account_id=10) == (
+        "FAQ",
+        "rag_reply",
+        "llm_intent",
+        "intent:payment_how_to; payment how-to but account is present",
+        "galaxy store payment guide",
+        True,
+        True,
+        None,
+    )
+
+
+def test_route_from_intent_sends_bug_how_to_to_faq() -> None:
+    assert _route_from_intent(
+        RoutingIntent(
+            intent="bug_how_to",
+            normalized_query="game launch error troubleshooting",
+            requires_account_lookup=False,
+            should_use_rag=True,
+            reason="general troubleshooting",
+        )
+    ) == ("FAQ", "rag_reply", "intent:bug_how_to; general troubleshooting")
+
+
+def test_route_from_intent_prioritizes_general_rag_over_account_lookup() -> None:
+    assert _route_from_intent(
+        RoutingIntent(
+            intent="payment_how_to",
+            normalized_query="galaxy store payment guide",
+            is_actionable=True,
+            requires_account_lookup=True,
+            should_use_rag=True,
+            reason="general payment guide despite logged-in account",
+        ),
+        account_id=101,
+    ) == ("FAQ", "rag_reply", "intent:payment_how_to; general payment guide despite logged-in account")
+
+
+def test_llm_intent_routes_non_actionable_complaint_to_voc_without_rag(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "chatbot.generation.orchestrator._normalize_intent_with_llm",
+        lambda query: RoutingIntent(
+            intent="voc",
+            normalized_query="game complaint",
+            is_actionable=False,
+            requires_account_lookup=False,
+            should_use_rag=False,
+            fallback_reason="low_information_complaint",
+            reason="vague emotional complaint without a concrete issue",
+        ),
+    )
+
+    assert _classify(1, "this game is bad", account_id=None) == (
+        "VOC",
+        "rag_reply",
+        "llm_intent",
+        "intent:voc; vague emotional complaint without a concrete issue",
+        "game complaint",
+        False,
+        False,
+        "low_information_complaint",
+    )
+
+
+def test_classify_falls_back_to_structured_classifier_when_intent_fails(monkeypatch) -> None:
+    monkeypatch.setattr("chatbot.generation.orchestrator._normalize_intent_with_llm", lambda query: (_ for _ in ()).throw(RuntimeError("intent failed")))
+    monkeypatch.setattr(
+        "chatbot.generation.orchestrator._classify_with_llm",
+        lambda ticket_id, query: type(
+            "ClassifierResult",
+            (),
+            {
+                "category": "FAQ",
+                "routing_target": "rag_reply",
+                "reason": "classifier fallback",
+            },
+        )(),
+    )
+
+    assert _classify(1, "galaxy store payment guide", account_id=None) == (
+        "FAQ",
+        "rag_reply",
+        "llm",
+        "classifier fallback",
+        "galaxy store payment guide",
+        None,
+        None,
+        None,
+    )
+
+
+def test_classify_defaults_to_faq_when_all_llm_routing_fails(monkeypatch) -> None:
+    monkeypatch.setattr("chatbot.generation.orchestrator._normalize_intent_with_llm", lambda query: (_ for _ in ()).throw(RuntimeError("intent failed")))
+    monkeypatch.setattr("chatbot.generation.orchestrator._classify_with_llm", lambda ticket_id, query: (_ for _ in ()).throw(RuntimeError("classifier failed")))
+
+    assert _classify(1, "galaxy store payment guide", account_id=None) == (
+        "FAQ",
+        "rag_reply",
+        "fallback",
+        "intent_and_classifier_unavailable",
+        "galaxy store payment guide",
+        None,
+        None,
+        None,
+    )
+
+
+def test_route_by_normalized_categories() -> None:
+    assert route_by_category({"category": "결제"}) == "payment_agent"
+    assert route_by_category({"category": "인게임/버그"}) == "bug_agent"
+    assert route_by_category({"category": "FAQ"}) == "faq_agent"
+
