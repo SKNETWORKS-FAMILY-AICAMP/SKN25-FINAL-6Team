@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Game CS Automation Dashboard</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand-block">
+        <div class="brand-logo">DA</div>
+        <div>
+          <p class="kicker">Dashboard Mock</p>
+          <h1>게임 CS자동화시스템</h1>
+          <p class="muted">운영 요약 / 리스크 / 응답 품질 / 주간 보고서</p>
+        </div>
+      </div>
+
+      <section class="panel filter-panel">
+        <div class="panel-head">
+          <h2>조회 조건</h2>
+          <button id="resetFilters" class="ghost-btn" type="button">초기화</button>
+        </div>
+        <label class="field">
+          <span>조회 기간</span>
+          <input id="daysFilter" type="range" min="1" max="365" value="30">
+          <strong id="daysValue">30일</strong>
+        </label>
+        <label class="field">
+          <span>리스크 필터</span>
+          <select id="riskFilter">
+            <option value="all">전체</option>
+            <option value="critical">Critical</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>채널</span>
+          <select id="sourceFilter">
+            <option value="all">전체</option>
+            <option value="community">Community</option>
+            <option value="chatbot">Chatbot</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>검색</span>
+          <input id="searchFilter" type="search" placeholder="티켓 제목, 닉네임, 카테고리">
+        </label>
+      </section>
+
+      <section class="panel alert-panel">
+        <div class="panel-head">
+          <h2>실시간 경보</h2>
+          <span id="alertCount" class="badge neutral">0건</span>
+        </div>
+        <div id="alertList" class="stack-list"></div>
+      </section>
+    </aside>
+
+    <main class="workspace">
+      <header class="hero panel">
+        <div>
+          <p class="kicker">HTML / CSS / JavaScript only</p>
+          <h2>운영 지표와 위험 신호를 한 화면에서 추적하는 동적 대시보드</h2>
+          <p class="hero-copy">
+            `docs/dashboard`의 PRD, screen design, metrics 기준으로 KPI, 분포 차트, 품질 경보,
+            티켓 상세, 주간 보고서 상태를 정적 mock 데이터만으로 재현했습니다.
+          </p>
+        </div>
+        <div class="hero-actions">
+          <button id="simulateSpike" class="primary-btn" type="button">리스크 스파이크</button>
+          <button id="toggleAutoplay" class="ghost-btn" type="button">자동 변화: OFF</button>
+        </div>
+      </header>
+
+      <nav class="tab-row">
+        <button class="tab-btn active" data-tab="overview" type="button">운영 요약</button>
+        <button class="tab-btn" data-tab="risk" type="button">리스크 분석</button>
+        <button class="tab-btn" data-tab="quality" type="button">응답 품질</button>
+        <button class="tab-btn" data-tab="weekly" type="button">주간 보고서</button>
+      </nav>
+
+      <section id="metricGrid" class="metric-grid"></section>
+
+      <section class="content-grid">
+        <div class="main-stack">
+          <section id="tab-overview" class="tab-panel active">
+            <div class="chart-grid">
+              <article class="panel chart-panel">
+                <div class="panel-head">
+                  <h3>채널 분포</h3>
+                  <span class="badge neutral">source_type</span>
+                </div>
+                <div id="sourceChart" class="chart-bars"></div>
+              </article>
+              <article class="panel chart-panel">
+                <div class="panel-head">
+                  <h3>상태 분포</h3>
+                  <span class="badge neutral">status</span>
+                </div>
+                <div id="statusChart" class="chart-bars"></div>
+              </article>
+              <article class="panel chart-panel">
+                <div class="panel-head">
+                  <h3>라우팅 분포</h3>
+                  <span class="badge neutral">routing_target</span>
+                </div>
+                <div id="routingChart" class="chart-bars"></div>
+              </article>
+              <article class="panel chart-panel">
+                <div class="panel-head">
+                  <h3>최근 7일 추이</h3>
+                  <span class="badge neutral">tickets/day</span>
+                </div>
+                <div id="trendChart" class="line-chart"></div>
+              </article>
+            </div>
+          </section>
+
+          <section id="tab-risk" class="tab-panel">
+            <div class="chart-grid">
+              <article class="panel chart-panel">
+                <div class="panel-head">
+                  <h3>분석 리스크 분포</h3>
+                  <span id="riskThresholdFlag" class="badge high">주의</span>
+                </div>
+                <div id="analysisRiskChart" class="chart-bars"></div>
+              </article>
+              <article class="panel chart-panel">
+                <div class="panel-head">
+                  <h3>감정 분포</h3>
+                  <span class="badge neutral">sentiment</span>
+                </div>
+                <div id="sentimentChart" class="chart-bars"></div>
+              </article>
+              <article class="panel chart-panel">
+                <div class="panel-head">
+                  <h3>패턴 리스크 분포</h3>
+                  <span class="badge neutral">pattern_risk</span>
+                </div>
+                <div id="patternRiskChart" class="chart-bars"></div>
+              </article>
+              <article class="panel chart-panel">
+                <div class="panel-head">
+                  <h3>Safety 평균 점수</h3>
+                  <span class="badge neutral">avg score</span>
+                </div>
+                <div id="safetySummary" class="score-grid"></div>
+              </article>
+            </div>
+          </section>
+
+          <section id="tab-quality" class="tab-panel">
+            <div class="chart-grid">
+              <article class="panel chart-panel">
+                <div class="panel-head">
+                  <h3>알림 상태 분포</h3>
+                  <span class="badge neutral">notification_logs</span>
+                </div>
+                <div id="notificationChart" class="chart-bars"></div>
+              </article>
+              <article class="panel chart-panel">
+                <div class="panel-head">
+                  <h3>근거 연결률</h3>
+                  <span class="badge neutral">evidence coverage</span>
+                </div>
+                <div id="coverageSummary" class="summary-card-grid"></div>
+              </article>
+              <article class="panel chart-panel">
+                <div class="panel-head">
+                  <h3>응답 품질 후보</h3>
+                  <span class="badge medium">priority</span>
+                </div>
+                <div id="qualityCandidates" class="stack-list"></div>
+              </article>
+              <article class="panel chart-panel">
+                <div class="panel-head">
+                  <h3>품질 메모</h3>
+                  <span class="badge neutral">editor</span>
+                </div>
+                <textarea id="qualityMemo" class="memo-box" placeholder="품질 관리 메모를 남겨보세요."></textarea>
+              </article>
+            </div>
+          </section>
+
+          <section id="tab-weekly" class="tab-panel">
+            <div class="chart-grid">
+              <article class="panel chart-panel">
+                <div class="panel-head">
+                  <h3>주간 보고서 요약</h3>
+                  <span class="badge neutral">7d report</span>
+                </div>
+                <div id="weeklyHighlights" class="stack-list"></div>
+              </article>
+              <article class="panel chart-panel">
+                <div class="panel-head">
+                  <h3>Slack 전송 상태</h3>
+                  <span id="slackStatus" class="badge low">정상</span>
+                </div>
+                <div id="weeklyDelivery" class="stack-list"></div>
+              </article>
+              <article class="panel chart-panel wide">
+                <div class="panel-head">
+                  <h3>주간 핵심 티켓</h3>
+                  <span class="badge neutral">review list</span>
+                </div>
+                <div id="weeklyTicketList" class="table-like"></div>
+              </article>
+            </div>
+          </section>
+
+          <section class="panel ticket-table-panel">
+            <div class="panel-head">
+              <h3>최근 문의 목록</h3>
+              <span id="ticketCount" class="badge neutral">0건</span>
+            </div>
+            <div id="ticketTable" class="table-like"></div>
+          </section>
+        </div>
+
+        <aside class="detail-stack">
+          <section class="panel detail-panel">
+            <div class="panel-head">
+              <h3>티켓 상세</h3>
+              <span id="ticketDetailId" class="mono-pill">-</span>
+            </div>
+            <h4 id="ticketDetailTitle" class="detail-title">티켓을 선택하세요</h4>
+            <div id="ticketDetailMeta" class="meta-row"></div>
+            <p id="ticketDetailBody" class="body-copy empty-state">왼쪽 테이블 또는 경보 목록에서 티켓을 선택하면 상세가 표시됩니다.</p>
+          </section>
+
+          <section class="panel detail-panel">
+            <div class="panel-head">
+              <h3>분석 / 초안 / 최종 응답</h3>
+              <span id="ticketDetailRoute" class="badge neutral">-</span>
+            </div>
+            <div id="ticketAnalysis" class="detail-card empty-state">분석 결과 없음</div>
+            <div id="ticketDraft" class="detail-card empty-state">초안 없음</div>
+            <div id="ticketFinal" class="detail-card empty-state">최종 응답 없음</div>
+          </section>
+
+          <section class="panel detail-panel">
+            <div class="panel-head">
+              <h3>근거 / 알림 / VOC</h3>
+              <span id="ticketEvidenceCount" class="badge neutral">0건</span>
+            </div>
+            <div id="ticketEvidence" class="stack-list"></div>
+            <div id="ticketVoc" class="detail-card empty-state">VOC 없음</div>
+          </section>
+        </aside>
+      </section>
+    </main>
+  </div>
+
+  <template id="metricTemplate">
+    <article class="metric-card">
+      <div class="metric-head">
+        <p class="metric-label"></p>
+        <span class="metric-badge badge neutral"></span>
+      </div>
+      <strong class="metric-value"></strong>
+      <p class="metric-foot"></p>
+    </article>
+  </template>
+
+  <script src="./app.js"></script>
+</body>
+</html>

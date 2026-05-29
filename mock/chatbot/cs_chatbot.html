@@ -1,0 +1,694 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Game CS Agent Account Link</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              blue: "#6096B4",
+              soft: "#93BFCF",
+              mist: "#BDCDD6",
+              cream: "#EEE9DA",
+              ink: "#102F4A"
+            }
+          },
+          boxShadow: {
+            glass: "0 30px 90px rgba(16, 47, 74, 0.16)"
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    body {
+      font-family: "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", Arial, sans-serif;
+      background:
+        linear-gradient(rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.18)),
+        url("../assets/background.png") center center / cover fixed no-repeat;
+    }
+
+    body::before {
+      content: none;
+    }
+
+    body::after {
+      content: none;
+    }
+
+    .open-world-bg {
+      display: none;
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 0;
+      width: 100%;
+      height: min(46vh, 430px);
+      pointer-events: none;
+      opacity: 0.92;
+    }
+
+    .open-world-lamp {
+      display: none;
+      position: fixed;
+      left: 7vw;
+      bottom: 7vh;
+      z-index: 0;
+      width: 34px;
+      height: 110px;
+      pointer-events: none;
+      opacity: 0.34;
+    }
+
+    .open-world-lamp::before {
+      content: "";
+      position: absolute;
+      left: 14px;
+      top: 30px;
+      width: 5px;
+      height: 80px;
+      background: rgba(16, 47, 74, 0.5);
+      border-radius: 999px;
+    }
+
+    .open-world-lamp::after {
+      content: "";
+      position: absolute;
+      left: 4px;
+      top: 0;
+      width: 26px;
+      height: 34px;
+      background: rgba(96, 150, 180, 0.58);
+      clip-path: polygon(50% 0, 80% 20%, 100% 62%, 74% 100%, 26% 100%, 0 62%, 20% 20%);
+    }
+  </style>
+</head>
+<body class="min-h-screen overflow-x-hidden text-brand-ink">
+  <svg class="open-world-bg" viewBox="0 0 1600 430" preserveAspectRatio="none" aria-hidden="true">
+    <defs>
+      <linearGradient id="mountainFar" x1="0" x2="0" y1="0" y2="1">
+        <stop offset="0%" stop-color="#BDCDD6" stop-opacity="0.46" />
+        <stop offset="100%" stop-color="#93BFCF" stop-opacity="0.2" />
+      </linearGradient>
+      <linearGradient id="mountainNear" x1="0" x2="0" y1="0" y2="1">
+        <stop offset="0%" stop-color="#93BFCF" stop-opacity="0.42" />
+        <stop offset="100%" stop-color="#6096B4" stop-opacity="0.24" />
+      </linearGradient>
+      <linearGradient id="castleFade" x1="0" x2="0" y1="0" y2="1">
+        <stop offset="0%" stop-color="#6096B4" stop-opacity="0.42" />
+        <stop offset="100%" stop-color="#6096B4" stop-opacity="0.08" />
+      </linearGradient>
+    </defs>
+
+    <path d="M0 234 C120 192 190 210 280 170 C390 120 480 208 575 156 C680 100 745 198 838 158 C970 100 1050 186 1160 144 C1290 94 1398 184 1600 120 L1600 430 L0 430 Z" fill="url(#mountainFar)" />
+    <path d="M0 290 C110 230 190 258 300 210 C405 164 500 252 610 202 C730 148 810 240 930 184 C1058 124 1125 218 1245 170 C1390 112 1484 202 1600 168 L1600 430 L0 430 Z" fill="url(#mountainNear)" />
+    <path d="M0 342 C170 318 260 350 395 322 C555 290 640 348 790 310 C930 276 1048 336 1190 304 C1342 270 1450 318 1600 286 L1600 430 L0 430 Z" fill="#6096B4" opacity="0.12" />
+
+    <ellipse cx="130" cy="350" rx="170" ry="34" fill="#fffdf8" opacity="0.72" />
+    <ellipse cx="1450" cy="356" rx="205" ry="42" fill="#fffdf8" opacity="0.68" />
+    <ellipse cx="790" cy="314" rx="380" ry="46" fill="#fffdf8" opacity="0.18" />
+
+    <g transform="translate(1085 192)" fill="url(#castleFade)">
+      <rect x="0" y="88" width="150" height="118" rx="4" />
+      <rect x="24" y="52" width="28" height="154" />
+      <rect x="92" y="38" width="34" height="168" />
+      <rect x="138" y="70" width="26" height="136" />
+      <path d="M20 52 L38 20 L56 52 Z" />
+      <path d="M86 38 L109 0 L132 38 Z" />
+      <path d="M134 70 L151 42 L168 70 Z" />
+      <rect x="64" y="116" width="26" height="90" rx="13" opacity="0.5" />
+    </g>
+  </svg>
+  <div class="open-world-lamp" aria-hidden="true"></div>
+  <main id="loginPage" class="relative z-10 mx-auto grid min-h-screen w-[min(1370px,calc(100%-64px))] grid-cols-1 items-center gap-12 py-16 lg:grid-cols-[1.02fr_0.92fr] lg:gap-24">
+    <section class="px-2" aria-label="서비스 소개">
+      <div class="mb-10 inline-flex rounded-full bg-brand-mist/50 px-5 py-3 text-[17px] font-extrabold text-[#064b80]">
+        일상 · GameOps
+      </div>
+
+      <h1 class="m-0 max-w-[650px] text-[44px] font-black leading-[1.18] tracking-[-0.02em] sm:text-[58px] xl:text-[76px]">
+        <span class="font-black text-brand-blue">일상 고객센터</span><br />
+        일상과 함께<br />
+        문의 해결을 시작하세요
+      </h1>
+
+      <div class="my-9 h-px w-full max-w-[620px] bg-brand-blue/25"></div>
+
+      <p class="mb-11 max-w-[560px] break-keep text-[19px] font-semibold leading-[1.75] text-[#1d3f5c] sm:text-[21px]">
+        AI가 더 빠르고 정확하게 도와드릴 수 있도록<br />
+        게임 계정을 연결해 주세요.
+      </p>
+
+      <div class="grid max-w-[650px] grid-cols-1 gap-6 md:grid-cols-3">
+        <article class="min-h-[205px] rounded-2xl border border-brand-blue/20 bg-white/60 p-6 text-center shadow-[0_18px_40px_rgba(16,47,74,0.08)]">
+          <div class="mx-auto mb-5 grid h-20 w-20 place-items-center rounded-full border border-brand-blue/20 bg-brand-mist/40 text-4xl font-extrabold text-[#1c5f8b]">…</div>
+          <h2 class="mb-3 text-xl font-black">실시간 상담 지원</h2>
+          <p class="break-keep text-[15px] leading-7 text-[#244762]">문의 유형을 빠르게 분류하고 최적의 답변을 제공합니다.</p>
+        </article>
+        <article class="min-h-[205px] rounded-2xl border border-brand-blue/20 bg-white/60 p-6 text-center shadow-[0_18px_40px_rgba(16,47,74,0.08)]">
+          <div class="mx-auto mb-5 grid h-20 w-20 place-items-center rounded-full border border-brand-blue/20 bg-brand-mist/40 text-4xl font-extrabold text-[#1c5f8b]">□</div>
+          <h2 class="mb-3 text-xl font-black">스마트 게임 가이드</h2>
+          <p class="break-keep text-[15px] leading-7 text-[#244762]">AI가 제공하는 게임과 플레이 팁을 확인하세요.</p>
+        </article>
+        <article class="min-h-[205px] rounded-2xl border border-brand-blue/20 bg-white/60 p-6 text-center shadow-[0_18px_40px_rgba(16,47,74,0.08)]">
+          <div class="mx-auto mb-5 grid h-20 w-20 place-items-center rounded-full border border-brand-blue/20 bg-brand-mist/40 text-4xl font-extrabold text-[#1c5f8b]">✓</div>
+          <h2 class="mb-3 text-xl font-black">정확한 계정 확인</h2>
+          <p class="break-keep text-[15px] leading-7 text-[#244762]">결제, 아이템, 기록 기반 등 정확한 조회가 가능해요.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="ml-0 w-full rounded-[24px] border border-brand-blue/20 bg-white/70 px-6 py-9 shadow-glass backdrop-blur-2xl sm:px-12 sm:py-14 lg:ml-auto lg:max-w-[530px]" aria-label="계정 연동">
+      <h2 class="mb-6 text-[36px] font-black tracking-[-0.01em] sm:text-[40px]">계정 연동</h2>
+
+      <div class="mb-8 grid grid-cols-[42px_1fr] items-start gap-4 break-keep text-[17px] font-semibold leading-7 text-[#123c5e]">
+        <div class="grid h-[42px] w-[42px] place-items-center rounded-[13px] bg-brand-soft/25 text-2xl text-brand-blue">◇</div>
+        <div>입력하신 정보는 안전하게 보호되며,<br />인증 후에는 별도로 저장하지 않습니다.</div>
+      </div>
+
+      <form>
+        <div class="mb-6">
+          <label for="email" class="mb-3 block text-[17px] font-black text-[#153958]">이메일</label>
+          <div class="grid min-h-[60px] grid-cols-[34px_1fr_28px] items-center rounded-2xl border border-brand-blue/30 bg-white/70 px-4">
+            <div class="text-[22px] text-[#47799c]">□</div>
+            <input id="email" type="email" placeholder="이메일을 입력해주세요" class="w-full border-0 bg-transparent text-[17px] text-[#153958] outline-none" />
+            <div></div>
+          </div>
+        </div>
+
+        <div class="mb-6">
+          <label for="password" class="mb-3 block text-[17px] font-black text-[#153958]">비밀번호</label>
+          <div class="grid min-h-[60px] grid-cols-[34px_1fr_28px] items-center rounded-2xl border border-brand-blue/30 bg-white/70 px-4">
+            <div class="text-[22px] text-[#47799c]">▣</div>
+            <input id="password" type="password" placeholder="비밀번호를 입력해주세요" class="w-full border-0 bg-transparent text-[17px] text-[#153958] outline-none" />
+            <div class="text-right text-[22px] text-[#47799c]">◎</div>
+          </div>
+        </div>
+
+        <div class="mb-8">
+          <label for="server" class="mb-3 block text-[17px] font-black text-[#153958]">서버</label>
+          <div class="grid min-h-[60px] grid-cols-[34px_1fr_28px] items-center rounded-2xl border border-brand-blue/30 bg-white/70 px-4">
+            <div class="text-[22px] text-[#47799c]">▤</div>
+            <select id="server" class="w-full border-0 bg-transparent text-[17px] text-[#153958] outline-none">
+              <option value="">서버를 선택해주세요</option>
+              <option>KR</option>
+              <option>Asia</option>
+              <option>America</option>
+              <option>Europe</option>
+            </select>
+            <div class="text-right text-[22px] text-[#47799c]">⌄</div>
+          </div>
+        </div>
+
+        <button id="linkAccountButton" class="h-[68px] w-full rounded-xl bg-gradient-to-br from-[#3b7daa] to-brand-blue text-[22px] font-black text-white shadow-[0_20px_40px_rgba(96,150,180,0.3)]" type="button">
+          계정 연결하기 <span class="pl-3">→</span>
+        </button>
+      </form>
+
+      <footer class="mt-10 flex flex-col gap-4 border-t border-brand-blue/20 pt-7 sm:flex-row sm:items-center sm:justify-between">
+        <nav class="flex items-center gap-4 text-[15px] font-extrabold text-[#153958]" aria-label="정책 링크">
+          <a href="#" class="hover:text-brand-blue hover:underline" data-modal="privacy"><span class="mr-1 text-xl text-[#df9e32]">▧</span>개인정보 처리방침</a>
+          <span class="text-brand-ink/40">|</span>
+          <a href="#" class="hover:text-brand-blue hover:underline" data-modal="terms">이용약관</a>
+        </nav>
+        <a href="#" class="inline-flex items-center gap-2 whitespace-nowrap text-[15px] font-extrabold text-[#315d7c] hover:text-brand-blue hover:underline" data-modal="help">도움말이 필요하신가요? ♧</a>
+      </footer>
+    </section>
+  </main>
+
+  <main id="chatPage" class="relative z-10 hidden min-h-screen p-3 text-brand-ink">
+    <section class="relative mx-auto flex h-[calc(100vh-24px)] min-h-[720px] w-[min(1570px,100%)] overflow-hidden rounded-[28px] border border-brand-blue/15 bg-[#fff9ec]/78 shadow-[0_30px_90px_rgba(16,47,74,0.14)] backdrop-blur-2xl">
+      <aside class="relative hidden w-[320px] shrink-0 flex-col border-r border-brand-blue/12 bg-[#f5eee0]/58 px-8 py-9 lg:flex">
+        <div class="mb-10 flex items-center gap-3">
+          <div class="grid h-11 w-11 place-items-center text-[34px] text-brand-blue">✦</div>
+          <div class="text-[26px] font-black tracking-[-0.03em]"><span class="text-brand-blue">일상</span> 고객센터</div>
+        </div>
+
+        <nav class="space-y-4 text-[18px] font-black text-[#244762]" aria-label="챗봇 메뉴">
+          <button id="chatViewButton" class="flex h-[58px] w-full items-center gap-4 rounded-lg bg-gradient-to-br from-[#3d82ae] to-brand-blue px-5 text-left text-white shadow-[0_18px_36px_rgba(96,150,180,0.28)]" type="button">
+            <span class="text-2xl">☏</span>
+            챗봇
+          </button>
+          <button id="inquiryHistoryButton" class="flex h-[58px] w-full items-center gap-4 rounded-lg px-5 text-left text-[#244762] hover:bg-white/55" type="button">
+            <span class="text-2xl text-brand-blue">▤</span>
+            문의 내역
+          </button>
+        </nav>
+
+        <div class="mt-auto rounded-2xl border border-brand-blue/12 bg-white/50 p-5 shadow-[0_12px_32px_rgba(16,47,74,0.06)]">
+          <div class="mb-4 flex items-center gap-3">
+            <span class="grid h-10 w-10 place-items-center rounded-full bg-brand-mist/45 text-xl text-brand-blue">♙</span>
+            <div>
+              <p class="text-xs font-black uppercase tracking-[0.16em] text-brand-blue">Linked Account</p>
+              <p id="linkedEmail" class="mt-1 max-w-[210px] truncate text-sm font-black text-[#153958]">user1@game.com</p>
+            </div>
+          </div>
+          <div class="space-y-2 text-sm font-bold text-[#5b7890]">
+            <p>UID: <span id="linkedUid" class="font-black text-[#244762]">100000001</span></p>
+            <p>Server: <span id="linkedServer" class="font-black text-[#244762]">KR</span></p>
+          </div>
+          <button id="logoutButton" class="mt-5 h-11 w-full rounded-xl border border-brand-blue/20 bg-white/70 text-sm font-black text-[#244762]" type="button">로그아웃</button>
+        </div>
+      </aside>
+
+      <section id="chatMainSection" class="flex min-w-0 flex-1 flex-col border-r border-brand-blue/12 bg-white/30">
+        <header class="flex h-[76px] shrink-0 items-center justify-between border-b border-brand-blue/12 px-7">
+          <div class="flex items-center gap-4">
+            <div class="grid h-11 w-11 place-items-center text-[30px] text-brand-blue">✦</div>
+            <div>
+              <h1 class="text-[20px] font-black leading-tight">일상 고객센터</h1>
+              <p class="mt-1 text-[13px] font-bold text-[#5b7890]">궁금한 내용을 입력하시면 AI가 빠르게 답변해 드려요.</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <button id="newChatButton" class="hidden rounded-xl border border-brand-blue/16 bg-white/58 px-5 py-3 text-sm font-black text-[#244762] hover:bg-white/80 sm:inline-flex" type="button">새 대화창</button>
+          </div>
+        </header>
+
+        <section id="chatMessages" class="flex-1 space-y-5 overflow-y-auto px-8 py-5">
+          <div class="flex items-start gap-4">
+            <div class="grid h-[52px] w-[52px] shrink-0 place-items-center rounded-full bg-white/65 text-[28px] text-brand-blue shadow-[0_10px_24px_rgba(16,47,74,0.08)]">✦</div>
+            <article class="max-w-[620px] rounded-2xl rounded-tl-md bg-white/82 px-5 py-4 text-[15px] font-semibold leading-7 text-[#153958] shadow-[0_12px_30px_rgba(16,47,74,0.08)]">
+              <p class="text-[17px] font-black leading-8">안녕하세요, 일상 고객센터 AI입니다.<br />무엇을 도와드릴까요?</p>
+              <p class="mt-1 text-sm font-bold text-[#5b7890]">아래 카테고리를 선택하거나 궁금한 내용을 직접 입력해 주세요.</p>
+              <div class="categoryBubblePanel mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <button class="categoryButton rounded-xl bg-brand-blue px-4 py-3 text-left text-sm font-black text-white" data-category="payment" type="button">결제/환불</button>
+            <button class="categoryButton rounded-xl bg-white/65 px-4 py-3 text-left text-sm font-black text-[#244762]" data-category="faq" type="button">FAQ/가이드</button>
+            <button class="categoryButton rounded-xl bg-white/65 px-4 py-3 text-left text-sm font-black text-[#244762]" data-category="bug" type="button">버그/오류</button>
+            <button class="categoryButton rounded-xl bg-white/65 px-4 py-3 text-left text-sm font-black text-[#244762]" data-category="voc" type="button">VOC/건의</button>
+              </div>
+              <div class="mt-3 text-xs font-bold text-[#6c8799]">오전 10:32</div>
+            </article>
+          </div>
+        </section>
+
+        <form id="chatForm" class="grid grid-cols-[1fr_58px] gap-4 border-t border-brand-blue/12 bg-[#f5efe2]/80 p-6">
+          <input id="chatInput" class="h-14 rounded-xl border border-brand-blue/15 bg-white/88 px-6 text-[15px] font-semibold text-[#153958] outline-none placeholder:text-[#7f98aa]" placeholder="궁금한 내용을 입력해주세요." />
+          <button class="grid place-items-center rounded-xl bg-brand-blue text-2xl font-black text-white shadow-[0_16px_30px_rgba(96,150,180,0.28)]" type="submit">➤</button>
+        </form>
+        <p class="pb-4 text-center text-xs font-bold text-[#6c8799]">개인정보는 안전하게 보호되며, 인증 후에는 별도로 저장되지 않습니다.</p>
+      </section>
+
+      <section id="inquiryMainSection" class="hidden min-w-0 flex-1 flex-col border-r border-brand-blue/12 bg-white/30">
+        <header class="flex h-[76px] shrink-0 items-center justify-between border-b border-brand-blue/12 px-7">
+          <div class="flex items-center gap-4">
+            <div class="grid h-11 w-11 place-items-center text-[30px] text-brand-blue">▤</div>
+            <div>
+              <h1 class="text-[20px] font-black leading-tight">문의 내역</h1>
+              <p class="mt-1 text-[13px] font-bold text-[#5b7890]">챗봇에서 남긴 문의 내역을 확인할 수 있어요.</p>
+            </div>
+          </div>
+          <button id="backToChatButton" class="rounded-xl border border-brand-blue/16 bg-white/58 px-5 py-3 text-sm font-black text-[#244762]" type="button">채팅으로 돌아가기</button>
+        </header>
+
+        <section class="flex-1 overflow-y-auto px-8 py-7">
+          <div id="inquiryHistoryList" class="space-y-4"></div>
+        </section>
+      </section>
+
+      <aside id="rightPanel" class="hidden w-[330px] shrink-0 flex-col gap-5 bg-[#fffaf0]/50 px-6 pb-7 pt-[92px] xl:flex">
+
+        <section id="chatFaqSection" class="rounded-[20px] border border-brand-blue/10 bg-white/28 p-5">
+          <p class="mb-2 text-xs font-black uppercase tracking-[0.16em] text-brand-blue">Recommended FAQ</p>
+          <h2 id="faqCategoryTitle" class="mb-6 text-lg font-black">결제/환불 관련 문의</h2>
+          <div id="faqList" class="space-y-3"></div>
+        </section>
+
+      </aside>
+    </section>
+  </main>
+
+  <div class="fixed inset-0 z-20 hidden items-center justify-center bg-[#102f4a]/30 p-6 backdrop-blur-md" id="modalBackdrop" role="dialog" aria-modal="true" aria-hidden="true">
+    <section class="w-[min(560px,100%)] overflow-hidden rounded-[22px] border border-brand-blue/20 bg-[#fffdf8] shadow-[0_28px_70px_rgba(16,47,74,0.22)]">
+      <header class="flex items-center justify-between gap-5 border-b border-brand-blue/20 px-7 py-6">
+        <h2 class="m-0 text-[22px] font-black" id="modalTitle">제목</h2>
+        <button class="h-9 w-9 rounded-full border-0 bg-brand-mist/30 text-xl text-[#153958]" type="button" id="modalClose" aria-label="닫기">×</button>
+      </header>
+      <div class="break-keep px-7 py-6 text-base leading-7 text-[#274760]" id="modalBody"></div>
+    </section>
+  </div>
+
+  <script>
+    const modalData = {
+      privacy: {
+        title: "개인정보 처리방침",
+        body: `
+          <p>계정 연동 과정에서 입력된 이메일, 비밀번호, 서버 정보는 인증 목적으로만 사용됩니다.</p>
+          <ul class="mt-4 list-disc pl-5">
+            <li>비밀번호는 화면이나 로그에 저장하지 않습니다.</li>
+            <li>운영 화면에는 필요한 최소 정보만 표시합니다.</li>
+            <li>문의 처리에 필요한 계정 식별 정보는 안전하게 관리됩니다.</li>
+          </ul>
+        `
+      },
+      terms: {
+        title: "이용약관",
+        body: `
+          <p>Game CS Agent는 게임 문의 접수, FAQ 안내, 운영자 검수 연결을 지원하는 고객지원 서비스입니다.</p>
+          <ul class="mt-4 list-disc pl-5">
+            <li>AI 답변은 근거 문서와 운영 데이터 기반으로 제공됩니다.</li>
+            <li>확인이 필요한 문의는 운영자 검수 대상으로 전환될 수 있습니다.</li>
+            <li>서비스 악용 또는 허위 문의는 제한될 수 있습니다.</li>
+          </ul>
+        `
+      },
+      help: {
+        title: "도움말",
+        body: `
+          <p>계정 연동이 되지 않는 경우 이메일, 비밀번호, 서버 선택 값을 다시 확인해 주세요.</p>
+          <ul class="mt-4 list-disc pl-5">
+            <li>비밀번호를 잊은 경우 계정 복구 절차를 이용해 주세요.</li>
+            <li>서버가 다르면 계정 조회가 실패할 수 있습니다.</li>
+            <li>계속 문제가 발생하면 운영자에게 문의해 주세요.</li>
+          </ul>
+        `
+      }
+    };
+
+    const backdrop = document.getElementById("modalBackdrop");
+    const title = document.getElementById("modalTitle");
+    const body = document.getElementById("modalBody");
+    const close = document.getElementById("modalClose");
+    const loginPage = document.getElementById("loginPage");
+    const chatPage = document.getElementById("chatPage");
+    const linkAccountButton = document.getElementById("linkAccountButton");
+    const logoutButton = document.getElementById("logoutButton");
+    const chatViewButton = document.getElementById("chatViewButton");
+    const newChatButton = document.getElementById("newChatButton");
+    const inquiryHistoryButton = document.getElementById("inquiryHistoryButton");
+    const backToChatButton = document.getElementById("backToChatButton");
+    const chatMainSection = document.getElementById("chatMainSection");
+    const inquiryMainSection = document.getElementById("inquiryMainSection");
+    const inquiryHistoryList = document.getElementById("inquiryHistoryList");
+    const chatFaqSection = document.getElementById("chatFaqSection");
+    const rightPanel = document.getElementById("rightPanel");
+    const faqCategoryTitle = document.getElementById("faqCategoryTitle");
+    const faqList = document.getElementById("faqList");
+    const chatForm = document.getElementById("chatForm");
+    const chatInput = document.getElementById("chatInput");
+    const chatMessages = document.getElementById("chatMessages");
+    const faqByCategory = {
+      payment: {
+        label: "결제/환불",
+        routeText: "결제나 환불과 관련된 문의를 선택하셨어요. 결제 내역과 지급 상태를 확인할 수 있도록 필요한 내용을 안내드릴게요.",
+        questions: [
+          "결제는 완료됐는데 아이템을 못 받았어요",
+          "환불은 어떻게 하나요?",
+          "결제 수단을 변경하고 싶어요",
+          "구매한 상품 내역을 확인하고 싶어요",
+        ],
+      },
+      faq: {
+        label: "FAQ/가이드",
+        routeText: "자주 묻는 질문과 공식 안내를 기준으로 확인해드릴게요. 궁금한 항목을 선택하거나 직접 질문을 입력해 주세요.",
+        questions: [
+          "초보자 가이드는 어디서 확인하나요?",
+          "게임 공지는 어디서 볼 수 있나요?",
+          "이벤트 보상 수령 방법이 궁금해요",
+          "개인정보 처리방침을 확인하고 싶어요",
+        ],
+      },
+      bug: {
+        label: "버그/오류",
+        routeText: "버그나 오류와 관련된 문의를 선택하셨어요. 발생 상황을 알려주시면 확인에 필요한 내용을 안내드릴게요.",
+        questions: [
+          "게임 실행 중 오류가 발생했어요",
+          "화면이 멈추거나 튕겨요",
+          "퀘스트 진행이 되지 않아요",
+          "가챠 기록이 이상해요",
+        ],
+      },
+      voc: {
+        label: "VOC/건의",
+        routeText: "건의나 의견을 남기실 수 있어요. 불편했던 점이나 개선 의견을 편하게 입력해 주세요.",
+        questions: [
+          "이벤트 보상이 아쉬워요",
+          "개선 의견을 남기고 싶어요",
+          "칭찬이나 피드백을 전달하고 싶어요",
+          "불편했던 점을 말하고 싶어요",
+        ],
+      },
+    };
+    const submittedInquiries = [
+      {
+        id: "TCK-1001",
+        type: "결제/아이템",
+        title: "결제 완료 후 아이템 미지급 확인 요청",
+        content: "루비 500개 패키지를 결제했지만 인벤토리와 우편함에 보이지 않습니다.",
+      },
+      {
+        id: "TCK-1000",
+        type: "계정",
+        title: "계정 비밀번호 변경 방법 안내",
+        content: "비밀번호 변경 경로를 확인하고 싶습니다.",
+      },
+    ];
+
+    function openModal(key) {
+      const content = modalData[key];
+      title.textContent = content.title;
+      body.innerHTML = content.body;
+      backdrop.classList.remove("hidden");
+      backdrop.classList.add("flex");
+      backdrop.setAttribute("aria-hidden", "false");
+    }
+
+    function closeModal() {
+      backdrop.classList.add("hidden");
+      backdrop.classList.remove("flex");
+      backdrop.setAttribute("aria-hidden", "true");
+    }
+
+    document.querySelectorAll("[data-modal]").forEach((link) => {
+      link.addEventListener("click", (event) => {
+        event.preventDefault();
+        openModal(link.dataset.modal);
+      });
+    });
+
+    close.addEventListener("click", closeModal);
+    backdrop.addEventListener("click", (event) => {
+      if (event.target === backdrop) closeModal();
+    });
+    window.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") closeModal();
+    });
+
+    function showChatPage() {
+      const email = document.getElementById("email").value.trim() || "user1@game.com";
+      const server = document.getElementById("server").value || "KR";
+
+      document.getElementById("linkedEmail").textContent = email;
+      document.getElementById("linkedServer").textContent = server;
+      loginPage.classList.add("hidden");
+      chatPage.classList.remove("hidden");
+      chatPage.classList.add("flex");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function showLoginPage() {
+      chatPage.classList.add("hidden");
+      chatPage.classList.remove("flex");
+      loginPage.classList.remove("hidden");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function addUserMessage(message) {
+      const bubble = document.createElement("article");
+      bubble.className = "ml-auto max-w-[56%] rounded-2xl rounded-tr-md bg-[#dcebf3] px-5 py-4 text-[15px] font-bold leading-7 text-[#153958] shadow-[0_12px_28px_rgba(96,150,180,0.13)]";
+      bubble.textContent = message;
+      chatMessages.appendChild(bubble);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function addAssistantMessage(message) {
+      const row = document.createElement("div");
+      row.className = "flex items-start gap-4";
+      row.innerHTML = `
+        <div class="grid h-[52px] w-[52px] shrink-0 place-items-center rounded-full bg-white/65 text-[28px] text-brand-blue shadow-[0_10px_24px_rgba(16,47,74,0.08)]">✦</div>
+        <article class="max-w-[520px] rounded-2xl rounded-tl-md bg-white/82 px-5 py-4 text-[15px] font-semibold leading-7 text-[#153958] shadow-[0_12px_30px_rgba(16,47,74,0.08)]">
+          ${message}
+          <div class="mt-3 text-xs font-bold text-[#6c8799]">방금 전</div>
+        </article>
+      `;
+      chatMessages.appendChild(row);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function openInfoModal(titleText, bodyHtml) {
+      title.textContent = titleText;
+      body.innerHTML = bodyHtml;
+      backdrop.classList.remove("hidden");
+      backdrop.classList.add("flex");
+      backdrop.setAttribute("aria-hidden", "false");
+    }
+
+    function renderInquiryHistory() {
+      return `
+        <ul class="space-y-3">
+          ${submittedInquiries.map((item) => `
+            <li class="rounded-xl bg-white/70 p-4">
+              <div class="mb-1 flex items-center justify-between gap-3">
+                <span class="text-xs font-black text-brand-blue">${item.id}</span>
+              </div>
+              <p class="text-sm font-bold text-[#5b7890]">${item.type}</p>
+              <p class="mt-1">${item.title}</p>
+              <p class="mt-2 max-h-12 overflow-hidden text-sm font-semibold leading-6 text-[#6c8799]">${item.content}</p>
+            </li>
+          `).join("")}
+        </ul>
+      `;
+    }
+
+    function renderInquiryHistoryPage() {
+      inquiryHistoryList.innerHTML = submittedInquiries.map((item) => `
+        <article class="rounded-2xl border border-brand-blue/12 bg-white/72 p-5 shadow-[0_12px_30px_rgba(16,47,74,0.05)]">
+          <div class="mb-3 flex items-start justify-between gap-4">
+            <div>
+              <p class="text-xs font-black uppercase tracking-[0.14em] text-brand-blue">${item.id}</p>
+              <h2 class="mt-1 text-xl font-black text-[#153958]">${item.title}</h2>
+            </div>
+          </div>
+          <div class="mb-4 flex flex-wrap gap-2 text-sm font-black text-[#5b7890]">
+            <span class="rounded-full bg-[#f5efe2] px-3 py-2">유형: ${item.type}</span>
+            <span class="rounded-full bg-[#f5efe2] px-3 py-2">계정: ${document.getElementById("linkedEmail").textContent}</span>
+          </div>
+          <p class="whitespace-pre-line rounded-xl bg-[#fffaf0]/70 p-4 text-sm font-semibold leading-7 text-[#244762]">${item.content}</p>
+          <div class="mt-4 flex justify-end gap-2">
+            <button class="rounded-xl border border-brand-blue/15 bg-white/70 px-4 py-2 text-sm font-black text-[#244762]" type="button">상세 보기</button>
+          </div>
+        </article>
+      `).join("");
+    }
+
+    function setActiveMenu(activeMenu) {
+      const chatActive = activeMenu === "chat";
+      chatViewButton.className = chatActive ? "flex h-[58px] w-full items-center gap-4 rounded-lg bg-gradient-to-br from-[#3d82ae] to-brand-blue px-5 text-left text-white shadow-[0_18px_36px_rgba(96,150,180,0.28)]" : "flex h-[58px] w-full items-center gap-4 rounded-lg px-5 text-left text-[#244762] hover:bg-white/55";
+      inquiryHistoryButton.className = chatActive ? "flex h-[58px] w-full items-center gap-4 rounded-lg px-5 text-left text-[#244762] hover:bg-white/55" : "flex h-[58px] w-full items-center gap-4 rounded-lg bg-gradient-to-br from-[#3d82ae] to-brand-blue px-5 text-left text-white shadow-[0_18px_36px_rgba(96,150,180,0.28)]";
+      chatViewButton.querySelector("span").className = chatActive ? "text-2xl text-white" : "text-2xl text-brand-blue";
+      inquiryHistoryButton.querySelector("span").className = chatActive ? "text-2xl text-brand-blue" : "text-2xl text-white";
+    }
+
+    function showInquiryPage() {
+      setActiveMenu("inquiry");
+      renderInquiryHistoryPage();
+      chatMainSection.classList.add("hidden");
+      chatMainSection.classList.remove("flex");
+      inquiryMainSection.classList.remove("hidden");
+      inquiryMainSection.classList.add("flex");
+      rightPanel.style.display = "none";
+    }
+
+    function showChatMainPage() {
+      setActiveMenu("chat");
+      inquiryMainSection.classList.add("hidden");
+      inquiryMainSection.classList.remove("flex");
+      chatMainSection.classList.remove("hidden");
+      chatMainSection.classList.add("flex");
+      rightPanel.style.display = "";
+      chatFaqSection.classList.remove("hidden");
+    }
+
+    function buildWelcomeMessage(timeLabel = "새 대화 시작") {
+      return `
+        <div class="flex items-start gap-4">
+          <div class="grid h-[52px] w-[52px] shrink-0 place-items-center rounded-full bg-white/65 text-[28px] text-brand-blue shadow-[0_10px_24px_rgba(16,47,74,0.08)]">✦</div>
+          <article class="max-w-[620px] rounded-2xl rounded-tl-md bg-white/82 px-5 py-4 text-[15px] font-semibold leading-7 text-[#153958] shadow-[0_12px_30px_rgba(16,47,74,0.08)]">
+            <p class="text-[17px] font-black leading-8">안녕하세요, 일상 고객센터 AI입니다.<br />무엇을 도와드릴까요?</p>
+            <p class="mt-1 text-sm font-bold text-[#5b7890]">아래 카테고리를 선택하거나 궁금한 내용을 직접 입력해 주세요.</p>
+            <div class="categoryBubblePanel mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <button class="categoryButton rounded-xl bg-brand-blue px-4 py-3 text-left text-sm font-black text-white" data-category="payment" type="button">결제/환불</button>
+            <button class="categoryButton rounded-xl bg-white/65 px-4 py-3 text-left text-sm font-black text-[#244762]" data-category="faq" type="button">FAQ/가이드</button>
+            <button class="categoryButton rounded-xl bg-white/65 px-4 py-3 text-left text-sm font-black text-[#244762]" data-category="bug" type="button">버그/오류</button>
+            <button class="categoryButton rounded-xl bg-white/65 px-4 py-3 text-left text-sm font-black text-[#244762]" data-category="voc" type="button">VOC/건의</button>
+            </div>
+            <div class="mt-3 text-xs font-bold text-[#6c8799]">${timeLabel}</div>
+          </article>
+        </div>
+      `;
+    }
+
+    function resetChat() {
+      chatMessages.innerHTML = buildWelcomeMessage();
+      bindCategoryButtons();
+      bindQuickQuestions();
+    }
+
+    function bindCategoryButtons() {
+      document.querySelectorAll(".categoryButton").forEach((button) => {
+        if (button.dataset.bound === "true") return;
+        button.dataset.bound = "true";
+        button.addEventListener("click", () => {
+          const category = button.dataset.category;
+          const selected = faqByCategory[category] || faqByCategory.payment;
+          showChatMainPage();
+          renderCategoryFaq(category);
+          document.querySelectorAll("#chatMessages .categoryBubblePanel").forEach((panel) => {
+            panel.remove();
+          });
+          addUserMessage(selected.label);
+          addAssistantMessage(selected.routeText);
+        });
+      });
+    }
+
+    function bindQuickQuestions() {
+      document.querySelectorAll(".quickQuestion").forEach((button) => {
+        if (button.dataset.bound === "true") return;
+        button.dataset.bound = "true";
+        button.addEventListener("click", () => {
+          const question = button.textContent.replace("›", "").trim();
+          addUserMessage(question);
+          addAssistantMessage("해당 문의를 확인했어요. 계정과 결제 기록을 기준으로 안내가 필요한 항목을 정리해드릴게요.");
+        });
+      });
+    }
+
+    function renderCategoryFaq(category) {
+      const selected = faqByCategory[category] || faqByCategory.payment;
+      faqCategoryTitle.textContent = `${selected.label} 관련 문의`;
+      faqList.innerHTML = selected.questions.map((question) => `
+        <button class="quickQuestion flex w-full items-center justify-between rounded-xl bg-white/48 px-4 py-4 text-left text-sm font-black text-[#244762] shadow-[0_10px_24px_rgba(16,47,74,0.03)]" type="button">
+          ${question} <span>›</span>
+        </button>
+      `).join("");
+
+      document.querySelectorAll(".categoryButton").forEach((button) => {
+        const active = button.dataset.category === category;
+        button.className = active
+          ? "categoryButton rounded-xl bg-brand-blue px-4 py-3 text-left text-sm font-black text-white"
+          : "categoryButton rounded-xl bg-white/65 px-4 py-3 text-left text-sm font-black text-[#244762]";
+      });
+      bindQuickQuestions();
+    }
+
+    linkAccountButton.addEventListener("click", showChatPage);
+    logoutButton.addEventListener("click", showLoginPage);
+    chatViewButton.addEventListener("click", showChatMainPage);
+    newChatButton.addEventListener("click", () => {
+      showChatMainPage();
+      resetChat();
+    });
+    inquiryHistoryButton.addEventListener("click", showInquiryPage);
+    backToChatButton.addEventListener("click", showChatMainPage);
+    bindCategoryButtons();
+    chatForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const message = chatInput.value.trim();
+      if (!message) return;
+      addUserMessage(message);
+      addAssistantMessage("문의 내용을 확인했어요. 데모 화면에서는 실제 API 호출 대신 답변 흐름만 보여드리고 있습니다.");
+      chatInput.value = "";
+    });
+    bindCategoryButtons();
+    bindQuickQuestions();
+    renderCategoryFaq("payment");
+  </script>
+</body>
+</html>
