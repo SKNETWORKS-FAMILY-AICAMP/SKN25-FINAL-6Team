@@ -4,4 +4,3 @@ from common.retrieval.vector_tools import search_document_chunks, search_documen
 
 
 __all__ = ["search_document_chunks", "search_documents"]
-

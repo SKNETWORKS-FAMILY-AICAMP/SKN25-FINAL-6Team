@@ -5,7 +5,7 @@ import os
 from dataclasses import dataclass
 from typing import Any
 
-from chatbot.retrieval.vector_tools import embed_query, enrich_retrieval_query, rerank_documents, search_document_chunks
+from common.retrieval.vector_tools import embed_query, enrich_retrieval_query, rerank_documents, search_document_chunks
 
 
 @dataclass(frozen=True)

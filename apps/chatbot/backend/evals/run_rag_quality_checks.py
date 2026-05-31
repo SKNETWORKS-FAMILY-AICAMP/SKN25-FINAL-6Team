@@ -22,8 +22,8 @@ from chatbot.chains import persistence
 from chatbot.chains.routing import route_by_category
 from chatbot.generation import faq_agent
 from chatbot.generation.orchestrator import _route_from_intent
-from chatbot.retrieval import vector_tools
-from chatbot.retrieval.vector_tools import hybrid_rank_documents, search_document_chunks
+from common.retrieval import vector_tools
+from common.retrieval.vector_tools import hybrid_rank_documents, search_document_chunks
 from chatbot.schemas import RoutingIntent
 
 
