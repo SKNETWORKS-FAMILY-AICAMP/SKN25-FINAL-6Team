@@ -1,0 +1,1963 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>일상 고객 지원 운영 시스템</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        brand: {
+          50: "#f3f7fa",
+          100: "#e2edf2",
+          200: "#bdd6e2",
+          300: "#93bfcf",
+          400: "#7aafc4",
+          500: "#6096b4",
+          600: "#4e84a0",
+          700: "#426f86"
+        },
+        sand: {
+          50: "#f7f5f0",
+          100: "#f2efe8",
+          200: "#eee9da",
+          300: "#d8d2c4",
+          400: "#c8c0b0"
+        },
+        ink: {
+          900: "#2a3340",
+          700: "#4a5568",
+          500: "#8a9ab0"
+        },
+        alert: {
+          red: "#c0392b",
+          redBg: "#fdf0ee",
+          redBorder: "#f5c6c0",
+          amber: "#9a6b1a",
+          amberBg: "#fdf6e3",
+          green: "#2e7d5b",
+          greenBg: "#eaf5ee",
+          purple: "#5b4b8a",
+          purpleBg: "#f0eef8"
+        }
+      },
+      fontFamily: {
+        sans: ["Pretendard", "sans-serif"],
+        mono: ["IBM Plex Mono", "monospace"]
+      },
+      boxShadow: {
+        panel: "0 1px 2px rgba(42,51,64,0.04)"
+      }
+    }
+  }
+};
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css">
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+<style>
+@font-face{font-family:'Pretendard';src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-Regular.woff2') format('woff2');font-weight:400;font-display:swap}
+@font-face{font-family:'Pretendard';src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-Medium.woff2') format('woff2');font-weight:500;font-display:swap}
+@font-face{font-family:'Pretendard';src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-SemiBold.woff2') format('woff2');font-weight:600;font-display:swap}
+@font-face{font-family:'Pretendard';src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-Bold.woff2') format('woff2');font-weight:700;font-display:swap}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#bdcdd6;border-radius:9999px}
+.fc { font-family:'Pretendard',sans-serif; }
+.fc .fc-toolbar.fc-header-toolbar { margin-bottom: 0.2rem; }
+.fc .fc-toolbar-title { font-size: 11px; font-weight: 600; color: #2a3340; }
+.fc .fc-button { border: 1px solid #d8d2c4 !important; background: #fff !important; color: #4a5568 !important; box-shadow: none !important; }
+.fc .fc-button:hover, .fc .fc-button:focus { background: #f7f5f0 !important; }
+.fc .fc-button .fc-icon { font-size: 10px; }
+.fc .fc-daygrid-day-number { font-size: 10px; color: #2a3340; padding: 1px 3px 0 0 !important; }
+.fc .fc-col-header-cell-cushion { font-size: 9px; color: #8a9ab0; padding: 2px 0; }
+.fc .fc-daygrid-day.fc-day-today { background: rgba(154,107,26,0.10) !important; }
+.fc .fc-daygrid-day.fc-day-today .fc-daygrid-day-number { color: #9a6b1a !important; font-weight: 700; }
+.fc .fc-daygrid-day.review-selected-day { background: rgba(96,150,180,0.14) !important; }
+.fc .fc-daygrid-day.review-selected-day .fc-daygrid-day-number { color: #426f86 !important; font-weight: 700; }
+.fc .fc-daygrid-day-frame { min-height: 18px; }
+.fc .fc-daygrid-day-top { min-height: 14px; }
+.fc .fc-daygrid-day-events { display: none !important; }
+.fc .fc-scrollgrid-section-body table,
+.fc .fc-scrollgrid-section-header table { height: auto !important; }
+.fc .fc-scrollgrid td, .fc .fc-scrollgrid th { padding: 0 !important; }
+.login-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(42, 51, 64, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.login-overlay.hidden { display: none; }
+.login-card {
+  width: 340px;
+  overflow: hidden;
+  border: 1px solid #d8d2c4;
+  border-radius: 14px;
+  background: #fff;
+}
+.login-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 24px 28px 20px;
+  background: #6096b4;
+}
+.lh-icon {
+  display: flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-size: 18px;
+}
+.lh-title { color: #fff; font-size: 16px; font-weight: 700; letter-spacing: -0.02em; }
+.lh-sub { color: rgba(255, 255, 255, 0.6); font-size: 11px; }
+.login-body { padding: 22px 24px; }
+.lf-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.lf-label {
+  display: block;
+  margin-bottom: 5px;
+  color: #4a5568;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.lf-input {
+  width: 100%;
+  margin-bottom: 14px;
+  border: 1px solid #d8d2c4;
+  border-radius: 8px;
+  background: #f7f5f0;
+  padding: 9px 12px;
+  color: #2a3340;
+  font-family: "Pretendard", sans-serif;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.lf-input:focus { border-color: #6096b4; background: #fff; }
+.login-err {
+  display: none;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 10px;
+  border: 1px solid #f5c6c0;
+  border-radius: 6px;
+  background: #fdf0ee;
+  padding: 6px 10px;
+  color: #c0392b;
+  font-size: 11px;
+}
+.login-err.show { display: flex; }
+.login-btn {
+  width: 100%;
+  border: none;
+  border-radius: 8px;
+  background: #6096b4;
+  padding: 10px;
+  color: #fff;
+  font-family: "Pretendard", sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.13s;
+}
+.login-btn:hover { background: #4e84a0; }
+.op-chip {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: background 0.13s;
+}
+.op-chip:hover { background: rgba(255, 255, 255, 0.22); }
+.op-avatar {
+  display: flex;
+  width: 22px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.3);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+}
+.op-name { color: #fff; font-size: 12px; font-weight: 600; }
+.op-role { color: rgba(255, 255, 255, 0.6); font-size: 10px; }
+.op-status-dot {
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  background: #4ade80;
+  box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.25);
+}
+.op-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 150;
+  display: none;
+  min-width: 180px;
+  overflow: hidden;
+  border: 1px solid #d8d2c4;
+  border-radius: 9px;
+  background: #fff;
+}
+.op-dropdown.open { display: block; }
+.op-dropdown-header {
+  padding: 10px 14px;
+  border-bottom: 1px solid #d8d2c4;
+  background: #f7f5f0;
+}
+.od-name { color: #2a3340; font-size: 13px; font-weight: 700; }
+.od-role { color: #8a9ab0; font-size: 10px; }
+.op-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 14px;
+  color: #4a5568;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.op-dropdown-item:hover { background: #f7f5f0; }
+.op-dropdown-item i { color: #6096b4; font-size: 15px; }
+.op-dropdown-item.logout { color: #c0392b; }
+.op-dropdown-item.logout i { color: #c0392b; }
+</style>
+<style type="text/tailwindcss">
+@layer base {
+  * { @apply box-border; }
+  html, body { @apply h-full overflow-hidden bg-sand-50 font-sans text-[13px] leading-[1.5] text-ink-900; }
+}
+@layer components {
+  .badge { @apply inline-flex h-[20px] w-[52px] items-center justify-center gap-1 overflow-hidden whitespace-nowrap rounded-full px-2 py-0 text-[10px] font-medium leading-none; }
+  .panel { @apply flex min-h-0 flex-col overflow-hidden rounded-xl border border-sand-300 bg-white shadow-panel; }
+  .section-head { @apply flex shrink-0 items-center gap-2 border-b border-sand-300 bg-white px-3.5 py-2.5; }
+  .section-head h3 { @apply flex-1 text-[13px] font-bold text-ink-900; }
+  .menu-tab { @apply flex cursor-pointer items-center gap-1.5 rounded-md border border-transparent bg-transparent px-3.5 py-1.5 text-xs font-medium text-white/65 transition hover:bg-white/10 hover:text-white; }
+  .menu-tab.active { @apply bg-white/20 text-white; }
+  .filter-chip { @apply cursor-pointer rounded-full border border-sand-300 bg-transparent px-2.5 py-1 text-[11px] font-medium text-ink-500 transition hover:border-brand-500 hover:text-brand-500; }
+  .filter-chip.active { @apply border-brand-500 bg-brand-500 text-white; }
+  .category-chip { @apply cursor-pointer rounded-full border border-sand-300 bg-sand-100 px-2.5 py-[3px] text-[11px] text-ink-500 transition; }
+  .category-chip.active { @apply border-brand-500 bg-brand-500/10 font-medium text-brand-500; }
+  .side-item { @apply flex cursor-pointer items-center gap-2 border-l-2 border-transparent px-4 py-1.5 text-xs font-medium text-ink-700 transition hover:bg-sand-200 hover:text-ink-900; }
+  .side-item.active { @apply border-brand-500 bg-brand-500/10 text-brand-500; }
+  .ticket-card { @apply mb-1 cursor-pointer rounded-lg border border-sand-300 bg-white px-3 py-2 transition hover:border-brand-300 hover:bg-brand-300/10; }
+  .ticket-card.selected { @apply border-[1.5px] border-brand-500 bg-brand-500/5; }
+  .subcard { @apply overflow-hidden rounded-[9px] border border-sand-300; }
+  .subcard-editable { @apply overflow-visible; }
+  .subcard-head { @apply flex items-center justify-between border-b border-sand-300 bg-sand-200 px-3 py-2; }
+  .subcard-body { @apply bg-white px-3 py-2.5; }
+  .btn { @apply inline-flex cursor-pointer items-center gap-1 rounded-[7px] border px-3 py-1.5 text-xs font-medium transition whitespace-nowrap; }
+  .btn-primary { @apply border-brand-500 bg-brand-500 text-white hover:bg-brand-600; }
+  .btn-ghost { @apply border-sand-300 bg-white text-ink-700 hover:border-brand-500 hover:text-brand-500; }
+  .btn-danger { @apply border-alert-redBorder bg-alert-redBg text-alert-red hover:bg-[#fce8e5]; }
+  .btn-success { @apply border-[#a7dfc3] bg-alert-greenBg text-alert-green hover:bg-[#d6f0e4]; }
+  .btn-sm { @apply px-2.5 py-1 text-[11px]; }
+}
+</style>
+</head>
+<body>
+<div id="app" class="grid h-screen grid-cols-[196px_1fr] grid-rows-[50px_1fr] overflow-hidden"></div>
+
+<script>
+const appState = {
+  currentReviewer: null,
+  currentReviewerRole: "일반 운영자",
+  activeTopTab: "답변 생성",
+  activeSideTab: "오늘 확인할 문의",
+  activeFilter: "전체",
+  activeCategory: "전체",
+  selectedTicketId: "TK-2041",
+  ticketListPage: 1,
+  reviewSelectedDate: "",
+  reviewCalendarYear: 2026,
+  reviewCalendarMonth: 5,
+  reviewDetailVisible: false,
+  reviewHistoryStatusFilter: "전체",
+  isTicketSidebarOpen: false,
+  showRegenBox: false,
+  regenReason: "",
+  workflowVisible: false,
+  workflowProgress: 0,
+  workflowLabel: "문의 내용 분석 중...",
+  workflowLogs: [],
+  tickets: [
+    {
+      id: "TK-2041",
+      priorityLabel: "긴급",
+      priorityTone: "urgent",
+      level: "HIGH",
+      channel: "이메일",
+      channelIcon: "mail",
+      category: "결제 오류",
+      status: "review",
+      title: "결제 후 아이템 미지급 즉시 처리 요청",
+      assignee: "reviewer_01",
+      statusText: "reviewer_01 검토 중...",
+      timeAgo: "10분 전",
+      nickname: "DragonSlayer_K",
+      accountId: "user_938",
+      createdAt: "05-28 09:42",
+      body: "오전 9시 30분경 다이아 패키지 9,900원을 결제했는데 아이템이 인벤토리에 들어오지 않았습니다. 결제 영수증은 있는데 게임에 반영되지 않아 빠른 확인 또는 지급 처리를 부탁드립니다.",
+      aiSummary: "9,900원 결제 후 아이템 미지급 정황이 확인된 즉시 지급 또는 환불 처리가 필요한 고위험 결제 문의입니다.",
+      route: "payment_issue",
+      direction: "payment_team",
+      risk: "HIGH",
+      draft: "안녕하세요. 게임 CS팀입니다.\n\n결제 후 아이템이 지급되지 않아 불편을 드려 죄송합니다.\n\n서버 지급 이력을 확인한 결과 다이아 패키지가 인벤토리에 반영되지 않은 것으로 파악되었습니다. 즉시 수동 지급 처리를 진행하겠습니다. 조금만 기다려 주시면 결과를 다시 안내드리겠습니다.\n\n추가 문의가 있으시면 언제든지 회신 부탁드립니다. 감사합니다.",
+      draftStatus: "draft",
+      isDraftEditing: false,
+      regenCount: 0,
+      regenLimit: 3,
+      lastGeneratedAt: "-"
+    },
+    {
+      id: "TK-2040",
+      priorityLabel: "검토 중",
+      priorityTone: "review",
+      level: "MID",
+      channel: "카페",
+      channelIcon: "brand-blogger",
+      category: "계정 문의",
+      status: "review",
+      title: "캐릭터 데이터 복구 요청",
+      assignee: "reviewer_01",
+      statusText: "reviewer_01 검토 진행...",
+      timeAgo: "35분 전",
+      nickname: "Aster_99",
+      accountId: "user_771",
+      createdAt: "05-28 09:17",
+      body: "실수로 캐릭터를 삭제했는데 복구 가능한지 문의드립니다.",
+      aiSummary: "복구 정책 확인이 필요한 계정 문의입니다.",
+      route: "account_restore",
+      direction: "account_team",
+      risk: "MID",
+      draft: "안녕하세요. 계정 복구 가능 여부를 확인 중입니다.",
+      draftStatus: "draft",
+      isDraftEditing: false,
+      regenCount: 0,
+      regenLimit: 3,
+      lastGeneratedAt: "-"
+    },
+    {
+      id: "TK-2039",
+      priorityLabel: "대기",
+      priorityTone: "pending",
+      level: "LOW",
+      channel: "이메일",
+      channelIcon: "mail",
+      category: "결제 오류",
+      status: "pending",
+      title: "패스 구매 혜택이 적용되지 않음",
+      assignee: "미할당",
+      statusText: "대기 중인 문의입니다",
+      timeAgo: "1시간 전",
+      nickname: "Birdy",
+      accountId: "user_532",
+      createdAt: "05-28 08:55",
+      body: "패스를 구매했는데 보상이 적용되지 않았습니다.",
+      aiSummary: "저위험 결제 문의로 분류됩니다.",
+      route: "benefit_missing",
+      direction: "payment_team",
+      risk: "LOW",
+      draft: "안녕하세요. 구매 내역 확인 후 다시 안내드리겠습니다.",
+      draftStatus: "draft",
+      isDraftEditing: false,
+      regenCount: 0,
+      regenLimit: 3,
+      lastGeneratedAt: "-"
+    },
+    {
+      id: "TK-2038",
+      priorityLabel: "완료",
+      priorityTone: "done",
+      level: "LOW",
+      channel: "이메일",
+      channelIcon: "mail",
+      category: "버그",
+      status: "done",
+      title: "버그: 전투 중 앱 강제 종료 현상",
+      assignee: "reviewer_01",
+      statusText: "종료 처리되었습니다",
+      timeAgo: "3시간 전",
+      nickname: "Gale",
+      accountId: "user_288",
+      createdAt: "05-28 06:11",
+      body: "전투 도중 앱이 강제 종료됩니다.",
+      aiSummary: "종료된 버그 문의입니다.",
+      route: "bug_report",
+      direction: "qa_team",
+      risk: "LOW",
+      draft: "패치 일정과 함께 답변을 완료했습니다.",
+      draftStatus: "approved",
+      isDraftEditing: false,
+      regenCount: 1,
+      regenLimit: 3,
+      lastGeneratedAt: "08:10"
+    },
+    {
+      id: "TK-2037",
+      priorityLabel: "대기",
+      priorityTone: "pending",
+      level: "MID",
+      channel: "이메일",
+      channelIcon: "mail",
+      category: "환불 요청",
+      status: "pending",
+      title: "환불 처리가 5일째 지연되고 있어요",
+      assignee: "미할당",
+      statusText: "대기 중인 문의입니다",
+      timeAgo: "2시간 전",
+      nickname: "MintRun",
+      accountId: "user_114",
+      createdAt: "05-28 07:46",
+      body: "환불 신청 후 진행 상황이 보이지 않습니다.",
+      aiSummary: "환불 처리 지연 문의입니다.",
+      route: "refund_delay",
+      direction: "billing_team",
+      risk: "MID",
+      draft: "안녕하세요. 환불 진행 상태를 확인 중입니다.",
+      draftStatus: "draft",
+      isDraftEditing: false,
+      regenCount: 2,
+      regenLimit: 3,
+      lastGeneratedAt: "09:12"
+    },
+    {
+      id: "TK-2036",
+      priorityLabel: "검토 중",
+      priorityTone: "review",
+      level: "MID",
+      channel: "이메일",
+      channelIcon: "mail",
+      category: "계정 문의",
+      status: "review",
+      title: "이중 인증 해제 요청",
+      assignee: "reviewer_02",
+      statusText: "reviewer_02 검토 중...",
+      timeAgo: "4시간 전",
+      nickname: "VoltMage",
+      accountId: "user_612",
+      createdAt: "05-28 05:30",
+      body: "휴대폰을 바꿔서 이중 인증을 해제하고 싶습니다.",
+      aiSummary: "본인 확인이 필요한 계정 보안 문의입니다.",
+      route: "two_factor_reset",
+      direction: "account_team",
+      risk: "MID",
+      draft: "안녕하세요. 본인 확인 절차 후 해제 가능 여부를 안내드리겠습니다.",
+      draftStatus: "draft",
+      isDraftEditing: false,
+      regenCount: 0,
+      regenLimit: 3,
+      lastGeneratedAt: "-"
+    },
+    {
+      id: "TK-2035",
+      priorityLabel: "대기",
+      priorityTone: "pending",
+      level: "LOW",
+      channel: "카페",
+      channelIcon: "brand-blogger",
+      category: "버그",
+      status: "pending",
+      title: "출석 보상 수령 버튼 비활성화",
+      assignee: "미할당",
+      statusText: "대기 중인 문의입니다",
+      timeAgo: "4시간 전",
+      nickname: "LumaFox",
+      accountId: "user_406",
+      createdAt: "05-28 05:12",
+      body: "출석 보상을 받을 수 없다는 문의입니다.",
+      aiSummary: "저위험 UI 버그 문의입니다.",
+      route: "attendance_bug",
+      direction: "qa_team",
+      risk: "LOW",
+      draft: "안녕하세요. 현상 재현 여부를 확인 후 답변드리겠습니다.",
+      draftStatus: "draft",
+      isDraftEditing: false,
+      regenCount: 0,
+      regenLimit: 3,
+      lastGeneratedAt: "-"
+    },
+    {
+      id: "TK-2034",
+      priorityLabel: "검토 중",
+      priorityTone: "review",
+      level: "HIGH",
+      channel: "이메일",
+      channelIcon: "mail",
+      category: "결제 오류",
+      status: "review",
+      title: "중복 결제 환불 요청",
+      assignee: "reviewer_03",
+      statusText: "reviewer_03 검토 중...",
+      timeAgo: "5시간 전",
+      nickname: "IronPeak",
+      accountId: "user_225",
+      createdAt: "05-28 04:35",
+      body: "같은 상품이 두 번 결제되었다는 문의입니다.",
+      aiSummary: "중복 결제 여부 확인이 필요한 고위험 결제 문의입니다.",
+      route: "duplicate_payment",
+      direction: "payment_team",
+      risk: "HIGH",
+      draft: "안녕하세요. 결제 로그를 확인해 중복 결제 여부를 검토 중입니다.",
+      draftStatus: "draft",
+      isDraftEditing: false,
+      regenCount: 1,
+      regenLimit: 3,
+      lastGeneratedAt: "08:42"
+    },
+    {
+      id: "TK-2033",
+      priorityLabel: "완료",
+      priorityTone: "done",
+      level: "LOW",
+      channel: "카페",
+      channelIcon: "brand-blogger",
+      category: "환불 요청",
+      status: "done",
+      title: "환불 처리 완료 확인 요청",
+      assignee: "reviewer_01",
+      statusText: "종료 처리되었습니다",
+      timeAgo: "5시간 전",
+      nickname: "MeloDay",
+      accountId: "user_517",
+      createdAt: "05-28 04:11",
+      body: "환불 처리 완료 여부를 다시 확인해 달라는 문의입니다.",
+      aiSummary: "환불 완료 안내가 가능한 종료 문의입니다.",
+      route: "refund_complete",
+      direction: "billing_team",
+      risk: "LOW",
+      draft: "안녕하세요. 요청하신 환불은 정상 완료된 것으로 확인됩니다.",
+      draftStatus: "approved",
+      isDraftEditing: false,
+      regenCount: 0,
+      regenLimit: 3,
+      lastGeneratedAt: "07:58"
+    },
+    {
+      id: "TK-2032",
+      priorityLabel: "대기",
+      priorityTone: "pending",
+      level: "MID",
+      channel: "이메일",
+      channelIcon: "mail",
+      category: "계정 문의",
+      status: "pending",
+      title: "닉네임 변경권 미지급 문의",
+      assignee: "미할당",
+      statusText: "대기 중인 문의입니다",
+      timeAgo: "6시간 전",
+      nickname: "RavenQ",
+      accountId: "user_118",
+      createdAt: "05-28 03:45",
+      body: "닉네임 변경권이 우편함에 보이지 않는다는 문의입니다.",
+      aiSummary: "지급 여부 확인이 필요한 중위험 계정 문의입니다.",
+      route: "item_missing",
+      direction: "account_team",
+      risk: "MID",
+      draft: "안녕하세요. 보상 지급 이력을 확인 후 안내드리겠습니다.",
+      draftStatus: "draft",
+      isDraftEditing: false,
+      regenCount: 0,
+      regenLimit: 3,
+      lastGeneratedAt: "-"
+    },
+    {
+      id: "TK-2031",
+      priorityLabel: "검토 중",
+      priorityTone: "review",
+      level: "MID",
+      channel: "이메일",
+      channelIcon: "mail",
+      category: "버그",
+      status: "review",
+      title: "길드 채팅 지연 발생",
+      assignee: "reviewer_02",
+      statusText: "reviewer_02 검토 중...",
+      timeAgo: "6시간 전",
+      nickname: "KiteRun",
+      accountId: "user_349",
+      createdAt: "05-28 03:20",
+      body: "길드 채팅이 늦게 올라온다는 문의입니다.",
+      aiSummary: "서버 상태 확인이 필요한 버그 문의입니다.",
+      route: "chat_delay",
+      direction: "qa_team",
+      risk: "MID",
+      draft: "안녕하세요. 서버 로그를 포함해 현상을 확인 중입니다.",
+      draftStatus: "confirmed",
+      isDraftEditing: false,
+      regenCount: 1,
+      regenLimit: 3,
+      lastGeneratedAt: "07:10"
+    },
+    {
+      id: "TK-2030",
+      priorityLabel: "긴급",
+      priorityTone: "urgent",
+      level: "HIGH",
+      channel: "카페",
+      channelIcon: "brand-blogger",
+      category: "결제 오류",
+      status: "review",
+      title: "패키지 구매 후 접속 불가",
+      assignee: "reviewer_03",
+      statusText: "reviewer_03 검토 중...",
+      timeAgo: "7시간 전",
+      nickname: "NovaBlade",
+      accountId: "user_875",
+      createdAt: "05-28 02:38",
+      body: "상품 구매 직후 접속이 불가능해졌다는 문의입니다.",
+      aiSummary: "결제 및 접속 장애가 결합된 긴급 문의입니다.",
+      route: "payment_login_issue",
+      direction: "payment_team",
+      risk: "HIGH",
+      draft: "안녕하세요. 결제 이력과 서버 접속 로그를 우선 확인 중입니다.",
+      draftStatus: "draft",
+      isDraftEditing: false,
+      regenCount: 0,
+      regenLimit: 3,
+      lastGeneratedAt: "-"
+    },
+    {
+      id: "TK-2029",
+      priorityLabel: "대기",
+      priorityTone: "pending",
+      level: "LOW",
+      channel: "이메일",
+      channelIcon: "mail",
+      category: "환불 요청",
+      status: "pending",
+      title: "패스 자동 갱신 해지 요청",
+      assignee: "미할당",
+      statusText: "대기 중인 문의입니다",
+      timeAgo: "7시간 전",
+      nickname: "SoriN",
+      accountId: "user_451",
+      createdAt: "05-28 02:15",
+      body: "자동 결제 해지 방법을 문의했습니다.",
+      aiSummary: "안내형 환불/구독 문의입니다.",
+      route: "subscription_cancel",
+      direction: "billing_team",
+      risk: "LOW",
+      draft: "안녕하세요. 자동 갱신 해지 경로를 안내드리겠습니다.",
+      draftStatus: "draft",
+      isDraftEditing: false,
+      regenCount: 0,
+      regenLimit: 3,
+      lastGeneratedAt: "-"
+    },
+    {
+      id: "TK-2028",
+      priorityLabel: "검토 중",
+      priorityTone: "review",
+      level: "MID",
+      channel: "카페",
+      channelIcon: "brand-blogger",
+      category: "계정 문의",
+      status: "review",
+      title: "연동 계정 변경 가능 여부 문의",
+      assignee: "reviewer_01",
+      statusText: "reviewer_01 검토 중...",
+      timeAgo: "8시간 전",
+      nickname: "PikaMint",
+      accountId: "user_903",
+      createdAt: "05-28 01:40",
+      body: "기존 연동 계정을 다른 계정으로 바꾸고 싶다는 문의입니다.",
+      aiSummary: "운영 정책 검토가 필요한 계정 연동 문의입니다.",
+      route: "account_link_change",
+      direction: "account_team",
+      risk: "MID",
+      draft: "안녕하세요. 계정 연동 변경 가능 범위를 정책 기준으로 확인 중입니다.",
+      draftStatus: "draft",
+      isDraftEditing: false,
+      regenCount: 0,
+      regenLimit: 3,
+      lastGeneratedAt: "-"
+    },
+    {
+      id: "TK-2027",
+      priorityLabel: "완료",
+      priorityTone: "done",
+      level: "LOW",
+      channel: "이메일",
+      channelIcon: "mail",
+      category: "버그",
+      status: "done",
+      title: "설정 저장이 초기화되는 문제",
+      assignee: "reviewer_02",
+      statusText: "종료 처리되었습니다",
+      timeAgo: "8시간 전",
+      nickname: "BlueComet",
+      accountId: "user_774",
+      createdAt: "05-28 01:18",
+      body: "재접속 시 설정이 초기화된다는 문의입니다.",
+      aiSummary: "패치 안내가 가능한 종료 버그 문의입니다.",
+      route: "settings_reset",
+      direction: "qa_team",
+      risk: "LOW",
+      draft: "안녕하세요. 최신 패치 이후 동일 현상이 개선된 것으로 확인됩니다.",
+      draftStatus: "approved",
+      isDraftEditing: false,
+      regenCount: 0,
+      regenLimit: 3,
+      lastGeneratedAt: "06:33"
+    },
+    {
+      id: "TK-2026",
+      priorityLabel: "대기",
+      priorityTone: "pending",
+      level: "MID",
+      channel: "카페",
+      channelIcon: "brand-blogger",
+      category: "결제 오류",
+      status: "pending",
+      title: "쿠폰 사용 후 재화 차감 오류",
+      assignee: "미할당",
+      statusText: "대기 중인 문의입니다",
+      timeAgo: "9시간 전",
+      nickname: "TerraOne",
+      accountId: "user_250",
+      createdAt: "05-28 00:57",
+      body: "쿠폰 적용 후 재화가 이중 차감됐다는 문의입니다.",
+      aiSummary: "중위험 결제 오류 문의입니다.",
+      route: "coupon_charge_issue",
+      direction: "payment_team",
+      risk: "MID",
+      draft: "안녕하세요. 사용 내역과 재화 변동 로그를 확인 중입니다.",
+      draftStatus: "draft",
+      isDraftEditing: false,
+      regenCount: 0,
+      regenLimit: 3,
+      lastGeneratedAt: "-"
+    }
+  ],
+  evidence: [
+    {
+      rank: 1,
+      source: "환불 정책 / FAQ_payment_v3.md",
+      body: "결제 완료 후 48시간 이내 미지급이 확인되면 즉시 수동 지급 또는 환불 처리 가능 대상입니다.",
+      open: true
+    },
+    {
+      rank: 2,
+      source: "결제 오류 처리 매뉴얼 / ops_manual_ch4.pdf",
+      body: "결제 오류 발생 후 24시간 이내 처리 원칙, 관련 부서 에스컬레이션 규정을 안내합니다.",
+      open: false
+    },
+    {
+      rank: 3,
+      source: "다이아 패키지 지급 기준 / item_guide.md",
+      body: "다이아 패키지는 결제 확인 후 5분 이내 자동 지급되며, 서버 로그를 통해 수동 지급 처리합니다.",
+      open: false
+    }
+  ],
+  history: [
+    { decision: "반려", tone: "urgent", reviewer: "reviewer_02", reason: "환불 금액 표기 누락", time: "09:51" },
+    { decision: "수정", tone: "pending", reviewer: "reviewer_01", reason: "수동 지급 문구 추가", time: "10:02" }
+  ],
+  alerts: [
+    { title: "[긴급] #TK-2041 | 결제 미지급 HIGH 위험도 감지", target: "payment_team@company.com, ops_lead@company.com", time: "2026-05-28 09:43:12 | 이메일 발송 완료", faded: false },
+    { title: "[긴급] #TK-2038 | 계정 이상 접속 경고", target: "security_team@company.com", time: "2026-05-28 07:15:04 | 이메일 발송 완료", faded: true }
+  ]
+};
+
+let reviewCalendarInstance = null;
+
+const topTabs = [
+  { label: "답변 생성", icon: "sparkles" },
+  { label: "검토 이력", icon: "history" }
+];
+
+const sideTabs = [
+  { label: "오늘 확인할 문의", icon: "calendar-today", count: "15" },
+  { label: "대기 중", icon: "clock", count: "12" },
+  { label: "할당된 검토", icon: "user-check", count: "4" },
+  { label: "긴급", icon: "flame", count: "3", red: true },
+  { label: "종료", icon: "check", count: "33", green: true },
+  { label: "전체", icon: "list" }
+];
+
+const filterTabs = ["전체", "대기", "검토 중", "긴급", "종료"];
+const categoryTabs = ["전체", "결제", "계정", "버그", "환불"];
+const workflowSteps = [
+  { label: "문의 내용 분석 중...", progress: 20 },
+  { label: "카테고리 분류 중...", progress: 40 },
+  { label: "근거 문서 검색 중...", progress: 60 },
+  { label: "안전성 검토 중...", progress: 80 },
+  { label: "초안 생성 완료", progress: 100 }
+];
+
+const DEMO_ACCOUNTS = {
+  reviewer_01: "cs1234",
+  reviewer_02: "cs1234",
+  reviewer_03: "cs1234",
+  admin: "admin00"
+};
+let operatorMenuListenerBound = false;
+
+function getSelectedTicket() {
+  return appState.tickets.find((ticket) => ticket.id === appState.selectedTicketId) || appState.tickets[0];
+}
+
+function getReviewerInitials(id) {
+  return (id || "")
+    .replace(/[^a-zA-Z0-9가-힣]/g, "")
+    .slice(0, 2)
+    .toUpperCase() || "OP";
+}
+
+function showLoginError(message) {
+  const err = document.getElementById("li-err");
+  if (!err) return;
+  err.classList.add("show");
+  err.innerHTML = `<i class="ti ti-alert-circle" aria-hidden="true"></i> ${escapeHtml(message)}`;
+}
+
+function doLogin() {
+  const idInput = document.getElementById("li-id");
+  const pwInput = document.getElementById("li-pw");
+  const roleInput = document.getElementById("li-role");
+  if (!idInput || !pwInput || !roleInput) return;
+
+  const id = idInput.value.trim();
+  const pw = pwInput.value;
+  const role = roleInput.value;
+  const err = document.getElementById("li-err");
+
+  if (!id) {
+    showLoginError("운영자 ID를 입력하세요.");
+    return;
+  }
+
+  if (DEMO_ACCOUNTS[id] === undefined || DEMO_ACCOUNTS[id] !== pw) {
+    showLoginError("ID 또는 비밀번호가 올바르지 않습니다.");
+    return;
+  }
+
+  if (err) {
+    err.classList.remove("show");
+  }
+  appState.currentReviewer = id;
+  appState.currentReviewerRole = role;
+  render();
+}
+
+function doLogout() {
+  appState.currentReviewer = null;
+  appState.currentReviewerRole = "일반 운영자";
+  render();
+}
+
+function toggleOpMenu(event) {
+  event.stopPropagation();
+  const dropdown = document.getElementById("op-dropdown");
+  if (dropdown) {
+    dropdown.classList.toggle("open");
+  }
+}
+
+function ensureOperatorMenuListener() {
+  if (operatorMenuListenerBound) return;
+  document.addEventListener("click", () => {
+    const dropdown = document.getElementById("op-dropdown");
+    if (dropdown) {
+      dropdown.classList.remove("open");
+    }
+  });
+  operatorMenuListenerBound = true;
+}
+
+function renderAuthSlotHtml() {
+  if (!appState.currentReviewer) {
+    return `
+      <button id="review-login-btn" class="flex items-center gap-1 rounded-md border-none bg-white px-3 py-1.5 text-[11px] font-semibold text-brand-500 transition hover:bg-sand-200" type="button">
+        <i class="ti ti-login" aria-hidden="true"></i> 리뷰어 로그인
+      </button>
+    `;
+  }
+
+  return `
+    <div id="op-chip-btn" class="op-chip" role="button" tabindex="0">
+      <div id="op-avatar" class="op-avatar">${getReviewerInitials(appState.currentReviewer)}</div>
+      <div class="text-left">
+        <div id="op-name-display" class="op-name">${escapeHtml(appState.currentReviewer)}</div>
+        <div id="op-role-display" class="op-role">${escapeHtml(appState.currentReviewerRole || "일반 운영자")}</div>
+      </div>
+      <span class="op-status-dot" aria-hidden="true"></span>
+      <div id="op-dropdown" class="op-dropdown">
+        <div class="op-dropdown-header">
+          <div id="op-dd-name" class="od-name">${escapeHtml(appState.currentReviewer)}</div>
+          <div id="op-dd-role" class="od-role">${escapeHtml((appState.currentReviewerRole || "일반 운영자") + " 접속 중")}</div>
+        </div>
+        <button id="review-logout-btn" class="op-dropdown-item logout" type="button">
+          <i class="ti ti-logout" aria-hidden="true"></i>
+          로그아웃
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function renderLoginOverlayHtml() {
+  return `
+    <div id="login-overlay" class="login-overlay ${appState.currentReviewer ? "hidden" : ""}">
+      <div class="login-card">
+        <div class="login-header">
+          <div class="lh-icon"><i class="ti ti-shield-bolt" aria-hidden="true"></i></div>
+          <div class="lh-title">일상 고객지원 운영 시스템</div>
+          <div class="lh-sub">운영자 계정으로 로그인하세요</div>
+        </div>
+        <div class="login-body">
+          <div class="lf-row">
+            <div>
+              <label class="lf-label">운영자 ID</label>
+              <input id="li-id" class="lf-input" type="text" placeholder="reviewer_01" autocomplete="off">
+            </div>
+            <div>
+              <label class="lf-label">권한 등급</label>
+              <select id="li-role" class="lf-input">
+                <option value="일반 운영자" ${appState.currentReviewerRole === "일반 운영자" ? "selected" : ""}>일반 운영자</option>
+                <option value="주임 운영자" ${appState.currentReviewerRole === "주임 운영자" ? "selected" : ""}>주임 운영자</option>
+                <option value="관리자" ${appState.currentReviewerRole === "관리자" ? "selected" : ""}>관리자</option>
+              </select>
+            </div>
+          </div>
+          <label class="lf-label">비밀번호</label>
+          <input id="li-pw" class="lf-input" type="password" placeholder="••••••••">
+          <div id="li-err" class="login-err"><i class="ti ti-alert-circle" aria-hidden="true"></i> ID 또는 비밀번호가 올바르지 않습니다.</div>
+          <button id="login-submit-btn" class="login-btn" type="button">로그인</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function badgeClassByTone(tone) {
+  if (tone === "urgent") return "border border-brand-300 bg-brand-100 text-brand-700";
+  if (tone === "review") return "border border-brand-200 bg-brand-500/10 text-brand-700";
+  if (tone === "pending") return "border border-sand-300 bg-sand-100 text-ink-700";
+  if (tone === "done") return "border border-brand-200 bg-brand-50 text-brand-700";
+  return "bg-brand-500/10 text-brand-500";
+}
+
+function levelClass(level) {
+  if (level === "HIGH") return "bg-alert-redBg text-alert-red";
+  if (level === "MID") return "bg-alert-amberBg text-alert-amber";
+  return "bg-brand-500/10 text-brand-500";
+}
+
+function riskSignalEmoji(level) {
+  if (level === "HIGH") return "🔴";
+  if (level === "MID") return "🟡";
+  return "🟢";
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function nl2br(value) {
+  return escapeHtml(value).replaceAll("\n", "<br>");
+}
+
+function draftStatusMeta(status) {
+  if (status === "approved") {
+    return {
+      label: "승인",
+      chipClass: "border border-[#a7dfc3] bg-alert-greenBg text-alert-green",
+      panelClass: "border-sand-300 bg-white"
+    };
+  }
+  if (status === "confirmed") {
+    return {
+      label: "확정",
+      chipClass: "border border-brand-200 bg-brand-500/10 text-brand-500",
+      panelClass: "border-sand-300 bg-white"
+    };
+  }
+  return {
+    label: "초안",
+    chipClass: "border border-alert-redBorder bg-alert-redBg text-alert-red",
+    panelClass: "border-sand-300 bg-white"
+  };
+}
+
+function timeStampLabel() {
+  const now = new Date();
+  return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+}
+
+function getDraftRegenerationText(ticket, reason) {
+  const variants = [
+    `${ticket.nickname}님, 안녕하세요. ${reason} 요청을 반영해 문의 내용을 다시 점검하고 있으며 확인 즉시 후속 조치를 안내드리겠습니다.`,
+    `${ticket.nickname}님, 불편을 드려 죄송합니다. ${reason} 기준으로 접수 내용을 재확인 중이며 처리 결과를 빠르게 회신드리겠습니다.`,
+    `${ticket.nickname}님, 요청하신 사항을 정상 접수했습니다. ${reason} 사유를 반영해 관련 이력과 운영 기준을 다시 검토한 뒤 필요한 조치를 안내드리겠습니다.`
+  ];
+  return variants[Math.min(ticket.regenCount - 1, variants.length - 1)];
+}
+
+function getAnswerWorkflowStage() {
+  if (!appState.workflowVisible) {
+    return 3;
+  }
+  if (appState.workflowProgress >= 80) {
+    return 3;
+  }
+  if (appState.workflowProgress >= 60) {
+    return 2;
+  }
+  if (appState.workflowProgress >= 20) {
+    return 1;
+  }
+  return 0;
+}
+
+function renderTimelineItem(label, state, terminal = false) {
+  const bubbleClass = state === "done"
+    ? "bg-alert-greenBg text-alert-green"
+    : state === "active"
+      ? "bg-brand-500/15 text-brand-500"
+      : "border border-sand-300 bg-sand-100 text-ink-500";
+  const iconMarkup = state === "done"
+    ? '<i class="ti ti-check text-[10px]"></i>'
+    : state === "active"
+      ? '<i class="ti ti-loader-2 text-[10px]"></i>'
+      : "•";
+  const textClass = state === "done"
+    ? "text-ink-700"
+    : state === "active"
+      ? "font-medium text-brand-500"
+      : "text-ink-500";
+  const connectorClass = state === "done" ? "bg-alert-green" : "bg-sand-300";
+
+  return `
+    <div class="flex items-center gap-2.5"><div class="flex h-[22px] w-[22px] items-center justify-center rounded-full ${bubbleClass}">${iconMarkup}</div><span class="text-[11px] ${textClass}">${label}</span></div>
+    ${terminal ? "" : `<div class="ml-[9px] h-[13px] w-0.5 ${connectorClass}"></div>`}
+  `;
+}
+
+function updateTicketHistory(ticket, decision, tone, reason) {
+  appState.history = [
+    { decision, tone, reviewer: appState.currentReviewer || "system", reason, time: timeStampLabel() },
+    ...appState.history
+  ];
+  ticket.lastAction = reason;
+}
+
+function confirmDraft() {
+  const ticket = getSelectedTicket();
+  if (!ticket.isDraftEditing) {
+    ticket.isDraftEditing = true;
+    render();
+    return;
+  }
+
+  ticket.isDraftEditing = false;
+  ticket.draftStatus = "confirmed";
+  ticket.confirmedDraft = ticket.draft;
+  ticket.status = "review";
+  ticket.priorityTone = "review";
+  ticket.priorityLabel = "검토 중";
+  ticket.statusText = `${appState.currentReviewer || "reviewer"} 검토 확정`;
+  updateTicketHistory(ticket, "확정", "review", "AI 답변 초안 수정 후 확정");
+  render();
+}
+
+function approveDraft() {
+  const ticket = getSelectedTicket();
+  ticket.isDraftEditing = false;
+  ticket.draftStatus = "approved";
+  ticket.approvedDraft = ticket.draft;
+  ticket.status = "done";
+  ticket.priorityTone = "done";
+  ticket.priorityLabel = "완료";
+  ticket.statusText = `${appState.currentReviewer || "reviewer"} 승인 완료`;
+  updateTicketHistory(ticket, "승인", "done", "AI 답변 초안 바로 승인");
+  render();
+}
+
+function requestRegenerateDraft() {
+  const ticket = getSelectedTicket();
+  if ((ticket.regenCount || 0) >= (ticket.regenLimit || 3)) {
+    return;
+  }
+
+  appState.showRegenBox = !appState.showRegenBox;
+  if (!appState.showRegenBox) {
+    appState.regenReason = "";
+  }
+  render();
+}
+
+function regenerateDraft() {
+  const ticket = getSelectedTicket();
+  const reason = appState.regenReason.trim();
+  if ((ticket.regenCount || 0) >= (ticket.regenLimit || 3) || !reason) {
+    return;
+  }
+
+  ticket.regenCount = (ticket.regenCount || 0) + 1;
+  ticket.isDraftEditing = false;
+  ticket.draftStatus = "draft";
+  ticket.status = "review";
+  ticket.priorityTone = "review";
+  ticket.priorityLabel = "검토 중";
+  ticket.statusText = `${appState.currentReviewer || "reviewer"} 재생성 검토 중`;
+  updateTicketHistory(ticket, "재생성", "pending", `재생성 ${ticket.regenCount}회 · 사유: ${reason}`);
+  appState.showRegenBox = false;
+  appState.regenReason = "";
+  startWorkflow(() => {
+    ticket.draft = getDraftRegenerationText(ticket, reason);
+    ticket.lastGeneratedAt = timeStampLabel();
+    render();
+  });
+}
+
+function getReviewedTickets() {
+  if (!appState.currentReviewer) {
+    return [];
+  }
+  return appState.tickets.filter((ticket) => ticket.assignee === appState.currentReviewer);
+}
+
+function getTicketListPagination() {
+  const pageSize = 4;
+  const totalPages = Math.max(Math.ceil(appState.tickets.length / pageSize), 1);
+  const currentPage = Math.min(Math.max(appState.ticketListPage, 1), totalPages);
+  const startIndex = (currentPage - 1) * pageSize;
+  return {
+    currentPage,
+    totalPages,
+    tickets: appState.tickets.slice(startIndex, startIndex + pageSize)
+  };
+}
+
+function formatReviewDateLabel(createdAt) {
+  const [monthDay] = String(createdAt).split(" ");
+  const [month, day] = monthDay.split("-").map(Number);
+  const date = new Date(2026, (month || 1) - 1, day || 1);
+  const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
+  return `${String(month).padStart(2, "0")}.${String(day).padStart(2, "0")} ${weekdays[date.getDay()]}요일`;
+}
+
+function getReviewHistorySidebarGroups() {
+  const groups = new Map();
+  getReviewedTickets().forEach((ticket) => {
+    const key = String(ticket.createdAt).split(" ")[0];
+    if (!groups.has(key)) {
+      groups.set(key, []);
+    }
+    groups.get(key).push(ticket);
+  });
+
+  return Array.from(groups.entries())
+    .sort((a, b) => b[0].localeCompare(a[0]))
+    .map(([dateKey, tickets]) => ({
+      dateKey,
+      dateLabel: formatReviewDateLabel(dateKey),
+      tickets
+    }));
+}
+
+function getReviewSelectedDateKey() {
+  if (appState.reviewSelectedDate) {
+    return appState.reviewSelectedDate;
+  }
+  const selectedTicket = getReviewedTickets().find((ticket) => ticket.id === appState.selectedTicketId);
+  if (selectedTicket) {
+    return String(selectedTicket.createdAt).split(" ")[0];
+  }
+  return getReviewHistorySidebarGroups()[0]?.dateKey || null;
+}
+
+function syncReviewCalendarState() {
+  const selectedDateKey = getReviewSelectedDateKey();
+  if (!selectedDateKey) {
+    return;
+  }
+  const [month] = selectedDateKey.split("-").map(Number);
+  if (!appState.reviewCalendarYear) {
+    appState.reviewCalendarYear = 2026;
+  }
+  if (!appState.reviewCalendarMonth) {
+    appState.reviewCalendarMonth = month || 5;
+  }
+}
+
+function getReviewCalendarEvents() {
+  return getReviewedTickets().map((ticket) => ({
+    title: ticket.title,
+    start: `2026-${String(ticket.createdAt).split(" ")[0]}`,
+    allDay: true,
+    extendedProps: {
+      ticketId: ticket.id
+    }
+  }));
+}
+
+function formatDateToIsoLocal(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function initReviewHistoryCalendar() {
+  const calendarRoot = document.getElementById("review-history-calendar");
+  if (!calendarRoot || typeof FullCalendar === "undefined") {
+    return;
+  }
+
+  if (reviewCalendarInstance) {
+    reviewCalendarInstance.destroy();
+    reviewCalendarInstance = null;
+  }
+
+  reviewCalendarInstance = new FullCalendar.Calendar(calendarRoot, {
+    initialView: "dayGridMonth",
+    locale: "ko",
+    height: "auto",
+    fixedWeekCount: false,
+    headerToolbar: {
+      left: "prev",
+      center: "title",
+      right: "next"
+    },
+    initialDate: `${appState.reviewCalendarYear}-${String(appState.reviewCalendarMonth).padStart(2, "0")}-01`,
+    events: getReviewCalendarEvents(),
+    dayMaxEventRows: 0,
+    dayCellContent(args) {
+      return String(args.date.getDate());
+    },
+    dayCellDidMount(args) {
+      const selectedDateKey = getReviewSelectedDateKey();
+      const selectedDateStr = selectedDateKey ? `2026-${selectedDateKey}` : "";
+      if (formatDateToIsoLocal(args.date) === selectedDateStr) {
+        args.el.classList.add("review-selected-day");
+      }
+    },
+    dateClick(info) {
+      if (info.dateStr.startsWith("2026-")) {
+        appState.reviewSelectedDate = info.dateStr.slice(5);
+        const targetTicket = getReviewedTickets().find((ticket) => `2026-${String(ticket.createdAt).split(" ")[0]}` === info.dateStr);
+        if (targetTicket) {
+          appState.selectedTicketId = targetTicket.id;
+        }
+        render();
+      }
+    },
+    datesSet(info) {
+      const currentDate = info.view.currentStart;
+      appState.reviewCalendarYear = currentDate.getFullYear();
+      appState.reviewCalendarMonth = currentDate.getMonth() + 1;
+      const yearSelect = document.getElementById("review-calendar-year");
+      const monthSelect = document.getElementById("review-calendar-month");
+      if (yearSelect) {
+        yearSelect.value = String(appState.reviewCalendarYear);
+      }
+      if (monthSelect) {
+        monthSelect.value = String(appState.reviewCalendarMonth);
+      }
+    }
+  });
+
+  reviewCalendarInstance.render();
+}
+
+function renderReviewHistoryContent() {
+  const selectedDateKey = getReviewSelectedDateKey();
+  const reviewedTickets = getReviewedTickets().filter((ticket) => {
+    const sameDate = String(ticket.createdAt).split(" ")[0] === selectedDateKey;
+    if (!sameDate) {
+      return false;
+    }
+    if (appState.reviewHistoryStatusFilter === "전체") {
+      return true;
+    }
+    return ticket.priorityLabel === appState.reviewHistoryStatusFilter;
+  });
+  const selectedReviewedTicket = reviewedTickets.find((ticket) => ticket.id === appState.selectedTicketId) || reviewedTickets[0];
+
+  return `
+      <div class="flex h-full min-h-0 flex-1 flex-col bg-white px-4 pb-3.5 pt-3.5">
+        <div class="section-head rounded-t-xl bg-white">
+          <div class="min-w-0 flex-1">
+            <h3 class="text-[18px] font-semibold leading-[1.3] text-ink-900">검토 이력 조회</h3>
+          </div>
+        </div>
+
+        <div class="flex min-h-0 flex-1 flex-col overflow-hidden bg-white p-3">
+            <div class="grid h-full min-h-0 flex-1 grid-cols-[minmax(0,1fr)_320px] gap-2.5">
+              <div class="flex min-h-0 h-full flex-col overflow-hidden rounded-[10px] border border-sand-300 bg-white">
+                <div class="flex flex-wrap gap-1 border-b border-sand-300 bg-white px-3 py-2">
+                  ${["전체", "긴급", "검토 중", "대기", "완료"].map((status) => `
+                    <button class="filter-chip ${appState.reviewHistoryStatusFilter === status ? "active" : ""}" data-review-status="${status}">
+                      ${status}
+                    </button>
+                  `).join("")}
+                </div>
+                <div class="grid grid-cols-[92px_minmax(0,1fr)_88px] border-b border-sand-300 bg-sand-100 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-500">
+                  <div>접수 시각</div>
+                  <div>문의 제목</div>
+                  <div>상태</div>
+                </div>
+                <div class="min-h-0 flex-1 overflow-y-auto">
+                  ${reviewedTickets.length ? reviewedTickets.map((reviewedTicket) => `
+                    <button class="grid w-full grid-cols-[92px_minmax(0,1fr)_88px] items-start gap-2 border-b border-sand-300 px-3 py-2.5 text-left transition hover:bg-sand-100 ${selectedReviewedTicket && selectedReviewedTicket.id === reviewedTicket.id ? "bg-brand-500/5" : "bg-white"}" data-ticket-id="${reviewedTicket.id}">
+                      <div class="text-[11px] text-ink-500">${escapeHtml(reviewedTicket.createdAt)}</div>
+                      <div>
+                        <div class="text-xs font-medium leading-[1.5] text-ink-900">${escapeHtml(reviewedTicket.title)}</div>
+                        <div class="mt-1 text-[10px] text-ink-500">${escapeHtml(reviewedTicket.nickname)} / ${escapeHtml(reviewedTicket.accountId)}</div>
+                      </div>
+                      <div class="pt-0.5 text-[11px] font-medium ${reviewedTicket.priorityTone === "urgent" ? "text-brand-700" : reviewedTicket.priorityTone === "review" ? "text-brand-600" : reviewedTicket.priorityTone === "done" ? "text-ink-700" : "text-ink-500"}">
+                        ${reviewedTicket.priorityLabel}
+                      </div>
+                    </button>
+                  `).join("") : `
+                    <div class="flex h-full min-h-full items-center justify-center px-4 py-10 text-center text-sm text-ink-500">
+                      <div>해당 상태의 문의가 없습니다.</div>
+                    </div>
+                  `}
+                </div>
+              </div>
+
+              <div class="flex min-h-0 h-full flex-col gap-2.5">
+                ${appState.reviewDetailVisible && selectedReviewedTicket ? `
+                  <div class="rounded-[10px] border border-sand-300 bg-white shadow-panel">
+                    <div class="border-b border-sand-300 bg-sand-100 px-3 py-2">
+                      <div class="text-[10px] uppercase tracking-[0.08em] text-ink-500">선택 문의 상세</div>
+                    </div>
+                    <div class="px-3 py-3">
+                      <div class="flex items-center gap-1.5">
+                        <span class="font-mono text-[10px] text-ink-500">#${selectedReviewedTicket.id}</span>
+                        <span class="text-[11px] font-medium ${selectedReviewedTicket.priorityTone === "urgent" ? "text-brand-700" : selectedReviewedTicket.priorityTone === "review" ? "text-brand-600" : selectedReviewedTicket.priorityTone === "done" ? "text-ink-700" : "text-ink-500"}">${selectedReviewedTicket.priorityLabel}</span>
+                      </div>
+                      <div class="mt-2 text-sm font-semibold leading-[1.4] text-ink-900">${escapeHtml(selectedReviewedTicket.title)}</div>
+                      <div class="mt-3 grid grid-cols-1 gap-2 text-[11px] text-ink-700">
+                        <div class="rounded-[7px] border border-sand-300 bg-white px-2.5 py-2">
+                          <div class="text-[10px] uppercase tracking-[0.08em] text-ink-500">문의자</div>
+                          <div class="mt-1">${escapeHtml(selectedReviewedTicket.nickname)} / ${escapeHtml(selectedReviewedTicket.accountId)}</div>
+                        </div>
+                        <div class="rounded-[7px] border border-sand-300 bg-white px-2.5 py-2">
+                          <div class="text-[10px] uppercase tracking-[0.08em] text-ink-500">최종 편집 일시</div>
+                          <div class="mt-1 font-medium text-ink-900">${escapeHtml(selectedReviewedTicket.lastGeneratedAt || "-")}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="min-h-0 flex-1 rounded-[10px] border border-sand-300 bg-white shadow-panel">
+                    <div class="border-b border-sand-300 bg-sand-100 px-3 py-2">
+                      <div class="text-[10px] uppercase tracking-[0.08em] text-ink-500">답변 본문</div>
+                    </div>
+                    <div class="max-h-full overflow-y-auto px-3 py-3 text-[11px] leading-[1.7] text-ink-700">
+                      ${nl2br(selectedReviewedTicket.approvedDraft || selectedReviewedTicket.confirmedDraft || selectedReviewedTicket.draft)}
+                    </div>
+                  </div>
+                  ` : `
+                  <div class="flex min-h-0 h-full flex-1 items-center justify-center rounded-[10px] border border-dashed border-sand-300 bg-white px-5 text-center">
+                    <div>
+                      <div class="text-sm font-semibold text-ink-900">${reviewedTickets.length ? "상세 이력 대기 중" : "표시할 상세 이력이 없습니다"}</div>
+                      <div class="mt-1 text-[11px] leading-[1.6] text-ink-500">${reviewedTickets.length ? "좌측 목록에서 문의를 선택하면 상세 이력과 답변 본문이 표시됩니다." : "선택한 상태에 해당하는 문의가 없어 상세 내용을 표시할 수 없습니다."}</div>
+                    </div>
+                  </div>
+                  `}
+              </div>
+            </div>
+          </div>
+      </div>
+  `;
+}
+
+function render() {
+  syncReviewCalendarState();
+  const ticket = getSelectedTicket();
+  const draftMeta = draftStatusMeta(ticket.draftStatus);
+  const remainingRegens = Math.max((ticket.regenLimit || 3) - (ticket.regenCount || 0), 0);
+  const ticketListPagination = getTicketListPagination();
+  const reviewHistorySidebarGroups = getReviewHistorySidebarGroups();
+  const reviewSelectedDateKey = getReviewSelectedDateKey();
+  const answerWorkflowStage = getAnswerWorkflowStage();
+  const app = document.getElementById("app");
+  const statusBubbleClass = !appState.currentReviewer
+    ? "bg-sand-100 text-ink-700 border border-sand-300"
+    : ticket.assignee === "미할당"
+      ? "bg-brand-500/10 text-brand-500"
+      : ticket.status === "done"
+        ? "bg-alert-greenBg text-alert-green"
+        : "bg-alert-amberBg text-alert-amber";
+
+  app.innerHTML = `
+    <div class="col-span-2 flex items-center gap-0 bg-brand-500 pr-5">
+      <div class="flex h-full w-[196px] shrink-0 items-center gap-2.5 border-r border-white/15 bg-black/10 px-[18px]">
+        <div class="flex h-[30px] w-[30px] items-center justify-center rounded-lg bg-white/20 text-base text-white">
+          <i class="ti ti-shield-bolt" aria-hidden="true"></i>
+        </div>
+        <div>
+          <div class="text-sm font-bold tracking-[-0.02em] text-white">CS SYSTEM</div>
+          <div class="text-[10px] text-white/55">GameOps</div>
+        </div>
+      </div>
+      <nav class="flex flex-1 items-center gap-0.5 pl-4">
+        ${topTabs.map((tab) => `
+          <button class="menu-tab ${appState.activeTopTab === tab.label ? "active" : ""}" data-top-tab="${tab.label}">
+            <i class="ti ti-${tab.icon}" aria-hidden="true"></i>
+            ${tab.label}
+            ${tab.count ? `<span class="rounded-full px-1.5 py-0.5 text-[10px] font-bold ${tab.red ? "bg-alert-red text-white" : "bg-white/25 text-white"}">${tab.count}</span>` : ""}
+          </button>
+        `).join("")}
+      </nav>
+      <div class="ml-auto flex items-center gap-2">
+        <div id="auth-slot">
+          ${appState.currentReviewer ? `
+            <div class="flex items-center gap-1.5 rounded-md border border-white/20 bg-white/15 px-2.5 py-1 text-xs text-white">
+              <i class="ti ti-user-check text-sm opacity-80" aria-hidden="true"></i>
+              <span>${escapeHtml(appState.currentReviewer)}</span>
+              <button id="logout-btn" class="ml-1 border-l border-white/30 pl-1 text-[11px] text-white/60 transition hover:text-white">로그아웃</button>
+            </div>
+          ` : `
+            <button id="login-btn" class="flex items-center gap-1 rounded-md border-none bg-white px-3 py-1.5 text-[11px] font-semibold text-brand-500 transition hover:bg-sand-200">
+              <i class="ti ti-login"></i> 리뷰어 로그인
+            </button>
+          `}
+        </div>
+      </div>
+    </div>
+
+    <aside class="flex h-full flex-col overflow-y-auto border-r border-sand-300 bg-white px-0 pb-4 pt-2.5">
+      ${appState.activeTopTab === "검토 이력" ? `
+        <div class="px-4 pb-1 pt-1 text-[10px] uppercase tracking-[0.1em] text-ink-500">날짜 선택</div>
+        <div class="px-3 pt-2">
+          <div class="grid grid-cols-2 gap-1.5">
+            <select id="review-calendar-year" class="rounded-[7px] border border-sand-300 bg-white px-2 py-1.5 text-xs text-ink-900 outline-none">
+              ${[2025, 2026, 2027].map((year) => `<option value="${year}" ${year === appState.reviewCalendarYear ? "selected" : ""}>${year}년</option>`).join("")}
+            </select>
+            <select id="review-calendar-month" class="rounded-[7px] border border-sand-300 bg-white px-2 py-1.5 text-xs text-ink-900 outline-none">
+              ${Array.from({ length: 12 }, (_, index) => index + 1).map((month) => `<option value="${month}" ${month === appState.reviewCalendarMonth ? "selected" : ""}>${month}월</option>`).join("")}
+            </select>
+          </div>
+          <div id="review-history-calendar" class="mt-3"></div>
+        </div>
+        <div class="mt-auto border-t border-sand-300 px-3 pt-2.5">
+          <div class="mb-1 px-1 text-[10px] uppercase tracking-[0.08em] text-ink-500">외부 채널</div>
+          <div class="mb-1 flex items-center gap-2 rounded-lg border border-sand-300 bg-sand-100 px-2.5 py-1.5 text-xs text-ink-700">
+            <i class="ti ti-mail text-sm text-brand-300" aria-hidden="true"></i> 이메일 확인
+          </div>
+          <div class="mb-1 flex items-center gap-2 rounded-lg border border-sand-300 bg-sand-100 px-2.5 py-1.5 text-xs text-ink-700">
+            <i class="ti ti-brand-blogger text-sm text-brand-300" aria-hidden="true"></i> 네이버 카페
+            <i class="ti ti-external-link ml-auto text-[11px] text-brand-200" aria-hidden="true"></i>
+          </div>
+        </div>
+      ` : `
+        <div class="px-4 pb-1 pt-1 text-[10px] uppercase tracking-[0.1em] text-ink-500">문의 관리</div>
+        ${sideTabs.map((tab) => `
+          <button class="side-item ${appState.activeSideTab === tab.label ? "active" : ""}" data-side-tab="${tab.label}">
+            <i class="ti ti-${tab.icon}" aria-hidden="true"></i>
+            ${tab.label}
+            ${tab.count ? `
+              <span class="ml-auto rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                tab.red ? "bg-alert-red text-white" : tab.green ? "bg-alert-greenBg text-alert-green" : "bg-brand-200 text-ink-900"
+              }">${tab.count}</span>
+            ` : ""}
+          </button>
+        `).join("")}
+        <div class="mt-2 border-t border-sand-300 px-3 pt-2.5">
+          <div class="mb-1 px-1 text-[10px] uppercase tracking-[0.08em] text-ink-500">문의 목록</div>
+          <div class="flex flex-col gap-1">
+            ${ticketListPagination.tickets.map((item) => `
+              <button class="ticket-card mb-0 w-full text-left ${appState.selectedTicketId === item.id ? "selected" : ""} ${item.priorityTone === "urgent" ? "border-l-[3px] border-l-alert-red" : ""} ${item.status === "done" ? "opacity-50" : ""}" data-ticket-id="${item.id}">
+                <div class="mb-1 flex items-center gap-1.5">
+                  <span class="badge ${badgeClassByTone(item.priorityTone)}">${item.priorityLabel}</span>
+                </div>
+                <div class="mb-1 text-xs font-medium leading-[1.4] text-ink-900">${item.title}</div>
+              </button>
+            `).join("")}
+          </div>
+          <div class="mt-2 flex items-center justify-center gap-1">
+            <button id="ticket-page-prev-btn" class="btn btn-ghost btn-sm px-2 py-0.5" ${ticketListPagination.currentPage === 1 ? "disabled" : ""}><i class="ti ti-chevron-left"></i></button>
+            <span class="text-[10px] text-ink-500">${ticketListPagination.currentPage}/${ticketListPagination.totalPages}페이지</span>
+            <button id="ticket-page-next-btn" class="btn btn-ghost btn-sm px-2 py-0.5" ${ticketListPagination.currentPage === ticketListPagination.totalPages ? "disabled" : ""}><i class="ti ti-chevron-right"></i></button>
+          </div>
+        </div>
+        <div class="mt-auto border-t border-sand-300 px-3 pt-2.5">
+          <div class="mb-1 px-1 text-[10px] uppercase tracking-[0.08em] text-ink-500">외부 채널</div>
+          <div class="mb-1 flex items-center gap-2 rounded-lg border border-sand-300 bg-sand-100 px-2.5 py-1.5 text-xs text-ink-700">
+            <i class="ti ti-mail text-sm text-brand-300" aria-hidden="true"></i> 이메일 확인
+          </div>
+          <div class="mb-1 flex items-center gap-2 rounded-lg border border-sand-300 bg-sand-100 px-2.5 py-1.5 text-xs text-ink-700">
+            <i class="ti ti-brand-blogger text-sm text-brand-300" aria-hidden="true"></i> 네이버 카페
+            <i class="ti ti-external-link ml-auto text-[11px] text-brand-200" aria-hidden="true"></i>
+          </div>
+        </div>
+      `}
+    </aside>
+
+    <main class="flex min-h-0 flex-col overflow-y-auto bg-white">
+      ${appState.activeTopTab === "검토 이력" ? renderReviewHistoryContent() : `
+      <div class="relative min-h-0 flex-1 overflow-y-auto bg-white pr-8 pl-4 pb-3.5 pt-3.5">
+        ${appState.isTicketSidebarOpen ? `<button id="ticket-sidebar-backdrop" class="absolute inset-0 z-10 bg-ink-900/20"></button>` : ""}
+        <div class="section-head rounded-t-xl bg-white">
+            <div class="min-w-0 flex-1">
+              <h3 class="text-[18px] font-semibold leading-[1.3] text-ink-900">${ticket.title}</h3>
+              <div class="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-ink-500">
+                <span>#${ticket.id}</span>
+                <span>|</span>
+                <span>${ticket.createdAt}</span>
+                <span>|</span>
+                <span>${ticket.nickname}</span>
+                <span>|</span>
+                <span>${ticket.channel}</span>
+              </div>
+            </div>
+        </div>
+
+          <div class="flex flex-col gap-2.5 bg-white p-3">
+            <div class="flex flex-col gap-2.5">
+              <div class="subcard subcard-editable">
+                <div class="subcard-head">
+                  <div class="flex items-center gap-1.5 text-xs font-bold text-ink-900"><i class="ti ti-ticket text-sm text-brand-500"></i> 문의 정보</div>
+                </div>
+                <div class="subcard-body">
+                  <div class="text-xs leading-[1.8] text-ink-700">${ticket.body}</div>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-[1fr_172px] gap-2.5">
+                <div class="subcard">
+                  <div class="subcard-head">
+                    <div class="flex items-center gap-1.5 text-xs font-bold text-ink-900">
+                      <i class="ti ti-message-2 text-sm text-brand-500"></i> 답변 초안
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                      <span class="text-[10px] text-ink-500">재생성 ${ticket.regenCount || 0}/${ticket.regenLimit || 3}</span>
+                    </div>
+                  </div>
+                  <div class="subcard-body">
+                    <textarea id="draft-input" class="min-h-[180px] w-full resize-y rounded-[7px] border border-sand-300 bg-white px-3 py-2.5 text-xs leading-[1.6] text-ink-900 outline-none ${ticket.isDraftEditing ? "focus:border-brand-500" : "text-ink-500"}" ${ticket.isDraftEditing ? "" : "readonly"}>${escapeHtml(ticket.draft)}</textarea>
+                    <div class="mt-2 flex flex-wrap gap-1.5">
+                      <button id="confirm-draft-btn" class="btn btn-ghost btn-sm"><i class="ti ti-device-floppy"></i> ${ticket.isDraftEditing ? "수정 완료" : "수정"}</button>
+                      <button id="regen-toggle-btn" class="btn btn-ghost btn-sm ml-auto ${remainingRegens === 0 ? "cursor-not-allowed opacity-40 hover:border-sand-300 hover:text-ink-700" : ""}" ${remainingRegens === 0 ? "disabled" : ""}><i class="ti ti-refresh"></i> 재생성</button>
+                    </div>
+                    <div class="${appState.showRegenBox ? "block" : "hidden"} mt-2 rounded-lg border border-brand-200 bg-brand-500/5 p-3">
+                      <label class="mb-1 block text-[11px] font-medium text-brand-500">재생성 사유 입력</label>
+                      <textarea id="regen-reason-input" class="min-h-[52px] w-full resize-none rounded-md border border-brand-200 bg-white px-2.5 py-2 text-xs outline-none" placeholder="예: 문체를 더 정중하게 수정, 환불 기준 문구 반영">${escapeHtml(appState.regenReason)}</textarea>
+                      <div class="mt-1.5 flex gap-1">
+                        <button id="regen-submit-btn" class="btn btn-primary btn-sm"><i class="ti ti-send"></i> 사유 반영 재생성</button>
+                        <button id="regen-cancel-btn" class="btn btn-ghost btn-sm">취소</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="subcard">
+                  <div class="subcard-head">
+                    <div class="flex items-center gap-1.5 text-xs font-bold text-ink-900"><i class="ti ti-activity text-sm text-brand-500"></i> 처리 현황</div>
+                  </div>
+                  <div class="subcard-body px-2.5 py-2.5">
+                    <div class="flex flex-col gap-0">
+                      ${renderTimelineItem("AI 분석 완료", answerWorkflowStage > 1 ? "done" : answerWorkflowStage === 1 ? "active" : "pending")}
+                      ${renderTimelineItem("초안 생성", answerWorkflowStage > 2 ? "done" : answerWorkflowStage === 2 ? "active" : "pending")}
+                      ${renderTimelineItem("검토 중", ticket.status === "done" ? "done" : answerWorkflowStage === 3 ? "active" : "pending")}
+                      ${renderTimelineItem("발송", ticket.status === "done" ? "done" : "pending", true)}
+                    </div>
+                    <div class="mt-3 flex flex-col gap-1.5">
+                      <button id="complete-answer-btn" class="btn btn-primary btn-sm w-full justify-center"><i class="ti ti-check"></i> 답변 완료</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="subcard">
+              <div class="subcard-head">
+                <div class="flex items-center gap-1.5 text-xs font-bold text-ink-900"><i class="ti ti-stack-2 text-sm text-brand-500"></i> 참고 정보</div>
+                <div class="flex flex-wrap items-center gap-1">
+                  <span class="badge border border-sand-300 bg-white text-ink-700">${ticket.risk} ${riskSignalEmoji(ticket.risk)}</span>
+                  <span class="badge border border-sand-300 bg-white text-ink-700">근거 🟢</span>
+                  <span class="badge border border-sand-300 bg-white text-ink-700">주의 🟡</span>
+                  <span class="badge border border-sand-300 bg-white text-ink-700">정책 🟢</span>
+                </div>
+              </div>
+              <div class="subcard-body flex flex-col gap-4">
+                <div>
+                  <div class="mb-1.5 text-[11px] font-semibold text-ink-900">AI 분석 및 안전성 검토</div>
+                  <div class="space-y-2 text-xs leading-[1.8] text-ink-700">
+                    <p>${ticket.aiSummary}</p>
+                    <p>관련 내용은 ${ticket.route} 유형으로 분류되며, ${ticket.direction} 방향으로 처리하는 것이 적절합니다. 현재 위험도는 ${ticket.risk}로 판단됩니다.</p>
+                    <p>안전성 검토 결과 근거 일치는 통과했고, 환각 가능성은 주의 1건 수준이며, 정책 위반이나 부정 표현은 확인되지 않았습니다.</p>
+                  </div>
+                </div>
+
+                <div>
+                  <div class="mb-1.5 text-[11px] font-semibold text-ink-900">
+                    <span>답변 근거</span>
+                  </div>
+                  <div class="overflow-hidden rounded-[7px] border border-sand-300 bg-white">
+                    <div class="grid grid-cols-[180px_minmax(0,1fr)] border-b border-sand-300 bg-sand-100 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-500">
+                      <div>문서</div>
+                      <div>근거 내용</div>
+                    </div>
+                    ${appState.evidence.map((item) => `
+                      <div class="grid grid-cols-[180px_minmax(0,1fr)] border-b border-sand-300 px-2.5 py-2 text-[10px] leading-[1.55] text-ink-700 last:border-b-0">
+                        <div class="pr-2 font-medium">${item.source}</div>
+                        <div>${item.body}</div>
+                      </div>
+                    `).join("")}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        <aside class="hidden absolute right-0 top-2.5 z-20 grid h-[380px] w-[332px] grid-cols-[28px_1fr] overflow-hidden rounded-l-xl border border-sand-300 bg-white shadow-panel transition-transform duration-300 ${appState.isTicketSidebarOpen ? "translate-x-0" : "translate-x-[304px]"}">
+          <button id="ticket-sidebar-handle-btn" class="flex h-full w-full flex-col items-center justify-center border-r border-sand-300 bg-sand-100 px-0.5 text-ink-700 transition hover:bg-sand-200 hover:text-ink-900">
+            <span class="[writing-mode:vertical-rl] text-[10px] font-semibold tracking-[0.06em]">문의목록</span>
+          </button>
+          <div class="flex min-h-0 flex-col bg-white">
+            <div class="section-head">
+              <i class="ti ti-inbox text-base text-brand-500" aria-hidden="true"></i>
+              <h3>문의 목록</h3>
+              <button id="ticket-sidebar-close-btn" class="btn btn-ghost btn-sm"><i class="ti ti-x"></i> 닫기</button>
+            </div>
+            <div class="shrink-0 border-b border-sand-300 px-3 py-[7px]">
+              <div class="relative">
+                <i class="ti ti-search absolute left-2 top-1/2 -translate-y-1/2 text-sm text-brand-200" aria-hidden="true"></i>
+                <input class="w-full rounded-[7px] border border-sand-300 bg-sand-100 py-1.5 pl-7 pr-2.5 text-xs text-ink-900 outline-none focus:border-brand-500 focus:bg-white" type="text" placeholder="유저명, 제목, ID 검색...">
+              </div>
+            </div>
+            <div class="flex-1 overflow-y-auto p-2">
+              ${appState.tickets.map((item) => `
+                <button class="ticket-card w-full text-left ${appState.selectedTicketId === item.id ? "selected" : ""} ${item.priorityTone === "urgent" ? "border-l-[3px] border-l-alert-red" : ""} ${item.status === "done" ? "opacity-50" : ""}" data-ticket-id="${item.id}">
+                  <div class="mb-1 flex items-center gap-1.5">
+                    <span class="font-mono text-[10px] text-ink-500">#${item.id}</span>
+                    <span class="badge ${badgeClassByTone(item.priorityTone)}">${item.priorityLabel}</span>
+                    <span class="ml-auto flex items-center gap-1.5 text-[10px]">
+                      <span class="${item.status === "done" ? "font-medium text-alert-green" : item.assignee === "미할당" ? "font-normal text-ink-500" : "font-semibold text-alert-amber"}">${item.statusText}</span>
+                      <span class="text-ink-500">${item.timeAgo}</span>
+                    </span>
+                  </div>
+                  <div class="mb-1 text-xs font-medium leading-[1.4] text-ink-900">${item.title}</div>
+                  <div class="flex flex-wrap items-center gap-1">
+                    <span class="badge border border-sand-300 bg-sand-100 text-ink-700">${item.channel}</span>
+                    <span class="badge ${draftStatusMeta(item.draftStatus).chipClass}">${draftStatusMeta(item.draftStatus).label}</span>
+                  </div>
+                </button>
+              `).join("")}
+            </div>
+          </div>
+        </aside>
+      </div>
+      `}
+    </main>
+  `;
+
+  const authSlot = document.getElementById("auth-slot");
+  if (authSlot) {
+    authSlot.innerHTML = renderAuthSlotHtml();
+  }
+  app.insertAdjacentHTML("beforeend", renderLoginOverlayHtml());
+
+  bindEvents();
+  if (appState.activeTopTab === "검토 이력") {
+    initReviewHistoryCalendar();
+  } else if (reviewCalendarInstance) {
+    reviewCalendarInstance.destroy();
+    reviewCalendarInstance = null;
+  }
+}
+
+function bindEvents() {
+  document.querySelectorAll("[data-top-tab]").forEach((button) => {
+    button.addEventListener("click", () => {
+      appState.activeTopTab = button.dataset.topTab;
+      if (button.dataset.topTab === "검토 이력") {
+        appState.reviewDetailVisible = false;
+      }
+      render();
+    });
+  });
+
+  document.querySelectorAll("[data-side-tab]").forEach((button) => {
+    button.addEventListener("click", () => {
+      appState.activeSideTab = button.dataset.sideTab;
+      render();
+    });
+  });
+
+  document.querySelectorAll("[data-filter]").forEach((button) => {
+    button.addEventListener("click", () => {
+      appState.activeFilter = button.dataset.filter;
+      render();
+    });
+  });
+
+  document.querySelectorAll("[data-category]").forEach((button) => {
+    button.addEventListener("click", () => {
+      appState.activeCategory = button.dataset.category;
+      render();
+    });
+  });
+
+  document.querySelectorAll("[data-review-status]").forEach((button) => {
+    button.addEventListener("click", () => {
+      appState.reviewHistoryStatusFilter = button.dataset.reviewStatus;
+      appState.reviewDetailVisible = false;
+      render();
+    });
+  });
+
+  document.querySelectorAll("[data-ticket-id]").forEach((button) => {
+    button.addEventListener("click", () => {
+      appState.selectedTicketId = button.dataset.ticketId;
+      if (appState.activeTopTab === "검토 이력") {
+        appState.reviewDetailVisible = true;
+      }
+      const ticketIndex = appState.tickets.findIndex((ticket) => ticket.id === button.dataset.ticketId);
+      if (ticketIndex >= 0) {
+        appState.ticketListPage = Math.floor(ticketIndex / 4) + 1;
+      }
+      appState.isTicketSidebarOpen = false;
+      appState.showRegenBox = false;
+      appState.regenReason = "";
+      render();
+    });
+  });
+
+  const reviewCalendarYear = document.getElementById("review-calendar-year");
+  if (reviewCalendarYear) {
+    reviewCalendarYear.addEventListener("change", (event) => {
+      appState.reviewCalendarYear = Number(event.target.value);
+      appState.reviewSelectedDate = "";
+      if (reviewCalendarInstance) {
+        reviewCalendarInstance.gotoDate(`${appState.reviewCalendarYear}-${String(appState.reviewCalendarMonth).padStart(2, "0")}-01`);
+      }
+      render();
+    });
+  }
+
+  const reviewCalendarMonth = document.getElementById("review-calendar-month");
+  if (reviewCalendarMonth) {
+    reviewCalendarMonth.addEventListener("change", (event) => {
+      appState.reviewCalendarMonth = Number(event.target.value);
+      appState.reviewSelectedDate = "";
+      if (reviewCalendarInstance) {
+        reviewCalendarInstance.gotoDate(`${appState.reviewCalendarYear}-${String(appState.reviewCalendarMonth).padStart(2, "0")}-01`);
+      }
+      render();
+    });
+  }
+
+  const ticketPagePrevBtn = document.getElementById("ticket-page-prev-btn");
+  if (ticketPagePrevBtn) {
+    ticketPagePrevBtn.addEventListener("click", () => {
+      appState.ticketListPage = Math.max(appState.ticketListPage - 1, 1);
+      render();
+    });
+  }
+
+  const ticketPageNextBtn = document.getElementById("ticket-page-next-btn");
+  if (ticketPageNextBtn) {
+    ticketPageNextBtn.addEventListener("click", () => {
+      const totalPages = Math.max(Math.ceil(appState.tickets.length / 4), 1);
+      appState.ticketListPage = Math.min(appState.ticketListPage + 1, totalPages);
+      render();
+    });
+  }
+
+  const ticketSidebarHandleBtn = document.getElementById("ticket-sidebar-handle-btn");
+  if (ticketSidebarHandleBtn) {
+    ticketSidebarHandleBtn.addEventListener("click", () => {
+      appState.isTicketSidebarOpen = !appState.isTicketSidebarOpen;
+      render();
+    });
+  }
+
+  const ticketSidebarCloseBtn = document.getElementById("ticket-sidebar-close-btn");
+  if (ticketSidebarCloseBtn) {
+    ticketSidebarCloseBtn.addEventListener("click", () => {
+      appState.isTicketSidebarOpen = false;
+      render();
+    });
+  }
+
+  const ticketSidebarBackdrop = document.getElementById("ticket-sidebar-backdrop");
+  if (ticketSidebarBackdrop) {
+    ticketSidebarBackdrop.addEventListener("click", () => {
+      appState.isTicketSidebarOpen = false;
+      render();
+    });
+  }
+
+  document.querySelectorAll("[data-evd-index]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const index = Number(button.dataset.evdIndex);
+      appState.evidence[index].open = !appState.evidence[index].open;
+      render();
+    });
+  });
+
+  const workflowBtn = document.getElementById("workflow-btn");
+  if (workflowBtn) workflowBtn.addEventListener("click", startWorkflow);
+
+  const confirmDraftBtn = document.getElementById("confirm-draft-btn");
+  if (confirmDraftBtn) {
+    confirmDraftBtn.addEventListener("click", confirmDraft);
+  }
+
+  const completeAnswerBtn = document.getElementById("complete-answer-btn");
+  if (completeAnswerBtn) {
+    completeAnswerBtn.addEventListener("click", approveDraft);
+  }
+
+  const regenToggleBtn = document.getElementById("regen-toggle-btn");
+  if (regenToggleBtn) regenToggleBtn.addEventListener("click", requestRegenerateDraft);
+
+  const regenCancelBtn = document.getElementById("regen-cancel-btn");
+  if (regenCancelBtn) {
+    regenCancelBtn.addEventListener("click", () => {
+      appState.showRegenBox = false;
+      appState.regenReason = "";
+      render();
+    });
+  }
+
+  const regenSubmitBtn = document.getElementById("regen-submit-btn");
+  if (regenSubmitBtn) regenSubmitBtn.addEventListener("click", regenerateDraft);
+
+  const loginBtn = document.getElementById("login-btn");
+  if (loginBtn) {
+    loginBtn.addEventListener("click", () => {
+      const username = prompt("리뷰어 ID를 입력하세요", "reviewer_01");
+      if (username && username.trim()) {
+        appState.currentReviewer = username.trim();
+        render();
+      }
+    });
+  }
+
+  const logoutBtn = document.getElementById("logout-btn");
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", () => {
+      appState.currentReviewer = null;
+      render();
+    });
+  }
+
+  ensureOperatorMenuListener();
+
+  const reviewLoginBtn = document.getElementById("review-login-btn");
+  if (reviewLoginBtn) {
+    reviewLoginBtn.addEventListener("click", () => {
+      const overlay = document.getElementById("login-overlay");
+      if (overlay) {
+        overlay.classList.remove("hidden");
+      }
+    });
+  }
+
+  const loginSubmitBtn = document.getElementById("login-submit-btn");
+  if (loginSubmitBtn) {
+    loginSubmitBtn.addEventListener("click", doLogin);
+  }
+
+  const loginIdInput = document.getElementById("li-id");
+  const loginPwInput = document.getElementById("li-pw");
+  [loginIdInput, loginPwInput].forEach((input) => {
+    if (input) {
+      input.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          doLogin();
+        }
+      });
+    }
+  });
+
+  const opChipBtn = document.getElementById("op-chip-btn");
+  if (opChipBtn) {
+    opChipBtn.addEventListener("click", toggleOpMenu);
+    opChipBtn.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        toggleOpMenu(event);
+      }
+    });
+  }
+
+  const reviewLogoutBtn = document.getElementById("review-logout-btn");
+  if (reviewLogoutBtn) {
+    reviewLogoutBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      doLogout();
+    });
+  }
+
+  const draftInput = document.getElementById("draft-input");
+  if (draftInput) {
+    draftInput.addEventListener("input", (event) => {
+      const ticket = getSelectedTicket();
+      ticket.draft = event.target.value;
+    });
+  }
+
+  const regenReasonInput = document.getElementById("regen-reason-input");
+  if (regenReasonInput) {
+    regenReasonInput.addEventListener("input", (event) => {
+      appState.regenReason = event.target.value;
+    });
+  }
+}
+
+function startWorkflow(onComplete) {
+  appState.workflowVisible = true;
+  appState.workflowProgress = 0;
+  appState.workflowLabel = workflowSteps[0].label;
+  render();
+
+  let index = 0;
+  const timer = setInterval(() => {
+    if (index >= workflowSteps.length) {
+      clearInterval(timer);
+      if (typeof onComplete === "function") {
+        onComplete();
+      }
+      return;
+    }
+
+    appState.workflowLabel = workflowSteps[index].label;
+    appState.workflowProgress = workflowSteps[index].progress;
+    render();
+    index += 1;
+  }, 700);
+}
+
+render();
+</script>
+</body>
+</html>

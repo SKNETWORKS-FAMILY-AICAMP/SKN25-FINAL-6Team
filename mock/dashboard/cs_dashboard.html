@@ -1,0 +1,1475 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>일상 인사이트 대시보드</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+@font-face{font-family:'Pretendard';src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-Light.woff2') format('woff2');font-weight:300;font-display:swap}
+@font-face{font-family:'Pretendard';src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-Regular.woff2') format('woff2');font-weight:400;font-display:swap}
+@font-face{font-family:'Pretendard';src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-Medium.woff2') format('woff2');font-weight:500;font-display:swap}
+@font-face{font-family:'Pretendard';src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-SemiBold.woff2') format('woff2');font-weight:600;font-display:swap}
+@font-face{font-family:'Pretendard';src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-Bold.woff2') format('woff2');font-weight:700;font-display:swap}
+@font-face{font-family:'Pretendard';src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-ExtraBold.woff2') format('woff2');font-weight:800;font-display:swap}
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --c1:#6096B4;
+  --c2:#93BFCF;
+  --c3:#BDCDD6;
+  --c4:#EEE9DA;
+  --bg:#F7F5F0;
+  --white:#FFFFFF;
+  --surface:#F2EFE8;
+  --border:#D8D2C4;
+  --text:#2A3340;
+  --text2:#4A5568;
+  --text3:#8A9AB0;
+  --red:#C0392B;
+  --red-bg:#FDF0EE;
+  --red-border:#F5C6C0;
+  --amber:#9A6B1A;
+  --amber-bg:#FDF6E3;
+  --green:#2E7D5B;
+  --green-bg:#EAF5EE;
+  --purple:#5B4B8A;
+  --purple-bg:#F0EEF8;
+  --font:'Pretendard',sans-serif;
+  --mono:'IBM Plex Mono',monospace;
+  --sidebar:200px;
+  --topbar:50px;
+}
+html,body{height:100%;font-family:var(--font);background:var(--bg);color:var(--text);font-size:13px;line-height:1.5;overflow:hidden}
+
+/* ── SHELL ── */
+.app{display:grid;grid-template-columns:var(--sidebar) 1fr;grid-template-rows:var(--topbar) 1fr;height:100vh}
+
+/* ── TOPBAR ── */
+.topbar{grid-column:1/-1;background:var(--c1);display:flex;align-items:center;padding:0 20px 0 0}
+.tb-brand{
+  width:var(--sidebar);flex-shrink:0;display:flex;align-items:center;gap:9px;
+  padding:0 18px;background:rgba(0,0,0,0.12);height:100%;border-right:1px solid rgba(255,255,255,0.12);
+}
+.tb-brand .li{width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px}
+.tb-brand .lt{color:#fff;font-size:14px;font-weight:700;letter-spacing:-0.02em;line-height:1.2}
+.tb-brand .ls{color:rgba(255,255,255,0.55);font-size:10px;font-weight:400}
+.tb-nav{display:flex;align-items:center;gap:2px;padding-left:16px;flex:1}
+.tb-tab{
+  display:flex;align-items:center;gap:6px;padding:7px 15px;border-radius:6px;
+  font-size:12px;font-weight:500;color:rgba(255,255,255,0.65);
+  cursor:pointer;border:none;background:none;font-family:var(--font);transition:all 0.13s;
+}
+.tb-tab i{font-size:15px}
+.tb-tab:hover{background:rgba(255,255,255,0.1);color:#fff}
+.tb-tab.active{background:rgba(255,255,255,0.18);color:#fff}
+.tc{font-size:10px;font-weight:700;padding:1px 6px;border-radius:100px;background:rgba(255,255,255,0.25);color:#fff}
+.tc.red{background:#C0392B}
+.tb-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.api-wrap{display:flex;align-items:center;gap:6px;background:rgba(0,0,0,0.12);border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:4px 10px}
+.api-wrap input{background:none;border:none;outline:none;color:rgba(255,255,255,0.75);font-size:11px;font-family:var(--mono);width:150px}
+.api-wrap i{color:rgba(255,255,255,0.4);font-size:13px}
+.rev-wrap{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.2);border-radius:6px;padding:4px 11px;color:#fff;font-size:12px;font-weight:500}
+
+/* ── SIDEBAR ── */
+.sidebar{background:var(--white);border-right:1px solid var(--border);padding:10px 0 16px;display:flex;flex-direction:column;overflow-y:auto}
+.s-sec{font-size:10px;color:var(--text3);letter-spacing:0.1em;text-transform:uppercase;padding:10px 16px 3px;font-weight:600}
+.nav-item{display:flex;align-items:center;gap:8px;padding:7px 16px;font-size:12px;font-weight:500;color:var(--text2);cursor:pointer;transition:all 0.12s;border-left:2px solid transparent}
+.nav-item i{font-size:15px;color:var(--c3)}
+.nav-item:hover{background:var(--c4);color:var(--text)}
+.nav-item.active{background:rgba(96,150,180,0.08);color:var(--c1);border-left-color:var(--c1)}
+.nav-item.active i{color:var(--c1)}
+.nb{margin-left:auto;font-size:10px;font-weight:700;padding:1px 7px;border-radius:100px;background:var(--c3);color:var(--text)}
+.nb.red{background:var(--red);color:#fff}
+.sb-bottom{padding:10px 12px 0;margin-top:auto;border-top:1px solid var(--border)}
+.sb-lbl{font-size:10px;color:var(--text3);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:5px;font-weight:600}
+.ext-btn{display:flex;align-items:center;gap:7px;padding:7px 10px;border-radius:8px;font-size:12px;color:var(--text2);cursor:pointer;margin-bottom:5px;border:1px solid var(--border);background:var(--surface);transition:all 0.12s}
+.ext-btn i{font-size:14px;color:var(--c2)}
+.ext-btn:hover{background:rgba(96,150,180,0.08);border-color:var(--c2);color:var(--c1)}
+.cnt-sel{width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:7px;font-size:12px;font-family:var(--font);color:var(--text);background:var(--surface);outline:none;margin-top:6px}
+.date-sel{display:flex;gap:4px;margin-top:6px}
+.date-sel input{flex:1;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:11px;font-family:var(--mono);color:var(--text);background:var(--surface);outline:none}
+
+/* ── MAIN ── */
+.main{display:flex;flex-direction:column;overflow:hidden;background:var(--bg);min-height:0}
+
+/* ── SCREEN TABS (내부 뷰 전환) ── */
+.screen-tabs{display:none}
+
+/* ── PAGE ── */
+.page{display:none;flex:1;overflow-y:auto;flex-direction:column;gap:0}
+.page.active{display:flex}
+
+/* ── WARN BANNER ── */
+.warn-banner{
+  display:flex;align-items:center;gap:10px;
+  background:var(--amber-bg);border-bottom:2px solid #E9B857;
+  padding:9px 20px;font-size:12px;font-weight:500;color:var(--amber);flex-shrink:0;
+}
+.warn-banner i{font-size:16px}
+.warn-banner .wb-close{margin-left:auto;cursor:pointer;font-size:16px;color:var(--amber);opacity:0.7}
+
+/* ── TOOLBAR ── */
+.page-toolbar{
+  display:flex;align-items:center;gap:10px;
+  padding:12px 20px 0;flex-shrink:0;
+}
+.pg-title{font-size:16px;font-weight:700;color:var(--text);letter-spacing:-0.02em}
+.pg-sub{font-size:12px;color:var(--text3);font-weight:400;margin-left:4px}
+.toolbar-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+
+/* ── BTN ── */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 13px;border-radius:7px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid;transition:all 0.12s;font-family:var(--font);white-space:nowrap}
+.btn i{font-size:14px}
+.btn-primary{background:var(--c1);border-color:var(--c1);color:#fff}
+.btn-primary:hover{background:#4E84A0}
+.btn-ghost{background:var(--white);border-color:var(--border);color:var(--text2)}
+.btn-ghost:hover{border-color:var(--c1);color:var(--c1)}
+.btn-danger{background:var(--red-bg);border-color:var(--red-border);color:var(--red)}
+.btn-success{background:var(--green-bg);border-color:#A7DFC3;color:var(--green)}
+.btn-amber{background:var(--amber-bg);border-color:#E9B857;color:var(--amber)}
+.btn-sm{padding:5px 10px;font-size:11px}
+.btn-xs{padding:3px 8px;font-size:10px;font-weight:600}
+
+/* ── KPI GRID ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:12px 20px 0;flex-shrink:0}
+.kpi-card{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:12px 14px;position:relative;overflow:hidden}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--c2)}
+.kpi-card.red::before{background:var(--red)}
+.kpi-card.amber::before{background:#E9B857}
+.kpi-card.green::before{background:#3BB577}
+.kpi-card.purple::before{background:#7B68C8}
+.kpi-lbl{font-size:10px;color:var(--text3);font-weight:600;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:5px}
+.kpi-num{font-size:28px;font-weight:900;color:var(--text);font-family:var(--mono);line-height:1;letter-spacing:-0.04em}
+.kpi-num.red{color:var(--red)}
+.kpi-num.amber{color:var(--amber)}
+.kpi-num.green{color:var(--green)}
+.kpi-num.purple{color:var(--purple)}
+.kpi-num.blue{color:var(--c1)}
+.kpi-sub{font-size:10px;color:var(--text3);margin-top:4px;font-weight:400}
+.kpi-delta{font-size:10px;font-weight:600;margin-top:3px}
+.kpi-delta.up{color:var(--green)}
+.kpi-delta.down{color:var(--red)}
+
+/* ── AI BLOCK ── */
+.ai-block{margin:12px 20px 0;background:rgba(96,150,180,0.06);border:1px solid var(--c3);border-radius:10px;padding:14px 16px}
+.ai-block-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.ai-block-head .ai-icon{width:28px;height:28px;border-radius:7px;background:var(--c1);display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;flex-shrink:0}
+.ai-block-head .ai-headline{font-size:14px;font-weight:700;color:var(--text)}
+.ai-block-head .ai-badge{margin-left:auto;font-size:10px;font-weight:600;padding:2px 8px;border-radius:100px;background:var(--c1);color:#fff}
+.ai-summary{font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:10px;font-weight:400}
+.ai-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ai-points{display:flex;flex-direction:column;gap:5px}
+.ai-point{display:flex;align-items:flex-start;gap:7px;font-size:12px;color:var(--text2);font-weight:400}
+.ai-point i{font-size:13px;color:var(--c1);flex-shrink:0;margin-top:1px}
+.ai-actions{display:flex;flex-direction:column;gap:5px}
+.ai-action{display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--white);border:1px solid var(--border);border-radius:7px;font-size:11px;cursor:pointer;transition:all 0.12s}
+.ai-action:hover{border-color:var(--c1);background:rgba(96,150,180,0.04)}
+.ai-action i{font-size:14px;color:var(--c1)}
+.ai-action .aa-lbl{font-weight:600;color:var(--text)}
+.ai-action .aa-sub{color:var(--text3);font-size:10px;margin-left:auto}
+
+/* ── CHART AREA ── */
+.chart-section{padding:12px 20px 0}
+.chart-row{display:grid;gap:10px}
+.chart-row-3{grid-template-columns:repeat(3,1fr)}
+.chart-row-2{grid-template-columns:repeat(2,1fr)}
+.chart-card{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.chart-title{font-size:12px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px}
+.chart-title i{font-size:14px;color:var(--c1)}
+.chart-wrap{position:relative;height:140px}
+.chart-wrap.tall{height:180px}
+
+/* ── TABLE AREA ── */
+.table-section{padding:12px 20px 0}
+.table-row{display:grid;gap:10px;grid-template-columns:1fr 1fr}
+.table-card{background:var(--white);border:1px solid var(--border);border-radius:10px;overflow:hidden;display:flex;flex-direction:column}
+.table-card.full{grid-column:1/-1}
+.tc-head{padding:10px 14px;background:var(--c4);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.tc-head h4{font-size:12px;font-weight:700;color:var(--text)}
+.tc-head i{font-size:14px;color:var(--c1)}
+.tc-head .tc-cnt{margin-left:auto;font-size:10px;color:var(--text3);font-weight:500}
+tbl{width:100%;border-collapse:collapse;font-size:11px}
+table.tbl{width:100%;border-collapse:collapse;font-size:11px}
+table.tbl th{text-align:left;padding:6px 12px;border-bottom:1px solid var(--border);color:var(--text3);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;background:var(--surface)}
+table.tbl td{padding:7px 12px;border-bottom:1px solid var(--surface);color:var(--text2);font-weight:400}
+table.tbl tr:last-child td{border-bottom:none}
+table.tbl tr:hover td{background:rgba(96,150,180,0.03)}
+.tc-scroll{overflow-y:auto;max-height:180px}
+
+/* ── BADGE ── */
+.badge{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:600;padding:2px 7px;border-radius:100px;white-space:nowrap}
+.b-urg{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+.b-pend{background:var(--amber-bg);color:var(--amber)}
+.b-done{background:var(--green-bg);color:var(--green)}
+.b-rev{background:var(--purple-bg);color:var(--purple)}
+.b-info{background:rgba(96,150,180,0.1);color:var(--c1)}
+.b-ch{background:var(--surface);color:var(--text2);border:1px solid var(--border)}
+.b-hi{background:var(--red-bg);color:var(--red)}
+.b-mid{background:var(--amber-bg);color:var(--amber)}
+.b-low{background:var(--green-bg);color:var(--green)}
+
+/* ── RISK SCORE CARDS ── */
+.risk-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:12px 20px 0}
+.risk-card{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+.risk-lbl{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px}
+.risk-score{font-size:30px;font-weight:900;font-family:var(--mono);letter-spacing:-0.04em;line-height:1}
+.risk-bar{height:5px;border-radius:100px;margin-top:6px;background:var(--surface)}
+.risk-fill{height:100%;border-radius:100px}
+.risk-sub{font-size:10px;color:var(--text3);margin-top:4px;font-weight:400}
+
+/* ── ALERT STATUS ── */
+.alert-status-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:10px 20px 0}
+.alert-status-card{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:11px 14px;display:flex;align-items:center;gap:10px}
+.alert-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.alert-dot.on{background:var(--red)}
+.alert-dot.off{background:var(--green)}
+.alert-status-card .as-label{font-size:12px;font-weight:600;color:var(--text);flex:1}
+.alert-status-card .as-state{font-size:11px;font-weight:700}
+.alert-status-card .as-state.on{color:var(--red)}
+.alert-status-card .as-state.off{color:var(--green)}
+
+/* ── DETAIL MODAL ── */
+.detail-overlay{display:none;position:absolute;inset:0;background:rgba(42,51,64,0.35);z-index:100;align-items:flex-start;justify-content:flex-end}
+.detail-overlay.open{display:flex}
+.detail-drawer{
+  width:520px;height:100%;background:var(--white);border-left:1px solid var(--border);
+  display:flex;flex-direction:column;overflow:hidden;
+  animation:slideIn 0.2s ease;
+}
+@keyframes slideIn{from{transform:translateX(30px);opacity:0}to{transform:translateX(0);opacity:1}}
+.drawer-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-shrink:0;background:var(--c4)}
+.drawer-head h3{font-size:14px;font-weight:700;color:var(--text);flex:1}
+.drawer-scroll{overflow-y:auto;flex:1;padding:14px 18px;display:flex;flex-direction:column;gap:12px}
+.drawer-section{border:1px solid var(--border);border-radius:9px;overflow:hidden}
+.ds-head{padding:8px 12px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px;font-size:11px;font-weight:700;color:var(--text)}
+.ds-head i{font-size:13px;color:var(--c1)}
+.ds-body{padding:10px 12px}
+.df{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+.df3{grid-template-columns:repeat(3,1fr)}
+.d-field{display:flex;flex-direction:column;gap:2px}
+.d-field label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;font-weight:600}
+.d-field .dv{font-size:12px;color:var(--text);font-weight:500}
+.d-field .dv.mono{font-family:var(--mono);font-size:11px;color:var(--text2);font-weight:400}
+.d-field .dv.masked{letter-spacing:0.1em;font-size:11px}
+.body-txt{background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:9px 11px;font-size:12px;color:var(--text2);line-height:1.7;font-weight:400}
+.log-item{display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid var(--surface);font-size:11px}
+.log-item:last-child{border-bottom:none}
+.log-item .lt{font-family:var(--mono);font-size:10px;color:var(--text3);flex-shrink:0;padding-top:1px;font-weight:400}
+.log-item .lm{color:var(--text2);flex:1;font-weight:400}
+.log-item .lm strong{font-weight:600;color:var(--text)}
+
+/* ── COLLAPSIBLE ── */
+.coll-btn{display:flex;align-items:center;gap:8px;width:100%;padding:8px 12px;background:var(--surface);border:none;border-top:1px solid var(--border);font-size:11px;font-weight:600;color:var(--text2);cursor:pointer;font-family:var(--font)}
+.coll-btn i{font-size:13px;color:var(--c1);transition:transform 0.2s}
+.coll-btn.open i.rot{transform:rotate(180deg)}
+.coll-content{display:none;padding:12px}
+.coll-content.open{display:block}
+
+/* ── WEEKLY REPORT ACTIONS ── */
+.report-actions{display:flex;flex-direction:column;gap:8px;padding:12px 20px 0}
+.report-action-card{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px}
+.ra-icon{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.ra-lbl{font-size:13px;font-weight:700;color:var(--text)}
+.ra-sub{font-size:11px;color:var(--text3);margin-top:1px;font-weight:400}
+.ra-actions{margin-left:auto;display:flex;gap:6px}
+.slack-input{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.slack-input input{flex:1;min-width:120px;padding:6px 10px;border:1px solid var(--border);border-radius:7px;font-size:12px;font-family:var(--font);outline:none;background:var(--surface);color:var(--text)}
+.slack-input input:focus{border-color:var(--c1);background:var(--white)}
+
+/* ── GAP METER ── */
+.gap-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:12px 20px 0}
+.gap-card{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+.gap-lbl{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px}
+.gap-num{font-size:24px;font-weight:900;font-family:var(--mono);color:var(--red);letter-spacing:-0.03em}
+.gap-bar-bg{height:5px;background:var(--surface);border-radius:100px;margin-top:5px}
+.gap-bar-fill{height:100%;border-radius:100px;background:var(--red)}
+.gap-sub{font-size:10px;color:var(--text3);margin-top:3px;font-weight:400}
+
+/* ── SUMMARY BLOCK ── */
+.summary-block{margin:12px 20px 0;background:var(--white);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+.summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
+.sum-item{display:flex;flex-direction:column;gap:3px;padding:10px 12px;background:var(--surface);border-radius:8px}
+.sum-lbl{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em}
+.sum-val{font-size:20px;font-weight:900;color:var(--c1);font-family:var(--mono)}
+.sum-actions-title{font-size:12px;font-weight:700;color:var(--text);margin-bottom:7px}
+.action-list{display:flex;flex-direction:column;gap:5px}
+.action-item{display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--surface);border-radius:7px;font-size:12px;color:var(--text2);border-left:3px solid var(--c1);font-weight:400}
+.action-item i{font-size:14px;color:var(--c1)}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--c3);border-radius:2px}
+
+/* ── INNER SCROLL ── */
+.inner-scroll{overflow-y:auto;flex:1}
+
+/* divider */
+.sp{height:12px}
+
+/* ── LOGIN OVERLAY ── */
+.login-overlay{
+  position:fixed;inset:0;z-index:200;
+  background:rgba(42,51,64,0.55);
+  display:flex;align-items:center;justify-content:center;
+}
+.login-overlay.hidden{display:none}
+.login-card{
+  background:var(--white);border-radius:14px;
+  border:1px solid var(--border);
+  width:340px;overflow:hidden;
+}
+.login-header{
+  background:var(--c1);padding:24px 28px 20px;
+  display:flex;flex-direction:column;gap:6px;
+}
+.login-header .lh-icon{
+  width:36px;height:36px;border-radius:9px;
+  background:rgba(255,255,255,0.18);
+  display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:18px;margin-bottom:4px;
+}
+.login-header .lh-title{color:#fff;font-size:16px;font-weight:700;letter-spacing:-0.02em}
+.login-header .lh-sub{color:rgba(255,255,255,0.6);font-size:11px;font-weight:400}
+.login-body{padding:22px 24px}
+.lf-label{font-size:11px;font-weight:600;color:var(--text2);margin-bottom:5px;display:block;text-transform:uppercase;letter-spacing:0.06em}
+.lf-input{
+  width:100%;padding:9px 12px;border:1px solid var(--border);
+  border-radius:8px;font-size:13px;font-family:var(--font);
+  color:var(--text);background:var(--surface);outline:none;
+  margin-bottom:14px;transition:border-color 0.15s;
+}
+.lf-input:focus{border-color:var(--c1);background:var(--white)}
+.lf-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.login-err{
+  font-size:11px;color:var(--red);margin-bottom:10px;
+  display:none;align-items:center;gap:5px;
+  background:var(--red-bg);border:1px solid var(--red-border);
+  padding:6px 10px;border-radius:6px;
+}
+.login-err.show{display:flex}
+.login-btn{
+  width:100%;padding:10px;border:none;border-radius:8px;
+  background:var(--c1);color:#fff;font-size:13px;font-weight:700;
+  font-family:var(--font);cursor:pointer;transition:background 0.13s;
+}
+.login-btn:hover{background:#4E84A0}
+
+/* ── OPERATOR CHIP (topbar) ── */
+.op-chip{
+  display:flex;align-items:center;gap:8px;
+  background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.2);
+  border-radius:8px;padding:5px 12px;cursor:pointer;
+  transition:background 0.13s;position:relative;
+}
+.op-chip:hover{background:rgba(255,255,255,0.22)}
+.op-avatar{
+  width:22px;height:22px;border-radius:50%;
+  background:rgba(255,255,255,0.3);
+  display:flex;align-items:center;justify-content:center;
+  font-size:10px;font-weight:700;color:#fff;
+  flex-shrink:0;
+}
+.op-name{font-size:12px;font-weight:600;color:#fff}
+.op-role{font-size:10px;color:rgba(255,255,255,0.6);font-weight:400}
+.op-status-dot{
+  width:7px;height:7px;border-radius:50%;
+  background:#4ade80;flex-shrink:0;
+  box-shadow:0 0 0 2px rgba(74,222,128,0.25);
+}
+
+/* ── LOGOUT DROPDOWN ── */
+.op-dropdown{
+  position:absolute;top:calc(100% + 6px);right:0;
+  background:var(--white);border:1px solid var(--border);
+  border-radius:9px;min-width:180px;overflow:hidden;
+  z-index:150;display:none;
+}
+.op-dropdown.open{display:block}
+.op-dropdown-header{
+  padding:10px 14px;border-bottom:1px solid var(--border);
+  background:var(--c4);
+}
+.op-dropdown-header .od-name{font-size:13px;font-weight:700;color:var(--text)}
+.op-dropdown-header .od-role{font-size:10px;color:var(--text3);font-weight:400}
+.op-dropdown-item{
+  display:flex;align-items:center;gap:9px;
+  padding:9px 14px;font-size:12px;color:var(--text2);
+  cursor:pointer;transition:background 0.12s;font-weight:500;
+}
+.op-dropdown-item:hover{background:var(--surface)}
+.op-dropdown-item i{font-size:15px;color:var(--c2)}
+.op-dropdown-item.logout{color:var(--red)}
+.op-dropdown-item.logout i{color:var(--red)}
+
+/* ── ASSIGNEE TAG (ticket card) ── */
+.assignee-tag{
+  display:inline-flex;align-items:center;gap:4px;
+  font-size:10px;font-weight:600;padding:2px 7px;
+  border-radius:100px;background:rgba(96,150,180,0.12);
+  border:1px solid rgba(96,150,180,0.25);color:var(--c1);
+  white-space:nowrap;
+}
+.assignee-tag i{font-size:10px}
+
+/* ── LIVE STATUS BANNER (per ticket) ── */
+.live-status{
+  display:flex;align-items:center;gap:6px;
+  font-size:10px;font-weight:500;color:var(--green);
+  background:var(--green-bg);border:1px solid #A7DFC3;
+  border-radius:100px;padding:2px 8px;white-space:nowrap;
+  animation:pulse-border 2s infinite;
+}
+.live-status.waiting{color:var(--text3);background:var(--surface);border-color:var(--border);animation:none}
+.live-status .live-dot{
+  width:6px;height:6px;border-radius:50%;
+  background:var(--green);flex-shrink:0;
+  animation:blink 1.4s infinite;
+}
+.live-status.waiting .live-dot{background:var(--c3);animation:none}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+@keyframes pulse-border{0%,100%{border-color:#A7DFC3}50%{border-color:#3BB577}}
+
+/* ── TABLE ASSIGNEE COL ── */
+.tbl-assignee{
+  display:inline-flex;align-items:center;gap:4px;
+  font-size:10px;font-weight:600;color:var(--c1);
+}
+.tbl-assignee i{font-size:11px}
+</style>
+</head>
+<body>
+<!-- ── LOGIN OVERLAY ── -->
+<div class="login-overlay" id="login-overlay">
+  <div class="login-card">
+    <div class="login-header">
+      <div class="lh-icon"><i class="ti ti-shield-bolt" aria-hidden="true"></i></div>
+      <div class="lh-title">일상 인사이트 대시보드</div>
+      <div class="lh-sub">운영자 계정으로 로그인하세요</div>
+    </div>
+    <div class="login-body">
+      <div class="lf-row">
+        <div>
+          <label class="lf-label">운영자 ID</label>
+          <input class="lf-input" id="li-id" type="text" placeholder="reviewer_01" autocomplete="off">
+        </div>
+        <div>
+          <label class="lf-label">권한 등급</label>
+          <select class="lf-input" id="li-role" style="margin-bottom:14px">
+            <option value="일반 운영자">일반 운영자</option>
+            <option value="선임 운영자">선임 운영자</option>
+            <option value="관리자">관리자</option>
+          </select>
+        </div>
+      </div>
+      <label class="lf-label">비밀번호</label>
+      <input class="lf-input" id="li-pw" type="password" placeholder="••••••••">
+      <div class="login-err" id="li-err"><i class="ti ti-alert-circle" aria-hidden="true"></i> ID 또는 비밀번호가 올바르지 않습니다.</div>
+      <button class="login-btn" onclick="doLogin()">로그인</button>
+    </div>
+  </div>
+</div>
+
+<div class="app">
+
+<!-- ── TOPBAR ── -->
+<div class="topbar">
+  <div class="tb-brand">
+    <div class="li"><i class="ti ti-shield-bolt" aria-hidden="true"></i></div>
+    <div><div class="lt">CS Dashboard</div><div class="ls">GameOps</div></div>
+  </div>
+  <nav class="tb-nav">
+    <button class="tb-tab active" onclick="switchPage('p1',this)"><i class="ti ti-chart-bar" aria-hidden="true"></i> 운영 현황</button>
+    <button class="tb-tab" onclick="switchPage('p2',this)"><i class="ti ti-alert-triangle" aria-hidden="true"></i> 위험 신호 <span class="tc red">3</span></button>
+    <button class="tb-tab" onclick="switchPage('p3',this)"><i class="ti ti-star" aria-hidden="true"></i> 응답 품질</button>
+    <button class="tb-tab" onclick="switchPage('p4',this)"><i class="ti ti-report" aria-hidden="true"></i> 주간 보고서</button>
+  </nav>
+  <div class="tb-right">
+    
+    <div class="op-chip" id="op-chip" onclick="toggleOpMenu(event)">
+      <div class="op-status-dot"></div>
+      <div class="op-avatar" id="op-avatar">R1</div>
+      <div>
+        <div class="op-name" id="op-name-display">reviewer_01</div>
+        <div class="op-role" id="op-role-display">일반 운영자</div>
+      </div>
+      <i class="ti ti-chevron-down" style="font-size:12px;color:rgba(255,255,255,0.6)" aria-hidden="true"></i>
+      <div class="op-dropdown" id="op-dropdown">
+        <div class="op-dropdown-header">
+          <div class="od-name" id="op-dd-name">reviewer_01</div>
+          <div class="od-role" id="op-dd-role">일반 운영자 · 접속중</div>
+        </div>
+        <div class="op-dropdown-item"><i class="ti ti-user-circle" aria-hidden="true"></i> 내 프로필</div>
+        <div class="op-dropdown-item"><i class="ti ti-settings" aria-hidden="true"></i> 환경 설정</div>
+        <div class="op-dropdown-item logout" onclick="doLogout()"><i class="ti ti-logout" aria-hidden="true"></i> 로그아웃</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── SIDEBAR ── -->
+<aside class="sidebar">
+  <div class="s-sec">운영 현황</div>
+  <div class="nav-item active" onclick="activateSide(this)"><i class="ti ti-inbox" aria-hidden="true"></i> 전체 문의 <span class="nb">48</span></div>
+  <div class="nav-item" onclick="activateSide(this)"><i class="ti ti-clock" aria-hidden="true"></i> 처리 대기 <span class="nb">12</span></div>
+  <div class="nav-item" onclick="activateSide(this)"><i class="ti ti-check" aria-hidden="true"></i> 처리 완료 <span class="nb" style="background:var(--green-bg);color:var(--green)">33</span></div>
+  <div class="nav-item" onclick="activateSide(this)"><i class="ti ti-flame" aria-hidden="true"></i> 긴급 미응답 <span class="nb red">3</span></div>
+
+  <div class="sb-bottom">
+    <div class="sb-lbl" style="margin-top:8px">외부 채널</div>
+    <div class="ext-btn"><i class="ti ti-mail" aria-hidden="true"></i> 이메일 확인</div>
+    <div class="ext-btn"><i class="ti ti-brand-blogger" aria-hidden="true"></i> 네이버 카페 <i class="ti ti-external-link" style="font-size:11px;margin-left:auto;color:var(--c3)" aria-hidden="true"></i></div>
+  </div>
+</aside>
+
+<!-- ── MAIN ── -->
+<main class="main" style="position:relative">
+
+<!-- ══════════ PAGE 1: 운영 현황 ══════════ -->
+<div class="page active inner-scroll" id="p1">
+
+  
+
+  <div class="page-toolbar">
+    <span class="pg-title">운영 현황</span>
+    <span class="pg-sub">2026.05.01 – 05.28</span>
+    <div class="toolbar-right">
+      <button class="btn btn-ghost btn-sm"><i class="ti ti-refresh" aria-hidden="true"></i> 새로고침</button>
+      <button class="btn btn-primary btn-sm"><i class="ti ti-download" aria-hidden="true"></i> 내보내기</button>
+    </div>
+  </div>
+
+  <!-- KPI 통합 카드 -->
+  <div style="padding:12px 20px 0">
+    <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+
+      <!-- 1행: 볼륨 지표 4개 -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--border)">
+        <div style="padding:18px 20px;border-right:1px solid var(--border)">
+          <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:6px">전체 문의</div>
+          <div style="font-size:36px;font-weight:900;color:var(--c1);font-family:var(--mono);line-height:1;letter-spacing:-0.04em">248</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:5px">누적 접수</div>
+        </div>
+        <div style="padding:18px 20px;border-right:1px solid var(--border)">
+          <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:6px">처리 대기</div>
+          <div style="font-size:36px;font-weight:900;color:var(--amber);font-family:var(--mono);line-height:1;letter-spacing:-0.04em">12</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:5px">미처리 티켓</div>
+        </div>
+        <div style="padding:18px 20px;border-right:1px solid var(--border)">
+          <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:6px">처리 완료</div>
+          <div style="font-size:36px;font-weight:900;color:var(--green);font-family:var(--mono);line-height:1;letter-spacing:-0.04em">211</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:5px">완료 처리됨</div>
+        </div>
+        <div style="padding:18px 20px">
+          <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:6px">오늘 접수</div>
+          <div style="font-size:36px;font-weight:900;color:var(--text);font-family:var(--mono);line-height:1;letter-spacing:-0.04em">25</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:5px">금일 신규</div>
+        </div>
+      </div>
+
+      <!-- 2행: 비율·시간 지표 4개 + 경보 지표 4개 -->
+      <div style="display:grid;grid-template-columns:repeat(8,1fr)">
+        <!-- 비율 그룹 헤더 구분선 -->
+        <div style="grid-column:1/5;padding:14px 20px 12px;border-right:1px solid var(--border);display:flex;flex-direction:column;gap:10px">
+          <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;border-bottom:1px solid var(--border);padding-bottom:7px">비율 · 시간</div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0">
+            <div style="padding-right:14px;border-right:1px solid var(--border);margin-right:14px">
+              <div style="font-size:10px;color:var(--text3);font-weight:500;margin-bottom:3px">응답 완료</div>
+              <div style="font-size:22px;font-weight:900;color:var(--green);font-family:var(--mono);letter-spacing:-0.03em;line-height:1">85.1<span style="font-size:13px;font-weight:700">%</span></div>
+              <div style="font-size:10px;color:var(--green);margin-top:3px;font-weight:600">▲ 3.2%</div>
+            </div>
+            <div style="padding-right:14px;border-right:1px solid var(--border);margin-right:14px">
+              <div style="font-size:10px;color:var(--text3);font-weight:500;margin-bottom:3px">초안 작성</div>
+              <div style="font-size:22px;font-weight:900;color:var(--c1);font-family:var(--mono);letter-spacing:-0.03em;line-height:1">91.3<span style="font-size:13px;font-weight:700">%</span></div>
+              <div style="font-size:10px;color:var(--green);margin-top:3px;font-weight:600">▲ 1.8%</div>
+            </div>
+            <div style="padding-right:14px;border-right:1px solid var(--border);margin-right:14px">
+              <div style="font-size:10px;color:var(--text3);font-weight:500;margin-bottom:3px">분석 완료</div>
+              <div style="font-size:22px;font-weight:900;color:var(--c1);font-family:var(--mono);letter-spacing:-0.03em;line-height:1">94.7<span style="font-size:13px;font-weight:700">%</span></div>
+              <div style="font-size:10px;color:var(--green);margin-top:3px;font-weight:600">▲ 0.5%</div>
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--text3);font-weight:500;margin-bottom:3px">첫 응답 시간</div>
+              <div style="font-size:22px;font-weight:900;color:var(--amber);font-family:var(--mono);letter-spacing:-0.03em;line-height:1">2.4<span style="font-size:13px;font-weight:700">h</span></div>
+              <div style="font-size:10px;color:var(--green);margin-top:3px;font-weight:600">▼ 0.3h 단축</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 경보 그룹 -->
+        <div style="grid-column:5/9;padding:14px 20px 12px;display:flex;flex-direction:column;gap:10px">
+          <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;border-bottom:1px solid var(--border);padding-bottom:7px">응답률 · 경보</div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0">
+            <div style="padding-right:14px;border-right:1px solid var(--border);margin-right:14px">
+              <div style="font-size:10px;color:var(--text3);font-weight:500;margin-bottom:3px">24h 응답률</div>
+              <div style="font-size:22px;font-weight:900;color:var(--green);font-family:var(--mono);letter-spacing:-0.03em;line-height:1">78.2<span style="font-size:13px;font-weight:700">%</span></div>
+              <div style="font-size:10px;color:var(--amber);margin-top:3px;font-weight:600">목표 80%</div>
+            </div>
+            <div style="padding-right:14px;border-right:1px solid var(--border);margin-right:14px">
+              <div style="font-size:10px;color:var(--text3);font-weight:500;margin-bottom:3px">미응답 비율</div>
+              <div style="font-size:22px;font-weight:900;color:var(--red);font-family:var(--mono);letter-spacing:-0.03em;line-height:1">14.9<span style="font-size:13px;font-weight:700">%</span></div>
+              <div style="font-size:10px;color:var(--red);margin-top:3px;font-weight:600">▼ 개선 필요</div>
+            </div>
+            <div style="padding-right:14px;border-right:1px solid var(--border);margin-right:14px;position:relative">
+              <div style="font-size:10px;color:var(--text3);font-weight:500;margin-bottom:3px">24h 이상 대기</div>
+              <div style="font-size:22px;font-weight:900;color:var(--red);font-family:var(--mono);letter-spacing:-0.03em;line-height:1">5</div>
+              <div style="font-size:10px;color:var(--red);margin-top:3px;font-weight:600">즉시 처리 필요</div>
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--text3);font-weight:500;margin-bottom:3px">긴급 미응답</div>
+              <div style="font-size:22px;font-weight:900;color:var(--red);font-family:var(--mono);letter-spacing:-0.03em;line-height:1">3</div>
+              <div style="font-size:10px;color:var(--red);margin-top:3px;font-weight:600">에스컬레이션</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- AI 해석 블록 -->
+  <div class="ai-block">
+    <div class="ai-block-head">
+      <div class="ai-icon"><i class="ti ti-sparkles" aria-hidden="true"></i></div>
+      <div class="ai-headline">전반적으로 안정적이나 미응답 집중 개선 필요</div>
+      <div class="ai-badge">AI 분석</div>
+    </div>
+    <div class="ai-summary">초안 작성 비율(91.3%)과 분석 커버리지(94.7%)는 목표치를 상회하고 있습니다. 그러나 24시간 내 응답률(78.2%)이 목표(80%)에 미치지 못하며, 특히 결제 오류 카테고리에서 미응답이 집중되고 있습니다.</div>
+    <div class="ai-grid">
+      <div class="ai-points">
+        <div class="ai-point"><i class="ti ti-alert-circle" aria-hidden="true"></i> 결제 오류 카테고리 미응답 5건 집중 — 즉각 처리 권장</div>
+        <div class="ai-point"><i class="ti ti-trending-up" aria-hidden="true"></i> 응답 완료 비율 3.2%p 개선 — 긍정적 추세 유지</div>
+        <div class="ai-point"><i class="ti ti-clock" aria-hidden="true"></i> 첫 응답 시간 0.3h 단축 — 워크플로우 최적화 효과</div>
+      </div>
+      <div class="ai-actions">
+        <div class="ai-action" onclick="openDetail()"><i class="ti ti-arrow-right" aria-hidden="true"></i><span><span class="aa-lbl">24시간 이상 대기 5건 확인</span></span><span class="aa-sub">바로 가기 →</span></div>
+        <div class="ai-action"><i class="ti ti-flame" aria-hidden="true"></i><span><span class="aa-lbl">긴급 미응답 3건 처리</span></span><span class="aa-sub">에스컬레이션 →</span></div>
+        <div class="ai-action"><i class="ti ti-report" aria-hidden="true"></i><span><span class="aa-lbl">결제 오류 패턴 분석 보기</span></span><span class="aa-sub">위험 신호 탭 →</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 차트 6개 -->
+  <div class="chart-section">
+    <div class="chart-row chart-row-3">
+      <div class="chart-card">
+        <div class="chart-title"><i class="ti ti-git-branch" aria-hidden="true"></i> 접수 경로 분포</div>
+        <div class="chart-wrap"><canvas id="c1"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title"><i class="ti ti-tags" aria-hidden="true"></i> 문의 분류 분포</div>
+        <div class="chart-wrap"><canvas id="c2"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title"><i class="ti ti-circle-check" aria-hidden="true"></i> 처리 상태 분포</div>
+        <div class="chart-wrap"><canvas id="c3"></canvas></div>
+      </div>
+    </div>
+    <div class="sp"></div>
+    <div class="chart-row chart-row-3">
+      <div class="chart-card">
+        <div class="chart-title"><i class="ti ti-arrows-right" aria-hidden="true"></i> 다음 처리 분포</div>
+        <div class="chart-wrap"><canvas id="c4"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title"><i class="ti ti-user" aria-hidden="true"></i> 응답 주체 분포</div>
+        <div class="chart-wrap"><canvas id="c5"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title"><i class="ti ti-trending-up" aria-hidden="true"></i> 최근 문의 유입 추이</div>
+        <div class="chart-wrap"><canvas id="c6"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 테이블 -->
+  <div class="table-section">
+    <div class="table-row">
+      <div class="table-card">
+        <div class="tc-head"><i class="ti ti-list-check" aria-hidden="true"></i><h4>우선 처리 큐</h4><span class="tc-cnt">12건</span><button class="btn btn-ghost btn-xs" style="margin-left:6px">전체 보기</button></div>
+        <div class="tc-scroll">
+          <table class="tbl">
+            <thead><tr><th>ID</th><th>제목</th><th>상태</th><th>위험도</th><th>담당자</th><th>응대 현황</th><th>대기시간</th></tr></thead>
+            <tbody>
+              <tr onclick="openDetail()">
+                <td style="font-family:var(--mono);font-size:10px">#TK-2041</td>
+                <td style="font-weight:500;color:var(--text)">결제 후 아이템 미지급</td>
+                <td><span class="badge b-urg">긴급</span></td>
+                <td><span class="badge b-hi">HIGH</span></td>
+                <td><span class="tbl-assignee"><i class="ti ti-user" aria-hidden="true"></i>reviewer_01</span></td>
+                <td><span class="live-status"><span class="live-dot"></span>reviewer_01 응대중</span></td>
+                <td style="color:var(--red);font-weight:600">26h</td>
+              </tr>
+              <tr onclick="openDetail()">
+                <td style="font-family:var(--mono);font-size:10px">#TK-2040</td>
+                <td style="font-weight:500;color:var(--text)">캐릭터 데이터 손실 복구</td>
+                <td><span class="badge b-rev">검토 중</span></td>
+                <td><span class="badge b-mid">MID</span></td>
+                <td><span class="tbl-assignee"><i class="ti ti-user" aria-hidden="true"></i>reviewer_02</span></td>
+                <td><span class="live-status waiting"><span class="live-dot"></span>대기 중</span></td>
+                <td style="color:var(--amber);font-weight:600">14h</td>
+              </tr>
+              <tr>
+                <td style="font-family:var(--mono);font-size:10px">#TK-2039</td>
+                <td style="font-weight:500;color:var(--text)">패스 혜택 미적용</td>
+                <td><span class="badge b-pend">대기</span></td>
+                <td><span class="badge b-low">LOW</span></td>
+                <td><span class="tbl-assignee"><i class="ti ti-user" aria-hidden="true"></i>미배정</span></td>
+                <td><span class="live-status waiting"><span class="live-dot"></span>대기 중</span></td>
+                <td>4h</td>
+              </tr>
+              <tr>
+                <td style="font-family:var(--mono);font-size:10px">#TK-2037</td>
+                <td style="font-weight:500;color:var(--text)">환불 처리 5일 지연</td>
+                <td><span class="badge b-pend">대기</span></td>
+                <td><span class="badge b-mid">MID</span></td>
+                <td><span class="tbl-assignee"><i class="ti ti-user" aria-hidden="true"></i>reviewer_03</span></td>
+                <td><span class="live-status"><span class="live-dot"></span>reviewer_03 응대중</span></td>
+                <td style="color:var(--amber);font-weight:600">28h</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="table-card">
+        <div class="tc-head"><i class="ti ti-inbox" aria-hidden="true"></i><h4>최근 접수 문의 목록</h4><span class="tc-cnt">25건 오늘</span></div>
+        <div class="tc-scroll">
+          <table class="tbl">
+            <thead><tr><th>ID</th><th>제목</th><th>경로</th><th>담당자</th><th>응대 현황</th><th>접수</th></tr></thead>
+            <tbody>
+              <tr onclick="openDetail()">
+                <td style="font-family:var(--mono);font-size:10px">#TK-2048</td>
+                <td style="font-weight:500;color:var(--text)">계정 로그인 불가</td>
+                <td><span class="badge b-ch">이메일</span></td>
+                <td><span class="tbl-assignee"><i class="ti ti-user" aria-hidden="true"></i>reviewer_02</span></td>
+                <td><span class="live-status"><span class="live-dot"></span>reviewer_02 응대중</span></td>
+                <td style="color:var(--text3);font-size:10px">09:15</td>
+              </tr>
+              <tr>
+                <td style="font-family:var(--mono);font-size:10px">#TK-2047</td>
+                <td style="font-weight:500;color:var(--text)">가챠 아이템 오류 신고</td>
+                <td><span class="badge b-ch">카페</span></td>
+                <td><span class="tbl-assignee"><i class="ti ti-user" aria-hidden="true"></i>미배정</span></td>
+                <td><span class="live-status waiting"><span class="live-dot"></span>대기 중</span></td>
+                <td style="color:var(--text3);font-size:10px">08:50</td>
+              </tr>
+              <tr>
+                <td style="font-family:var(--mono);font-size:10px">#TK-2046</td>
+                <td style="font-weight:500;color:var(--text)">중복 결제 환불 요청</td>
+                <td><span class="badge b-ch">이메일</span></td>
+                <td><span class="tbl-assignee"><i class="ti ti-user" aria-hidden="true"></i>reviewer_01</span></td>
+                <td><span class="live-status waiting"><span class="live-dot"></span>대기 중</span></td>
+                <td style="color:var(--text3);font-size:10px">08:32</td>
+              </tr>
+              <tr>
+                <td style="font-family:var(--mono);font-size:10px">#TK-2045</td>
+                <td style="font-weight:500;color:var(--text)">배틀패스 보상 누락</td>
+                <td><span class="badge b-ch">이메일</span></td>
+                <td><span class="tbl-assignee"><i class="ti ti-user" aria-hidden="true"></i>미배정</span></td>
+                <td><span class="live-status waiting"><span class="live-dot"></span>대기 중</span></td>
+                <td style="color:var(--text3);font-size:10px">08:10</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="sp"></div>
+</div>
+
+<!-- ══════════ PAGE 2: 위험 신호 ══════════ -->
+<div class="page inner-scroll" id="p2">
+  <div class="page-toolbar">
+    <span class="pg-title">위험 신호</span>
+    <span class="pg-sub">AI 안전성 분석</span>
+    <div class="toolbar-right">
+      <button class="btn btn-ghost btn-sm"><i class="ti ti-refresh" aria-hidden="true"></i> 새로고침</button>
+    </div>
+  </div>
+
+  <!-- 안전성 점수 4개 -->
+  <div class="risk-grid">
+    <div class="risk-card">
+      <div class="risk-lbl">환각 위험 평균</div>
+      <div class="risk-score" style="color:var(--amber)">0.23</div>
+      <div class="risk-bar"><div class="risk-fill" style="width:23%;background:#E9B857"></div></div>
+      <div class="risk-sub">낮음 — 정상 범위</div>
+    </div>
+    <div class="risk-card">
+      <div class="risk-lbl">독성 위험 평균</div>
+      <div class="risk-score" style="color:var(--green)">0.08</div>
+      <div class="risk-bar"><div class="risk-fill" style="width:8%;background:#3BB577"></div></div>
+      <div class="risk-sub">매우 낮음</div>
+    </div>
+    <div class="risk-card">
+      <div class="risk-lbl">정책 위반 평균</div>
+      <div class="risk-score" style="color:var(--red)">0.41</div>
+      <div class="risk-bar"><div class="risk-fill" style="width:41%;background:var(--red)"></div></div>
+      <div class="risk-sub">주의 — 경보 활성화</div>
+    </div>
+    <div class="risk-card">
+      <div class="risk-lbl">사실성 평균</div>
+      <div class="risk-score" style="color:var(--c1)">0.87</div>
+      <div class="risk-bar"><div class="risk-fill" style="width:87%;background:var(--c1)"></div></div>
+      <div class="risk-sub">양호</div>
+    </div>
+  </div>
+
+  <!-- 위험 요약 -->
+  <div class="kpi-grid" style="padding-top:10px">
+    <div class="kpi-card red"><div class="kpi-lbl">고위험 문의</div><div class="kpi-num red">7</div><div class="kpi-sub">즉각 검토 필요</div></div>
+    <div class="kpi-card red"><div class="kpi-lbl">치명 위험 문의</div><div class="kpi-num red">2</div><div class="kpi-sub">최우선 에스컬레이션</div></div>
+    <div class="kpi-card amber"><div class="kpi-lbl">사람 검토 필요</div><div class="kpi-num amber">14</div><div class="kpi-sub">AI 검수 불충분</div></div>
+    <div class="kpi-card purple"><div class="kpi-lbl">부정 반응 포함</div><div class="kpi-num purple">9</div><div class="kpi-sub">이용자 불만 감지</div></div>
+  </div>
+
+  <!-- 경보 상태 -->
+  <div class="alert-status-grid">
+    <div class="alert-status-card"><div class="alert-dot off"></div><div class="as-label">환각 경보</div><span class="as-state off">꺼짐</span></div>
+    <div class="alert-status-card"><div class="alert-dot off"></div><div class="as-label">독성 경보</div><span class="as-state off">꺼짐</span></div>
+    <div class="alert-status-card"><div class="alert-dot on"></div><div class="as-label">정책 위반 경보</div><span class="as-state on">켜짐</span></div>
+    <div class="alert-status-card"><div class="alert-dot off"></div><div class="as-label">사실성 부족 경보</div><span class="as-state off">꺼짐</span></div>
+  </div>
+
+  <!-- AI 블록 -->
+  <div class="ai-block">
+    <div class="ai-block-head">
+      <div class="ai-icon"><i class="ti ti-sparkles" aria-hidden="true"></i></div>
+      <div class="ai-headline">정책 위반 경보 활성화 — 즉시 대응 필요</div>
+      <div class="ai-badge">AI 분석</div>
+    </div>
+    <div class="ai-summary">정책 위반 평균 점수(0.41)가 임계값을 초과하여 경보가 활성화되었습니다. 주로 환불 거절 답변에서 표준 정책과 상이한 내용이 감지되고 있습니다.</div>
+    <div class="ai-grid">
+      <div class="ai-points">
+        <div class="ai-point"><i class="ti ti-ban" aria-hidden="true"></i> 환불 거절 초안 4건에서 정책 불일치 감지</div>
+        <div class="ai-point"><i class="ti ti-user-x" aria-hidden="true"></i> 부정 반응 9건 중 7건이 결제 카테고리 집중</div>
+        <div class="ai-point"><i class="ti ti-eye" aria-hidden="true"></i> 치명 위험 2건 — 즉시 수동 검토 필요</div>
+      </div>
+      <div class="ai-actions">
+        <div class="ai-action" onclick="openDetail()"><i class="ti ti-alert-triangle" aria-hidden="true"></i><span><span class="aa-lbl">치명 위험 2건 즉시 확인</span></span><span class="aa-sub">에스컬레이션 →</span></div>
+        <div class="ai-action"><i class="ti ti-book" aria-hidden="true"></i><span><span class="aa-lbl">정책 위반 초안 재검토</span></span><span class="aa-sub">품질 탭 →</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 차트 6개 -->
+  <div class="chart-section">
+    <div class="chart-row chart-row-3">
+      <div class="chart-card">
+        <div class="chart-title"><i class="ti ti-alert-circle" aria-hidden="true"></i> 분석 위험도 분포</div>
+        <div class="chart-wrap"><canvas id="r1"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title"><i class="ti ti-mood" aria-hidden="true"></i> 이용자 반응 분포</div>
+        <div class="chart-wrap"><canvas id="r2"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title"><i class="ti ti-tags" aria-hidden="true"></i> 고위험 문의 분류</div>
+        <div class="chart-wrap"><canvas id="r3"></canvas></div>
+      </div>
+    </div>
+    <div class="sp"></div>
+    <div class="chart-row chart-row-3">
+      <div class="chart-card">
+        <div class="chart-title"><i class="ti ti-brain" aria-hidden="true"></i> 인사이트 위험도 분포</div>
+        <div class="chart-wrap"><canvas id="r4"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title"><i class="ti ti-repeat" aria-hidden="true"></i> 반복 패턴 위험도</div>
+        <div class="chart-wrap"><canvas id="r5"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title"><i class="ti ti-git-branch" aria-hidden="true"></i> 고위험 유입 경로</div>
+        <div class="chart-wrap"><canvas id="r6"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 테이블 3개 -->
+  <div class="table-section">
+    <div class="table-row" style="grid-template-columns:1fr 1fr">
+      <div class="table-card">
+        <div class="tc-head"><i class="ti ti-escalator-up" aria-hidden="true"></i><h4>에스컬레이션 큐</h4><span class="tc-cnt">4건</span></div>
+        <div class="tc-scroll">
+          <table class="tbl">
+            <thead><tr><th>ID</th><th>제목</th><th>위험도</th><th>유형</th></tr></thead>
+            <tbody>
+              <tr onclick="openDetail()"><td style="font-family:var(--mono);font-size:10px">#TK-2041</td><td style="font-weight:500;color:var(--text)">결제 후 아이템 미지급</td><td><span class="badge b-hi">HIGH</span></td><td><span class="badge b-urg">치명</span></td></tr>
+              <tr onclick="openDetail()"><td style="font-family:var(--mono);font-size:10px">#TK-2040</td><td style="font-weight:500;color:var(--text)">캐릭터 데이터 손실</td><td><span class="badge b-hi">HIGH</span></td><td><span class="badge b-urg">치명</span></td></tr>
+              <tr><td style="font-family:var(--mono);font-size:10px">#TK-2037</td><td style="font-weight:500;color:var(--text)">환불 처리 5일 지연</td><td><span class="badge b-mid">MID</span></td><td><span class="badge b-pend">정책위반</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="table-card">
+        <div class="tc-head"><i class="ti ti-eye" aria-hidden="true"></i><h4>응답 전 재점검 필요한 안전 경보</h4><span class="tc-cnt">3건</span></div>
+        <div class="tc-scroll">
+          <table class="tbl">
+            <thead><tr><th>ID</th><th>경보 유형</th><th>점수</th><th>상태</th></tr></thead>
+            <tbody>
+              <tr onclick="openDetail()"><td style="font-family:var(--mono);font-size:10px">#TK-2041</td><td>정책 위반</td><td style="font-family:var(--mono);color:var(--red);font-weight:700">0.81</td><td><span class="badge b-urg">경보</span></td></tr>
+              <tr><td style="font-family:var(--mono);font-size:10px">#TK-2039</td><td>환각 탐지</td><td style="font-family:var(--mono);color:var(--amber);font-weight:700">0.52</td><td><span class="badge b-pend">주의</span></td></tr>
+              <tr><td style="font-family:var(--mono);font-size:10px">#TK-2037</td><td>정책 위반</td><td style="font-family:var(--mono);color:var(--amber);font-weight:700">0.44</td><td><span class="badge b-pend">주의</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="sp"></div>
+</div>
+
+<!-- ══════════ PAGE 3: 응답 품질 ══════════ -->
+<div class="page inner-scroll" id="p3">
+  <div class="page-toolbar">
+    <span class="pg-title">응답 품질</span>
+    <span class="pg-sub">파이프라인 품질 현황</span>
+    <div class="toolbar-right">
+      <button class="btn btn-ghost btn-sm"><i class="ti ti-refresh" aria-hidden="true"></i> 새로고침</button>
+    </div>
+  </div>
+
+  <!-- 건수 지표 4개 -->
+  <div class="kpi-grid">
+    <div class="kpi-card"><div class="kpi-lbl">생성된 초안</div><div class="kpi-num blue">231</div><div class="kpi-sub">전체 접수 기준</div></div>
+    <div class="kpi-card green"><div class="kpi-lbl">근거 첨부 초안</div><div class="kpi-num green">198</div><div class="kpi-sub">근거 문서 포함</div></div>
+    <div class="kpi-card green"><div class="kpi-lbl">최종 응답</div><div class="kpi-num green">211</div><div class="kpi-sub">발송 완료</div></div>
+    <div class="kpi-card"><div class="kpi-lbl">안전 점검 완료</div><div class="kpi-num blue">224</div><div class="kpi-sub">검수 통과</div></div>
+  </div>
+
+  <!-- 비율·시간 4개 -->
+  <div class="kpi-grid" style="padding-top:8px">
+    <div class="kpi-card"><div class="kpi-lbl">초안 작성 비율</div><div class="kpi-num blue">91.3<span style="font-size:16px;font-weight:600">%</span></div><div class="kpi-delta up">▲ 1.8%</div></div>
+    <div class="kpi-card green"><div class="kpi-lbl">근거 첨부 비율</div><div class="kpi-num green">79.8<span style="font-size:16px;font-weight:600">%</span></div><div class="kpi-delta up">▲ 4.1%</div></div>
+    <div class="kpi-card green"><div class="kpi-lbl">최종 응답 완료율</div><div class="kpi-num green">85.1<span style="font-size:16px;font-weight:600">%</span></div><div class="kpi-delta up">▲ 3.2%</div></div>
+    <div class="kpi-card amber"><div class="kpi-lbl">최종 응답 평균 시간</div><div class="kpi-num amber">4.7<span style="font-size:16px;font-weight:600">h</span></div><div class="kpi-delta down">▼ 0.6h</div></div>
+  </div>
+
+  <!-- 파이프라인 갭 -->
+  <div class="gap-grid">
+    <div class="gap-card"><div class="gap-lbl">분석 누락</div><div class="gap-num">13</div><div class="gap-bar-bg"><div class="gap-bar-fill" style="width:5%"></div></div><div class="gap-sub">분석 미완료 건수</div></div>
+    <div class="gap-card"><div class="gap-lbl">초안 누락</div><div class="gap-num">17</div><div class="gap-bar-bg"><div class="gap-bar-fill" style="width:7%"></div></div><div class="gap-sub">초안 미생성 건수</div></div>
+    <div class="gap-card"><div class="gap-lbl">응답 누락</div><div class="gap-num">37</div><div class="gap-bar-bg"><div class="gap-bar-fill" style="width:15%"></div></div><div class="gap-sub">미응답 건수</div></div>
+    <div class="gap-card"><div class="gap-lbl">품질 점검 비율</div><div class="gap-num" style="color:var(--c1)">88.7<span style="font-size:16px">%</span></div><div class="gap-bar-bg"><div class="gap-bar-fill" style="width:88.7%;background:var(--c1)"></div></div><div class="gap-sub">안전 점검 커버리지</div></div>
+  </div>
+
+  <!-- AI 블록 -->
+  <div class="ai-block">
+    <div class="ai-block-head">
+      <div class="ai-icon"><i class="ti ti-sparkles" aria-hidden="true"></i></div>
+      <div class="ai-headline">근거 첨부율 향상 — 응답 누락 집중 개선 필요</div>
+      <div class="ai-badge">AI 분석</div>
+    </div>
+    <div class="ai-summary">근거 첨부 비율이 4.1%p 개선되어 긍정적인 추세를 보이고 있습니다. 그러나 응답 누락 37건은 주로 이메일 채널에서 발생하고 있으며, 알림 전송 실패가 주요 원인으로 분석됩니다.</div>
+    <div class="ai-grid">
+      <div class="ai-points">
+        <div class="ai-point"><i class="ti ti-mail-x" aria-hidden="true"></i> 이메일 채널 알림 실패 2건 — 즉시 재전송 필요</div>
+        <div class="ai-point"><i class="ti ti-books" aria-hidden="true"></i> 근거 첨부율 79.8% — 목표 85%까지 개선 여지</div>
+        <div class="ai-point"><i class="ti ti-checklist" aria-hidden="true"></i> 품질 점검 커버리지 88.7% 유지 중</div>
+      </div>
+      <div class="ai-actions">
+        <div class="ai-action"><i class="ti ti-send" aria-hidden="true"></i><span><span class="aa-lbl">알림 실패 2건 재전송</span></span><span class="aa-sub">처리하기 →</span></div>
+        <div class="ai-action"><i class="ti ti-file-check" aria-hidden="true"></i><span><span class="aa-lbl">품질 점검 미완료 초안 확인</span></span><span class="aa-sub">코칭 큐 →</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 차트 5개 -->
+  <div class="chart-section">
+    <div class="chart-row chart-row-3">
+      <div class="chart-card">
+        <div class="chart-title"><i class="ti ti-bell" aria-hidden="true"></i> 알림 상태 분포</div>
+        <div class="chart-wrap"><canvas id="q1"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title"><i class="ti ti-git-branch" aria-hidden="true"></i> 실패 채널 분포</div>
+        <div class="chart-wrap"><canvas id="q2"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title"><i class="ti ti-books" aria-hidden="true"></i> 근거 수 분포</div>
+        <div class="chart-wrap"><canvas id="q3"></canvas></div>
+      </div>
+    </div>
+    <div class="sp"></div>
+    <div class="chart-row chart-row-2">
+      <div class="chart-card">
+        <div class="chart-title"><i class="ti ti-alert-circle" aria-hidden="true"></i> 실패 유형 분포</div>
+        <div class="chart-wrap"><canvas id="q4"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title"><i class="ti ti-shield-check" aria-hidden="true"></i> 안전 점수 평균 (4항목)</div>
+        <div class="chart-wrap"><canvas id="q5"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 테이블 3개 -->
+  <div class="table-section">
+    <div class="table-row" style="grid-template-columns:1fr 1fr">
+      <div class="table-card">
+        <div class="tc-head"><i class="ti ti-school" aria-hidden="true"></i><h4>품질 코칭 큐</h4><span class="tc-cnt">6건</span></div>
+        <div class="tc-scroll">
+          <table class="tbl">
+            <thead><tr><th>ID</th><th>제목</th><th>문제 유형</th><th>점수</th></tr></thead>
+            <tbody>
+              <tr onclick="openDetail()"><td style="font-family:var(--mono);font-size:10px">#TK-2041</td><td style="font-weight:500;color:var(--text)">결제 후 아이템 미지급</td><td>정책 불일치</td><td style="font-family:var(--mono);color:var(--red);font-weight:700">0.81</td></tr>
+              <tr><td style="font-family:var(--mono);font-size:10px">#TK-2039</td><td style="font-weight:500;color:var(--text)">패스 혜택 미적용</td><td>근거 부족</td><td style="font-family:var(--mono);color:var(--amber);font-weight:700">0.55</td></tr>
+              <tr><td style="font-family:var(--mono);font-size:10px">#TK-2035</td><td style="font-weight:500;color:var(--text)">서버 점검 문의</td><td>환각 탐지</td><td style="font-family:var(--mono);color:var(--amber);font-weight:700">0.48</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="table-card">
+        <div class="tc-head"><i class="ti ti-bell-x" aria-hidden="true"></i><h4>알림 전송 실패 이력</h4><span class="tc-cnt">2건</span></div>
+        <div class="tc-scroll">
+          <table class="tbl">
+            <thead><tr><th>ID</th><th>채널</th><th>실패 유형</th><th>발생 시각</th></tr></thead>
+            <tbody>
+              <tr><td style="font-family:var(--mono);font-size:10px">#TK-2041</td><td><span class="badge b-ch">이메일</span></td><td>SMTP 오류</td><td style="font-family:var(--mono);font-size:10px;color:var(--text3)">09:43</td></tr>
+              <tr><td style="font-family:var(--mono);font-size:10px">#TK-2038</td><td><span class="badge b-ch">이메일</span></td><td>주소 오류</td><td style="font-family:var(--mono);font-size:10px;color:var(--text3)">07:15</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="sp"></div>
+</div>
+
+<!-- ══════════ PAGE 4: 주간 보고서 ══════════ -->
+<div class="page inner-scroll" id="p4">
+  <div class="page-toolbar">
+    <span class="pg-title">주간 보고서</span>
+    <span class="pg-sub">2026년 21주차 (05.19 – 05.25)</span>
+    <div class="toolbar-right">
+      <button class="btn btn-ghost btn-sm"><i class="ti ti-refresh" aria-hidden="true"></i> 새로고침</button>
+    </div>
+  </div>
+
+  <!-- 주간 KPI delta -->
+  <div class="kpi-grid">
+    <div class="kpi-card"><div class="kpi-lbl">분석 건수</div><div class="kpi-num blue">312</div><div class="kpi-delta up">▲ 18건 전주 대비</div></div>
+    <div class="kpi-card red"><div class="kpi-lbl">고위험 문의</div><div class="kpi-num red">19</div><div class="kpi-delta down">▲ 4건 전주 대비</div></div>
+    <div class="kpi-card amber"><div class="kpi-lbl">부정 반응 문의</div><div class="kpi-num amber">32</div><div class="kpi-delta down">▲ 7건 전주 대비</div></div>
+    <div class="kpi-card purple"><div class="kpi-lbl">사람 검토 필요</div><div class="kpi-num purple">41</div><div class="kpi-delta down">▲ 9건 전주 대비</div></div>
+  </div>
+
+  <!-- AI 블록 -->
+  <div class="ai-block">
+    <div class="ai-block-head">
+      <div class="ai-icon"><i class="ti ti-sparkles" aria-hidden="true"></i></div>
+      <div class="ai-headline">분석 건수 증가 긍정적 — 고위험·부정 반응 동반 증가 주목</div>
+      <div class="ai-badge">AI 주간 요약</div>
+    </div>
+    <div class="ai-summary">이번 주 분석 건수가 18건 증가한 것은 긍정적이나, 고위험 문의와 부정 반응이 함께 증가하고 있어 품질 관리 강화가 필요합니다. 특히 결제·환불 카테고리에서 집중적인 부정 반응이 감지되고 있습니다.</div>
+    <div class="ai-grid">
+      <div class="ai-points">
+        <div class="ai-point"><i class="ti ti-trending-up" aria-hidden="true"></i> 분석 커버리지 94.7% — 전주 대비 0.5%p 향상</div>
+        <div class="ai-point"><i class="ti ti-alert-circle" aria-hidden="true"></i> 고위험 4건 증가 — 결제 오류 카테고리 집중</div>
+        <div class="ai-point"><i class="ti ti-mood-sad" aria-hidden="true"></i> 부정 반응 7건 증가 — 환불 응답 품질 개선 필요</div>
+      </div>
+      <div class="ai-actions">
+        <div class="ai-action"><i class="ti ti-file-report" aria-hidden="true"></i><span><span class="aa-lbl">고위험 패턴 상세 분석</span></span><span class="aa-sub">위험 신호 →</span></div>
+        <div class="ai-action"><i class="ti ti-message-circle" aria-hidden="true"></i><span><span class="aa-lbl">부정 반응 응답 재검토</span></span><span class="aa-sub">품질 탭 →</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 핵심 요약 -->
+  <div class="summary-block">
+    <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:12px">핵심 요약</div>
+    <div class="summary-grid">
+      <div class="sum-item"><div class="sum-lbl">응답률</div><div class="sum-val">85.1%</div></div>
+      <div class="sum-item"><div class="sum-lbl">분석 커버리지</div><div class="sum-val">94.7%</div></div>
+      <div class="sum-item"><div class="sum-lbl">초안 커버리지</div><div class="sum-val">91.3%</div></div>
+      <div class="sum-item"><div class="sum-lbl">최종 답변 전환율</div><div class="sum-val">85.1%</div></div>
+    </div>
+    <div class="sum-actions-title">권장 액션</div>
+    <div class="action-list">
+      <div class="action-item"><i class="ti ti-flame" aria-hidden="true"></i> 고위험 문의 19건 중 미처리 7건 즉시 에스컬레이션</div>
+      <div class="action-item"><i class="ti ti-book" aria-hidden="true"></i> 환불 응답 템플릿 정책 준수 여부 전수 재검토</div>
+      <div class="action-item"><i class="ti ti-mail-x" aria-hidden="true"></i> 알림 전송 실패 2건 재전송 및 원인 분석</div>
+      <div class="action-item"><i class="ti ti-books" aria-hidden="true"></i> 근거 첨부율 79.8% → 85% 목표 달성 계획 수립</div>
+    </div>
+  </div>
+
+  <!-- 분포 차트 (접기/펼치기) -->
+  <div class="chart-section">
+    <div style="background:var(--white);border:1px solid var(--border);border-radius:10px;overflow:hidden">
+      <button class="coll-btn open" onclick="toggleColl(this)">
+        <i class="ti ti-chevron-down rot" aria-hidden="true"></i>
+        분포 차트 (6개)
+      </button>
+      <div class="coll-content open">
+        <div class="chart-row chart-row-3" style="margin-bottom:10px">
+          <div class="chart-card" style="border:1px solid var(--border)">
+            <div class="chart-title"><i class="ti ti-tags" aria-hidden="true"></i> 문의 분류</div>
+            <div class="chart-wrap"><canvas id="w1"></canvas></div>
+          </div>
+          <div class="chart-card" style="border:1px solid var(--border)">
+            <div class="chart-title"><i class="ti ti-alert-circle" aria-hidden="true"></i> 위험도</div>
+            <div class="chart-wrap"><canvas id="w2"></canvas></div>
+          </div>
+          <div class="chart-card" style="border:1px solid var(--border)">
+            <div class="chart-title"><i class="ti ti-user" aria-hidden="true"></i> 응답 주체</div>
+            <div class="chart-wrap"><canvas id="w3"></canvas></div>
+          </div>
+        </div>
+        <div class="chart-row chart-row-3">
+          <div class="chart-card" style="border:1px solid var(--border)">
+            <div class="chart-title"><i class="ti ti-mood" aria-hidden="true"></i> 이용자 반응</div>
+            <div class="chart-wrap"><canvas id="w4"></canvas></div>
+          </div>
+          <div class="chart-card" style="border:1px solid var(--border)">
+            <div class="chart-title"><i class="ti ti-arrows-right" aria-hidden="true"></i> 다음 처리</div>
+            <div class="chart-wrap"><canvas id="w5"></canvas></div>
+          </div>
+          <div class="chart-card" style="border:1px solid var(--border)">
+            <div class="chart-title"><i class="ti ti-circle-check" aria-hidden="true"></i> 처리 단계 비율</div>
+            <div class="chart-wrap"><canvas id="w6"></canvas></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 테이블 (접기/펼치기) -->
+  <div class="table-section" style="padding-bottom:0">
+    <div style="background:var(--white);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:10px">
+      <div class="tc-head"><i class="ti ti-list-numbers" aria-hidden="true"></i><h4>우선 확인 문의 (상위 5건)</h4></div>
+      <table class="tbl">
+        <thead><tr><th>ID</th><th>제목</th><th>위험도</th><th>상태</th><th>담당</th></tr></thead>
+        <tbody>
+          <tr onclick="openDetail()"><td style="font-family:var(--mono);font-size:10px">#TK-2041</td><td style="font-weight:600;color:var(--text)">결제 후 아이템 미지급</td><td><span class="badge b-hi">HIGH</span></td><td><span class="badge b-urg">긴급</span></td><td style="color:var(--text3);font-size:10px">payment_team</td></tr>
+          <tr onclick="openDetail()"><td style="font-family:var(--mono);font-size:10px">#TK-2040</td><td style="font-weight:600;color:var(--text)">캐릭터 데이터 손실</td><td><span class="badge b-hi">HIGH</span></td><td><span class="badge b-rev">검토</span></td><td style="color:var(--text3);font-size:10px">account_team</td></tr>
+          <tr><td style="font-family:var(--mono);font-size:10px">#TK-2037</td><td style="font-weight:600;color:var(--text)">환불 5일 지연</td><td><span class="badge b-mid">MID</span></td><td><span class="badge b-pend">대기</span></td><td style="color:var(--text3);font-size:10px">cs_auto</td></tr>
+          <tr><td style="font-family:var(--mono);font-size:10px">#TK-2035</td><td style="font-weight:600;color:var(--text)">서버 점검 문의</td><td><span class="badge b-mid">MID</span></td><td><span class="badge b-pend">대기</span></td><td style="color:var(--text3);font-size:10px">cs_auto</td></tr>
+          <tr><td style="font-family:var(--mono);font-size:10px">#TK-2034</td><td style="font-weight:600;color:var(--text)">계정 정지 이의신청</td><td><span class="badge b-mid">MID</span></td><td><span class="badge b-rev">검토</span></td><td style="color:var(--text3);font-size:10px">account_team</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 분석 원본 (접기/펼치기) -->
+    <div style="background:var(--white);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:10px">
+      <button class="coll-btn" onclick="toggleColl(this)">
+        <i class="ti ti-chevron-down rot" aria-hidden="true"></i>
+        분석 원본 미리보기 (상위 8건)
+      </button>
+      <div class="coll-content">
+        <table class="tbl">
+          <thead><tr><th>ID</th><th>티켓 제목</th><th>분류</th><th>위험도</th><th>처리 방향</th><th>접수 시각</th></tr></thead>
+          <tbody>
+            <tr onclick="openDetail()"><td style="font-family:var(--mono);font-size:10px">#TK-2048</td><td style="font-weight:500;color:var(--text)">계정 로그인 불가</td><td>계정</td><td><span class="badge b-low">LOW</span></td><td style="font-size:10px;color:var(--text3)">account_team</td><td style="font-family:var(--mono);font-size:10px;color:var(--text3)">09:15</td></tr>
+            <tr onclick="openDetail()"><td style="font-family:var(--mono);font-size:10px">#TK-2047</td><td style="font-weight:500;color:var(--text)">가챠 아이템 오류</td><td>결제</td><td><span class="badge b-mid">MID</span></td><td style="font-size:10px;color:var(--text3)">cs_auto</td><td style="font-family:var(--mono);font-size:10px;color:var(--text3)">08:50</td></tr>
+            <tr><td style="font-family:var(--mono);font-size:10px">#TK-2046</td><td style="font-weight:500;color:var(--text)">중복 결제 환불</td><td>결제</td><td><span class="badge b-mid">MID</span></td><td style="font-size:10px;color:var(--text3)">payment_team</td><td style="font-family:var(--mono);font-size:10px;color:var(--text3)">08:32</td></tr>
+            <tr><td style="font-family:var(--mono);font-size:10px">#TK-2045</td><td style="font-weight:500;color:var(--text)">배틀패스 보상 누락</td><td>결제</td><td><span class="badge b-low">LOW</span></td><td style="font-size:10px;color:var(--text3)">cs_auto</td><td style="font-family:var(--mono);font-size:10px;color:var(--text3)">08:10</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 액션 (PDF + Slack) -->
+  <div class="report-actions">
+    <div class="report-action-card">
+      <div class="ra-icon" style="background:var(--red-bg)"><i class="ti ti-file-type-pdf" style="color:var(--red)" aria-hidden="true"></i></div>
+      <div>
+        <div class="ra-lbl">PDF 생성 + 다운로드</div>
+        <div class="ra-sub">주간 보고서를 PDF 파일로 생성하여 다운로드합니다</div>
+      </div>
+      <div class="ra-actions"><button class="btn btn-danger"><i class="ti ti-download" aria-hidden="true"></i> PDF 다운로드</button></div>
+    </div>
+    <div class="report-action-card">
+      <div class="ra-icon" style="background:#E8F0FB"><i class="ti ti-brand-slack" style="color:#4A154B" aria-hidden="true"></i></div>
+      <div>
+        <div class="ra-lbl">기본 채널로 Slack 전송</div>
+        <div class="ra-sub">기획팀 Slack 채널로 즉시 전송합니다</div>
+      </div>
+      <div class="ra-actions"><button class="btn btn-ghost"><i class="ti ti-send" aria-hidden="true"></i> 즉시 전송</button></div>
+    </div>
+    
+    </div>
+  </div>
+  <div class="sp"></div>
+</div>
+
+<!-- ── 문의 상세 드로어 ── -->
+<div class="detail-overlay" id="detail-overlay" onclick="closeDetailOutside(event)">
+  <div class="detail-drawer">
+    <div class="drawer-head">
+      <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+        <div style="font-size:10px;font-weight:600;color:var(--text3);font-family:var(--mono)">#TK-2041</div>
+        <h3>결제 후 아이템 미지급 — 즉각 환불 요청</h3>
+        <div style="display:flex;align-items:center;gap:6px;margin-top:3px">
+          <span class="assignee-tag"><i class="ti ti-user" aria-hidden="true"></i> reviewer_01 담당</span>
+          <span class="live-status"><span class="live-dot"></span>reviewer_01 응대중</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:5px;align-items:flex-start">
+        <span class="badge b-urg">긴급</span>
+        <span class="badge b-hi">HIGH</span>
+        <button class="btn btn-ghost btn-xs" style="margin-left:4px" onclick="closeDetail()"><i class="ti ti-x" aria-hidden="true"></i></button>
+      </div>
+    </div>
+    <div class="drawer-scroll">
+
+      <!-- 티켓 기본 정보 -->
+      <div class="drawer-section">
+        <div class="ds-head"><i class="ti ti-ticket" aria-hidden="true"></i> 티켓 기본 정보</div>
+        <div class="ds-body">
+          <div class="df df3" style="margin-bottom:8px">
+            <div class="d-field"><label>상태</label><div class="dv"><span class="badge b-urg">긴급</span></div></div>
+            <div class="d-field"><label>접수 경로</label><div class="dv"><span class="badge b-ch">이메일</span></div></div>
+            <div class="d-field"><label>카테고리</label><div class="dv">결제 오류</div></div>
+            <div class="d-field"><label>닉네임</label><div class="dv">DragonSlayer_K</div></div>
+            <div class="d-field"><label>계정 번호</label><div class="dv mono">USR-938</div></div>
+            <div class="d-field"><label>접수 시각</label><div class="dv mono">05-28 09:42</div></div>
+          </div>
+          <div class="body-txt">오전 9시 30분경 다이아 패키지 9,900원을 결제했는데 아이템이 인벤토리에 들어오지 않았습니다. 결제 영수증은 있는데 게임 내 반영이 안 되고 있어요.</div>
+        </div>
+      </div>
+
+      <!-- 계정 정보 -->
+      <div class="drawer-section">
+        <div class="ds-head"><i class="ti ti-user-circle" aria-hidden="true"></i> 계정 정보</div>
+        <div class="ds-body">
+          <div class="df df3">
+            <div class="d-field"><label>이메일</label><div class="dv masked">dr***@gm**.com</div></div>
+            <div class="d-field"><label>UID</label><div class="dv mono">UID-20483810</div></div>
+            <div class="d-field"><label>서버 권역</label><div class="dv">KR-East</div></div>
+            <div class="d-field"><label>계정 상태</label><div class="dv"><span class="badge b-done">정상</span></div></div>
+            <div class="d-field"><label>가입일</label><div class="dv mono">2024-03-15</div></div>
+            <div class="d-field"><label>누적 구매</label><div class="dv">₩42,800</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 문의 분석 이력 -->
+      <div class="drawer-section">
+        <div class="ds-head"><i class="ti ti-brain" aria-hidden="true"></i> 문의 분석 이력</div>
+        <div class="ds-body">
+          <div style="font-size:12px;background:rgba(96,150,180,0.07);border-left:3px solid var(--c1);border-radius:0 7px 7px 0;padding:8px 10px;color:var(--text2);line-height:1.6;margin-bottom:8px;font-weight:400">9,900원 결제 후 다이아 패키지 미지급. 즉각 지급 또는 환불 처리 필요한 고위험 결제 문의.</div>
+          <div class="df" style="grid-template-columns:1fr 1fr 1fr">
+            <div class="d-field"><label>분류</label><div class="dv mono" style="font-size:11px">payment_issue</div></div>
+            <div class="d-field"><label>처리 방향</label><div class="dv mono" style="font-size:11px">payment_team</div></div>
+            <div class="d-field"><label>위험도</label><div class="dv"><span class="badge b-hi">HIGH</span></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 생성된 초안 -->
+      <div class="drawer-section">
+        <div class="ds-head"><i class="ti ti-pencil" aria-hidden="true"></i> 생성된 초안</div>
+        <div class="ds-body">
+          <div class="body-txt" style="color:var(--text)">안녕하세요, 게임 CS팀입니다.<br><br>결제 후 아이템이 지급되지 않아 불편을 드려 대단히 죄송합니다. 서버 지연으로 인해 다이아 패키지가 반영되지 않은 것으로 파악되었습니다. 즉시 수동 지급 처리해 드리겠습니다.</div>
+        </div>
+      </div>
+
+      <!-- 첨부된 근거 -->
+      <div class="drawer-section">
+        <div class="ds-head"><i class="ti ti-books" aria-hidden="true"></i> 첨부된 근거</div>
+        <div class="ds-body" style="display:flex;flex-direction:column;gap:5px">
+          <div style="padding:6px 9px;background:var(--surface);border-radius:6px;font-size:11px;color:var(--text2)"><strong style="font-weight:600;color:var(--text)">#1</strong> 환불 정책 — FAQ_payment_v3.md</div>
+          <div style="padding:6px 9px;background:var(--surface);border-radius:6px;font-size:11px;color:var(--text2)"><strong style="font-weight:600;color:var(--text)">#2</strong> 결제 오류 처리 절차 — ops_manual_ch4.pdf</div>
+          <div style="padding:6px 9px;background:var(--surface);border-radius:6px;font-size:11px;color:var(--text2)"><strong style="font-weight:600;color:var(--text)">#3</strong> 다이아 패키지 지급 기준 — item_guide.md</div>
+        </div>
+      </div>
+
+      <!-- 안전 점검 결과 -->
+      <div class="drawer-section">
+        <div class="ds-head"><i class="ti ti-shield-check" aria-hidden="true"></i> 안전 점검 결과</div>
+        <div class="ds-body">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
+            <div style="display:flex;justify-content:space-between;background:var(--surface);border-radius:6px;padding:6px 9px;font-size:11px"><span style="color:var(--text2)">근거 일치</span><span style="color:var(--green);font-weight:700">통과</span></div>
+            <div style="display:flex;justify-content:space-between;background:var(--surface);border-radius:6px;padding:6px 9px;font-size:11px"><span style="color:var(--text2)">환각 탐지</span><span style="color:var(--amber);font-weight:700">주의 1건</span></div>
+            <div style="display:flex;justify-content:space-between;background:var(--surface);border-radius:6px;padding:6px 9px;font-size:11px"><span style="color:var(--text2)">정책 위반</span><span style="color:var(--green);font-weight:700">없음</span></div>
+            <div style="display:flex;justify-content:space-between;background:var(--surface);border-radius:6px;padding:6px 9px;font-size:11px"><span style="color:var(--text2)">부적절 표현</span><span style="color:var(--green);font-weight:700">없음</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 실제 전송 응답 -->
+      <div class="drawer-section">
+        <div class="ds-head"><i class="ti ti-mail-forward" aria-hidden="true"></i> 실제 전송 응답</div>
+        <div class="ds-body">
+          <div style="font-size:11px;color:var(--text3);margin-bottom:6px;font-family:var(--mono)">발송 시각: 2026-05-28 10:15 · 이메일</div>
+          <div class="body-txt" style="color:var(--text);font-size:12px">안녕하세요, 게임 CS팀입니다. 결제 후 아이템이 지급되지 않아 불편을 드려 대단히 죄송합니다. 즉시 다이아 패키지를 수동으로 지급해 드렸습니다. 재접속 후 인벤토리를 확인해 주세요.</div>
+        </div>
+      </div>
+
+      <!-- 이용자 피드백 -->
+      <div class="drawer-section">
+        <div class="ds-head"><i class="ti ti-mood" aria-hidden="true"></i> 이용자 피드백</div>
+        <div class="ds-body">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <span class="badge b-done">긍정</span>
+            <span style="font-size:12px;color:var(--text2);font-weight:400">빠른 처리 감사합니다. 해결되었습니다.</span>
+          </div>
+          <div style="font-size:11px;color:var(--text3);font-family:var(--mono)">피드백 수신: 2026-05-28 10:42</div>
+        </div>
+      </div>
+
+      <!-- 운영 처리 로그 -->
+      <div class="drawer-section">
+        <div class="ds-head"><i class="ti ti-list-details" aria-hidden="true"></i> 운영 처리 로그</div>
+        <div class="ds-body">
+          <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:5px">결제 / 환불 / 아이템 / 가챠</div>
+          <div class="log-item"><span class="lt">10:05</span><span class="lm"><strong>아이템 수동 지급</strong> — 다이아 패키지 100개 지급 완료 (운영자: reviewer_01)</span></div>
+          <div class="log-item"><span class="lt">09:55</span><span class="lm"><strong>결제 확인</strong> — 스토어 영수증 #RT-48291 정상 확인</span></div>
+          <div class="log-item"><span class="lt">09:43</span><span class="lm"><strong>긴급 알림 발송</strong> — payment_team 에스컬레이션</span></div>
+        </div>
+      </div>
+
+      <!-- 워크플로 로그 -->
+      <div class="drawer-section">
+        <div class="ds-head"><i class="ti ti-git-merge" aria-hidden="true"></i> 워크플로 로그</div>
+        <div class="ds-body">
+          <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:5px">검수 이벤트 / 실패 쿼리</div>
+          <div class="log-item"><span class="lt">10:05</span><span class="lm"><strong>승인</strong> — reviewer_01 · 수동 지급 문구 추가 후 승인</span></div>
+          <div class="log-item"><span class="lt">10:02</span><span class="lm"><strong>수정</strong> — reviewer_01 · 수동 지급 문구 추가</span></div>
+          <div class="log-item"><span class="lt">09:51</span><span class="lm"><strong>반려</strong> — reviewer_02 · 환불 금액 언급 누락</span></div>
+          <div class="log-item"><span class="lt">09:44</span><span class="lm"><strong>초안 생성</strong> — AI 워크플로우 완료 (4.2s)</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+</main>
+</div>
+
+<script>
+const C1='#6096B4',C2='#93BFCF',C3='#BDCDD6',C4='#EEE9DA';
+const RED='#C0392B',AMB='#9A6B1A',GRN='#2E7D5B',PUR='#5B4B8A';
+const AMBC='#E9B857';
+const OPTS={responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:10,padding:8,font:{family:'Pretendard',size:10}}},tooltip:{bodyFont:{family:'Pretendard',size:11},titleFont:{family:'Pretendard',size:11}}},scales:{x:{display:false},y:{display:false}}};
+const DONUT_OPTS={...OPTS,scales:{}};
+const BAR_OPTS={...OPTS,scales:{x:{display:true,ticks:{font:{family:'Pretendard',size:10}},grid:{display:false}},y:{display:true,ticks:{font:{family:'Pretendard',size:10}},grid:{color:'rgba(0,0,0,0.05)'}}}};
+
+function donut(id,labels,data,colors){
+  const el=document.getElementById(id);if(!el)return;
+  new Chart(el,{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:0,hoverOffset:3}]},options:{...DONUT_OPTS,cutout:'60%'}});
+}
+function bar(id,labels,data,color){
+  const el=document.getElementById(id);if(!el)return;
+  new Chart(el,{type:'bar',data:{labels,datasets:[{data,backgroundColor:color,borderRadius:4,borderSkipped:false}]},options:BAR_OPTS});
+}
+function line(id,labels,data){
+  const el=document.getElementById(id);if(!el)return;
+  new Chart(el,{type:'line',data:{labels,datasets:[{data,borderColor:C1,backgroundColor:'rgba(96,150,180,0.08)',tension:0.3,fill:true,pointRadius:2,pointBackgroundColor:C1}]},options:{...OPTS,scales:{x:{display:true,ticks:{font:{family:'Pretendard',size:10}},grid:{display:false}},y:{display:true,ticks:{font:{family:'Pretendard',size:10}},grid:{color:'rgba(0,0,0,0.05)'}}}}});
+}
+function hbar(id,labels,data,colors){
+  const el=document.getElementById(id);if(!el)return;
+  new Chart(el,{type:'bar',data:{labels,datasets:[{data,backgroundColor:colors,borderRadius:4,borderSkipped:false}]},options:{...OPTS,indexAxis:'y',scales:{x:{display:true,ticks:{font:{family:'Pretendard',size:10}},grid:{color:'rgba(0,0,0,0.05)'}},y:{display:true,ticks:{font:{family:'Pretendard',size:10}},grid:{display:false}}}}});
+}
+
+window.addEventListener('load',()=>{
+  donut('c1',['이메일','카페'],[ 68,32],[C1,C2]);
+  donut('c2',['결제','계정','버그','환불','기타'],[35,22,18,15,10],[C1,C2,C3,AMBC,C4.replace('#','#')+'99']);
+  donut('c3',['완료','대기','검토','긴급'],[85,12,4,3],[GRN,AMBC,PUR,RED]);
+  donut('c4',['자동처리','담당자','에스컬','재분석'],[45,30,15,10],[C1,C2,AMB,C3]);
+  donut('c5',['AI','담당자','혼합'],[55,32,13],[C1,C2,C3]);
+  line('c6',['5/22','5/23','5/24','5/25','5/26','5/27','5/28'],[18,22,25,20,28,24,25]);
+  donut('r1',['낮음','중간','높음','치명'],[45,28,19,8],[GRN,AMBC,RED,PUR]);
+  donut('r2',['긍정','중립','부정'],[52,25,23],[GRN,C3,RED]);
+  hbar('r3',['결제','계정','버그','환불'],[4,2,1,2],[RED,AMB,C1,RED]);
+  donut('r4',['낮음','중간','높음'],[50,30,20],[C2,AMBC,RED]);
+  bar('r5',['반복A','반복B','반복C','반복D'],[8,5,3,2],RED);
+  donut('r6',['이메일','카페'],[75,25],[RED,AMB]);
+  donut('q1',['성공','실패','대기'],[88,5,7],[GRN,RED,AMBC]);
+  donut('q2',['이메일','카페'],[80,20],[RED,AMB]);
+  bar('q3',['0개','1개','2개','3개+'],[8,45,35,12],C1);
+  donut('q4',['SMTP','주소오류','시간초과'],[60,30,10],[RED,AMB,C2]);
+  hbar('q5',['근거일치','환각','정책위반','사실성'],[0.89,0.23,0.41,0.87],[GRN,AMBC,RED,C1]);
+  donut('w1',['결제','계정','버그','환불'],[38,24,20,18],[C1,C2,C3,AMBC]);
+  donut('w2',['낮음','중간','높음'],[55,33,12],[GRN,AMBC,RED]);
+  donut('w3',['AI','담당자'],[60,40],[C1,C2]);
+  donut('w4',['긍정','중립','부정'],[55,22,23],[GRN,C3,RED]);
+  donut('w5',['자동','수동','에스컬'],[50,35,15],[C1,C2,AMB]);
+  donut('w6',['완료','검수','대기'],[82,10,8],[GRN,AMBC,RED]);
+});
+
+/* ── 페이지 전환 ── */
+function switchPage(id,el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tb-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  el.classList.add('active');
+}
+function activateSide(el){document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));el.classList.add('active')}
+function toggleColl(btn){
+  btn.classList.toggle('open');
+  btn.nextElementSibling.classList.toggle('open');
+}
+
+/* ── 문의 상세 ── */
+function openDetail(){document.getElementById('detail-overlay').classList.add('open')}
+function closeDetail(){document.getElementById('detail-overlay').classList.remove('open')}
+function closeDetailOutside(e){if(e.target===document.getElementById('detail-overlay'))closeDetail()}
+
+/* ── 로그인 ── */
+const DEMO_ACCOUNTS={
+  'reviewer_01':'cs1234',
+  'reviewer_02':'cs1234',
+  'reviewer_03':'cs1234',
+  'admin':'admin00'
+};
+
+function doLogin(){
+  const id=document.getElementById('li-id').value.trim();
+  const pw=document.getElementById('li-pw').value;
+  const role=document.getElementById('li-role').value;
+  const err=document.getElementById('li-err');
+  if(!id){err.classList.add('show');err.innerHTML='<i class="ti ti-alert-circle"></i> 운영자 ID를 입력하세요.';return}
+  if(DEMO_ACCOUNTS[id]===undefined||DEMO_ACCOUNTS[id]!==pw){
+    err.classList.add('show');err.innerHTML='<i class="ti ti-alert-circle"></i> ID 또는 비밀번호가 올바르지 않습니다.';return;
+  }
+  err.classList.remove('show');
+  const initials=id.replace(/[^a-zA-Z가-힣0-9]/g,'').slice(0,2).toUpperCase();
+  document.getElementById('op-avatar').textContent=initials||'OP';
+  document.getElementById('op-name-display').textContent=id;
+  document.getElementById('op-role-display').textContent=role;
+  document.getElementById('op-dd-name').textContent=id;
+  document.getElementById('op-dd-role').textContent=role+' · 접속중';
+  document.getElementById('login-overlay').classList.add('hidden');
+}
+
+/* ── 로그아웃 ── */
+function doLogout(){
+  document.getElementById('op-dropdown').classList.remove('open');
+  document.getElementById('li-id').value='';
+  document.getElementById('li-pw').value='';
+  document.getElementById('li-err').classList.remove('show');
+  document.getElementById('login-overlay').classList.remove('hidden');
+}
+
+/* ── 운영자 드롭다운 토글 ── */
+function toggleOpMenu(e){
+  e.stopPropagation();
+  document.getElementById('op-dropdown').classList.toggle('open');
+}
+document.addEventListener('click',()=>{
+  const dd=document.getElementById('op-dropdown');
+  if(dd)dd.classList.remove('open');
+});
+
+/* ── 실시간 응대 현황 시뮬레이션 ── */
+const LIVE_MSGS=['응대중','확인중','검토중'];
+const LIVE_OPS=['reviewer_01','reviewer_02','reviewer_03'];
+function refreshLiveStatus(){
+  document.querySelectorAll('.live-status:not(.waiting)').forEach(el=>{
+    const op=LIVE_OPS[Math.floor(Math.random()*LIVE_OPS.length)];
+    const msg=LIVE_MSGS[Math.floor(Math.random()*LIVE_MSGS.length)];
+    const dot=el.querySelector('.live-dot');
+    el.innerHTML='';
+    el.appendChild(dot||Object.assign(document.createElement('span'),{className:'live-dot'}));
+    el.appendChild(document.createTextNode(op+' '+msg));
+  });
+}
+setInterval(refreshLiveStatus,8000);
+</script>
+</body>
+</html>
