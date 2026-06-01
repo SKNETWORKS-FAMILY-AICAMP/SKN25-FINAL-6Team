@@ -1,4 +1,4 @@
-"""FastAPI endpoints for operation ticket review and answer approval."""
+"""FastAPI endpoints for the operation workflow and human review actions."""
 
 from __future__ import annotations
 
@@ -15,27 +15,39 @@ configure_langsmith("operation")
 
 from common.db.connection import db_connection
 from workflow import OperationState, build_operation_graph
+from workflow.state import HumanReviewResult
 
 
-app = FastAPI(title="Operation Review API", version="1.0.0")
+app = FastAPI(title="Operation Review API", version="2.0.0")
 
 
-ReviewDecision = Literal["approved", "rejected", "edited"]
+ReviewDecision = Literal["approved", "regenerate", "edited"]
 
 
 class DraftEditRequest(BaseModel):
     draft_text: str = Field(min_length=1)
     reviewer_id: str | None = None
+    reason: str = Field(default="manual edit", min_length=1)
 
 
 class ApproveDraftRequest(BaseModel):
     final_text: str | None = None
     reviewer_id: str | None = None
+    reason: str = Field(default="approved by reviewer", min_length=1)
 
 
-class RejectDraftRequest(BaseModel):
+class RegenerateDraftRequest(BaseModel):
     reason: str = Field(min_length=1)
     reviewer_id: str | None = None
+
+
+class RunWorkflowResponse(BaseModel):
+    ticket_id: int
+    status: str
+    final_answer: str | None = None
+    draft_id: int | None = None
+    analysis_id: int | None = None
+    response_id: int | None = None
 
 
 class ReviewActionResponse(BaseModel):
@@ -44,35 +56,24 @@ class ReviewActionResponse(BaseModel):
     decision: ReviewDecision
     status: str
     response_id: int | None = None
-    run_workflow_url: str | None = None
+    next_draft_id: int | None = None
 
 
 def _row_to_dict(row: Any) -> dict[str, Any] | None:
-    """psycopg dict_row 결과를 일반 dict로 변환합니다. None 행은 None을 반환합니다."""
     return dict(row) if row is not None else None
 
 
 def _fetch_one(cur: Any, sql: str, params: tuple[Any, ...]) -> dict[str, Any] | None:
-    """단일 행 SELECT를 실행하고 dict 또는 None을 반환합니다."""
     cur.execute(sql, params)
     return _row_to_dict(cur.fetchone())
 
 
 def _fetch_all(cur: Any, sql: str, params: tuple[Any, ...] = ()) -> list[dict[str, Any]]:
-    """다중 행 SELECT를 실행하고 dict 목록을 반환합니다."""
     cur.execute(sql, params)
     return [dict(row) for row in cur.fetchall()]
 
 
-def _ticket_list_where(
-    *,
-    status: str | None,
-    today_only: bool,
-) -> tuple[str, list[Any]]:
-    """status·today_only 조건을 WHERE 절 문자열과 파라미터 목록으로 변환합니다.
-
-    조건이 없으면 빈 문자열을 반환해 _list_ticket_rows의 f-string에 그대로 삽입됩니다.
-    """
+def _ticket_list_where(*, status: str | None, today_only: bool) -> tuple[str, list[Any]]:
     clauses: list[str] = []
     params: list[Any] = []
     if status:
@@ -88,18 +89,7 @@ def _ticket_list_where(
     return f"WHERE {' AND '.join(clauses)}", params
 
 
-def _list_ticket_rows(
-    cur: Any,
-    *,
-    status: str | None,
-    limit: int,
-    today_only: bool = False,
-) -> list[dict[str, Any]]:
-    """qa_ticket 목록을 status·today_only 조건으로 조회합니다.
-
-    LATERAL 서브쿼리로 최신 draft_id와 risk_level/routing_target을 함께 반환해
-    목록 화면에서 추가 조회 없이 필요한 메타데이터를 제공합니다.
-    """
+def _list_ticket_rows(cur: Any, *, status: str | None, limit: int, today_only: bool = False) -> list[dict[str, Any]]:
     where_sql, params = _ticket_list_where(status=status, today_only=today_only)
     params.append(limit)
     return _fetch_all(
@@ -151,10 +141,6 @@ def _insert_review_log(
     reviewer_id: str | None,
     reason: str | None = None,
 ) -> None:
-    """검수 결정(approved/rejected/edited)을 admin_event_logs에 기록합니다.
-
-    event_type='human_review'로 고정해 get_ticket_detail에서 검수 이력만 필터링할 수 있게 합니다.
-    """
     cur.execute(
         """
         INSERT INTO admin_event_logs (
@@ -167,21 +153,18 @@ def _insert_review_log(
             "operation_review_api",
             "human_review",
             decision,
-            Json({
-                "draft_id": draft_id,
-                "reviewer_id": reviewer_id,
-                "reason": reason,
-            }),
+            Json(
+                {
+                    "draft_id": draft_id,
+                    "reviewer_id": reviewer_id,
+                    "reason": reason,
+                }
+            ),
         ),
     )
 
 
 def _draft_for_update(cur: Any, draft_id: int) -> dict[str, Any]:
-    """answer_draft 행을 FOR UPDATE 잠금과 함께 조회합니다.
-
-    수정·승인·반려 API가 동시에 같은 draft를 변경하는 것을 방지합니다.
-    존재하지 않는 draft_id이면 404를 반환합니다.
-    """
     cur.execute(
         """
         SELECT draft_id, ticket_id, analysis_id, draft_text, prompt_version, created_at
@@ -197,31 +180,10 @@ def _draft_for_update(cur: Any, draft_id: int) -> dict[str, Any]:
     return dict(row)
 
 
-# closed: 최종 응답이 발행된 종료 티켓 / urgent_alert_pending: 긴급 알림 대기 상태
-# 두 상태 모두 워크플로우를 재실행해도 의미 없는 최종 상태이므로 409로 차단한다
 _TERMINAL_STATUSES = {"closed", "urgent_alert_pending"}
 
 
-class RunWorkflowResponse(BaseModel):
-    ticket_id: int
-    status: str
-    final_answer: str | None = None
-    draft_id: int | None = None
-    analysis_id: int | None = None
-    response_id: int | None = None
-
-
-@app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok"}
-
-
-@app.post("/tickets/{ticket_id}/run-workflow", response_model=RunWorkflowResponse)
-def run_workflow(ticket_id: int) -> RunWorkflowResponse:
-    """워크플로우 그래프를 실행해 티켓의 답변 초안을 생성합니다.
-
-    이미 closed 또는 urgent_alert_pending 상태인 티켓은 재실행하지 않습니다.
-    """
+def _ensure_ticket_reprocessable(ticket_id: int) -> None:
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
             cur.execute("SELECT status FROM qa_ticket WHERE ticket_id = %s", (ticket_id,))
@@ -234,17 +196,45 @@ def run_workflow(ticket_id: int) -> RunWorkflowResponse:
                     detail=f"ticket {ticket_id} is already in terminal status: {row['status']}",
                 )
 
+
+def _run_graph(state: OperationState, *, ticket_id: int) -> dict[str, Any]:
     graph = build_operation_graph()
-    result = graph.invoke(
-        OperationState(ticket_id=str(ticket_id)),
-        # LangSmith 트레이스 식별자: run_name으로 티켓별 실행을 구분하고
-        # metadata로 ticket_id를 필터 키로 사용할 수 있게 한다
+    return graph.invoke(
+        state,
         config={
             "run_name": f"operation-workflow-{ticket_id}",
             "metadata": {"ticket_id": ticket_id, "workflow": "operation"},
         },
     )
 
+
+def _human_review_state(
+    *,
+    ticket_id: int,
+    decision: Literal["approved", "regenerate", "edit"],
+    reason: str,
+    edited_answer: str | None = None,
+) -> OperationState:
+    review = HumanReviewResult(decision=decision, reason=reason, edited_answer=edited_answer)
+    return OperationState(
+        ticket_id=str(ticket_id),
+        approval_route="human_review",
+        human_decision=decision,
+        human_review=review,
+        edited_answer=edited_answer,
+        metadata={"review_reason": reason},
+    )
+
+
+@app.get("/health")
+def health() -> dict[str, str]:
+    return {"status": "ok"}
+
+
+@app.post("/tickets/{ticket_id}/run-workflow", response_model=RunWorkflowResponse)
+def run_workflow(ticket_id: int) -> RunWorkflowResponse:
+    _ensure_ticket_reprocessable(ticket_id)
+    result = _run_graph(OperationState(ticket_id=str(ticket_id)), ticket_id=ticket_id)
     return RunWorkflowResponse(
         ticket_id=ticket_id,
         status=result.get("status") or "unknown",
@@ -261,18 +251,9 @@ def list_tickets(
     limit: int = Query(default=50, ge=1, le=200),
     today_only: bool = Query(default=False),
 ) -> list[dict[str, Any]]:
-    """qa_ticket 목록을 status·today_only 조건으로 반환합니다.
-
-    status 미지정이면 전체 상태를 조회합니다.
-    """
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
-            return _list_ticket_rows(
-                cur,
-                status=status,
-                limit=limit,
-                today_only=today_only,
-            )
+            return _list_ticket_rows(cur, status=status, limit=limit, today_only=today_only)
 
 
 @app.get("/tickets/today")
@@ -280,23 +261,12 @@ def list_today_tickets(
     status: str | None = Query(default="pending"),
     limit: int = Query(default=100, ge=1, le=200),
 ) -> list[dict[str, Any]]:
-    """Return tickets operators should check today.
-
-    The date boundary follows the database server's CURRENT_DATE and uses
-    qa_ticket.inquiry_created_at as the received timestamp.
-    """
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
-            return _list_ticket_rows(
-                cur,
-                status=status,
-                limit=limit,
-                today_only=True,
-            )
+            return _list_ticket_rows(cur, status=status, limit=limit, today_only=True)
 
 
 def _fetch_ticket_sections(cur: Any, ticket_id: int) -> dict[str, Any]:
-    """api_spec.md GET /tickets/{ticket_id} 응답 필드별 관련 테이블을 일괄 조회합니다."""
     analyses = _fetch_all(
         cur,
         "SELECT * FROM ticket_analysis WHERE ticket_id = %s ORDER BY analyzed_at DESC NULLS LAST, analysis_id DESC",
@@ -349,10 +319,6 @@ def _fetch_ticket_sections(cur: Any, ticket_id: int) -> dict[str, Any]:
 
 @app.get("/tickets/{ticket_id}")
 def get_ticket_detail(ticket_id: int) -> dict[str, Any]:
-    """티켓 상세 정보와 관련 데이터(분석·초안·근거·안전성·최종응답·알림·검수 이력)를 반환합니다.
-
-    ticket 행은 community_users, game_accounts와 LEFT JOIN해 사용자·계정 정보를 함께 제공합니다.
-    """
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
             ticket = _fetch_one(
@@ -382,113 +348,103 @@ def get_ticket_detail(ticket_id: int) -> dict[str, Any]:
 
 @app.patch("/drafts/{draft_id}")
 def edit_draft(draft_id: int, request: DraftEditRequest) -> ReviewActionResponse:
-    """답변 초안 텍스트를 수정하고 검수 이력에 edited 결정을 기록합니다."""
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
             draft = _draft_for_update(cur, draft_id)
-            cur.execute(
-                """
-                UPDATE answer_draft
-                SET draft_text = %s
-                WHERE draft_id = %s
-                """,
-                (request.draft_text, draft_id),
-            )
             _insert_review_log(
                 cur,
                 ticket_id=draft["ticket_id"],
                 draft_id=draft_id,
                 decision="edited",
                 reviewer_id=request.reviewer_id,
+                reason=request.reason,
             )
+
+    result = _run_graph(
+        _human_review_state(
+            ticket_id=draft["ticket_id"],
+            decision="edit",
+            reason=request.reason,
+            edited_answer=request.draft_text,
+        ),
+        ticket_id=draft["ticket_id"],
+    )
     return ReviewActionResponse(
         ticket_id=draft["ticket_id"],
         draft_id=draft_id,
         decision="edited",
-        status="draft_edited",
+        status=result.get("status") or "unknown",
+        response_id=result.get("response_id"),
+        next_draft_id=result.get("draft_id"),
     )
 
 
 @app.post("/drafts/{draft_id}/approve")
 def approve_draft(draft_id: int, request: ApproveDraftRequest) -> ReviewActionResponse:
-    """초안을 승인해 final_response에 저장하고 티켓 상태를 closed로 갱신합니다.
-
-    이미 승인된 초안(final_response 행이 존재)을 재승인하면 409를 반환합니다.
-    """
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
             draft = _draft_for_update(cur, draft_id)
-            cur.execute(
-                "SELECT response_id FROM final_response WHERE draft_id = %s LIMIT 1",
-                (draft_id,),
-            )
-            if cur.fetchone() is not None:
-                raise HTTPException(status_code=409, detail=f"draft {draft_id} is already approved")
-            final_text = request.final_text or draft["draft_text"]
-            cur.execute(
-                """
-                INSERT INTO final_response (
-                    ticket_id, draft_id, final_text, safety_action, created_at
-                )
-                VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP)
-                RETURNING response_id
-                """,
-                (draft["ticket_id"], draft_id, final_text, "approved"),
-            )
-            response_id = cur.fetchone()["response_id"]
-            cur.execute(
-                """
-                UPDATE qa_ticket
-                SET status = %s
-                WHERE ticket_id = %s
-                """,
-                ("closed", draft["ticket_id"]),
-            )
             _insert_review_log(
                 cur,
                 ticket_id=draft["ticket_id"],
                 draft_id=draft_id,
                 decision="approved",
                 reviewer_id=request.reviewer_id,
+                reason=request.reason,
             )
+
+    edited_answer = request.final_text or None
+    result = _run_graph(
+        _human_review_state(
+            ticket_id=draft["ticket_id"],
+            decision="approved",
+            reason=request.reason,
+            edited_answer=edited_answer,
+        ),
+        ticket_id=draft["ticket_id"],
+    )
     return ReviewActionResponse(
         ticket_id=draft["ticket_id"],
         draft_id=draft_id,
         decision="approved",
-        status="closed",
-        response_id=response_id,
+        status=result.get("status") or "unknown",
+        response_id=result.get("response_id"),
+        next_draft_id=result.get("draft_id"),
     )
 
 
-@app.post("/drafts/{draft_id}/reject")
-def reject_draft(draft_id: int, request: RejectDraftRequest) -> ReviewActionResponse:
-    """초안을 반려하고 티켓 상태를 pending으로 되돌립니다.
-
-    반환값의 run_workflow_url을 사용해 워크플로우를 재실행할 수 있습니다.
-    """
+@app.post("/drafts/{draft_id}/regenerate")
+def regenerate_draft(draft_id: int, request: RegenerateDraftRequest) -> ReviewActionResponse:
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
             draft = _draft_for_update(cur, draft_id)
-            cur.execute(
-                """
-                UPDATE qa_ticket
-                SET status = %s
-                WHERE ticket_id = %s
-                """,
-                ("pending", draft["ticket_id"]),
-            )
             _insert_review_log(
                 cur,
                 ticket_id=draft["ticket_id"],
                 draft_id=draft_id,
-                decision="rejected",
+                decision="regenerate",
                 reviewer_id=request.reviewer_id,
                 reason=request.reason,
             )
+
+    result = _run_graph(
+        _human_review_state(
+            ticket_id=draft["ticket_id"],
+            decision="regenerate",
+            reason=request.reason,
+        ),
+        ticket_id=draft["ticket_id"],
+    )
     return ReviewActionResponse(
         ticket_id=draft["ticket_id"],
         draft_id=draft_id,
-        decision="rejected",
-        status="pending",
-        run_workflow_url=f"/tickets/{draft['ticket_id']}/run-workflow",
+        decision="regenerate",
+        status=result.get("status") or "unknown",
+        response_id=result.get("response_id"),
+        next_draft_id=result.get("draft_id"),
     )
+
+
+@app.post("/drafts/{draft_id}/reject")
+def reject_draft(draft_id: int, request: RegenerateDraftRequest) -> ReviewActionResponse:
+    return regenerate_draft(draft_id, request)

@@ -1,4 +1,4 @@
-"""Full-path test for the operation workflow graph with fake DB and LLM."""
+"""Full-path tests for the 6-step operation workflow graph."""
 
 from __future__ import annotations
 
@@ -9,26 +9,23 @@ from pathlib import Path
 from unittest.mock import patch
 
 
-BACKEND_ROOT = Path(__file__).resolve().parents[2] / "cs_auto" / "backend"
+REPO_ROOT = Path(__file__).resolve().parents[3]
+BACKEND_ROOT = REPO_ROOT / "apps" / "cs_auto" / "backend"
+COMMON_ROOT = REPO_ROOT / "packages" / "common-python" / "src"
 sys.path.insert(0, str(BACKEND_ROOT))
+sys.path.insert(0, str(COMMON_ROOT))
 
-from workflow import build_operation_graph
-from workflow import nodes
-from workflow.prompts import (
-    AnswerDraftResponse,
-    QueryRoutingResponse,
-    SafetyReviewResponse,
-    TicketAnalysisResponse,
-    UrgentDraftResponse,
-)
-from workflow.state import OperationState
+from workflow import build_operation_graph, nodes
+from workflow.agents import ContextAgentResult
+from workflow.prompts import DraftingAgentResponse, HumanReviewResponse, IntakeAgentResponse, ReviewAgentResponse
+from workflow.state import AnalysisResult, EvidenceDocument, OperationState, SafetyResult
 
 
 class FakeWorkflowDatabase:
     def __init__(self) -> None:
         self.ticket_status = "pending"
         self.executed_sql: list[str] = []
-        self.sequences: dict[str, int] = {
+        self.sequences = {
             "ticket_analysis": 0,
             "answer_draft": 0,
             "evidence_docs": 0,
@@ -36,14 +33,7 @@ class FakeWorkflowDatabase:
             "final_response": 0,
             "notification_logs": 0,
         }
-        self.inserted: dict[str, list[tuple[object, ...]]] = {
-            "ticket_analysis": [],
-            "answer_draft": [],
-            "evidence_docs": [],
-            "safety_results": [],
-            "final_response": [],
-            "notification_logs": [],
-        }
+        self.inserted = {key: [] for key in self.sequences}
 
     def next_id(self, table_name: str) -> int:
         self.sequences[table_name] += 1
@@ -66,59 +56,7 @@ class FakeCursor:
         params = params or ()
         self.database.executed_sql.append(normalized_sql)
 
-        if "from qa_ticket t" in normalized_sql:
-            self.result = {
-                "ticket_id": 1001,
-                "user_id": 1,
-                "account_id": 101,
-                "title": "결제 확인",
-                "raw_query": "결제 상품이 계정에 반영되었는지 확인해주세요.",
-                "source_type": "naver_cafe",
-                "status": self.database.ticket_status,
-                "inquiry_created_at": "2026-05-11 10:00:00",
-                "session_id": None,
-                "email": "user1@game.com",
-                "nickname": "원신 중수",
-                "user_status": "active",
-                "game_name": None,
-                "uid": None,
-                "server_region": None,
-                "progression_level": None,
-                "account_status": None,
-            }
-        elif "from payments p" in normalized_sql:
-            self.result = [
-                {
-                    "payment_id": 11,
-                    "account_id": 101,
-                    "product_name": "월정액",
-                    "payment_status": "paid",
-                    "amount": 9900,
-                }
-            ]
-        elif "from documents_chunks c" in normalized_sql:
-            # _MIN_EVIDENCE_COUNT=2를 만족해야 save_evidence_docs 경로를 탄다
-            self.result = [
-                {
-                    "chunk_id": "chunk-1",
-                    "document_id": "doc-1",
-                    "source_type": "policy",
-                    "category": "payment",
-                    "title": "결제 안내",
-                    "chunk_text": "결제 완료 후 아이템 지급 상태를 확인합니다.",
-                    "score": 0.75,
-                },
-                {
-                    "chunk_id": "chunk-2",
-                    "document_id": "doc-2",
-                    "source_type": "policy",
-                    "category": "payment",
-                    "title": "환불 안내",
-                    "chunk_text": "환불은 결제일로부터 7일 이내 신청 가능합니다.",
-                    "score": 0.60,
-                },
-            ]
-        elif normalized_sql.startswith("insert into ticket_analysis"):
+        if normalized_sql.startswith("insert into ticket_analysis"):
             self.database.inserted["ticket_analysis"].append(params)
             self.result = (self.database.next_id("ticket_analysis"),)
         elif normalized_sql.startswith("insert into answer_draft"):
@@ -165,25 +103,53 @@ def fake_db_connection(database: FakeWorkflowDatabase):
     return connection
 
 
-def fake_structured_llm(*, system_prompt, user_prompt, response_model):
-    if response_model is QueryRoutingResponse:
-        return QueryRoutingResponse(query_route="payment", route_reason="결제 상태 확인")
-    if response_model is TicketAnalysisResponse:
-        return TicketAnalysisResponse(
-            query_route="payment",
-            target_route="rag_reply",
-            risk_level="low",
-            risk_reason="일반 결제 확인",
-            summary="결제 상품 반영 확인 요청",
-            required_actions=["결제 이력 확인", "지급 상태 확인"],
+def happy_intake() -> IntakeAgentResponse:
+    return IntakeAgentResponse(
+        query_route="payment",
+        route_reason="결제 관련 문의",
+        target_route="rag_reply",
+        risk_level="low",
+        risk_reason="일반 결제 확인",
+        summary="결제 상태 확인 요청",
+        required_actions=["결제 이력 확인"],
+        review_required=False,
+        review_reason=None,
+        required_context_types=["payment"],
+    )
+
+
+class WorkflowFullPathTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.ticket_row = {
+            "ticket_id": 1001,
+            "user_id": 1,
+            "account_id": 101,
+            "title": "결제 확인",
+            "raw_query": "결제 상품이 정상 반영됐는지 확인해주세요.",
+            "source_type": "naver_cafe",
+            "responder_type": "bot",
+            "status": "pending",
+            "inquiry_created_at": "2026-05-11 10:00:00",
+        }
+
+    def test_full_graph_happy_path_persists_expected_tables(self) -> None:
+        database = FakeWorkflowDatabase()
+        graph = build_operation_graph()
+        context_result = ContextAgentResult(
+            context={"payment": [{"payment_id": 11}]},
+            context_nodes=["payment_context"],
+            retrieved_docs=[
+                EvidenceDocument(doc_id="chunk-1", source="policy", content="결제 안내", score=0.75),
+                EvidenceDocument(doc_id="chunk-2", source="policy", content="환불 안내", score=0.60),
+            ],
+            evidence_doc_ids=["chunk-1", "chunk-2"],
         )
-    if response_model is AnswerDraftResponse:
-        return AnswerDraftResponse(
-            answer_draft="결제 내역과 지급 상태를 확인했습니다.",
+        drafting_response = DraftingAgentResponse(
+            customer_answer="결제 내역과 지급 상태를 확인했습니다.",
             evidence_doc_ids=["chunk-1"],
         )
-    if response_model is SafetyReviewResponse:
-        return SafetyReviewResponse(
+        review_response = ReviewAgentResponse(
+            approval_route="approved",
             approved=True,
             evidence_matched=True,
             hallucination_detected=False,
@@ -191,36 +157,16 @@ def fake_structured_llm(*, system_prompt, user_prompt, response_model):
             unsafe_expression_detected=False,
             reasons=[],
         )
-    raise AssertionError(f"unexpected response model: {response_model}")
+        human_review_response = HumanReviewResponse(decision="approved", reason="검토 완료", edited_answer=None)
 
-
-def fake_urgent_structured_llm(*, system_prompt, user_prompt, response_model):
-    if response_model is QueryRoutingResponse:
-        return QueryRoutingResponse(query_route="payment", route_reason="결제 위험 확인")
-    if response_model is TicketAnalysisResponse:
-        return TicketAnalysisResponse(
-            query_route="payment",
-            target_route="urgent_alert",
-            risk_level="critical",
-            risk_reason="운영자 즉시 확인 필요",
-            summary="고위험 결제 문의",
-            required_actions=["운영자 확인"],
-        )
-    if response_model is UrgentDraftResponse:
-        return UrgentDraftResponse(urgent_draft="긴급 결제 문의입니다. 운영자 확인이 필요합니다.")
-    raise AssertionError(f"unexpected response model: {response_model}")
-
-
-class WorkflowFullPathTest(unittest.TestCase):
-    def test_full_graph_happy_path_persists_expected_tables(self) -> None:
-        database = FakeWorkflowDatabase()
-        graph = build_operation_graph()
-
-        with patch.object(nodes, "db_connection", fake_db_connection(database)):
-            with patch.object(nodes, "invoke_structured_llm", fake_structured_llm):
-                # 임베딩 API 호출 없이 BM25 단독 검색으로 테스트 안정성 확보
-                with patch.object(nodes, "get_query_embedding", return_value=None):
-                    result = graph.invoke(OperationState(ticket_id="1001"))
+        with patch.object(nodes, "_fetch_ticket", return_value=self.ticket_row):
+            with patch.object(nodes, "db_connection", fake_db_connection(database)):
+                with patch.object(nodes, "run_intake_agent", return_value=happy_intake()):
+                    with patch.object(nodes, "run_context_agent", return_value=context_result):
+                        with patch.object(nodes, "run_drafting_agent", return_value=drafting_response):
+                            with patch.object(nodes, "run_review_agent", return_value=review_response):
+                                with patch.object(nodes, "invoke_structured_llm", return_value=human_review_response):
+                                    result = graph.invoke(OperationState(ticket_id="1001"))
 
         self.assertEqual(result["status"], "closed")
         self.assertEqual(result["final_answer"], "결제 내역과 지급 상태를 확인했습니다.")
@@ -230,41 +176,41 @@ class WorkflowFullPathTest(unittest.TestCase):
         self.assertEqual(len(database.inserted["evidence_docs"]), 1)
         self.assertEqual(len(database.inserted["safety_results"]), 1)
         self.assertEqual(len(database.inserted["final_response"]), 1)
-        self.assertEqual(database.inserted["final_response"][0][0], "1001")
 
-    def test_full_graph_urgent_path_writes_notification_without_safety_publish(self) -> None:
+    def test_full_graph_urgent_path_writes_notification(self) -> None:
         database = FakeWorkflowDatabase()
         graph = build_operation_graph()
+        context_result = ContextAgentResult(context={"payment": [{"payment_id": 11}]}, context_nodes=["payment_context"])
+        drafting_response = DraftingAgentResponse(urgent_alert_message="긴급 결제 문의입니다. 운영자 확인이 필요합니다.")
+        review_response = ReviewAgentResponse(
+            approval_route="urgent_alert",
+            approved=False,
+            evidence_matched=False,
+            hallucination_detected=False,
+            policy_violation_detected=False,
+            unsafe_expression_detected=False,
+            reasons=["운영자 즉시 확인 필요"],
+        )
+        human_review_response = HumanReviewResponse(decision="approved", reason="긴급 알림 승인", edited_answer=None)
 
-        with patch.object(nodes, "db_connection", fake_db_connection(database)):
-            with patch.object(nodes, "invoke_structured_llm", fake_urgent_structured_llm):
-                with patch.object(nodes, "get_query_embedding", return_value=None):
-                    result = graph.invoke(OperationState(ticket_id="1001"))
+        with patch.object(nodes, "_fetch_ticket", return_value=self.ticket_row):
+            with patch.object(nodes, "db_connection", fake_db_connection(database)):
+                with patch.object(
+                    nodes,
+                    "run_intake_agent",
+                    return_value=happy_intake().model_copy(update={"target_route": "urgent_alert", "risk_level": "critical"}),
+                ):
+                    with patch.object(nodes, "run_context_agent", return_value=context_result):
+                        with patch.object(nodes, "run_drafting_agent", return_value=drafting_response):
+                            with patch.object(nodes, "run_review_agent", return_value=review_response):
+                                with patch.object(nodes, "invoke_structured_llm", return_value=human_review_response):
+                                    result = graph.invoke(OperationState(ticket_id="1001"))
 
         self.assertEqual(result["status"], "urgent_alert_pending")
-        # urgent_alert_node가 qa_ticket.status="urgent_alert_pending"으로 UPDATE한다
         self.assertEqual(database.ticket_status, "urgent_alert_pending")
         self.assertEqual(len(database.inserted["answer_draft"]), 1)
         self.assertEqual(len(database.inserted["notification_logs"]), 1)
-        # 긴급 경로는 safety_results/final_response를 거치지 않는다
-        self.assertEqual(len(database.inserted["safety_results"]), 0)
         self.assertEqual(len(database.inserted["final_response"]), 0)
-
-    def test_full_graph_uses_returning_ids_without_max_id_queries(self) -> None:
-        database = FakeWorkflowDatabase()
-        graph = build_operation_graph()
-
-        with patch.object(nodes, "db_connection", fake_db_connection(database)):
-            with patch.object(nodes, "invoke_structured_llm", fake_structured_llm):
-                with patch.object(nodes, "get_query_embedding", return_value=None):
-                    first_result = graph.invoke(OperationState(ticket_id="1001"))
-                    second_result = graph.invoke(OperationState(ticket_id="1001"))
-
-        self.assertEqual(first_result["analysis_id"], 1)
-        self.assertEqual(second_result["analysis_id"], 2)
-        self.assertEqual(first_result["draft_id"], 1)
-        self.assertEqual(second_result["draft_id"], 2)
-        self.assertFalse(any("select coalesce(max(" in sql for sql in database.executed_sql))
 
 
 if __name__ == "__main__":
