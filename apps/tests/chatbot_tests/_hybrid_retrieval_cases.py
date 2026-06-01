@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from chatbot.retrieval import vector_tools
-from chatbot.retrieval.vector_tools import hybrid_rank_documents, refine_query_text, search_document_chunks
+from common.retrieval import vector_tools
+from common.retrieval.vector_tools import hybrid_rank_documents, refine_query_text, search_document_chunks
 
 
 def test_refine_query_text_deduplicates_terms() -> None:

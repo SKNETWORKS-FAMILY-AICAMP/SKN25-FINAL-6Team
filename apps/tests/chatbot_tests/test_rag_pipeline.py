@@ -4,8 +4,8 @@ import json
 
 from chatbot.chains import persistence
 from chatbot.generation import faq_agent
-from chatbot.retrieval import vector_tools
-from chatbot.retrieval.vector_tools import RetrievalQuery, hybrid_rank_documents, refine_query_text, search_document_chunks
+from common.retrieval import vector_tools
+from common.retrieval.vector_tools import RetrievalQuery, hybrid_rank_documents, refine_query_text, search_document_chunks
 
 
 def _retrieval_query() -> RetrievalQuery:
