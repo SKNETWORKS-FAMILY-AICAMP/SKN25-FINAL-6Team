@@ -14,6 +14,7 @@ from common.observability.langsmith import configure_langsmith
 configure_langsmith("operation")
 
 from common.db.connection import db_connection
+from service.account_service import login_with_credentials
 from workflow import OperationState, build_operation_graph
 from workflow.state import HumanReviewResult
 
@@ -39,6 +40,23 @@ class ApproveDraftRequest(BaseModel):
 class RegenerateDraftRequest(BaseModel):
     reason: str = Field(min_length=1)
     reviewer_id: str | None = None
+
+
+class LoginRequest(BaseModel):
+    email: str = Field(min_length=1)
+    password: str = Field(min_length=1)
+    server_region: str = Field(min_length=1)
+
+
+class LoginResponse(BaseModel):
+    login_success: bool
+    user_id: int | None = None
+    account_id: int | None = None
+    game_id: str = ""
+    email: str = ""
+    server_region: str = ""
+    nickname: str | None = None
+    message: str = ""
 
 
 class RunWorkflowResponse(BaseModel):
@@ -229,6 +247,12 @@ def _human_review_state(
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.post("/auth/login", response_model=LoginResponse)
+def login(request: LoginRequest) -> LoginResponse:
+    result = login_with_credentials(request.email, request.password, request.server_region)
+    return LoginResponse(**result)
 
 
 @app.post("/tickets/{ticket_id}/run-workflow", response_model=RunWorkflowResponse)
