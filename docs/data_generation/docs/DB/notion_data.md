@@ -23,7 +23,7 @@
 - Customer inquiry data: `qa_ticket`
 - Payment and operation context: `payments`, `refunds`, `item_delivery_logs`, `gacha_logs`
 - Analysis and response workflow: `ticket_analysis`, `answer_draft`, `evidence_docs`, `safety_results`, `final_response`
-- Monitoring and operational support: `failed_queries`, `notification_logs`, `admin_event_logs`, `insight`, `voc_feedback`
+- Monitoring and operational support: `failed_queries`, `notification_logs`, `admin_event_logs`, `insight`
 - RAG document store: `documents`, `documents_chunks`, `documents_embeddings`
 
 ## RDBMS ERD
@@ -212,17 +212,6 @@ Table insight {
   inquiry_created_at datetime
 }
 
-Table voc_feedback {
-  voc_id int [pk]
-  ticket_id int [ref: > qa_ticket.ticket_id]
-  user_id int [ref: > community_users.user_id]
-  account_id int [ref: > game_accounts.account_id, null]
-  voc_type varchar
-  sentiment varchar
-  raw_content text
-  topic_keywords json
-  created_at datetime
-}
 ```
 
 ## Vector / RAG ERD
@@ -282,7 +271,6 @@ Table documents_embeddings {
 | `refunds` | 5 | Refund request and processing history |
 | `safety_results` | 95 | Safety and grounding check results |
 | `ticket_analysis` | 118 | Ticket classification, risk, sentiment, and routing analysis |
-| `voc_feedback` | 5 | VOC feedback and topic keyword records |
 
 ## Workflow Read/Write Map
 
@@ -293,7 +281,7 @@ Table documents_embeddings {
 | Refund context | `refunds`, `payments`, `game_accounts` |
 | Item delivery context | `item_delivery_logs`, `game_accounts` |
 | Gacha context | `gacha_logs`, `game_accounts` |
-| Abuse / VOC context | `insight`, `voc_feedback` |
+| Abuse context | `insight` |
 | Policy / outage context | `documents` |
 | RAG retrieval | `documents`, `documents_chunks`, `documents_embeddings` |
 | Workflow writes | `ticket_analysis`, `answer_draft`, `evidence_docs`, `safety_results`, `final_response`, `notification_logs`, `failed_queries`, `admin_event_logs` |
@@ -305,7 +293,7 @@ Table documents_embeddings {
 - `ticket_analysis`, `answer_draft`, `evidence_docs`, and `safety_results` form the core answer-generation chain.
 - `final_response` connects the customer-facing result back to both `qa_ticket` and `answer_draft`.
 - `documents` -> `documents_chunks` -> `documents_embeddings` is the RAG storage chain.
-- `insight` and `voc_feedback` provide operational review context beyond direct ticket handling.
+- `insight` provides operational review context beyond direct ticket handling.
 
 ## ID / Insert Caution
 
@@ -416,13 +404,6 @@ Auto-increment defaults currently exist for:
 | 11001 | 1 | 1001 | 101 | `Repeated growth in item-not-delivered complaints after payment.` | `payment` | `negative` | `HIGH` | `CRITICAL` | `2026-05-11 10:00:00` |
 | 11002 | 2 | 1002 | 102 | `Increasing trend of inquiries about gacha probability and fairness.` | `gacha` | `neutral` | `LOW` | `MEDIUM` | `2026-05-11 11:30:00` |
 
-### `voc_feedback`
-
-| voc_id | ticket_id | user_id | account_id | voc_type | sentiment | raw_content | topic_keywords | created_at |
-| ---: | ---: | ---: | ---: | --- | --- | --- | --- | --- |
-| 12001 | 1001 | 1 | 101 | `complaint` | `negative` | `결제 후 아이템이 바로 지급되지 않아 불편합니다.` | `["payment","delivery","delay"]` | `2026-05-11 10:10:00` |
-| 12002 | 1002 | 2 | 102 | `question` | `neutral` | `가챠 결과를 공개된 확률 공지 기준으로 확인하고 싶습니다.` | `["gacha","probability","notice"]` | `2026-05-11 11:45:00` |
-
 ### `documents`
 
 | documents_id | source_type | category | title | source_url | published_at |
@@ -451,4 +432,4 @@ Auto-increment defaults currently exist for:
 | `data/processed/community_users.csv` | `community_users` | 9,221 source rows; upserted by `user_id`, resulting in 6,288 distinct users |
 | `data/processed/qa_ticket.csv` | `qa_ticket` | Duplicate `source_type` appears in the CSV header; the insert notebook keeps the first occurrence |
 | `notebooks/insert_processed_data.ipynb` | `community_users`, `game_accounts`, `qa_ticket` | Builds `game_accounts` from distinct non-null `qa_ticket.account_id` to `user_id` mappings before ticket insert |
-| `notebooks/generate_operation_workflow_sample_data.ipynb` | `payments`, `refunds`, `item_delivery_logs`, `gacha_logs`, `insight`, `voc_feedback` | Generates sample operation context data used by the workflow |
+| `notebooks/generate_operation_workflow_sample_data.ipynb` | `payments`, `refunds`, `item_delivery_logs`, `gacha_logs`, `insight` | Generates sample operation context data used by the workflow |

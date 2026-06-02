@@ -20,7 +20,7 @@ class VocClassification(BaseModel):
 
 
 def _active_text(state: ChatbotState) -> str:
-    return state["enriched_query"]
+    return str(state.get("enriched_query") or state.get("raw_query") or "").strip()
 
 
 def _classify_voc_with_llm(text: str) -> VocClassification:
@@ -63,28 +63,27 @@ def _classify_voc(text: str) -> tuple[str, str, list[str]]:
 def _build_voc_response(voc_type: str) -> str:
     responses = {
         "complaint": (
-            "소중한 의견 남겨주셔서 감사합니다.\n"
-            "이용 중 불편을 느끼신 부분은 관련 부서에서 확인할 수 있도록 접수하겠습니다. "
-            "추가 확인이 필요한 경우 상담원이 이어서 안내드릴 수 있습니다."
+            "소중한 의견을 남겨주셔서 감사합니다.\n"
+            "말씀해주신 불편 사항은 담당 부서에서 확인할 수 있도록 접수하겠습니다."
         ),
         "suggestion": (
             "좋은 제안 남겨주셔서 감사합니다.\n"
-            "말씀해주신 개선 의견은 서비스 운영 및 업데이트 검토 시 참고할 수 있도록 전달하겠습니다."
+            "보내주신 개선 의견은 서비스 운영 및 업데이트 검토에 참고할 수 있도록 전달하겠습니다."
         ),
         "praise": (
             "따뜻한 의견 남겨주셔서 감사합니다.\n"
-            "보내주신 응원은 서비스 운영팀에 잘 전달하겠습니다. 앞으로도 더 좋은 경험을 드릴 수 있도록 노력하겠습니다."
+            "보내주신 응원은 서비스 운영팀에 전달하겠습니다. 앞으로도 좋은 경험을 드릴 수 있도록 노력하겠습니다."
         ),
         "multi_intent": (
             "여러 의견을 함께 남겨주셔서 감사합니다.\n"
-            "말씀해주신 내용은 항목별로 확인할 수 있도록 접수하겠습니다. 확인이 필요한 부분은 상담원이 이어서 안내드릴 수 있습니다."
+            "말씀해주신 내용은 항목별로 확인할 수 있도록 접수하겠습니다."
         ),
         "other": (
             "의견 남겨주셔서 감사합니다.\n"
             "보내주신 내용은 담당 부서에서 참고할 수 있도록 접수하겠습니다."
         ),
     }
-    return responses[voc_type]
+    return responses.get(voc_type, responses["other"])
 
 
 def voc_agent_node(state: ChatbotState) -> dict:
@@ -111,9 +110,4 @@ def voc_agent_node(state: ChatbotState) -> dict:
         "voc_type": voc_type,
         "sentiment": sentiment,
         "topic_keywords": topic_keywords,
-        "voc_feedback_result": {
-            "status": "skipped",
-            "stored": False,
-            "reason": "chatbot_state_only",
-        },
     }

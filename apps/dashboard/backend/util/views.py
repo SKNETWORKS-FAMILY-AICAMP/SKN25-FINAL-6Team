@@ -589,7 +589,6 @@ def render_ticket_detail(detail: dict[str, Any]) -> None:
     safety_results = detail.get("safety_results", [])
     final_responses = detail.get("final_responses", [])
     notifications = detail.get("notifications", [])
-    voc_feedback = detail.get("voc_feedback", [])
     operation_logs = detail.get("operation_logs", {})
     workflow_logs = detail.get("workflow_logs", {})
 
@@ -626,10 +625,6 @@ def render_ticket_detail(detail: dict[str, Any]) -> None:
     if notifications:
         with st.expander("전송 알림 이력", expanded=False):
             render_data_table(notifications, kind="failure_log")
-    if voc_feedback:
-        with st.expander("이용자 피드백", expanded=False):
-            render_data_table(voc_feedback, kind="history")
-
     operation_payload = {
         "payments": operation_logs.get("payments", []),
         "refunds": operation_logs.get("refunds", []),

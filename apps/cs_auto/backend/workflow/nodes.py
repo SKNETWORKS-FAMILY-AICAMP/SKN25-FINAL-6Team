@@ -389,13 +389,11 @@ def _gacha_rows(cur: Any, *, user_id: Any, account_id: Any, **_: Any) -> list[di
 
 def _abuse_rows(cur: Any, *, user_id: Any, account_id: Any, ticket_id: str) -> list[dict[str, Any]]:
     # insight는 user_id/account_id/ticket_id 세 기준을 모두 보유한다
-    # voc_feedback은 LEFT JOIN: 해당 티켓에 VOC가 없어도 insight 행은 반환해야 한다
     # LIMIT 10: _payment_rows 주석 참조 (모든 route 공통 상한)
     cur.execute(
         """
-        SELECT i.*, v.voc_type, v.sentiment AS voc_sentiment, v.topic_keywords
+        SELECT i.*
         FROM insight i
-        LEFT JOIN voc_feedback v ON v.ticket_id = i.ticket_id
         WHERE i.user_id = %s OR i.ticket_id = %s OR i.account_id = %s
         ORDER BY i.inquiry_created_at DESC NULLS LAST
         LIMIT 10
@@ -566,7 +564,7 @@ def policy_context_node(state: OperationState) -> StateUpdate:
 def abuse_context_node(state: OperationState) -> StateUpdate:
     """어뷰징/위험 문의에 필요한 인사이트와 VOC context를 추가합니다.
 
-    `insight`, `voc_feedback`을 `qa_ticket`, `community_users`, `game_accounts` 기준으로 연결합니다.
+    `insight`를 `qa_ticket`, `community_users`, `game_accounts` 기준으로 연결합니다.
     """
     return _add_context(state, "abuse")
 

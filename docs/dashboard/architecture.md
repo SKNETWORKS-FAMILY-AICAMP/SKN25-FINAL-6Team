@@ -47,7 +47,7 @@ Dashboard 문서와 구현은 기존 테이블과 충돌하는 신규 테이블�
 | Safety | `safety_results` | 환각, 유해성, 정책 위반, 사실성, safety action |
 | 알림/운영 로그 | `notification_logs`, `admin_event_logs`, `failed_queries` | 알림 발송 상태, 실패 원인, 운영 이벤트 |
 | 업무 로그 | `payments`, `refunds`, `item_delivery_logs`, `gacha_logs` | 결제, 환불, 지급, 가챠 관련 상세 근거 |
-| 인사이트/VOC | `insight`, `voc_feedback` | 반복 이슈, 패턴 위험도, VOC 감성/키워드 |
+| 인사이트 | `insight` | 반복 이슈, 패턴 위험도 |
 
 ## Component Flow
 
@@ -157,7 +157,6 @@ flowchart LR
     S["safety_results"]
     F["final_response"]
     N["notification_logs"]
-    V["voc_feedback"]
     OP["payments / refunds<br/>item_delivery_logs / gacha_logs"]
 
     T --> U
@@ -168,17 +167,15 @@ flowchart LR
     D --> S
     T --> F
     T --> N
-    T --> V
     A --> OP
 ```
 
-상세 응답은 `ticket_id` 하나로 문의, 계정, 분석, 초안, 근거, safety, 최종 답변, 알림, VOC,
-업무 로그를 함께 반환한다. 결제/환불/지급/가챠 로그는 `account_id`와 `payment_id`를 기준으로 연결한다.
+상세 응답은 `ticket_id` 하나로 문의, 계정, 분석, 초안, 근거, safety, 최종 답변, 알림, 업무 로그를 함께 반환한다. 결제/환불/지급/가챠 로그는 `account_id`와 `payment_id`를 기준으로 연결한다.
 
 ## 인사이트와 관측 흐름
 
 분리되어 있던 `mermaid.mmd`의 인사이트/관측 다이어그램은 아래 흐름으로 통합한다.
-분석, safety, 최종 답변, VOC, 업무 로그는 운영 통계와 인사이트를 만들고, threshold 위반 시
+분석, safety, 최종 답변, 업무 로그는 운영 통계와 인사이트를 만들고, threshold 위반 시
 화면 경고와 Slack/Discord 알림으로 이어진다.
 
 ```mermaid
@@ -186,7 +183,6 @@ flowchart TB
     ANALYSIS["ticket_analysis<br/>risk / sentiment / routing"]
     SAFETY["safety_results<br/>hallucination / toxicity / policy / factuality"]
     FINAL["final_response<br/>created_at / safety_action"]
-    VOC["voc_feedback<br/>voc_type / sentiment / topic_keywords"]
     OPLOG["operation logs<br/>payments / refunds / delivery / gacha"]
 
     AGG["Dashboard metric aggregation<br/>repeat inquiries<br/>sentiment trend<br/>risk keyword increase<br/>response quality"]
@@ -203,7 +199,6 @@ flowchart TB
     ANALYSIS --> AGG
     SAFETY --> AGG
     FINAL --> AGG
-    VOC --> AGG
     OPLOG --> AGG
     AGG --> INSIGHT
     INSIGHT --> OBS

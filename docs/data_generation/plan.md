@@ -16,7 +16,6 @@
 
 - `ticket_analysis`
 - `insight`
-- `voc_feedback`
 - `documents`
 - `documents_chunks`
 - `documents_embeddings`

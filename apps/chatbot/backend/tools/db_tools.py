@@ -170,19 +170,6 @@ def write_failed_query(payload: dict) -> str:
 
 
 @tool(parse_docstring=True)
-def write_voc_feedback(payload: dict) -> str:
-    """Write a VOC feedback record for analysis and follow-up.
-
-    Args:
-        payload: VOC fields including ticket_id, user_id, account_id, voc_type,
-            sentiment, raw_content, and topic_keywords.
-    """
-    from chatbot.repository.voc_repository import save_voc_feedback
-
-    return _json(save_voc_feedback(payload))
-
-
-@tool(parse_docstring=True)
 def update_qa_ticket_status(payload: dict) -> str:
     """Update a QA ticket status after final chatbot handling.
 

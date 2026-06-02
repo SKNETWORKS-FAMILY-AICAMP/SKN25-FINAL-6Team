@@ -7,7 +7,7 @@
 - `docs/dashboard/architecture.md`: Dashboard API, summary pipeline, Streamlit frontend 구조
 - `docs/dashboard/api_spec.md`: `/summary/*`, `/tickets`, `/tickets/{ticket_id}` 응답 필드
 - `docs/dashboard/metrics.md`: 운영 현황, 리스크 분석, 응답 품질 지표 산식
-- `docs/DB/descriptions.md`: `qa_ticket`, `ticket_analysis`, `answer_draft`, `evidence_docs`, `safety_results`, `final_response`, `notification_logs`, `insight`, `voc_feedback` 관계
+- `docs/DB/descriptions.md`: `qa_ticket`, `ticket_analysis`, `answer_draft`, `evidence_docs`, `safety_results`, `final_response`, `notification_logs`, `insight` 관계
 - `docs/operation/*`: 운영자 검수 흐름과 티켓 처리 맥락
 
 대시보드는 운영자가 매일 확인하는 업무 화면이므로 마케팅형 랜딩 화면이 아니라, 지표 탐색과 이상 징후 파악에 집중한 밀도 있는 업무 도구로 설계한다.

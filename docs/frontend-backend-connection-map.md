@@ -320,7 +320,6 @@
 - `safety_results`
 - `final_responses`
 - `notifications`
-- `voc_feedback`
 - `payment_logs`
 - `refund_logs`
 - `item_delivery_logs`
@@ -331,7 +330,7 @@
 
 - 우측 Ticket Detail
 - Analysis / Draft / Final
-- Evidence / VOC
+- Evidence / operation logs
 
 현재 프론트는 이 중 일부만 표면에 올린다. 그러나 API는 훨씬 넓은 운영 데이터를 이미 제공한다.
 
@@ -350,7 +349,6 @@
 
 현재 상세 API가 주지만 프론트가 덜 쓰는 데이터:
 
-- `voc_feedback`
 - `payment_logs`
 - `refund_logs`
 - `item_delivery_logs`
@@ -378,7 +376,7 @@
 ### Dashboard
 
 - 프론트는 요약/리포트/상세 조회를 넓게 연결함
-- 다만 PDF 발행, Slack 발송, 결제/VOC/가챠/운영 로그 시각화는 아직 미연결
+- 다만 PDF 발행, Slack 발송, 결제/가챠/운영 로그 시각화는 아직 미연결
 
 ## 5. 다음 연결 우선순위
 
@@ -387,7 +385,7 @@
 1. `dashboard`
    `GET /reports/weekly/pdf`, `POST /reports/weekly/slack`, `POST /reports/weekly/slack/now`를 버튼으로 연결
 2. `dashboard`
-   상세 패널에 `voc_feedback`, `payment_logs`, `refund_logs`, `admin_event_logs` 섹션 추가
+   상세 패널에 `payment_logs`, `refund_logs`, `admin_event_logs` 섹션 추가
 3. `chatbot`
    `run_chatbot()`의 safety/routing 세부 결과를 FAQ 패널 또는 debug panel에 시각화
 4. `cs_auto`

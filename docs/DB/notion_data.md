@@ -23,7 +23,7 @@
 - 고객 문의: `qa_ticket`
 - 운영 근거 데이터: `payments`, `refunds`, `item_delivery_logs`, `gacha_logs`
 - 답변 생성 워크플로우: `ticket_analysis`, `answer_draft`, `evidence_docs`, `safety_results`, `final_response`
-- 운영/모니터링: `failed_queries`, `notification_logs`, `admin_event_logs`, `insight`, `voc_feedback`
+- 운영/모니터링: `failed_queries`, `notification_logs`, `admin_event_logs`, `insight`
 - 문서/RAG 저장소: `documents`, `documents_chunks`, `documents_embeddings`
 - 템플릿/원본 보존용 백업 테이블: 각 메인 테이블의 `_ex` 버전
 
@@ -60,7 +60,6 @@
 | `refunds` | 55 | 환불 이력 |
 | `safety_results` | 0 | 안전성 점검 결과 |
 | `ticket_analysis` | 0 | 문의 분석 결과 |
-| `voc_feedback` | 0 | VOC 피드백 |
 
 ## 5. `_ex` 템플릿 테이블 현재 건수
 
@@ -87,7 +86,6 @@
 | `refunds_ex` | 5 | 환불 예시 |
 | `safety_results_ex` | 287 | 안전성 점검 예시 |
 | `ticket_analysis_ex` | 351 | 문의 분석 예시 |
-| `voc_feedback_ex` | 43 | VOC 예시 |
 
 ## 6. 축소 데이터셋 핵심 7개 테이블
 
@@ -127,7 +125,7 @@
 | 환불 컨텍스트 조회 | `refunds`, `payments`, `game_accounts` |
 | 아이템 지급 조회 | `item_delivery_logs`, `game_accounts` |
 | 가챠 컨텍스트 조회 | `gacha_logs`, `game_accounts` |
-| VOC/패턴 조회 | `insight`, `voc_feedback` |
+| 패턴 조회 | `insight` |
 | 정책/공지 조회 | `documents` |
 | RAG 검색 | `documents`, `documents_chunks`, `documents_embeddings` |
 | 워크플로우 결과 기록 | `ticket_analysis`, `answer_draft`, `evidence_docs`, `safety_results`, `final_response`, `notification_logs`, `failed_queries`, `admin_event_logs` |
@@ -155,7 +153,6 @@
 - `admin_event_logs`
 - `notification_logs`
 - `insight`
-- `voc_feedback`
 
 즉, reduced dataset는 현재 **입력 데이터는 채워져 있고, 워크플로우 결과물은 초기화된 상태**로 보는 것이 맞다.
 
@@ -357,5 +354,5 @@ Table documents_embeddings {
 | `data/processed/community_users.csv` | `community_users` | 원본 9,221행에서 `user_id` 기준 upsert, 결과적으로 6,288 distinct user |
 | `data/processed/qa_ticket.csv` | `qa_ticket` | CSV 헤더에 `source_type`가 중복으로 존재하며 적재 노트북은 첫 번째 값을 사용 |
 | `notebooks/insert_processed_data.ipynb` | `community_users`, `game_accounts`, `qa_ticket` | `qa_ticket.account_id`와 `user_id`의 non-null 매핑으로 `game_accounts`를 구성 |
-| `notebooks/generate_operation_workflow_sample_data.ipynb` | `payments`, `refunds`, `item_delivery_logs`, `gacha_logs`, `insight`, `voc_feedback` | 운영 컨텍스트용 샘플 데이터 생성 |
+| `notebooks/generate_operation_workflow_sample_data.ipynb` | `payments`, `refunds`, `item_delivery_logs`, `gacha_logs`, `insight` | 운영 컨텍스트용 샘플 데이터 생성 |
 | `docs/data_generation/repopulate_reduced_dataset.py` | `community_users`, `game_accounts`, `qa_ticket`, `payments`, `refunds`, `item_delivery_logs`, `gacha_logs` | `_ex` 테이블을 참조해 reduced dataset 재구성 |

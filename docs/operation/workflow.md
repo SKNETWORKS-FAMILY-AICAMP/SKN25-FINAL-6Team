@@ -140,7 +140,7 @@ flowchart TD
 
 - `qa_ticket`, `community_users`, `game_accounts`
 - `payments`, `refunds`, `item_delivery_logs`, `gacha_logs`
-- `insight`, `voc_feedback`
+- `insight`
 - `documents`, `documents_chunks`
 
 저장 테이블:

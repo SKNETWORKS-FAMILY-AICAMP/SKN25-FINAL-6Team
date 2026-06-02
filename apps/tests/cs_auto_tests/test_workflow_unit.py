@@ -364,7 +364,7 @@ class ContextNodeTest(unittest.TestCase):
     def test_케이스1_abuse_context_node_인사이트_있는_user_rows_반환(self) -> None:
         """케이스1: 어뷰징 인사이트 있는 user → context["abuse"] rows 반환.
 
-        insight + voc_feedback LEFT JOIN 결과를 확인한다.
+        insight 기반 abuse context 결과를 확인한다.
         label 필드로 어떤 유형의 어뷰징인지 운영자가 판단할 수 있다.
         """
         state = OperationState(ticket_id="1001")

@@ -607,29 +607,6 @@ def test_dispatch_urgent_alert_sends_slack_only_for_review_queue_once(monkeypatc
 
 
 def test_voc_agent_uses_fallback_for_non_actionable_non_rag_intent(monkeypatch) -> None:
-    voc_payloads = []
-    evidence_payloads = []
-
-    class FakeWriteVocFeedback:
-        @staticmethod
-        def invoke(args):
-            voc_payloads.append(args["payload"])
-            return json.dumps({"stored": True})
-
-    class FakeWriteAnswerDraft:
-        @staticmethod
-        def invoke(args):
-            return json.dumps({"stored": True, "draft_id": 55})
-
-    class FakeWriteEvidenceDocs:
-        @staticmethod
-        def invoke(args):
-            evidence_payloads.append(args["payload"])
-            return json.dumps({"stored": True, "evidence_id": 77})
-
-    monkeypatch.setattr(voc_agent, "write_voc_feedback", FakeWriteVocFeedback)
-    monkeypatch.setattr(voc_agent, "write_answer_draft", FakeWriteAnswerDraft)
-    monkeypatch.setattr(voc_agent, "write_evidence_docs", FakeWriteEvidenceDocs)
     monkeypatch.setattr(
         voc_agent,
         "_classify_voc",
@@ -639,7 +616,6 @@ def test_voc_agent_uses_fallback_for_non_actionable_non_rag_intent(monkeypatch) 
     result = voc_agent.voc_agent_node(
         {
             "ticket_id": 1,
-            "analysis_id": 10,
             "user_id": 1,
             "account_id": 101,
             "enriched_query": "寃뚯엫 ?댁슜 遺덈쭔",
@@ -654,9 +630,9 @@ def test_voc_agent_uses_fallback_for_non_actionable_non_rag_intent(monkeypatch) 
     assert result["draft_text"] == VOC_FIXED_RESPONSE
     assert result["safety_action"] == "AUTO_RESPONSE"
     assert result["safety_reason"] == "low_information_complaint"
-    assert voc_payloads[0]["voc_type"] == "other"
-    assert voc_payloads[0]["sentiment"] == "negative"
-    assert evidence_payloads
+    assert result["voc_type"] == "other"
+    assert result["sentiment"] == "negative"
+    assert result["topic_keywords"] == []
 
 
 def test_route_by_user_selected_categories() -> None:

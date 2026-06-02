@@ -62,8 +62,6 @@ Row counts are PostgreSQL `pg_stat_user_tables.n_live_tup` estimates at verifica
 | `safety_results_ex` | 287 | 10 | none | none | Template/example copy of `safety_results` |
 | `ticket_analysis` | 0 | 10 | `analysis_id` | none | Ticket classification, risk, sentiment, and routing analysis |
 | `ticket_analysis_ex` | 351 | 10 | none | none | Template/example copy of `ticket_analysis` |
-| `voc_feedback` | 0 | 9 | `voc_id` | none | VOC feedback and topic keyword records |
-| `voc_feedback_ex` | 43 | 9 | none | none | Template/example copy of `voc_feedback` |
 
 ## Data Type Summary
 
@@ -85,7 +83,7 @@ Row counts are PostgreSQL `pg_stat_user_tables.n_live_tup` estimates at verifica
 | `data/processed/community_users.csv` | `community_users` | 9,221 source rows; upserted by `user_id`, resulting in 6,288 distinct users in the table. |
 | `data/processed/qa_ticket.csv` | `qa_ticket` | `source_type` appears twice in the CSV header and `notebooks/insert_processed_data.ipynb` keeps the first occurrence. |
 | `notebooks/insert_processed_data.ipynb` | `community_users`, `game_accounts`, `qa_ticket` | Derives game account rows from distinct non-null `qa_ticket.account_id` to `user_id` mappings before loading tickets. |
-| `notebooks/generate_operation_workflow_sample_data.ipynb` | `payments`, `refunds`, `item_delivery_logs`, `gacha_logs`, `insight`, `voc_feedback` | Adds operation workflow sample context rows used by the LangGraph workflow. |
+| `notebooks/generate_operation_workflow_sample_data.ipynb` | `payments`, `refunds`, `item_delivery_logs`, `gacha_logs`, `insight` | Adds operation workflow sample context rows used by the LangGraph workflow. |
 
 ## Reduced Dataset Reference
 
@@ -126,7 +124,7 @@ The `_ex` tables are template or source-scale mirrors paired with the 20 main ta
 | Refund context | `refunds`, `payments`, `game_accounts` |
 | Item delivery context | `item_delivery_logs`, `game_accounts` |
 | Gacha context | `gacha_logs`, `game_accounts` |
-| Abuse context | `insight`, `voc_feedback` |
+| Abuse context | `insight` |
 | Policy/outage context | `documents` |
 | RAG retrieval | `documents_chunks`, `documents`, `documents_embeddings` |
 | Workflow writes | `ticket_analysis`, `answer_draft`, `evidence_docs`, `safety_results`, `final_response`, `notification_logs`, `failed_queries`, `admin_event_logs` |
@@ -160,9 +158,6 @@ Live DB note: these workflow write tables currently have primary keys with no da
 | `refunds.payment_id` | `payments.payment_id` | NO ACTION | CASCADE |
 | `safety_results.draft_id` | `answer_draft.draft_id` | NO ACTION | CASCADE |
 | `ticket_analysis.ticket_id` | `qa_ticket.ticket_id` | NO ACTION | CASCADE |
-| `voc_feedback.account_id` | `game_accounts.account_id` | NO ACTION | NO ACTION |
-| `voc_feedback.ticket_id` | `qa_ticket.ticket_id` | NO ACTION | NO ACTION |
-| `voc_feedback.user_id` | `community_users.user_id` | NO ACTION | NO ACTION |
 
 ## Table Details
 
@@ -613,27 +608,3 @@ Live DB note: these workflow write tables currently have primary keys with no da
 
 - Indexes:
   - `ticket_analysis_pkey`: `UNIQUE ticket_analysis_pkey ON ticket_analysis USING btree (analysis_id)`
-
-### `voc_feedback`
-
-- Purpose: VOC feedback and topic keyword records
-- Estimated Rows: 5
-- Primary Key: `voc_id`
-- Primary Key Default: none
-- Foreign Keys: `account_id` -> `game_accounts.account_id` (NO ACTION), `ticket_id` -> `qa_ticket.ticket_id` (NO ACTION), `user_id` -> `community_users.user_id` (NO ACTION)
-- Columns:
-
-| # | Column | Data Type | Nullable | Default | Key / Reference |
-| ---: | --- | --- | --- | --- | --- |
-| 1 | `voc_id` | `integer` | NO |  | PK |
-| 2 | `ticket_id` | `integer` | NO |  | FK -> `qa_ticket.ticket_id` |
-| 3 | `user_id` | `integer` | NO |  | FK -> `community_users.user_id` |
-| 4 | `account_id` | `integer` | YES |  | FK -> `game_accounts.account_id` |
-| 5 | `voc_type` | `varchar(100)` | YES |  |  |
-| 6 | `sentiment` | `varchar(50)` | YES |  |  |
-| 7 | `raw_content` | `text` | NO |  |  |
-| 8 | `topic_keywords` | `json` | YES |  |  |
-| 9 | `created_at` | `timestamp` | YES | `CURRENT_TIMESTAMP` |  |
-
-- Indexes:
-  - `voc_feedback_pkey`: `UNIQUE voc_feedback_pkey ON voc_feedback USING btree (voc_id)`

@@ -45,7 +45,7 @@
 | 분석 리스크 분포 | 최신 `ticket_analysis.risk_level` 기준 `COUNT(*) GROUP BY risk_level` | `ticket_analysis` | Bar chart |
 | HIGH/critical 문의 수 | `COUNT(*) WHERE lower(risk_level) IN ('high', 'critical')` | `ticket_analysis` | KPI, table badge |
 | 감성 분포 | 최신 `ticket_analysis.sentiment` 기준 `COUNT(*) GROUP BY sentiment` | `ticket_analysis` | Bar chart |
-| 부정 감성 수 | `COUNT(*) WHERE lower(sentiment) IN ('negative', 'very_negative')` | `ticket_analysis`, `insight`, `voc_feedback` | KPI |
+| 부정 감성 수 | `COUNT(*) WHERE lower(sentiment) IN ('negative', 'very_negative')` | `ticket_analysis`, `insight` | KPI |
 | 인사이트 리스크 분포 | `COUNT(*) GROUP BY insight.risk_level` | `insight` | Bar chart |
 | 패턴 리스크 분포 | `COUNT(*) GROUP BY insight.pattern_risk_level` | `insight` | Bar chart |
 | 평균 환각 점수 | `AVG(safety_results.hallucination_score)` | `safety_results` | Safety KPI |
@@ -145,7 +145,7 @@ Slack 알림은 운영자가 즉시 확인해야 하는 상황에만 발송한�
 | Alert Type | Trigger | Severity | Source | 비고 |
 | --- | --- | --- | --- | --- |
 | `high_risk_spike` | 최근 1시간 HIGH/critical 티켓 수가 `5건 이상` 또는 직전 동시간 대비 `2배 이상` | critical | `ticket_analysis` | 장애성 문의 급증 감지 |
-| `negative_sentiment_spike` | 최근 1시간 부정 감성 비율이 `50% 이상`이고 티켓 수가 `10건 이상` | warning | `ticket_analysis`, `insight`, `voc_feedback` | 커뮤니티 여론 악화 감지 |
+| `negative_sentiment_spike` | 최근 1시간 부정 감성 비율이 `50% 이상`이고 티켓 수가 `10건 이상` | warning | `ticket_analysis`, `insight` | 커뮤니티 여론 악화 감지 |
 | `pending_backlog_spike` | `status = 'pending'` 티켓이 `50건 이상` 또는 1시간 전 대비 `30% 이상 증가` | warning | `qa_ticket` | 운영자 처리 병목 감지 |
 | `human_review_queue_spike` | `human_review` 대상이 `20건 이상` 또는 1시간 전 대비 `30% 이상 증가` | warning | `qa_ticket`, `ticket_analysis`, `safety_results` | 자동 처리 실패 증가 |
 | `low_response_rate` | 최근 24시간 응답률이 `70% 미만`이고 전체 문의가 `20건 이상` | warning | `qa_ticket`, `final_response` | 운영 품질 저하 |
@@ -197,4 +197,4 @@ Slack 메시지는 운영자가 바로 판단할 수 있게 원인, 규모, 바�
 | `/summary/risk` | `analysis_risk_distribution`, `sentiment_distribution`, `insight_risk_distribution`, `pattern_risk_distribution`, `safety_score_summary`, `safety_alerts`, `high_risk_tickets`, `safety_breach_candidates` |
 | `/summary/quality` | `draft_summary`, `evidence_summary`, `safety_summary`, `final_response_summary`, `notification_summary`, `quality_candidates`, `notification_failures` |
 | `/tickets` | `ticket_id`, `title`, `status`, `source_type`, `nickname`, `category`, `risk_level`, `sentiment`, `routing_target`, `latest_draft_id`, `latest_response_id`, `inquiry_created_at` |
-| `/tickets/{ticket_id}` | `ticket`, `account`, `analyses`, `drafts`, `evidence_docs`, `safety_results`, `final_responses`, `notifications`, `voc_feedback`, `operation_logs` |
+| `/tickets/{ticket_id}` | `ticket`, `account`, `analyses`, `drafts`, `evidence_docs`, `safety_results`, `final_responses`, `notifications`, `operation_logs` |

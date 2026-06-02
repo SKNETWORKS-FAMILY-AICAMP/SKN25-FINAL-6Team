@@ -19,7 +19,6 @@ CHATBOT_TABLES = (
     "safety_results",
     "final_response",
     "failed_queries",
-    "voc_feedback",
     "payments",
     "refunds",
     "item_delivery_logs",
@@ -33,7 +32,6 @@ AUTO_ID_COLUMNS = {
     "safety_results": "safety_id",
     "final_response": "response_id",
     "failed_queries": "failed_query_id",
-    "voc_feedback": "voc_id",
 }
 
 

@@ -237,7 +237,6 @@ Response fields:
 | `safety_results` | 초안별 safety 검사 이력 | `safety_results` |
 | `final_responses` | 최종 답변 이력 | `final_response` |
 | `notifications` | Slack/Discord 등 알림 발송 이력 | `notification_logs` |
-| `voc_feedback` | VOC 유형, 감성, 토픽 키워드 | `voc_feedback` |
 | `operation_logs` | 결제, 환불, 아이템 지급, 가챠 맥락 | `payments`, `refunds`, `item_delivery_logs`, `gacha_logs` |
 
 `operation_logs` 연결 기준:

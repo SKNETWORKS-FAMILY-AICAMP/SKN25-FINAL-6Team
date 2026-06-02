@@ -71,7 +71,7 @@
 | 안전성 | `safety_results` | 환각, 유해성, 정책 위반, 사실성, 검증 액션 |
 | 운영 로그 | `admin_event_logs`, `failed_queries`, `notification_logs` | 운영 이벤트, 처리 실패, 알림 발송 상태 |
 | 업무 로그 | `payments`, `refunds`, `item_delivery_logs`, `gacha_logs` | 결제, 환불, 지급, 가챠 문의 상세 근거 |
-| 인사이트/VOC | `insight`, `voc_feedback` | 반복 이슈, 패턴 위험도, 고객의 소리 |
+| 인사이트 | `insight` | 반복 이슈, 패턴 위험도 |
 
 ## 7. 기능 요구사항
 
@@ -86,7 +86,7 @@
 | 기능 | 운영 현황 | 최근 문의 목록 제공 | FR-DASH-OVR-004 | 운영자는 최근 문의 목록을 상태, 채널, 위험도, 라우팅 대상과 함께 확인할 수 있어야 한다. | `/tickets` API와 연계하며 기본 50건, 최대 200건을 제공한다. |
 | 기능 | 운영 현황 | 기간 필터 제공 | FR-DASH-OVR-005 | 운영자는 1일부터 365일까지 조회 기간을 조정할 수 있어야 한다. | `qa_ticket.inquiry_created_at` 기준으로 필터링한다. |
 | 기능 | 리스크 분석 | 위험도 분포 제공 | FR-DASH-RISK-001 | 리스크 담당자는 문의 분석 위험도와 인사이트 위험도 분포를 확인할 수 있어야 한다. | `ticket_analysis.risk_level`, `insight.risk_level`, `insight.pattern_risk_level` 기준 |
-| 기능 | 리스크 분석 | 감성 분포 제공 | FR-DASH-RISK-002 | 리스크 담당자는 문의 감성 분포와 부정 감성 증가 여부를 확인할 수 있어야 한다. | `ticket_analysis.sentiment`, `insight.sentiment`, `voc_feedback.sentiment` 활용 |
+| 기능 | 리스크 분석 | 감성 분포 제공 | FR-DASH-RISK-002 | 리스크 담당자는 문의 감성 분포와 부정 감성 증가 여부를 확인할 수 있어야 한다. | `ticket_analysis.sentiment`, `insight.sentiment` 활용 |
 | 기능 | 리스크 분석 | 안전성 점수 요약 | FR-DASH-RISK-003 | 시스템은 평균 환각, 유해성, 정책 위반, 사실성 점수를 표시해야 한다. | `safety_results`의 `hallucination_score`, `toxicity_score`, `policy_violation_score`, `factuality_score` 기준 |
 | 기능 | 리스크 분석 | 고위험 후보 목록 | FR-DASH-RISK-004 | 리스크 담당자는 HIGH 또는 critical 후보 티켓을 우선순위로 확인할 수 있어야 한다. | 최신 분석 또는 인사이트 패턴 위험도 기준으로 정렬한다. |
 | 기능 | 리스크 분석 | 안전성 경고 플래그 | FR-DASH-RISK-005 | 시스템은 threshold를 초과한 안전성 지표에 경고를 표시해야 한다. | 기본 threshold는 `docs/dashboard/metrics.md`의 Alert Threshold를 따른다. |
@@ -96,14 +96,13 @@
 | 기능 | 응답 품질 | 품질 점검 후보 | FR-DASH-QLT-004 | 품질 관리자는 낮은 사실성 또는 높은 환각 점수의 초안을 우선 점검할 수 있어야 한다. | `safety_results`와 `answer_draft` 조인 기준 |
 | 기능 | 응답 품질 | 알림 상태 분포 | FR-DASH-QLT-005 | 운영자는 알림 성공, 실패, 대기 상태 분포를 확인할 수 있어야 한다. | `notification_logs.status`, `error_message`, `error_category` 기준 |
 | 기능 | 티켓 탐색 | 티켓 목록 조회 | FR-DASH-TCK-001 | 운영자는 상태, 채널, 위험도, 라우팅 대상 기준으로 티켓을 탐색할 수 있어야 한다. | 목록 API는 최신 분석, 최신 초안, 최신 최종 응답 메타데이터를 포함한다. |
-| 기능 | 티켓 탐색 | 티켓 상세 조회 | FR-DASH-TCK-002 | 운영자는 특정 티켓의 문의, 분석, 초안, 근거, 안전성, 최종 응답, 알림, VOC를 한 화면에서 확인할 수 있어야 한다. | `/tickets/{ticket_id}` API 응답 구조를 따른다. |
+| 기능 | 티켓 탐색 | 티켓 상세 조회 | FR-DASH-TCK-002 | 운영자는 특정 티켓의 문의, 분석, 초안, 근거, 안전성, 최종 응답, 알림을 한 화면에서 확인할 수 있어야 한다. | `/tickets/{ticket_id}` API 응답 구조를 따른다. |
 | 기능 | 티켓 탐색 | 계정 컨텍스트 조회 | FR-DASH-TCK-003 | 운영자는 티켓과 연결된 커뮤니티 사용자 및 게임 계정 요약을 확인할 수 있어야 한다. | `community_users`, `game_accounts` 조인. 민감정보는 권한별 제한 표시 |
 | 기능 | 티켓 탐색 | 업무 로그 컨텍스트 조회 | FR-DASH-TCK-004 | 운영자는 결제/환불/미지급/가챠 문의의 근거 로그를 확인할 수 있어야 한다. | `payments`, `refunds`, `item_delivery_logs`, `gacha_logs`를 `account_id`와 `payment_id` 기준으로 연결 |
 | 기능 | 검수 큐 | 운영자 검토 대상 표시 | FR-DASH-REV-001 | 운영자는 `human_review`, `urgent_alert`, 검증 미달 티켓을 별도 후보로 확인할 수 있어야 한다. | `qa_ticket.status`, `ticket_analysis.routing_target`, `safety_results.safety_action` 기준 |
 | 기능 | 검수 큐 | 긴급 문의 우선순위 | FR-DASH-REV-002 | 시스템은 HIGH 위험 문의와 장애성 문의를 검토 큐 상단에 표시해야 한다. | `risk_level`, `pattern_risk_level`, `routing_target` 기준 정렬 |
 | 기능 | 검수 큐 | 후속 조치 맥락 제공 | FR-DASH-REV-003 | 운영자는 답변 수정, 수동 지급, 환불 처리, 긴급 대응에 필요한 근거를 확인할 수 있어야 한다. | 실제 조치 기록은 operation 워크플로우 또는 기존 로그 테이블과 연계한다. |
 | 기능 | 인사이트 | 반복 문의 분석 표시 | FR-DASH-INS-001 | 운영자는 동일 사용자 또는 동일 계정의 반복 문의 후보를 확인할 수 있어야 한다. | `user_id`, `account_id`, `category`, 유사 문의 요약 기준 |
-| 기능 | 인사이트 | VOC 현황 표시 | FR-DASH-INS-002 | 운영자는 고객의 소리 유형, 감성, 주요 키워드를 확인할 수 있어야 한다. | `voc_feedback.voc_type`, `sentiment`, `topic_keywords` 기준 |
 | 기능 | 인사이트 | 운영 인사이트 표시 | FR-DASH-INS-003 | 운영자는 반복 이슈와 패턴 위험도 기반 운영 인사이트를 확인할 수 있어야 한다. | `insight.content_summary`, `category`, `pattern_risk_level` 표시 |
 | 기능 | Observability | 처리 실패 조회 | FR-DASH-OBS-001 | 시스템 관리자는 DB 조회 실패와 처리 실패 이력을 확인할 수 있어야 한다. | `failed_queries`, `admin_event_logs` 기준 |
 | 기능 | Observability | 알림 실패 조회 | FR-DASH-OBS-002 | 시스템 관리자는 Slack/Discord 등 알림 실패 원인을 확인할 수 있어야 한다. | `notification_logs.status`, `error_category`, `error_message` 기준 |

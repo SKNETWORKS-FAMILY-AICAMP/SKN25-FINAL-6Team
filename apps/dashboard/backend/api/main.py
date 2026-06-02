@@ -450,25 +450,6 @@ def get_ticket_detail(ticket_id: int) -> dict[str, Any]:
                 """,
                 (ticket_id,),
             )
-            voc_feedback = _fetch_all(
-                cur,
-                """
-                SELECT
-                    voc_id,
-                    ticket_id,
-                    user_id,
-                    account_id,
-                    voc_type,
-                    sentiment,
-                    raw_content,
-                    topic_keywords,
-                    created_at
-                FROM voc_feedback
-                WHERE ticket_id = %s
-                ORDER BY created_at DESC NULLS LAST, voc_id DESC
-                """,
-                (ticket_id,),
-            )
             account_id = ticket_row.get("account_id")
             user_id = ticket_row.get("user_id")
             payment_logs = _fetch_all(
@@ -619,7 +600,6 @@ def get_ticket_detail(ticket_id: int) -> dict[str, Any]:
             "safety_results": safety_results,
             "final_responses": final_responses,
             "notifications": notifications,
-            "voc_feedback": voc_feedback,
             "operation_logs": {
                 "payments": payment_logs,
                 "refunds": refund_logs,
