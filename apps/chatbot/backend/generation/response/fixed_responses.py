@@ -17,6 +17,10 @@ BLOCK_RESPONSE = "안전한 상담을 위해 해당 문의에는 자동 응답�
 REVIEW_QUEUE_RESPONSE = "문의가 접수되었습니다. 담당자가 확인 후 안내드리겠습니다."
 
 CATEGORY_FALLBACK_RESPONSES = {
+    "payment": PAYMENT_FALLBACK_RESPONSE,
+    "bug": BUG_FALLBACK_RESPONSE,
+    "faq": FAQ_FALLBACK_RESPONSE,
+    "voc": VOC_FIXED_RESPONSE,
     "결제": PAYMENT_FALLBACK_RESPONSE,
     "인게임/버그": BUG_FALLBACK_RESPONSE,
     "인게임버그": BUG_FALLBACK_RESPONSE,

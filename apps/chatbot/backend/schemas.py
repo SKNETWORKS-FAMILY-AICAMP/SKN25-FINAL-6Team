@@ -6,7 +6,8 @@ from langchain.agents import AgentState
 from pydantic import BaseModel
 from typing_extensions import NotRequired
 
-Category = Literal["결제", "인게임/버그", "FAQ", "VOC"]
+
+Category = Literal["payment", "bug", "faq", "voc", "결제", "인게임/버그", "FAQ", "VOC"]
 RoutingTarget = Literal["rag_reply", "urgent_alert"]
 RoutingIntentName = Literal[
     "payment_how_to",
@@ -52,9 +53,11 @@ class ChatbotState(AgentState):
     fallback_reason: NotRequired[str | None]
 
     # Drafting, retrieval, safety, and review state.
-    analysis_id: NotRequired[int | None]
     draft_id: NotRequired[int | None]
     draft_text: NotRequired[str | None]
+    draft_persistence_result: NotRequired[dict[str, Any] | None]
+    evidence_count: NotRequired[int]
+    evidence_results: NotRequired[list[dict[str, Any]]]
     final_text: NotRequired[str | None]
     final_response_result: NotRequired[dict[str, Any] | None]
     reasoning_node: NotRequired[str | None]
@@ -66,6 +69,7 @@ class ChatbotState(AgentState):
     safety_passed: NotRequired[bool | None]
     safety_action: NotRequired[SafetyAction | str | None]
     safety_reason: NotRequired[str | None]
+    safety_result: NotRequired[dict[str, Any] | None]
     factuality_score: NotRequired[float | None]
     hallucination_score: NotRequired[float | None]
     toxicity_score: NotRequired[float | None]
@@ -85,7 +89,7 @@ class ChatbotState(AgentState):
 
 
 class OrchestratorOutput(BaseModel):
-    """Structured routing result returned by the LLM classifier."""
+    """Legacy structured routing result kept for non-runtime compatibility."""
 
     ticket_id: int
     category: Category
@@ -94,7 +98,7 @@ class OrchestratorOutput(BaseModel):
 
 
 class RoutingIntent(BaseModel):
-    """Normalized user intent used before final category routing."""
+    """Legacy normalized intent model kept for non-runtime compatibility."""
 
     intent: RoutingIntentName
     normalized_query: str
@@ -116,7 +120,7 @@ class PaymentAgentInput(BaseModel):
 class SafetyInput(BaseModel):
     """Minimal contract for a safety scoring or decision node."""
 
-    draft_id: int
+    draft_id: int | None = None
     ticket_id: int
     draft_text: str | None = None
 

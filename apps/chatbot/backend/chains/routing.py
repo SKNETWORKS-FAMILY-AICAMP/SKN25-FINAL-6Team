@@ -5,6 +5,10 @@ from chatbot.schemas import ChatbotState
 
 
 CATEGORY_NODE_BY_NAME = {
+    "payment": "payment_agent",
+    "bug": "bug_agent",
+    "faq": "faq_agent",
+    "voc": "voc_agent",
     "결제": "payment_agent",
     "인게임/버그": "bug_agent",
     "FAQ": "faq_agent",
@@ -13,7 +17,7 @@ CATEGORY_NODE_BY_NAME = {
 
 
 def route_by_category(state: ChatbotState) -> str:
-    """Route to the concrete category node selected by the orchestrator."""
+    """Route to the concrete category node selected by the request category."""
     category = state["category"]
     return CATEGORY_NODE_BY_NAME.get(str(category), "voc_agent")
 

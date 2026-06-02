@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import re
 from typing import Any
@@ -166,7 +167,7 @@ def _evaluate_safety(text: str, documents: list[dict[str, Any]] | None = None) -
 def _requires_document_grounding(state: ChatbotState, documents: list[dict[str, Any]]) -> bool:
     return (
         state.get("reasoning_node") == "faq_agent"
-        or state.get("category") == "FAQ"
+        or str(state.get("category") or "").lower() == "faq"
         or state.get("should_use_rag") is True
     )
 
@@ -236,9 +237,9 @@ def _masking_update(
     if retry_exhausted:
         reason = f"{reason}; masking retry exhausted"
 
-    _write_safety_results(
+    safety_result = _write_safety_results(
         {
-            "draft_id": state["draft_id"],
+            "draft_id": state.get("draft_id"),
             "ticket_id": state["ticket_id"],
             "safety_action": safety_action,
             "factuality_score": scores["factuality_score"],
@@ -264,16 +265,24 @@ def _masking_update(
         "masking_applied": bool(mask_labels),
         "masking_labels": mask_labels,
         "retry_count": retry_count,
+        "safety_result": safety_result,
     }
 
 
-def _write_safety_results(payload: dict[str, Any]) -> str:
-    return write_safety_results.invoke({"payload": payload})
+def _write_safety_results(payload: dict[str, Any]) -> dict[str, Any]:
+    if payload.get("draft_id") is None:
+        return {
+            "status": "skipped",
+            "stored": False,
+            "reason": "missing_draft_id",
+            "payload": payload,
+        }
+    return json.loads(write_safety_results.invoke({"payload": payload}))
 
 
 def safety_layer_node(state: ChatbotState) -> dict:
     draft_text = state["draft_text"]
-    draft_id = state["draft_id"]
+    draft_id = state.get("draft_id")
     ticket_id = state["ticket_id"]
     documents = state.get("retrieved_documents") or []
     masked_text, mask_labels = _mask_sensitive_text(draft_text)
@@ -314,7 +323,7 @@ def safety_layer_node(state: ChatbotState) -> dict:
         requires_grounding=requires_grounding,
     )
 
-    _write_safety_results(
+    safety_result = _write_safety_results(
         {
             "draft_id": draft_id,
             "ticket_id": ticket_id,
@@ -355,4 +364,5 @@ def safety_layer_node(state: ChatbotState) -> dict:
         "policy_violation_score": scores["policy_violation_score"],
         "review_required": review_required,
         "retry_count": state["retry_count"] + (1 if not safety_passed else 0),
+        "safety_result": safety_result,
     }

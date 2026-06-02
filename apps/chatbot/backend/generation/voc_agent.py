@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import os
 from typing import Literal
 
@@ -8,7 +7,6 @@ from pydantic import BaseModel
 
 from chatbot.constants import VOC_FIXED_RESPONSE
 from chatbot.schemas import ChatbotState
-from chatbot.tools.db_tools import write_answer_draft, write_evidence_docs, write_voc_feedback
 
 
 VocType = Literal["suggestion", "complaint", "praise", "multi_intent", "other"]
@@ -100,45 +98,11 @@ def voc_agent_node(state: ChatbotState) -> dict:
         answer = _build_voc_response(voc_type)
         safety_reason = "VOC template response skips LLM safety validation."
 
-    ticket_id = state["ticket_id"]
-
-    write_voc_feedback.invoke({
-        "payload": {
-            "ticket_id": ticket_id,
-            "user_id": state["user_id"],
-            "account_id": state["account_id"],
-            "voc_type": voc_type,
-            "sentiment": sentiment,
-            "raw_content": raw_content,
-            "topic_keywords": topic_keywords,
-        },
-    })
-
-    draft_result = write_answer_draft.invoke({
-        "payload": {
-            "ticket_id": ticket_id,
-            "analysis_id": state["analysis_id"],
-            "draft_text": answer,
-        },
-    })
-    draft_id = json.loads(draft_result)["draft_id"]
-
-    write_evidence_docs.invoke({
-        "payload": {
-            "draft_id": draft_id,
-            "source_type": "voc_template",
-            "source_id": voc_type,
-            "evidence_text": f"VOC template response: {voc_type}",
-            "relevance_score": 1.0,
-            "retrieval_rank": 1,
-        },
-    })
-
     return {
         "draft_text": answer,
-        "draft_id": draft_id,
+        "draft_id": state.get("draft_id"),
         "retry_count": state["retry_count"],
-        "category": "VOC",
+        "category": state.get("category") or "voc",
         "routing_target": state["routing_target"],
         "reasoning_node": "voc_agent",
         "safety_passed": True,
@@ -147,4 +111,9 @@ def voc_agent_node(state: ChatbotState) -> dict:
         "voc_type": voc_type,
         "sentiment": sentiment,
         "topic_keywords": topic_keywords,
+        "voc_feedback_result": {
+            "status": "skipped",
+            "stored": False,
+            "reason": "chatbot_state_only",
+        },
     }

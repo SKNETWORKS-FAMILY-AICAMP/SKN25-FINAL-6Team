@@ -455,6 +455,7 @@
       sessionId: Date.now(),
       inquiries: [],
       activeTicketId: null,
+      selectedCategory: "payment",
       previousMessages: [],
     };
 
@@ -797,6 +798,7 @@
         button.addEventListener("click", () => {
           const category = button.dataset.category;
           const selected = faqByCategory[category] || faqByCategory.payment;
+          clientState.selectedCategory = category;
           showChatMainPage();
           renderCategoryFaq(category);
           document.querySelectorAll("#chatMessages .categoryBubblePanel").forEach((panel) => {
@@ -851,6 +853,7 @@
     chatViewButton.addEventListener("click", showChatMainPage);
     newChatButton.addEventListener("click", () => {
       showChatMainPage();
+      clientState.selectedCategory = "payment";
       resetChat();
     });
     inquiryHistoryButton.addEventListener("click", showInquiryPage);
@@ -872,6 +875,7 @@
           body: JSON.stringify({
             ticket_id: clientState.activeTicketId || submittedInquiries[0]?.ticketId || 1,
             user_message: message,
+            category: clientState.selectedCategory,
             account_id: clientState.login.account_id,
             user_id: clientState.login.user_id,
             session_id: clientState.sessionId,

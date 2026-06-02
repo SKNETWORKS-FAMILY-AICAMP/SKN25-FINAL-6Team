@@ -3,13 +3,14 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from chatbot.observability.logger import EVENT_NODE_COMPLETED, log_event
 from chatbot.observability.langsmith import build_runnable_config, build_trace_metadata
+from chatbot.observability.logger import EVENT_NODE_COMPLETED, log_event
 
 
 def build_state(
     ticket_id: int,
     user_message: str,
+    category: str | None = None,
     account_id: int | None = None,
     user_id: int = 1,
     session_id: int = 1,
@@ -37,11 +38,10 @@ def build_state(
         "raw_query": user_message,
         "enriched_query": None,
         "ticket_id": ticket_id,
-        "category": "",
+        "category": category or "",
         "routing_target": "",
         "classification_method": None,
         "classification_reason": None,
-        "analysis_id": None,
         "draft_id": None,
         "draft_text": None,
         "final_text": None,
@@ -66,54 +66,51 @@ def last_message_text(result: dict[str, Any]) -> str:
 def _node_summary(node_name: str, node_update: dict[str, Any], state_snapshot: dict[str, Any]) -> dict[str, Any]:
     merged = {**state_snapshot, **node_update}
     title_by_node = {
-        "orchestrator": "문의 분류",
-        "payment_agent": "결제 확인",
-        "bug_agent": "버그 확인",
-        "faq_agent": "FAQ/RAG 검색",
-        "voc_agent": "VOC 처리",
-        "draft_persistence": "답변 초안 저장",
-        "safety_layer": "안전성 검사",
-        "final_response": "최종 응답",
+        "ticket_preprocess": "Ticket preprocess",
+        "payment_agent": "Payment agent",
+        "bug_agent": "Bug agent",
+        "faq_agent": "FAQ/RAG",
+        "voc_agent": "VOC agent",
+        "draft_persistence": "State draft",
+        "safety_layer": "Safety check",
+        "final_response": "Final response",
     }
     title = title_by_node.get(node_name, node_name)
 
-    if node_name == "orchestrator":
+    if node_name == "ticket_preprocess":
         detail = (
-            f"{merged.get('category') or '미분류'} / {merged.get('routing_target') or '미정'}로 분류했습니다."
-            f" 방식: {merged.get('classification_method') or 'unknown'}"
+            f"Using user-selected category {merged.get('category') or 'unknown'} "
+            f"with routing_target={merged.get('routing_target') or 'unknown'}."
         )
     elif node_name == "faq_agent":
         docs = merged.get("retrieved_documents") or []
         failure = merged.get("faq_failure_reason")
         query = merged.get("retrieval_query") or merged.get("enriched_query") or merged.get("raw_query")
         if failure:
-            detail = f"검색어 '{query}'로 문서를 찾았지만 자동 답변 근거가 부족했습니다. 사유: {failure}"
+            detail = f"FAQ search for '{query}' did not have enough evidence: {failure}."
         else:
-            detail = f"검색어 '{query}'로 문서 {len(docs)}개를 검색해 답변 초안을 만들었습니다."
+            detail = f"FAQ search for '{query}' used {len(docs)} evidence documents."
     elif node_name == "payment_agent":
-        detail = "결제/계정 확인이 필요한 문의로 판단해 운영 확인용 답변 초안을 만들었습니다."
+        detail = "Built a payment answer from chatbot state and scoped payment context."
     elif node_name == "bug_agent":
-        detail = "버그/게임 상태 확인이 필요한 문의로 판단해 답변 초안을 만들었습니다."
+        detail = "Built a bug answer from chatbot state."
     elif node_name == "voc_agent":
-        detail = "의견/건의성 문의로 접수 안내 응답을 준비했습니다."
+        detail = "Prepared a VOC response in chatbot state."
     elif node_name == "draft_persistence":
-        detail = (
-            f"초안 draft_id={merged.get('draft_id')}를 저장하고 "
-            f"근거 {merged.get('evidence_count', 0)}개를 연결했습니다."
-        )
+        detail = f"Persisted draft/evidence. evidence_count={merged.get('evidence_count', 0)}."
     elif node_name == "safety_layer":
         detail = (
-            f"{merged.get('safety_action') or 'UNKNOWN'} 결정. "
+            f"{merged.get('safety_action') or 'UNKNOWN'} decision. "
             f"factuality={merged.get('factuality_score')}, "
             f"hallucination={merged.get('hallucination_score')}, "
             f"toxicity={merged.get('toxicity_score')}."
         )
         if merged.get("masking_applied"):
-            detail += f" 마스킹 항목: {', '.join(merged.get('masking_labels') or [])}."
+            detail += f" masking_labels={', '.join(merged.get('masking_labels') or [])}."
     elif node_name == "final_response":
-        detail = f"사용자에게 보낼 최종 응답을 생성했습니다. action={merged.get('safety_action') or 'AUTO_RESPONSE'}"
+        detail = f"Persisted final response. action={merged.get('safety_action') or 'AUTO_RESPONSE'}."
     else:
-        detail = f"상태 필드 {', '.join(sorted(node_update.keys()))}를 업데이트했습니다."
+        detail = f"Updated state fields: {', '.join(sorted(node_update.keys()))}."
 
     return {
         "node": node_name,
@@ -124,14 +121,15 @@ def _node_summary(node_name: str, node_update: dict[str, Any], state_snapshot: d
 
 
 def _print_node_summary(summary: dict[str, Any]) -> None:
-    print(f"[노드 요약] {summary['title']}")
+    print(f"[node] {summary['title']}")
     print(f"  - {summary['detail']}")
-    print(f"  - 업데이트: {', '.join(summary['updated_keys'])}")
+    print(f"  - updated: {', '.join(summary['updated_keys'])}")
 
 
 def run_chatbot(
     ticket_id: int,
     user_message: str,
+    category: str | None = None,
     account_id: int | None = None,
     user_id: int = 1,
     session_id: int = 1,
@@ -144,6 +142,7 @@ def run_chatbot(
     state = build_state(
         ticket_id=ticket_id,
         user_message=user_message,
+        category=category,
         account_id=account_id,
         user_id=user_id,
         session_id=session_id,
@@ -178,6 +177,7 @@ def run_chatbot(
 def stream_chatbot(
     ticket_id: int,
     user_message: str,
+    category: str | None = None,
     account_id: int | None = None,
     user_id: int = 1,
     session_id: int = 1,
@@ -190,6 +190,7 @@ def stream_chatbot(
     state = build_state(
         ticket_id=ticket_id,
         user_message=user_message,
+        category=category,
         account_id=account_id,
         user_id=user_id,
         session_id=session_id,

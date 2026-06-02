@@ -15,17 +15,15 @@ def save_answer_draft(payload: dict[str, Any]) -> dict[str, Any]:
                     """
                     INSERT INTO answer_draft (
                         ticket_id,
-                        analysis_id,
                         draft_text,
                         prompt_version,
                         created_at
                     )
-                    VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP)
+                    VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
                     RETURNING draft_id
                     """,
                     (
                         payload["ticket_id"],
-                        payload["analysis_id"],
                         payload.get("draft_text"),
                         payload.get("prompt_version") or "chatbot-db-v1",
                     ),
@@ -36,7 +34,6 @@ def save_answer_draft(payload: dict[str, Any]) -> dict[str, Any]:
             "stored": True,
             "draft_id": draft_id,
             "ticket_id": payload["ticket_id"],
-            "analysis_id": payload["analysis_id"],
         }
 
     return safe_write(operation="write_answer_draft", payload=payload, writer=_write)

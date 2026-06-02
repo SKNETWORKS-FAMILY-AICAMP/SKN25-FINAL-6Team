@@ -10,7 +10,6 @@ TRACE_METADATA_FIELDS = (
     "account_id",
     "category",
     "routing_target",
-    "analysis_id",
     "draft_id",
 )
 

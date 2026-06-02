@@ -9,7 +9,7 @@ workflow이며, category node 안에서 LangChain `create_agent` 기반 reasonin
 ```text
 runners/run_chatbot.py
   -> chatbot.chains.workflow.graph
-  -> orchestrator/category/safety/final_response nodes
+  -> ticket_preprocess/category/safety/final_response nodes
   -> category node에서 invoke_payment_agent / invoke_faq_agent / invoke_bug_agent
   -> db/vector/cache tools
 ```

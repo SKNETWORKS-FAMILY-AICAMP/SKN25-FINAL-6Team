@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import FastAPI, Query
 from pydantic import BaseModel, Field
@@ -12,19 +12,24 @@ configure_langsmith("chatbot")
 
 from chatbot.service.account_service import get_server_regions, login_with_credentials
 from chatbot.service.chatbot_service import run_chatbot
+from chatbot.service.conversation_context_service import build_session_context
 
 
 app = FastAPI(title="GameOps Chatbot API")
+
+ChatCategory = Literal["payment", "bug", "faq", "voc"]
 
 
 class ChatRequest(BaseModel):
     ticket_id: int
     user_message: str = Field(min_length=1)
+    category: ChatCategory
     account_id: int | None = None
     user_id: int = 1
     session_id: int = 1
     source_type: str = "chatbot"
     previous_messages: list[dict[str, str]] | None = None
+    conversation_summary: str | None = None
 
 
 class ChatResponse(BaseModel):
@@ -137,14 +142,29 @@ def list_tickets(
 
 @app.post("/chat", response_model=ChatResponse)
 def chat(request: ChatRequest) -> ChatResponse:
+    previous_messages = request.previous_messages
+    conversation_summary = request.conversation_summary
+    if previous_messages is None:
+        context = build_session_context(
+            session_id=request.session_id,
+            user_id=request.user_id,
+            account_id=request.account_id,
+            current_ticket_id=request.ticket_id,
+            recent_turns=3,
+        )
+        previous_messages = context.previous_messages
+        conversation_summary = conversation_summary or context.conversation_summary
+
     output: dict[str, Any] = run_chatbot(
         ticket_id=request.ticket_id,
         user_message=request.user_message,
+        category=request.category,
         account_id=request.account_id,
         user_id=request.user_id,
         session_id=request.session_id,
         source_type=request.source_type,
-        previous_messages=request.previous_messages,
+        previous_messages=previous_messages,
+        conversation_summary=conversation_summary,
     )
     state = output["state"]
     return ChatResponse(

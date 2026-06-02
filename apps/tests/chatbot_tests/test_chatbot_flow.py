@@ -8,7 +8,6 @@ from chatbot.chains.routing import route_by_category
 
 from chatbot.constants import VOC_FIXED_RESPONSE
 from chatbot.generation import voc_agent
-from chatbot.generation.orchestrator import _classify, _route_from_intent
 from chatbot.generation.response.final_response import final_response_node
 from chatbot.generation.response.fixed_responses import (
     BLOCK_RESPONSE,
@@ -20,7 +19,6 @@ from chatbot.generation.response.fixed_responses import (
 )
 from chatbot.notifications import dispatcher
 from chatbot.safety import safety_layer
-from chatbot.schemas import RoutingIntent
 from chatbot.service.chatbot_service import build_state, last_message_text
 
 
@@ -661,175 +659,16 @@ def test_voc_agent_uses_fallback_for_non_actionable_non_rag_intent(monkeypatch) 
     assert evidence_payloads
 
 
-def test_llm_intent_normalizes_slang_payment_how_to_to_faq(monkeypatch) -> None:
-    monkeypatch.setattr(
-        "chatbot.generation.orchestrator._normalize_intent_with_llm",
-        lambda query: RoutingIntent(
-            intent="payment_how_to",
-            normalized_query="galaxy store payment guide",
-            requires_account_lookup=False,
-            should_use_rag=True,
-            reason="slang payment how-to",
-        ),
-    )
-
-    assert _classify(1, "galaxy store payment?", account_id=None) == (
-        "FAQ",
-        "rag_reply",
-        "llm_intent",
-        "intent:payment_how_to; slang payment how-to",
-        "galaxy store payment guide",
-        True,
-        True,
-        None,
-    )
+def test_route_by_user_selected_categories() -> None:
+    assert route_by_category({"category": "payment"}) == "payment_agent"
+    assert route_by_category({"category": "bug"}) == "bug_agent"
+    assert route_by_category({"category": "faq"}) == "faq_agent"
+    assert route_by_category({"category": "voc"}) == "voc_agent"
 
 
-def test_llm_intent_routes_missing_payment_to_operation(monkeypatch) -> None:
-    monkeypatch.setattr(
-        "chatbot.generation.orchestrator._normalize_intent_with_llm",
-        lambda query: RoutingIntent(
-            intent="payment_missing_item",
-            normalized_query="paid item missing",
-            requires_account_lookup=True,
-            should_use_rag=False,
-            reason="paid item is missing",
-        ),
-    )
-
-    assert _classify(1, "paid item missing", account_id=None) == (
-        "결제",
-        "urgent_alert",
-        "llm_intent",
-        "intent:payment_missing_item; paid item is missing",
-        "paid item missing",
-        True,
-        False,
-        None,
-    )
-
-
-def test_llm_intent_keeps_payment_how_to_in_faq_even_with_account(monkeypatch) -> None:
-    monkeypatch.setattr(
-        "chatbot.generation.orchestrator._normalize_intent_with_llm",
-        lambda query: RoutingIntent(
-            intent="payment_how_to",
-            normalized_query="galaxy store payment guide",
-            requires_account_lookup=False,
-            should_use_rag=True,
-            reason="payment how-to but account is present",
-        ),
-    )
-
-    assert _classify(1, "galaxy store payment guide", account_id=10) == (
-        "FAQ",
-        "rag_reply",
-        "llm_intent",
-        "intent:payment_how_to; payment how-to but account is present",
-        "galaxy store payment guide",
-        True,
-        True,
-        None,
-    )
-
-
-def test_route_from_intent_sends_bug_how_to_to_faq() -> None:
-    assert _route_from_intent(
-        RoutingIntent(
-            intent="bug_how_to",
-            normalized_query="game launch error troubleshooting",
-            requires_account_lookup=False,
-            should_use_rag=True,
-            reason="general troubleshooting",
-        )
-    ) == ("FAQ", "rag_reply", "intent:bug_how_to; general troubleshooting")
-
-
-def test_route_from_intent_prioritizes_general_rag_over_account_lookup() -> None:
-    assert _route_from_intent(
-        RoutingIntent(
-            intent="payment_how_to",
-            normalized_query="galaxy store payment guide",
-            is_actionable=True,
-            requires_account_lookup=True,
-            should_use_rag=True,
-            reason="general payment guide despite logged-in account",
-        ),
-        account_id=101,
-    ) == ("FAQ", "rag_reply", "intent:payment_how_to; general payment guide despite logged-in account")
-
-
-def test_llm_intent_routes_non_actionable_complaint_to_voc_without_rag(monkeypatch) -> None:
-    monkeypatch.setattr(
-        "chatbot.generation.orchestrator._normalize_intent_with_llm",
-        lambda query: RoutingIntent(
-            intent="voc",
-            normalized_query="game complaint",
-            is_actionable=False,
-            requires_account_lookup=False,
-            should_use_rag=False,
-            fallback_reason="low_information_complaint",
-            reason="vague emotional complaint without a concrete issue",
-        ),
-    )
-
-    assert _classify(1, "this game is bad", account_id=None) == (
-        "VOC",
-        "rag_reply",
-        "llm_intent",
-        "intent:voc; vague emotional complaint without a concrete issue",
-        "game complaint",
-        False,
-        False,
-        "low_information_complaint",
-    )
-
-
-def test_classify_falls_back_to_structured_classifier_when_intent_fails(monkeypatch) -> None:
-    monkeypatch.setattr("chatbot.generation.orchestrator._normalize_intent_with_llm", lambda query: (_ for _ in ()).throw(RuntimeError("intent failed")))
-    monkeypatch.setattr(
-        "chatbot.generation.orchestrator._classify_with_llm",
-        lambda ticket_id, query: type(
-            "ClassifierResult",
-            (),
-            {
-                "category": "FAQ",
-                "routing_target": "rag_reply",
-                "reason": "classifier fallback",
-            },
-        )(),
-    )
-
-    assert _classify(1, "galaxy store payment guide", account_id=None) == (
-        "FAQ",
-        "rag_reply",
-        "llm",
-        "classifier fallback",
-        "galaxy store payment guide",
-        None,
-        None,
-        None,
-    )
-
-
-def test_classify_defaults_to_faq_when_all_llm_routing_fails(monkeypatch) -> None:
-    monkeypatch.setattr("chatbot.generation.orchestrator._normalize_intent_with_llm", lambda query: (_ for _ in ()).throw(RuntimeError("intent failed")))
-    monkeypatch.setattr("chatbot.generation.orchestrator._classify_with_llm", lambda ticket_id, query: (_ for _ in ()).throw(RuntimeError("classifier failed")))
-
-    assert _classify(1, "galaxy store payment guide", account_id=None) == (
-        "FAQ",
-        "rag_reply",
-        "fallback",
-        "intent_and_classifier_unavailable",
-        "galaxy store payment guide",
-        None,
-        None,
-        None,
-    )
-
-
-def test_route_by_normalized_categories() -> None:
+def test_route_by_legacy_display_categories() -> None:
     assert route_by_category({"category": "결제"}) == "payment_agent"
     assert route_by_category({"category": "인게임/버그"}) == "bug_agent"
     assert route_by_category({"category": "FAQ"}) == "faq_agent"
+    assert route_by_category({"category": "VOC"}) == "voc_agent"
 

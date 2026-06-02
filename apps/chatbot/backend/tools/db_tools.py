@@ -112,7 +112,7 @@ def write_answer_draft(payload: dict) -> str:
     """Write an answer draft for a ticket.
 
     Args:
-        payload: answer_draft fields including ticket_id, analysis_id, draft_text, and prompt_version.
+        payload: answer_draft fields including ticket_id, draft_text, and prompt_version.
     """
     from chatbot.repository.draft_repository import save_answer_draft
 

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import os
 import sys
 from contextlib import redirect_stdout
@@ -21,10 +20,8 @@ for path in (PROJECT_ROOT, SRC_DIR):
 from chatbot.chains import persistence
 from chatbot.chains.routing import route_by_category
 from chatbot.generation import faq_agent
-from chatbot.generation.orchestrator import _route_from_intent
 from common.retrieval import vector_tools
 from common.retrieval.vector_tools import hybrid_rank_documents, search_document_chunks
-from chatbot.schemas import RoutingIntent
 
 
 Check = tuple[str, Callable[[], None]]
@@ -38,42 +35,24 @@ def _assert_equal(actual: object, expected: object) -> None:
 def _routing_checks() -> list[Check]:
     return [
         (
-            "갤럭시 결제 방법 안내 -> FAQ/RAG",
+            "user selected payment -> payment_agent",
             lambda: _assert_equal(
-                _route_from_intent(
-                    RoutingIntent(
-                        intent="payment_how_to",
-                        normalized_query="갤럭시 스토어 결제 방법",
-                        requires_account_lookup=False,
-                        should_use_rag=True,
-                        reason="general payment how-to",
-                    ),
-                    account_id=None,
-                ),
-                ("FAQ", "rag_reply", "intent:payment_how_to; general payment how-to"),
-            ),
-        ),
-        (
-            "갤럭시 결제 미지급 -> 결제/운영 확인",
-            lambda: _assert_equal(
-                _route_from_intent(
-                    RoutingIntent(
-                        intent="payment_missing_item",
-                        normalized_query="결제 상품 미지급",
-                        requires_account_lookup=True,
-                        should_use_rag=False,
-                        reason="paid item missing",
-                    ),
-                    account_id=None,
-                ),
-                ("결제", "urgent_alert", "intent:payment_missing_item; paid item missing"),
-            ),
-        ),
-        (
-            "계정 기반 결제 질문 -> 결제/운영 확인",
-            lambda: _assert_equal(
-                route_by_category({"category": "결제"}),
+                route_by_category({"category": "payment"}),
                 "payment_agent",
+            ),
+        ),
+        (
+            "user selected bug -> bug_agent",
+            lambda: _assert_equal(
+                route_by_category({"category": "bug"}),
+                "bug_agent",
+            ),
+        ),
+        (
+            "user selected faq -> faq_agent",
+            lambda: _assert_equal(
+                route_by_category({"category": "faq"}),
+                "faq_agent",
             ),
         ),
     ]
@@ -236,50 +215,32 @@ def _evidence_checks() -> list[Check]:
     }
 
     def check_retrieved_docs_saved() -> None:
-        original_draft = persistence._write_answer_draft
-        original_evidence = persistence._write_evidence_doc
-        payloads = []
-        persistence._write_answer_draft = lambda payload: json.dumps({"draft_id": 10})
-        persistence._write_evidence_doc = lambda payload: payloads.append(payload) or "{}"
-        try:
-            result = persistence.draft_persistence_node(
-                {
-                    **base_state,
-                    "retrieved_documents": [
-                        {
-                            "chunk_id": "chunk-1",
-                            "source_type": "hoyoverse_qna_common",
-                            "chunk_text": "first evidence",
-                            "score": 0.05,
-                        }
-                    ],
-                }
-            )
-        finally:
-            persistence._write_answer_draft = original_draft
-            persistence._write_evidence_doc = original_evidence
+        result = persistence.draft_persistence_node(
+            {
+                **base_state,
+                "retrieved_documents": [
+                    {
+                        "chunk_id": "chunk-1",
+                        "source_type": "hoyoverse_qna_common",
+                        "chunk_text": "first evidence",
+                        "score": 0.05,
+                    }
+                ],
+            }
+        )
 
         _assert_equal(result["evidence_count"], 1)
-        _assert_equal(payloads[0]["source_id"], "chunk-1")
+        _assert_equal(result["draft_persistence_result"]["stored"], False)
 
     def check_fallback_evidence_saved() -> None:
-        original_draft = persistence._write_answer_draft
-        original_evidence = persistence._write_evidence_doc
-        payloads = []
-        persistence._write_answer_draft = lambda payload: json.dumps({"draft_id": 11})
-        persistence._write_evidence_doc = lambda payload: payloads.append(payload) or "{}"
-        try:
-            result = persistence.draft_persistence_node(base_state)
-        finally:
-            persistence._write_answer_draft = original_draft
-            persistence._write_evidence_doc = original_evidence
+        result = persistence.draft_persistence_node(base_state)
 
         _assert_equal(result["evidence_count"], 1)
-        _assert_equal(payloads[0]["source_type"], "agent")
+        _assert_equal(result["draft_persistence_result"]["reason"], "chatbot_state_only")
 
     return [
-        ("retrieved_documents를 evidence_docs로 저장", check_retrieved_docs_saved),
-        ("근거 없으면 fallback evidence 저장", check_fallback_evidence_saved),
+        ("retrieved_documents count is kept in state", check_retrieved_docs_saved),
+        ("fallback evidence count is kept in state", check_fallback_evidence_saved),
     ]
 
 
