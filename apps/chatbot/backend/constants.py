@@ -15,6 +15,5 @@ HALLUCINATION_BLOCK_THRESHOLD = 0.7
 TOXICITY_THRESHOLD = 0.7
 
 VOC_FIXED_RESPONSE = (
-    "소중한 의견을 남겨주셔서 감사합니다.\n"
-    "보내주신 내용은 운영팀에서 참고할 수 있도록 접수하겠습니다."
+    "소중한 의견 감사합니다. 의견 반영하여 더 나은 서비스를 제공하도록 하겠습니다."
 )
