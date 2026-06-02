@@ -4,9 +4,8 @@
 
 
 
-- [ ] 워크플로우 실행 API를 추가한다.
-  - 현재 API는 초안 검수 중심이며 `build_operation_graph().invoke()`를 호출하는 엔드포인트가 없다.
-  - 예: `POST /tickets/{ticket_id}/run-workflow`
+- [x] 워크플로우 실행 API를 추가한다.
+  - `POST /tickets/{ticket_id}/run-workflow`가 `service/review/operation.py`의 `run_workflow_step()`를 직접 호출한다.
   - 중복 실행, 이미 closed 상태, 긴급 알림 상태에 대한 idempotency 규칙이 필요하다.
 
 - [ ] 재시도 상한을 실제 라우팅에 반영한다.
@@ -85,9 +84,9 @@
   - 현재 DB 조회, LLM 호출, 저장, 라우터, 로깅이 한 파일에 모여 있다.
   - 후보 분리: `repository.py`, `llm_nodes.py`, `routers.py`, `logging.py`
 
-- [ ] Mermaid 문서를 실제 그래프와 동기화한다.
-  - `docs/operation/architecture/langgraph.mmd`의 일부 엣지는 현재 `graph.py`와 다르다.
-  - `build_operation_graph(compile_graph=False)`에서 문서를 생성하는 스크립트를 두면 drift를 줄일 수 있다.
+- [ ] 워크플로우 문서를 실제 서비스 단계와 동기화한다.
+  - `docs/operation/architecture/langgraph.mmd`는 더 이상 정본이 아니므로 함수 실행 순서를 기준으로 교체해야 한다.
+  - `service/batch/operation.py`와 `service/review/operation.py`의 단계 정의를 기준으로 문서를 생성하거나 수동 유지 기준을 정해야 한다.
 
 - [ ] `save_final_edit_node`의 DB 저장 책임을 명확히 한다.
   - 현재 이름은 저장처럼 보이지만 실제 DB write는 없고 상태만 업데이트한다.

@@ -21,9 +21,9 @@
 | `human_review` | 사람 검수 결정 보조 결과 |
 | `analysis_id`, `draft_id`, `safety_id`, `response_id` | 각 저장 테이블의 PK |
 
-## 2. 그래프 구조
+## 2. 실행 구조
 
-`build_operation_graph()`는 `StateGraph(OperationState)`에 `nodes.NODE_FUNCTIONS`를 등록하고 조건부 엣지를 연결합니다.
+현재 실행 경로는 그래프 런타임이 아니라 `service/batch/operation.py`와 `service/review/operation.py`의 단계 함수입니다. API와 배치가 각자 필요한 서비스 함수를 호출하며, 각 단계는 `OperationState`와 구조화된 LLM 응답을 조합해 다음 단계를 실행합니다.
 
 ```mermaid
 flowchart TD
@@ -176,6 +176,4 @@ flowchart TD
 - 긴급 경로에서 `notification_logs` 저장 및 최종 답변 미발행
 - 동시 실행 안정성을 위해 `SELECT MAX(id)` 대신 `RETURNING` 사용 확인
 
-`test_operation_workflow_graph_image.py`
-
-- LangGraph 구조를 PNG로 저장할 수 있는지 확인
+그래프 이미지 테스트는 제거되었고, 현재는 함수 실행 경로의 입출력과 DB 저장 결과를 중심으로 검증합니다.

@@ -136,6 +136,28 @@ docker compose up -d
 docker compose ps
 ```
 
+Airflow 배치를 같이 띄울 때:
+
+```bash
+docker compose --profile airflow up -d airflow-postgres airflow-init airflow-webserver airflow-scheduler
+```
+
+Airflow UI:
+
+- `http://localhost:8080`
+- 기본 계정: `admin / admin`
+
+cs_auto 배치 DAG:
+
+- `cs_auto_ticket_analysis_daily`: 매일 `02:00` KST에 미분석 티켓 분석
+- `cs_auto_naver_cafe_draft_daily`: 매일 `03:00` KST에 `naver_cafe` 티켓 초안 생성
+- 수동 검증 테스트는 `apps/tests/cs_auto_tests/test_airflow_jobs.py`를 실행
+
+배치 결과 파일 로그:
+
+- 기본 경로: `logs/operation/airflow/`
+- 각 실행마다 JSON 파일 1개 생성
+
 기본 노출 경로:
 
 - `http://localhost/chatbot/`

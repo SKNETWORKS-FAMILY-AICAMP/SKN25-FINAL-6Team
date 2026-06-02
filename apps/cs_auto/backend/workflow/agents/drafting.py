@@ -7,7 +7,7 @@ import os
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 
-from ..prompts import DRAFTING_SYSTEM_PROMPT, DRAFTING_USER_PROMPT, DraftingAgentResponse, render_state
+from ..prompts import DRAFTING_SYSTEM_PROMPT, DRAFTING_USER_PROMPT, DraftingAgentResponse, render_state_for_drafting
 from ..state import OperationState
 
 
@@ -26,5 +26,5 @@ def run_drafting_agent(state: OperationState) -> DraftingAgentResponse:
             ("human", DRAFTING_USER_PROMPT),
         ]
     )
-    messages = prompt.invoke({"state_json": render_state(state)}).to_messages()
+    messages = prompt.invoke({"state_json": render_state_for_drafting(state)}).to_messages()
     return DraftingAgentResponse.model_validate(llm.invoke(messages))

@@ -1,0 +1,25 @@
+name: cs-auto-web
+
+services:
+  cs-auto-backend:
+    build:
+      context: ../../..
+      dockerfile: apps/cs_auto/deploy/docker/backend.Dockerfile
+    container_name: cs-auto-backend
+    env_file:
+      - ../../../.env
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  cs-auto-nginx:
+    image: nginx:1.27-alpine
+    container_name: cs-auto-nginx
+    depends_on:
+      - cs-auto-backend
+    ports:
+      - "8088:80"
+    volumes:
+      - ../frontend/static:/usr/share/nginx/html/cs-auto:ro
+      - ./nginx/standalone.conf:/etc/nginx/conf.d/default.conf:ro
+    restart: unless-stopped

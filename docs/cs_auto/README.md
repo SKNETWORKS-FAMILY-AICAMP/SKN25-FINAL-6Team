@@ -2,7 +2,7 @@
 
 ## 1. 개요
 
-`src/operation`은 게임 고객 문의를 운영자가 검수 가능한 답변 초안으로 전환하는 운영 워크플로우입니다. 핵심은 LangGraph 기반 자동 처리 파이프라인이며, FastAPI는 검수 API를 제공하고 Streamlit은 운영자 UI를 제공합니다.
+`src/operation`은 게임 고객 문의를 운영자가 검수 가능한 답변 초안으로 전환하는 운영 워크플로우입니다. 핵심은 함수형 서비스 기반 자동 처리 파이프라인이며, FastAPI는 검수 API를 제공하고 Streamlit은 운영자 UI를 제공합니다.
 
 주요 책임은 다음과 같습니다.
 
@@ -17,16 +17,17 @@
 
 | 경로 | 역할 |
 | --- | --- |
-| `src/operation/workflow/state.py` | LangGraph 전체 상태와 하위 모델 정의 |
+| `src/operation/workflow/state.py` | 운영 워크플로우 상태와 하위 모델 정의 |
 | `src/operation/workflow/prompts.py` | LLM 구조화 응답 모델과 프롬프트 템플릿 |
-| `src/operation/workflow/nodes.py` | DB 조회/저장, LLM 호출, 라우터, 노드 로깅 구현 |
-| `src/operation/workflow/graph.py` | LangGraph 노드와 조건부 엣지 선언 |
+| `src/operation/workflow/nodes.py` | 레거시 테스트 호환용 래퍼와 DB 테스트 헬퍼 |
+| `src/operation/service/batch/operation.py` | 티켓 로드, 분석, 컨텍스트 조회, 초안 생성 실행 |
+| `src/operation/service/review/operation.py` | 검수, 승인, 재생성, 최종 반영 실행 |
 | `src/operation/api/main.py` | 운영자 검수용 FastAPI 엔드포인트 |
 | `src/operation/frontend/app.py` | Streamlit 통합 검수 화면 |
 | `src/operation/frontend/pages/*` | 문의 목록, 답변 검수, 검수 결과 페이지 |
 | `src/operation/frontend/components/*` | 티켓 카드, 답변 패널, 안전성 결과 UI |
 | `src/operation/run.py` | FastAPI와 Streamlit을 함께 실행하는 로컬 런처 |
-| `tests/operation/*` | 노드 단위 테스트, 전체 그래프 경로 테스트, 그래프 이미지 생성 테스트 |
+| `tests/operation/*` | 서비스 단계 단위 테스트와 전체 함수 실행 경로 테스트 |
 
 ## 3. 실행 단위
 
@@ -92,8 +93,7 @@ Streamlit UI는 위 API를 호출해 문의 목록 조회, 최신 분석/초안/
 현재 `tests/operation`은 다음을 검증합니다.
 
 - 노드 단위 테스트: 티켓 로딩, 컨텍스트 병합, LLM 노드 반환값, 라우터 필수 상태 검증
-- 전체 그래프 테스트: 일반 승인 경로, 긴급 알림 경로, `RETURNING` 기반 ID 처리
-- 그래프 이미지 테스트: LangGraph 구조 PNG 생성
+- 전체 실행 경로 테스트: 일반 승인 경로, 긴급 알림 경로, `RETURNING` 기반 ID 처리
 
 테스트는 실제 DB/LLM 대신 fake DB와 fake structured LLM을 사용해 워크플로우 동작을 고립 검증합니다.
 

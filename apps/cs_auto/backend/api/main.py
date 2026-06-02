@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, Literal
 
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.staticfiles import StaticFiles
 from psycopg.rows import dict_row
 from psycopg.types.json import Json
 from pydantic import BaseModel, Field
@@ -14,12 +16,12 @@ from common.observability.langsmith import configure_langsmith
 configure_langsmith("operation")
 
 from common.db.connection import db_connection
-from service.account_service import login_with_credentials
-from workflow import OperationState, build_operation_graph
-from workflow.state import HumanReviewResult
+from service.review.operation import approve_existing_draft, edit_existing_draft, regenerate_from_draft, run_workflow_step
+from service.admin_account_service import login_admin_with_credentials
 
 
 app = FastAPI(title="Operation Review API", version="2.0.0")
+_FRONTEND_STATIC_DIR = Path(__file__).resolve().parents[2] / "frontend" / "static"
 
 
 ReviewDecision = Literal["approved", "regenerate", "edited"]
@@ -47,20 +49,17 @@ class RegenerateDraftRequest(BaseModel):
     reviewer_id: str | None = None
 
 
-class LoginRequest(BaseModel):
-    email: str = Field(min_length=1)
+class AdminLoginRequest(BaseModel):
+    login_id: str = Field(min_length=1)
     password: str = Field(min_length=1)
-    server_region: str = Field(min_length=1)
 
 
-class LoginResponse(BaseModel):
+class AdminLoginResponse(BaseModel):
     login_success: bool
-    user_id: int | None = None
-    account_id: int | None = None
-    game_id: str = ""
-    email: str = ""
-    server_region: str = ""
-    nickname: str | None = None
+    admin_id: int | None = None
+    login_id: str = ""
+    display_name: str | None = None
+    role: str | None = None
     message: str = ""
 
 
@@ -101,8 +100,18 @@ def _ticket_list_where(*, status: str | None, today_only: bool, assignee_id: str
     clauses: list[str] = []
     params: list[Any] = []
     if status:
-        clauses.append("t.status = %s")
-        params.append(status)
+        if status == "open":
+            clauses.append(
+                "(t.status = %s OR (t.status = 'pending' AND NOT EXISTS "
+                "(SELECT 1 FROM answer_draft d WHERE d.ticket_id = t.ticket_id)))"
+            )
+            params.append(status)
+        elif status == "pending":
+            clauses.append("(t.status = %s OR t.status = 'human_review_pending')")
+            params.append(status)
+        else:
+            clauses.append("t.status = %s")
+            params.append(status)
     if today_only:
         clauses.append(
             "t.inquiry_created_at >= CURRENT_DATE "
@@ -130,7 +139,11 @@ def _list_ticket_rows(cur: Any, *, status: str | None, limit: int, today_only: b
             t.account_id,
             t.title,
             t.source_type,
-            t.status,
+            CASE
+                WHEN t.status = 'human_review_pending' THEN 'pending'
+                WHEN t.status = 'pending' AND latest_draft.draft_id IS NULL THEN 'open'
+                ELSE t.status
+            END AS status,
             t.assignee_id,
             t.inquiry_created_at,
             u.nickname,
@@ -210,7 +223,7 @@ def _draft_for_update(cur: Any, draft_id: int) -> dict[str, Any]:
     return dict(row)
 
 
-_TERMINAL_STATUSES = {"closed", "urgent_alert_pending"}
+_TERMINAL_STATUSES = {"closed", "urgent_alert_pending", "workflow_running"}
 
 
 def _ensure_ticket_reprocessable(ticket_id: int) -> None:
@@ -227,33 +240,49 @@ def _ensure_ticket_reprocessable(ticket_id: int) -> None:
                 )
 
 
-def _run_graph(state: OperationState, *, ticket_id: int) -> dict[str, Any]:
-    graph = build_operation_graph()
-    return graph.invoke(
-        state,
-        config={
-            "run_name": f"operation-workflow-{ticket_id}",
-            "metadata": {"ticket_id": ticket_id, "workflow": "operation"},
-        },
-    )
+def _ensure_draft_reprocessable(cur: Any, draft: dict[str, Any]) -> None:
+    draft_id = int(draft["draft_id"])
+    ticket_id = int(draft["ticket_id"])
 
-
-def _human_review_state(
-    *,
-    ticket_id: int,
-    decision: Literal["approved", "regenerate", "edit"],
-    reason: str,
-    edited_answer: str | None = None,
-) -> OperationState:
-    review = HumanReviewResult(decision=decision, reason=reason, edited_answer=edited_answer)
-    return OperationState(
-        ticket_id=str(ticket_id),
-        approval_route="human_review",
-        human_decision=decision,
-        human_review=review,
-        edited_answer=edited_answer,
-        metadata={"review_reason": reason},
+    cur.execute(
+        """
+        SELECT status
+        FROM qa_ticket
+        WHERE ticket_id = %s
+        FOR UPDATE
+        """,
+        (ticket_id,),
     )
+    ticket = cur.fetchone()
+    if ticket is None:
+        raise HTTPException(status_code=404, detail=f"ticket not found: {ticket_id}")
+    if ticket["status"] in _TERMINAL_STATUSES:
+        raise HTTPException(
+            status_code=409,
+            detail=f"ticket {ticket_id} is not reprocessable in status: {ticket['status']}",
+        )
+
+    cur.execute(
+        """
+        SELECT draft_id
+        FROM answer_draft
+        WHERE ticket_id = %s
+        ORDER BY created_at DESC NULLS LAST, draft_id DESC
+        LIMIT 1
+        """,
+        (ticket_id,),
+    )
+    latest_draft = cur.fetchone()
+    if latest_draft is None or int(latest_draft["draft_id"]) != draft_id:
+        latest_draft_id = int(latest_draft["draft_id"]) if latest_draft is not None else None
+        raise HTTPException(
+            status_code=409,
+            detail=f"draft {draft_id} is stale; latest draft is {latest_draft_id}",
+        )
+
+    cur.execute("SELECT response_id FROM final_response WHERE draft_id = %s LIMIT 1", (draft_id,))
+    if cur.fetchone() is not None:
+        raise HTTPException(status_code=409, detail=f"draft {draft_id} is already approved")
 
 
 @app.get("/health")
@@ -261,17 +290,23 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.post("/auth/login", response_model=LoginResponse)
-def login(request: LoginRequest) -> LoginResponse:
-    result = login_with_credentials(request.email, request.password, request.server_region)
-    return LoginResponse(**result)
+
+@app.post("/auth/admin/login", response_model=AdminLoginResponse)
+def admin_login(request: AdminLoginRequest) -> AdminLoginResponse:
+    result = login_admin_with_credentials(request.login_id, request.password)
+    return AdminLoginResponse(**result)
 
 
 # [수정] 담당자 자동 할당 제거 — 할당은 티켓 선택 시 /assign 엔드포인트에서 처리
 @app.post("/tickets/{ticket_id}/run-workflow", response_model=RunWorkflowResponse)
 def run_workflow(ticket_id: int) -> RunWorkflowResponse:
     _ensure_ticket_reprocessable(ticket_id)
-    result = _run_graph(OperationState(ticket_id=str(ticket_id)), ticket_id=ticket_id)
+    try:
+        result = run_workflow_step(ticket_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     return RunWorkflowResponse(
         ticket_id=ticket_id,
         status=result.get("status") or "unknown",
@@ -311,7 +346,7 @@ def list_tickets(
 
 @app.get("/tickets/today")
 def list_today_tickets(
-    status: str | None = Query(default="pending"),
+    status: str | None = Query(default="open"),
     limit: int = Query(default=100, ge=1, le=200),
 ) -> list[dict[str, Any]]:
     with db_connection() as conn:
@@ -395,7 +430,13 @@ def get_ticket_detail(ticket_id: int) -> dict[str, Any]:
                 """,
                 (ticket_id,),
             )
+            if ticket is None:
+                raise HTTPException(status_code=404, detail=f"ticket not found: {ticket_id}")
             sections = _fetch_ticket_sections(cur, ticket_id)
+            if ticket.get("status") == "human_review_pending":
+                ticket["status"] = "pending"
+            elif ticket.get("status") == "pending" and not sections["drafts"]:
+                ticket["status"] = "open"
     return {"ticket": ticket, **sections}
 
 
@@ -413,15 +454,7 @@ def edit_draft(draft_id: int, request: DraftEditRequest) -> ReviewActionResponse
                 reason=request.reason,
             )
 
-    result = _run_graph(
-        _human_review_state(
-            ticket_id=draft["ticket_id"],
-            decision="edit",
-            reason=request.reason,
-            edited_answer=request.draft_text,
-        ),
-        ticket_id=draft["ticket_id"],
-    )
+    result = edit_existing_draft(draft_id, request.draft_text)
     return ReviewActionResponse(
         ticket_id=draft["ticket_id"],
         draft_id=draft_id,
@@ -437,15 +470,7 @@ def approve_draft(draft_id: int, request: ApproveDraftRequest) -> ReviewActionRe
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
             draft = _draft_for_update(cur, draft_id)
-            cur.execute(
-                "SELECT response_id FROM final_response WHERE draft_id = %s LIMIT 1",
-                (draft_id,),
-            )
-            if cur.fetchone() is not None:
-                raise HTTPException(
-                    status_code=409,
-                    detail=f"draft {draft_id} is already approved",
-                )
+            _ensure_draft_reprocessable(cur, draft)
             _insert_review_log(
                 cur,
                 ticket_id=draft["ticket_id"],
@@ -455,16 +480,12 @@ def approve_draft(draft_id: int, request: ApproveDraftRequest) -> ReviewActionRe
                 reason=request.reason,
             )
 
-    edited_answer = request.final_text or None
-    result = _run_graph(
-        _human_review_state(
-            ticket_id=draft["ticket_id"],
-            decision="approved",
-            reason=request.reason,
-            edited_answer=edited_answer,
-        ),
-        ticket_id=draft["ticket_id"],
-    )
+    try:
+        result = approve_existing_draft(draft_id, request.final_text or None)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     return ReviewActionResponse(
         ticket_id=draft["ticket_id"],
         draft_id=draft_id,
@@ -480,6 +501,7 @@ def regenerate_draft(draft_id: int, request: RegenerateDraftRequest) -> ReviewAc
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
             draft = _draft_for_update(cur, draft_id)
+            _ensure_draft_reprocessable(cur, draft)
             _insert_review_log(
                 cur,
                 ticket_id=draft["ticket_id"],
@@ -489,14 +511,12 @@ def regenerate_draft(draft_id: int, request: RegenerateDraftRequest) -> ReviewAc
                 reason=request.reason,
             )
 
-    result = _run_graph(
-        _human_review_state(
-            ticket_id=draft["ticket_id"],
-            decision="regenerate",
-            reason=request.reason,
-        ),
-        ticket_id=draft["ticket_id"],
-    )
+    try:
+        result = regenerate_from_draft(draft_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     return ReviewActionResponse(
         ticket_id=draft["ticket_id"],
         draft_id=draft_id,
@@ -512,3 +532,7 @@ def reject_draft(draft_id: int, request: RegenerateDraftRequest) -> ReviewAction
     result = regenerate_draft(draft_id, request)
     result.run_workflow_url = f"/tickets/{result.ticket_id}/run-workflow"
     return result
+
+
+if _FRONTEND_STATIC_DIR.exists():
+    app.mount("/", StaticFiles(directory=_FRONTEND_STATIC_DIR, html=True), name="cs_auto_frontend")

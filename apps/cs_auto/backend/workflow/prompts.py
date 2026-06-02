@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import os
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -152,6 +154,44 @@ def render_state(state: OperationState) -> str:
         indent=2,
         default=str,
     )
+
+
+def _truncate_text(value: Any, max_chars: int) -> Any:
+    if not isinstance(value, str) or len(value) <= max_chars:
+        return value
+    return value[: max_chars - 3].rstrip() + "..."
+
+
+def _truncate_mapping(value: Any, max_chars: int) -> Any:
+    if isinstance(value, dict):
+        return {key: _truncate_mapping(item, max_chars) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_truncate_mapping(item, max_chars) for item in value]
+    return _truncate_text(value, max_chars)
+
+
+def render_state_for_drafting(state: OperationState) -> str:
+    """Serialize a compact workflow state for the drafting LLM call."""
+
+    max_docs = int(os.environ.get("DRAFTING_MAX_EVIDENCE_DOCS", "5"))
+    max_doc_chars = int(os.environ.get("DRAFTING_MAX_EVIDENCE_CHARS", "1800"))
+    max_context_items = int(os.environ.get("DRAFTING_MAX_CONTEXT_ITEMS", "8"))
+    max_context_chars = int(os.environ.get("DRAFTING_MAX_CONTEXT_CHARS", "1200"))
+
+    payload = state.model_dump(exclude_none=True)
+    payload["retrieved_docs"] = [
+        {
+            **doc.model_dump(exclude_none=True, exclude={"metadata"}),
+            "content": _truncate_text(doc.content, max_doc_chars),
+        }
+        for doc in state.retrieved_docs[:max_docs]
+    ]
+    payload["context"] = {
+        key: _truncate_mapping(value[:max_context_items] if isinstance(value, list) else value, max_context_chars)
+        for key, value in state.context.items()
+    }
+    payload.pop("metadata", None)
+    return json.dumps(payload, ensure_ascii=False, indent=2, default=str)
 
 
 def render_documents(documents: list[EvidenceDocument]) -> str:

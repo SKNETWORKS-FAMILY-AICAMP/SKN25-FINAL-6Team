@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from psycopg.rows import dict_row
@@ -28,6 +29,19 @@ def _query_text(state: OperationState) -> str:
     if not query_text:
         raise ValueError("operation workflow requires query_text or ticket body")
     return query_text
+
+
+def _keyword_terms(query_text: str) -> list[str]:
+    terms = re.findall(r"[0-9A-Za-z가-힣]{2,}", query_text)
+    stopwords = {"윈도우", "확인", "싶습니다", "포함", "되는지", "나온"}
+    seen: set[str] = set()
+    keywords: list[str] = []
+    for term in terms:
+        if term in stopwords or term in seen:
+            continue
+        seen.add(term)
+        keywords.append(term)
+    return keywords[:6]
 
 
 def _rrf_merge(
@@ -91,6 +105,31 @@ def _retrieve_docs(state: OperationState) -> list[EvidenceDocument]:
                 (query_text, query_text, f"%{query_text}%", f"%{query_text}%"),
             )
             keyword_rows = {row["chunk_id"]: dict(row) for row in cur.fetchall()}
+
+            if not keyword_rows:
+                terms = _keyword_terms(query_text)
+                if terms:
+                    conditions = " OR ".join(["c.chunk_text ILIKE %s OR d.title ILIKE %s"] * len(terms))
+                    params = [f"%{term}%" for term in terms for _ in range(2)]
+                    cur.execute(
+                        f"""
+                        SELECT
+                            c.chunk_id,
+                            c.document_id,
+                            d.source_type,
+                            d.category,
+                            d.title,
+                            c.chunk_text,
+                            0.1 AS score
+                        FROM documents_chunks c
+                        JOIN documents d ON d.documents_id = c.document_id
+                        WHERE {conditions}
+                        ORDER BY c.created_at DESC NULLS LAST
+                        LIMIT 10
+                        """,
+                        tuple(params),
+                    )
+                    keyword_rows = {row["chunk_id"]: dict(row) for row in cur.fetchall()}
 
             vector_rows: dict[str, dict[str, Any]] = {}
             if query_embedding:
