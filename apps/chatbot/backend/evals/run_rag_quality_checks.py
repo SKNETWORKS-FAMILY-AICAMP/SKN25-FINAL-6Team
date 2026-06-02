@@ -207,7 +207,6 @@ def _answer_checks() -> list[Check]:
 def _evidence_checks() -> list[Check]:
     base_state = {
         "ticket_id": 1,
-        "analysis_id": 2,
         "draft_text": "draft answer",
         "reasoning_node": "faq_agent",
         "category": "FAQ",

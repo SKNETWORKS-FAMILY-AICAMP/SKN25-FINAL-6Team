@@ -8,11 +8,15 @@ from chatbot.observability.logger import EVENT_NOTIFICATION_DISPATCHED, log_even
 from chatbot.repository.notification_repository import notification_log_exists, save_notification_log
 
 
-BUG_CATEGORY_VALUES = {"?멸쾶??踰꾧렇", "인게임/버그", "인게임버그"}
+BUG_CATEGORY_VALUES = {"bug", "인게임/버그", "인게임버그"}
+
+
+def _inquiry_content(state: dict[str, Any]) -> str:
+    return str(state.get("normalized_query") or state.get("enriched_query") or state.get("raw_query") or "")
 
 
 def _urgent_alert_message(state: dict[str, Any]) -> str:
-    content = state.get("enriched_query") or state.get("raw_query") or ""
+    content = _inquiry_content(state)
     final_text = state.get("final_text") or ""
     return (
         "[긴급 문의 알림]\n"
@@ -36,14 +40,14 @@ def _is_in_game_bug_alert(state: dict[str, Any]) -> bool:
 
 
 def _github_issue_title(state: dict[str, Any]) -> str:
-    content = str(state.get("enriched_query") or state.get("raw_query") or "").strip()
+    content = _inquiry_content(state).strip()
     if len(content) > 60:
         content = f"{content[:57]}..."
     return f"[인게임 버그] {content or '운영자 확인 필요'}"
 
 
 def _github_issue_body(state: dict[str, Any]) -> str:
-    content = state.get("enriched_query") or state.get("raw_query") or ""
+    content = _inquiry_content(state)
     final_text = state.get("final_text") or ""
     return (
         "## Ticket\n"

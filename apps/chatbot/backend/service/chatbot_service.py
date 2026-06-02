@@ -5,6 +5,7 @@ from typing import Any
 
 from chatbot.observability.langsmith import build_runnable_config, build_trace_metadata
 from chatbot.observability.logger import EVENT_NODE_COMPLETED, log_event
+from chatbot.utils.input_preprocessing import preprocess_user_input
 
 
 def build_state(
@@ -18,6 +19,8 @@ def build_state(
     previous_messages: list[dict[str, str]] | None = None,
     conversation_summary: str | None = None,
 ) -> dict[str, Any]:
+    preprocessing = preprocess_user_input(user_message)
+    masked_content = preprocessing["masked_content"]
     messages = list(previous_messages or [])
     messages.append({
         "role": "user",
@@ -25,7 +28,7 @@ def build_state(
             f"ticket_id={ticket_id}\n"
             f"account_id={account_id}\n"
             f"source_type={source_type}\n\n"
-            f"Customer inquiry:\n{user_message}"
+            f"Customer inquiry:\n{masked_content}"
         ),
     })
 
@@ -36,12 +39,14 @@ def build_state(
         "account_id": account_id,
         "source_type": source_type,
         "raw_query": user_message,
+        "masked_content": masked_content,
+        "input_masked": preprocessing["masked"],
+        "input_detected_labels": preprocessing["detected_labels"],
+        "normalized_query": None,
         "enriched_query": None,
         "ticket_id": ticket_id,
         "category": category or "",
         "routing_target": "",
-        "classification_method": None,
-        "classification_reason": None,
         "draft_id": None,
         "draft_text": None,
         "final_text": None,
@@ -85,7 +90,12 @@ def _node_summary(node_name: str, node_update: dict[str, Any], state_snapshot: d
     elif node_name == "faq_agent":
         docs = merged.get("retrieved_documents") or []
         failure = merged.get("faq_failure_reason")
-        query = merged.get("retrieval_query") or merged.get("enriched_query") or merged.get("raw_query")
+        query = (
+            merged.get("retrieval_query")
+            or merged.get("normalized_query")
+            or merged.get("enriched_query")
+            or merged.get("raw_query")
+        )
         if failure:
             detail = f"FAQ search for '{query}' did not have enough evidence: {failure}."
         else:
@@ -165,8 +175,6 @@ def run_chatbot(
         print("[routing_debug]")
         print(f"category: {result.get('category')}")
         print(f"routing_target: {result.get('routing_target')}")
-        print(f"classification_method: {result.get('classification_method')}")
-        print(f"classification_reason: {result.get('classification_reason')}")
 
     return {
         "answer": last_message_text(result),

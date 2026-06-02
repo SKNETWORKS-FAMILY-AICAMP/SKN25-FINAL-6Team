@@ -7,7 +7,7 @@ import pytest
 from chatbot.chains.routing import route_by_category
 
 from chatbot.constants import VOC_FIXED_RESPONSE
-from chatbot.generation import voc_agent
+from chatbot.generation import ticket_preprocess, voc_agent
 from chatbot.generation.response.final_response import final_response_node
 from chatbot.generation.response.fixed_responses import (
     BLOCK_RESPONSE,
@@ -20,16 +20,72 @@ from chatbot.generation.response.fixed_responses import (
 from chatbot.notifications import dispatcher
 from chatbot.safety import safety_layer
 from chatbot.service.chatbot_service import build_state, last_message_text
+from chatbot.utils.input_preprocessing import preprocess_user_input
 
 
 def test_build_state_keeps_conversation_summary() -> None:
     state = build_state(
         ticket_id=1,
-        user_message="寃뚯엫 吏꾪뻾??由ъ뀑 ?댁틦??",
-        conversation_summary="?댁쟾 臾몄쓽??怨꾩젙 吏꾪뻾??愿??吏덈Ц?댁뿀??",
+        user_message="게임 진행을 초기화하고 싶어요.",
+        conversation_summary="이전 문의는 계정 진행도 초기화 관련 질문이었습니다.",
     )
 
-    assert state["conversation_summary"] == "?댁쟾 臾몄쓽??怨꾩젙 吏꾪뻾??愿??吏덈Ц?댁뿀??"
+    assert state["conversation_summary"] == "이전 문의는 계정 진행도 초기화 관련 질문이었습니다."
+
+
+def test_preprocess_user_input_masks_sensitive_values_without_dropping_question() -> None:
+    result = preprocess_user_input(
+        "결제 문의입니다. email test@example.com phone 010-1234-5678 비밀번호: qwer1234"
+    )
+
+    assert result["raw_content"].startswith("결제 문의입니다.")
+    assert "test@example.com" not in result["masked_content"]
+    assert "010-1234-5678" not in result["masked_content"]
+    assert "qwer1234" not in result["masked_content"]
+    assert "결제 문의입니다." in result["masked_content"]
+    assert result["masked"] is True
+    assert result["detected_labels"] == ["email", "phone", "password"]
+
+
+def test_build_state_uses_masked_content_for_runtime_message_but_keeps_raw_query() -> None:
+    user_message = "아이템 미지급입니다. test@example.com 010-1234-5678"
+
+    state = build_state(ticket_id=1, user_message=user_message, category="payment")
+
+    assert state["raw_query"] == user_message
+    assert state["masked_content"] != user_message
+    assert "test@example.com" not in state["masked_content"]
+    assert "010-1234-5678" not in state["messages"][-1]["content"]
+    assert state["input_masked"] is True
+    assert state["input_detected_labels"] == ["email", "phone"]
+
+
+def test_ticket_preprocess_persists_raw_query_and_normalizes_masked_content(monkeypatch) -> None:
+    saved_payloads = []
+
+    class FakeWriteQaTicket:
+        @staticmethod
+        def invoke(args):
+            saved_payloads.append(args["payload"])
+            return {"stored": True}
+
+    monkeypatch.setattr(ticket_preprocess, "write_qa_ticket", FakeWriteQaTicket)
+
+    state = build_state(
+        ticket_id=1,
+        user_message="아이템 미지급입니다. test@example.com",
+        category="faq",
+        user_id=7,
+        account_id=101,
+    )
+    update = ticket_preprocess.ticket_preprocess_node(state)
+
+    assert saved_payloads[0]["raw_query"] == "아이템 미지급입니다. test@example.com"
+    assert update["normalized_query"] == "아이템 미지급입니다. [EMAIL]"
+    assert update["enriched_query"] == "아이템 미지급입니다. [EMAIL]"
+    assert update["query_enrichment_method"] == "normalize_only"
+    assert update["query_enrichment_terms"] == []
+    assert update["category"] == "faq"
 
 
 def test_last_message_text_requires_final_text() -> None:
@@ -260,7 +316,7 @@ def test_safety_action_allows_non_rag_agent_without_retrieved_documents() -> Non
             "factuality_score": 0.0,
             "hallucination_score": 1.0,
         },
-        draft_text="寃곗젣 ?댁뿭???뺤씤?????덈궡?쒕━寃좎뒿?덈떎.",
+        draft_text="결제 이력을 확인한 뒤 안내드리겠습니다.",
         documents=[],
         requires_grounding=False,
     )
@@ -288,10 +344,10 @@ def test_safety_layer_does_not_fallback_payment_agent_without_rag_docs(monkeypat
         {
             "ticket_id": 1,
             "draft_id": 2,
-            "draft_text": "媛ㅻ윮???ㅽ넗??寃곗젣 諛⑸쾿? 寃곗젣 ?붾㈃?먯꽌 寃곗젣 ?섎떒???좏깮??吏꾪뻾?????덉뒿?덈떎.",
+            "draft_text": "갤럭시 스토어 결제 방법은 결제 화면에서 결제 수단을 선택해 진행할 수 있습니다.",
             "retrieved_documents": [],
             "retry_count": 0,
-            "category": "寃곗젣",
+            "category": "결제",
             "routing_target": "urgent_alert",
             "reasoning_node": "payment_agent",
         }
@@ -320,16 +376,16 @@ def test_safety_layer_does_not_ground_non_faq_payment_context_documents(monkeypa
         {
             "ticket_id": 1,
             "draft_id": 2,
-            "draft_text": "寃곗젣 ?댁뿭???뺤씤?????대떦?먭? 吏湲??щ?瑜??덈궡?쒕━寃좎뒿?덈떎.",
+            "draft_text": "결제 이력을 확인한 뒤 해당 아이템 지급 여부를 안내드리겠습니다.",
             "retrieved_documents": [
                 {
                     "source_type": "payments",
-                    "category": "寃곗젣",
+                    "category": "결제",
                     "chunk_text": "payment_id=201 payment_status=paid amount=12000",
                 }
             ],
             "retry_count": 0,
-            "category": "寃곗젣",
+            "category": "결제",
             "routing_target": "urgent_alert",
             "reasoning_node": "payment_agent",
             "should_use_rag": False,
@@ -373,8 +429,8 @@ def test_safety_layer_masks_and_rechecks_only_masked_text(monkeypatch) -> None:
         {
             "ticket_id": 1,
             "draft_id": 2,
-            "draft_text": "臾몄쓽 寃곌낵??test@example.com ?쇰줈 ?덈궡?⑸땲??",
-            "retrieved_documents": [{"chunk_text": "臾몄쓽 寃곌낵???대찓?쇰줈 ?덈궡?⑸땲??"}],
+            "draft_text": "문의 결과를 test@example.com 으로 안내합니다.",
+            "retrieved_documents": [{"chunk_text": "문의 결과는 이메일로 안내합니다."}],
             "retry_count": 0,
             "category": "FAQ",
             "routing_target": "rag_reply",
@@ -407,8 +463,8 @@ def test_safety_layer_fallbacks_after_masking_retry_exhausted(monkeypatch) -> No
         {
             "ticket_id": 1,
             "draft_id": 2,
-            "draft_text": "臾몄쓽 寃곌낵??test@example.com ?쇰줈 ?덈궡?⑸땲??",
-            "retrieved_documents": [{"chunk_text": "臾몄쓽 寃곌낵???대찓?쇰줈 ?덈궡?⑸땲??"}],
+            "draft_text": "문의 결과를 test@example.com 으로 안내합니다.",
+            "retrieved_documents": [{"chunk_text": "문의 결과는 이메일로 안내합니다."}],
             "retry_count": 2,
             "category": "FAQ",
             "routing_target": "rag_reply",
@@ -618,7 +674,7 @@ def test_voc_agent_uses_fallback_for_non_actionable_non_rag_intent(monkeypatch) 
             "ticket_id": 1,
             "user_id": 1,
             "account_id": 101,
-            "enriched_query": "寃뚯엫 ?댁슜 遺덈쭔",
+            "enriched_query": "게임 이용 불만",
             "routing_target": "rag_reply",
             "retry_count": 0,
             "is_actionable": False,
@@ -633,7 +689,6 @@ def test_voc_agent_uses_fallback_for_non_actionable_non_rag_intent(monkeypatch) 
     assert result["voc_type"] == "other"
     assert result["sentiment"] == "negative"
     assert result["topic_keywords"] == []
-
 
 def test_route_by_user_selected_categories() -> None:
     assert route_by_category({"category": "payment"}) == "payment_agent"

@@ -9,17 +9,6 @@ from typing_extensions import NotRequired
 
 Category = Literal["payment", "bug", "faq", "voc", "결제", "인게임/버그", "FAQ", "VOC"]
 RoutingTarget = Literal["rag_reply", "urgent_alert"]
-RoutingIntentName = Literal[
-    "payment_how_to",
-    "payment_missing_item",
-    "refund_request",
-    "payment_dispute",
-    "bug_how_to",
-    "bug_account_specific",
-    "policy_question",
-    "faq_question",
-    "voc",
-]
 SafetyAction = Literal[
     "AUTO_RESPONSE",
     "MASKING",
@@ -40,14 +29,16 @@ class ChatbotState(AgentState):
 
     # Active user inquiry.
     raw_query: NotRequired[str]
+    masked_content: NotRequired[str]
+    input_masked: NotRequired[bool]
+    input_detected_labels: NotRequired[list[str]]
+    normalized_query: NotRequired[str]
     enriched_query: NotRequired[str]
 
     # Routing and workflow state.
     ticket_id: NotRequired[int]
     category: NotRequired[Category | str]
     routing_target: NotRequired[RoutingTarget | str]
-    classification_method: NotRequired[str | None]
-    classification_reason: NotRequired[str | None]
     is_actionable: NotRequired[bool | None]
     should_use_rag: NotRequired[bool | None]
     fallback_reason: NotRequired[str | None]
@@ -61,6 +52,8 @@ class ChatbotState(AgentState):
     final_text: NotRequired[str | None]
     final_response_result: NotRequired[dict[str, Any] | None]
     reasoning_node: NotRequired[str | None]
+    query_enrichment_method: NotRequired[str | None]
+    query_enrichment_terms: NotRequired[list[str]]
     retrieval_query: NotRequired[str | None]
     retrieval_enrichment: NotRequired[dict[str, Any] | None]
     retrieved_documents: NotRequired[list[dict[str, Any]]]
@@ -88,32 +81,12 @@ class ChatbotState(AgentState):
     turn_count: NotRequired[int]
 
 
-class OrchestratorOutput(BaseModel):
-    """Legacy structured routing result kept for non-runtime compatibility."""
-
-    ticket_id: int
-    category: Category
-    routing_target: RoutingTarget
-    reason: str
-
-
-class RoutingIntent(BaseModel):
-    """Legacy normalized intent model kept for non-runtime compatibility."""
-
-    intent: RoutingIntentName
-    normalized_query: str
-    is_actionable: bool = True
-    requires_account_lookup: bool = False
-    should_use_rag: bool = False
-    fallback_reason: str | None = None
-    reason: str
-
-
 class PaymentAgentInput(BaseModel):
     """Minimal contract for a payment reasoning agent or graph node."""
 
     ticket_id: int
     account_id: int | None = None
+    normalized_query: str | None = None
     enriched_query: str | None = None
 
 

@@ -65,7 +65,7 @@ def final_response_node(state: ChatbotState) -> dict:
                 "user_id": state.get("user_id"),
                 "ticket_id": state["ticket_id"],
                 "account_id": state.get("account_id"),
-                "content_summary": state.get("classification_reason")
+                "content_summary": state.get("normalized_query")
                 or state.get("enriched_query")
                 or state.get("raw_query"),
                 "category": state.get("category"),

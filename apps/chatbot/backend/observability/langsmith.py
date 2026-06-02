@@ -11,6 +11,8 @@ TRACE_METADATA_FIELDS = (
     "category",
     "routing_target",
     "draft_id",
+    "input_masked",
+    "input_detected_labels",
 )
 
 

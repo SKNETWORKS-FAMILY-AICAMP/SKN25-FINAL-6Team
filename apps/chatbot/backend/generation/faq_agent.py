@@ -13,10 +13,11 @@ from chatbot.observability.logger import EVENT_NODE_COMPLETED, EVENT_NODE_STARTE
 from common.retrieval.vector_tools import embed_query, enrich_retrieval_query, rerank_documents, search_document_chunks
 from chatbot.schemas import ChatbotState
 from chatbot.tools.db_tools import write_failed_query
+from chatbot.utils.query_enrichment import rewrite_query_with_llm
 
 
 def _active_query(state: ChatbotState) -> str:
-    return str(state.get("enriched_query") or state.get("raw_query") or "").strip()
+    return str(state.get("normalized_query") or state.get("enriched_query") or state.get("raw_query") or "").strip()
 
 
 def _format_evidence(documents: list[dict[str, Any]]) -> str:
@@ -111,6 +112,84 @@ def _passes_relevance_gate(documents: list[dict[str, Any]]) -> tuple[bool, str |
             return True, None
 
     return False, "retrieval_relevance_gate_failed"
+
+
+def _retrieve_documents(
+    *,
+    retrieval_query: str,
+    enrichment: Any,
+    final_top_k: int,
+    candidate_top_k: int,
+) -> list[dict[str, Any]]:
+    embedding_json = _embed_query(retrieval_query)
+    documents = search_document_chunks(
+        embedding_json=embedding_json,
+        query_text=retrieval_query,
+        top_k=candidate_top_k,
+        prefer_faq=True,
+        enrichment=enrichment,
+    )
+    return _rerank_documents(documents, retrieval_query)[:final_top_k]
+
+
+def _retry_retrieval_with_rewrite(
+    *,
+    state: ChatbotState,
+    original_query: str,
+    failed_query: str,
+    failure_reason: str,
+    final_top_k: int,
+    candidate_top_k: int,
+) -> dict[str, Any] | None:
+    rewrite = rewrite_query_with_llm(
+        original_query=original_query,
+        failed_query=failed_query,
+        category=state.get("category") or "faq",
+        failure_reason=failure_reason,
+    )
+    rewritten_query = rewrite.get("query_text") or ""
+    if not rewritten_query:
+        return None
+
+    documents = _retrieve_documents(
+        retrieval_query=rewritten_query,
+        enrichment=None,
+        final_top_k=final_top_k,
+        candidate_top_k=candidate_top_k,
+    )
+    _print_retrieval_summary(
+        original_query=original_query,
+        retrieval_query=rewritten_query,
+        documents=documents,
+    )
+
+    low_evidence, low_reason = _is_low_evidence(documents)
+    if low_evidence:
+        return {
+            "documents": documents,
+            "retrieval_query": rewritten_query,
+            "rewrite": rewrite,
+            "failure_reason": low_reason or "low_evidence_after_rewrite",
+            "accepted": False,
+        }
+
+    relevance_ok, relevance_reason = _passes_relevance_gate(documents)
+    if not relevance_ok:
+        return {
+            "documents": documents,
+            "retrieval_query": rewritten_query,
+            "rewrite": rewrite,
+            "failure_reason": relevance_reason or "rewrite_relevance_gate_failed",
+            "accepted": False,
+        }
+
+    return {
+        "documents": documents,
+        "retrieval_query": rewritten_query,
+        "rewrite": rewrite,
+        "failure_reason": None,
+        "accepted": True,
+    }
 
 
 def _print_retrieval_summary(
@@ -211,17 +290,14 @@ def run_faq_rag(state: ChatbotState) -> dict[str, Any]:
             "faq_failure_reason": "empty_retrieval_query",
         }
 
-    embedding_json = _embed_query(retrieval_query)
     final_top_k = int(os.environ.get("FAQ_RETRIEVAL_TOP_K", os.environ.get("RETRIEVAL_TOP_K", "3")))
     candidate_top_k = _retrieval_candidate_top_k(final_top_k)
-    documents = search_document_chunks(
-        embedding_json=embedding_json,
-        query_text=retrieval_query,
-        top_k=candidate_top_k,
-        prefer_faq=True,
+    documents = _retrieve_documents(
+        retrieval_query=retrieval_query,
         enrichment=enriched,
+        final_top_k=final_top_k,
+        candidate_top_k=candidate_top_k,
     )
-    documents = _rerank_documents(documents, retrieval_query)[:final_top_k]
     _print_retrieval_summary(
         original_query=query,
         retrieval_query=retrieval_query,
@@ -231,24 +307,84 @@ def run_faq_rag(state: ChatbotState) -> dict[str, Any]:
     low_evidence, reason = _is_low_evidence(documents)
     if low_evidence:
         reason = reason or "low_evidence"
+        retry = _retry_retrieval_with_rewrite(
+            state=state,
+            original_query=query,
+            failed_query=retrieval_query,
+            failure_reason=reason,
+            final_top_k=final_top_k,
+            candidate_top_k=candidate_top_k,
+        )
+        if retry and retry["accepted"]:
+            retrieval_query = retry["retrieval_query"]
+            documents = retry["documents"]
+            answer = _generate_evidence_answer(
+                original_query=query,
+                retrieval_query=retrieval_query,
+                documents=documents,
+            )
+            enrichment_dump = enriched.model_dump()
+            enrichment_dump["rewrite_fallback"] = retry["rewrite"]
+            return {
+                "draft_text": answer,
+                "retrieved_documents": documents,
+                "retrieval_query": retrieval_query,
+                "retrieval_enrichment": enrichment_dump,
+                "faq_failure_reason": None,
+            }
+        if retry:
+            reason = retry["failure_reason"] or reason
         _record_failed_query(state, retrieval_query, reason)
+        enrichment_dump = enriched.model_dump()
+        if retry:
+            enrichment_dump["rewrite_fallback"] = retry["rewrite"]
         return {
             "draft_text": SAFE_FALLBACK_RESPONSE,
-            "retrieved_documents": documents,
+            "retrieved_documents": retry["documents"] if retry else documents,
             "retrieval_query": retrieval_query,
-            "retrieval_enrichment": enriched.model_dump(),
+            "retrieval_enrichment": enrichment_dump,
             "faq_failure_reason": reason,
         }
 
     relevance_ok, relevance_reason = _passes_relevance_gate(documents)
     if not relevance_ok:
         reason = relevance_reason or "retrieval_relevance_gate_failed"
+        retry = _retry_retrieval_with_rewrite(
+            state=state,
+            original_query=query,
+            failed_query=retrieval_query,
+            failure_reason=reason,
+            final_top_k=final_top_k,
+            candidate_top_k=candidate_top_k,
+        )
+        if retry and retry["accepted"]:
+            retrieval_query = retry["retrieval_query"]
+            documents = retry["documents"]
+            answer = _generate_evidence_answer(
+                original_query=query,
+                retrieval_query=retrieval_query,
+                documents=documents,
+            )
+            enrichment_dump = enriched.model_dump()
+            enrichment_dump["rewrite_fallback"] = retry["rewrite"]
+            return {
+                "draft_text": answer,
+                "retrieved_documents": documents,
+                "retrieval_query": retrieval_query,
+                "retrieval_enrichment": enrichment_dump,
+                "faq_failure_reason": None,
+            }
+        if retry:
+            reason = retry["failure_reason"] or reason
         _record_failed_query(state, retrieval_query, reason)
+        enrichment_dump = enriched.model_dump()
+        if retry:
+            enrichment_dump["rewrite_fallback"] = retry["rewrite"]
         return {
             "draft_text": SAFE_FALLBACK_RESPONSE,
-            "retrieved_documents": documents,
+            "retrieved_documents": retry["documents"] if retry else documents,
             "retrieval_query": retrieval_query,
-            "retrieval_enrichment": enriched.model_dump(),
+            "retrieval_enrichment": enrichment_dump,
             "faq_failure_reason": reason,
         }
 

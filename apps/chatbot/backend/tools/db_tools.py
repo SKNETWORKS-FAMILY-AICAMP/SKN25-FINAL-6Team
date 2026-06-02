@@ -96,18 +96,6 @@ def write_qa_ticket(payload: dict) -> str:
 
 
 @tool(parse_docstring=True)
-def write_ticket_analysis(payload: dict) -> str:
-    """Write ticket analysis result.
-
-    Args:
-        payload: ticket_analysis fields including ticket_id, category, enriched_query, routing_target, and summary.
-    """
-    from chatbot.repository.analysis_repository import save_ticket_analysis
-
-    return _json(save_ticket_analysis(payload))
-
-
-@tool(parse_docstring=True)
 def write_answer_draft(payload: dict) -> str:
     """Write an answer draft for a ticket.
 

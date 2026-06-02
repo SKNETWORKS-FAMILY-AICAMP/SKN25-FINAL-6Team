@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import json
-import time
 
 from langchain_core.tools import tool
 
-_CACHE: dict[str, tuple[str, float]] = {}
+from chatbot.retrieval.cache_store import get_cached_answer, set_cached_answer
 
 
 @tool(parse_docstring=True)
@@ -15,14 +14,7 @@ def get_cache(query_hash: str) -> str:
     Args:
         query_hash: SHA-256 hex digest of the normalized query.
     """
-    entry = _CACHE.get(query_hash)
-    if entry is None:
-        return json.dumps({"hit": False})
-    answer, expires_at = entry
-    if time.time() > expires_at:
-        del _CACHE[query_hash]
-        return json.dumps({"hit": False})
-    return json.dumps({"hit": True, "answer": answer})
+    return json.dumps(get_cached_answer(query_hash), ensure_ascii=False)
 
 
 @tool(parse_docstring=True)
@@ -34,5 +26,4 @@ def set_cache(query_hash: str, answer: str, ttl: int = 3600) -> str:
         answer: Answer text to cache.
         ttl: Cache lifetime in seconds.
     """
-    _CACHE[query_hash] = (answer, time.time() + ttl)
-    return json.dumps({"status": "ok", "query_hash": query_hash, "ttl": ttl})
+    return json.dumps(set_cached_answer(query_hash, answer, ttl), ensure_ascii=False)

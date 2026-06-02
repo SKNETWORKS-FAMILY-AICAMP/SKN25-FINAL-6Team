@@ -4,14 +4,10 @@ from typing import Any
 
 from chatbot.schemas import ChatbotState
 from chatbot.tools.db_tools import write_qa_ticket
+from chatbot.utils.query_enrichment import normalize_query_text
 
 
 SUPPORTED_CATEGORIES = {"payment", "bug", "faq", "voc"}
-
-
-def _normalize_text(text: str) -> str:
-    """Normalize whitespace before category-specific handling."""
-    return " ".join(text.strip().split())
 
 
 def _category_from_user_selection(value: Any) -> str:
@@ -28,8 +24,9 @@ def ticket_preprocess_node(state: ChatbotState) -> dict:
     """Normalize the inquiry, store the QA ticket, and trust the user-selected category."""
     ticket_id = state["ticket_id"]
     raw_query = state["raw_query"]
-    enriched_query = _normalize_text(raw_query)
+    masked_content = state.get("masked_content") or raw_query
     category = _category_from_user_selection(state.get("category"))
+    normalized_query = normalize_query_text(masked_content)
     routing_target = state.get("routing_target") or "rag_reply"
 
     write_qa_ticket.invoke(
@@ -48,11 +45,12 @@ def ticket_preprocess_node(state: ChatbotState) -> dict:
 
     return {
         "ticket_id": ticket_id,
-        "enriched_query": enriched_query,
+        "normalized_query": normalized_query,
+        "enriched_query": normalized_query,
+        "query_enrichment_method": "normalize_only",
+        "query_enrichment_terms": [],
         "category": category,
         "routing_target": routing_target,
-        "classification_method": "user_selected",
-        "classification_reason": "category selected by user",
         "is_actionable": True,
         "should_use_rag": category == "faq",
         "fallback_reason": None,

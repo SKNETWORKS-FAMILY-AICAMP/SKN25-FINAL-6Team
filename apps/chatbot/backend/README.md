@@ -61,12 +61,10 @@ user_id
 account_id
 session_id
 raw_query
-enriched_query
+masked_content
+normalized_query
 category
 routing_target
-classification_method
-classification_reason
-analysis_id
 draft_id
 draft_text
 final_text
@@ -84,7 +82,7 @@ LANGSMITH_API_KEY=<your_key>
 LANGSMITH_PROJECT=game_cs_chatbot
 ```
 
-구버전 LangChain 환경과 맞출 때는 `LANGCHAIN_TRACING_V2=true`, `LANGCHAIN_API_KEY`, `LANGCHAIN_PROJECT=game_cs_chatbot`도 함께 설정할 수 있습니다. 로그인은 `game_account_login` run으로 기록되며 output에서 `login_success`, `user_id`, `account_id`, `game_id`, `email`, `server_region`을 확인합니다. 비밀번호는 trace와 운영 로그에 남기지 않습니다. 챗봇 서비스는 LangGraph 실행 config에 `ticket_id`, `session_id`, `user_id`, `account_id`를 metadata로 넣고, 실행 완료 후 운영 로그에 `category`, `routing_target`, `analysis_id`, `draft_id`까지 포함한 `langsmith_trace_metadata_linked` 이벤트를 남깁니다. 운영 로그와 LangSmith trace는 같은 `ticket_id` 태그와 metadata로 대조합니다.
+구버전 LangChain 환경과 맞출 때는 `LANGCHAIN_TRACING_V2=true`, `LANGCHAIN_API_KEY`, `LANGCHAIN_PROJECT=game_cs_chatbot`도 함께 설정할 수 있습니다. 로그인은 `game_account_login` run으로 기록되며 output에서 `login_success`, `user_id`, `account_id`, `game_id`, `email`, `server_region`을 확인합니다. 비밀번호는 trace와 운영 로그에 남기지 않습니다. 챗봇 서비스는 LangGraph 실행 config에 `ticket_id`, `session_id`, `user_id`, `account_id`, `category`, `routing_target`, `draft_id`를 metadata로 넣습니다. 운영 로그와 LangSmith trace는 같은 `ticket_id` 태그와 metadata로 대조합니다.
 
 ### 디버깅 체크
 
@@ -228,7 +226,6 @@ urgent_alert: 결제 분쟁, 환불, 유료 아이템 미지급, 복잡 버그, 
 
 ```text
 write_qa_ticket
-write_ticket_analysis
 ```
 
 ### 3. Intelligence Layer
