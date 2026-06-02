@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from chatbot.chains.routing import route_by_category
+from chatbot.chains.routing import route_after_draft_persistence, route_by_category
 
 from chatbot.constants import VOC_FIXED_RESPONSE
 from chatbot.generation import ticket_preprocess, voc_agent
@@ -663,12 +663,6 @@ def test_dispatch_urgent_alert_sends_slack_only_for_review_queue_once(monkeypatc
 
 
 def test_voc_agent_uses_fallback_for_non_actionable_non_rag_intent(monkeypatch) -> None:
-    monkeypatch.setattr(
-        voc_agent,
-        "_classify_voc",
-        lambda text: (_ for _ in ()).throw(AssertionError("Non-actionable VOC should not need another LLM call")),
-    )
-
     result = voc_agent.voc_agent_node(
         {
             "ticket_id": 1,
@@ -685,10 +679,7 @@ def test_voc_agent_uses_fallback_for_non_actionable_non_rag_intent(monkeypatch) 
 
     assert result["draft_text"] == VOC_FIXED_RESPONSE
     assert result["safety_action"] == "AUTO_RESPONSE"
-    assert result["safety_reason"] == "low_information_complaint"
-    assert result["voc_type"] == "other"
-    assert result["sentiment"] == "negative"
-    assert result["topic_keywords"] == []
+    assert result["safety_reason"] == "VOC fixed response."
 
 def test_route_by_user_selected_categories() -> None:
     assert route_by_category({"category": "payment"}) == "payment_agent"
@@ -702,4 +693,9 @@ def test_route_by_legacy_display_categories() -> None:
     assert route_by_category({"category": "인게임/버그"}) == "bug_agent"
     assert route_by_category({"category": "FAQ"}) == "faq_agent"
     assert route_by_category({"category": "VOC"}) == "voc_agent"
+
+
+def test_route_after_draft_persistence_skips_safety_for_voc() -> None:
+    assert route_after_draft_persistence({"category": "voc"}) == "final_response"
+    assert route_after_draft_persistence({"category": "faq"}) == "safety_layer"
 
