@@ -25,6 +25,11 @@ app = FastAPI(title="Operation Review API", version="2.0.0")
 ReviewDecision = Literal["approved", "regenerate", "edited"]
 
 
+# [추가] 티켓 담당자 할당 요청 모델
+class AssignRequest(BaseModel):
+    reviewer_id: str = Field(min_length=1)
+
+
 class DraftEditRequest(BaseModel):
     draft_text: str = Field(min_length=1)
     reviewer_id: str | None = None
@@ -75,6 +80,7 @@ class ReviewActionResponse(BaseModel):
     status: str
     response_id: int | None = None
     next_draft_id: int | None = None
+    run_workflow_url: str | None = None
 
 
 def _row_to_dict(row: Any) -> dict[str, Any] | None:
@@ -91,7 +97,7 @@ def _fetch_all(cur: Any, sql: str, params: tuple[Any, ...] = ()) -> list[dict[st
     return [dict(row) for row in cur.fetchall()]
 
 
-def _ticket_list_where(*, status: str | None, today_only: bool) -> tuple[str, list[Any]]:
+def _ticket_list_where(*, status: str | None, today_only: bool, assignee_id: str | None = None) -> tuple[str, list[Any]]:
     clauses: list[str] = []
     params: list[Any] = []
     if status:
@@ -102,13 +108,18 @@ def _ticket_list_where(*, status: str | None, today_only: bool) -> tuple[str, li
             "t.inquiry_created_at >= CURRENT_DATE "
             "AND t.inquiry_created_at < CURRENT_DATE + INTERVAL '1 day'"
         )
+    # [추가] 담당자 필터 — 할당된 검토 탭에서 사용
+    if assignee_id:
+        clauses.append("t.assignee_id = %s")
+        params.append(assignee_id)
     if not clauses:
         return "", params
     return f"WHERE {' AND '.join(clauses)}", params
 
 
-def _list_ticket_rows(cur: Any, *, status: str | None, limit: int, today_only: bool = False) -> list[dict[str, Any]]:
-    where_sql, params = _ticket_list_where(status=status, today_only=today_only)
+# [추가] assignee_id 파라미터 및 SELECT 컬럼 추가
+def _list_ticket_rows(cur: Any, *, status: str | None, limit: int, today_only: bool = False, assignee_id: str | None = None) -> list[dict[str, Any]]:
+    where_sql, params = _ticket_list_where(status=status, today_only=today_only, assignee_id=assignee_id)
     params.append(limit)
     return _fetch_all(
         cur,
@@ -120,6 +131,7 @@ def _list_ticket_rows(cur: Any, *, status: str | None, limit: int, today_only: b
             t.title,
             t.source_type,
             t.status,
+            t.assignee_id,
             t.inquiry_created_at,
             u.nickname,
             latest_draft.draft_id,
@@ -255,6 +267,7 @@ def login(request: LoginRequest) -> LoginResponse:
     return LoginResponse(**result)
 
 
+# [수정] 담당자 자동 할당 제거 — 할당은 티켓 선택 시 /assign 엔드포인트에서 처리
 @app.post("/tickets/{ticket_id}/run-workflow", response_model=RunWorkflowResponse)
 def run_workflow(ticket_id: int) -> RunWorkflowResponse:
     _ensure_ticket_reprocessable(ticket_id)
@@ -269,15 +282,31 @@ def run_workflow(ticket_id: int) -> RunWorkflowResponse:
     )
 
 
+# [추가] 티켓 담당자 명시적 할당 엔드포인트
+@app.post("/tickets/{ticket_id}/assign")
+def assign_ticket(ticket_id: int, request: AssignRequest) -> dict[str, Any]:
+    with db_connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute("SELECT ticket_id FROM qa_ticket WHERE ticket_id = %s", (ticket_id,))
+            if cur.fetchone() is None:
+                raise HTTPException(status_code=404, detail=f"ticket not found: {ticket_id}")
+            cur.execute(
+                "UPDATE qa_ticket SET assignee_id = %s WHERE ticket_id = %s",
+                (request.reviewer_id, ticket_id),
+            )
+    return {"ticket_id": ticket_id, "assignee_id": request.reviewer_id}
+
+
 @app.get("/tickets")
 def list_tickets(
     status: str | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=200),
     today_only: bool = Query(default=False),
+    assignee_id: str | None = Query(default=None),  # [추가] 담당자 필터
 ) -> list[dict[str, Any]]:
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
-            return _list_ticket_rows(cur, status=status, limit=limit, today_only=today_only)
+            return _list_ticket_rows(cur, status=status, limit=limit, today_only=today_only, assignee_id=assignee_id)
 
 
 @app.get("/tickets/today")
@@ -408,6 +437,15 @@ def approve_draft(draft_id: int, request: ApproveDraftRequest) -> ReviewActionRe
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
             draft = _draft_for_update(cur, draft_id)
+            cur.execute(
+                "SELECT response_id FROM final_response WHERE draft_id = %s LIMIT 1",
+                (draft_id,),
+            )
+            if cur.fetchone() is not None:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"draft {draft_id} is already approved",
+                )
             _insert_review_log(
                 cur,
                 ticket_id=draft["ticket_id"],
@@ -471,4 +509,6 @@ def regenerate_draft(draft_id: int, request: RegenerateDraftRequest) -> ReviewAc
 
 @app.post("/drafts/{draft_id}/reject")
 def reject_draft(draft_id: int, request: RegenerateDraftRequest) -> ReviewActionResponse:
-    return regenerate_draft(draft_id, request)
+    result = regenerate_draft(draft_id, request)
+    result.run_workflow_url = f"/tickets/{result.ticket_id}/run-workflow"
+    return result

@@ -821,12 +821,6 @@ const workflowSteps = [
   { label: "초안 생성 완료", progress: 100 }
 ];
 
-const DEMO_ACCOUNTS = {
-  reviewer_01: "cs1234",
-  reviewer_02: "cs1234",
-  reviewer_03: "cs1234",
-  admin: "admin00"
-};
 
 async function csApi(path, options = {}) {
   const response = await fetch(`/cs-auto/api${path}`, {
@@ -1032,7 +1026,8 @@ function getRenderedSideTabs() {
 
 function mapTicketSummary(row) {
   const priority = priorityMeta(row.status, row.risk_level);
-  const assignee = row.reviewer_id || null;
+  // [추가] 목록 API 응답의 assignee_id 사용 (기존 reviewer_id → assignee_id로 변경)
+  const assignee = row.assignee_id || null;
   return {
     id: String(row.ticket_id),
     priorityLabel: priority.label,
@@ -1073,7 +1068,8 @@ function applyTicketDetail(detail) {
   const latestResponse = detail.final_responses?.[0] || null;
   const latestReview = detail.review_logs?.[0] || null;
   const priority = priorityMeta(detail.ticket.status, latestAnalysis?.risk_level || existing?.risk);
-  const assignee = latestReview?.metadata?.reviewer_id || latestDraft?.reviewer_id || existing?.assignee || "unassigned";
+  // [수정] qa_ticket.assignee_id 우선 사용 — 기존 코드는 admin_event_logs의 reviewer_id를 1순위로 써서 할당된 검토 탭 필터가 틀어지는 버그 존재
+  const assignee = detail.ticket.assignee_id || latestReview?.metadata?.reviewer_id || existing?.assignee || "unassigned";
   const nextData = {
     ...(existing || {}),
     id: ticketId,
@@ -1130,9 +1126,32 @@ function applyTicketDetail(detail) {
   }));
 }
 
-async function loadTicketsFromApi() {
+// [추가] 사이드바 탭별 API 경로 반환
+function ticketApiPath(sideTab) {
+  if (sideTab === SIDE_TAB_TODAY) {
+    return "/tickets/today?limit=100";
+  }
+  if (sideTab === SIDE_TAB_PENDING) {
+    return "/tickets?status=pending&limit=200";
+  }
+  if (sideTab === SIDE_TAB_ASSIGNED) {
+    const id = encodeURIComponent(appState.currentReviewer || "");
+    return `/tickets?assignee_id=${id}&limit=200`;
+  }
+  if (sideTab === SIDE_TAB_URGENT) {
+    return "/tickets?limit=200";
+  }
+  if (sideTab === SIDE_TAB_DONE) {
+    return "/tickets?status=closed&limit=200";
+  }
+  return "/tickets?limit=200";
+}
+
+// [추가] sideTab 파라미터 추가 — 탭별 API 경로로 호출
+async function loadTicketsFromApi(sideTab) {
+  const tab = sideTab || appState.activeSideTab || SIDE_TAB_TODAY;
   try {
-    const rows = await csApi("/tickets/today");
+    const rows = await csApi(ticketApiPath(tab));
     appState.tickets = rows.map(mapTicketSummary);
     if (appState.tickets.length) {
       appState.selectedTicketId = appState.tickets[0].id;
@@ -1148,6 +1167,13 @@ async function loadTicketsFromApi() {
 async function loadTicketDetail(ticketId) {
   if (!ticketId) return;
   try {
+    // [추가] 티켓 선택 시 현재 운영자를 담당자로 등록 — 다른 운영자 화면에 "응대중" 표시
+    if (appState.currentReviewer) {
+      csApi(`/tickets/${ticketId}/assign`, {
+        method: "POST",
+        body: JSON.stringify({ reviewer_id: appState.currentReviewer }),
+      }).catch(() => {});
+    }
     const detail = await csApi(`/tickets/${ticketId}`);
     applyTicketDetail(detail);
     render();
@@ -1164,6 +1190,7 @@ async function runWorkflowForSelectedTicket() {
   appState.workflowLabel = "워크플로 실행 중...";
   render();
   try {
+    // [수정] 담당자 자동 할당 제거 — 할당은 티켓 선택(loadTicketDetail) 시 처리
     await csApi(`/tickets/${ticket.id}/run-workflow`, { method: "POST" });
     await loadTicketDetail(ticket.id);
     appState.workflowVisible = true;
@@ -1195,6 +1222,13 @@ function showLoginError(message) {
   err.innerHTML = `<i class="ti ti-alert-circle" aria-hidden="true"></i> ${escapeHtml(message)}`;
 }
 
+const DEMO_ACCOUNTS = {
+  reviewer_01: "cs1234",
+  reviewer_02: "cs1234",
+  reviewer_03: "cs1234",
+  admin: "admin00"
+};
+
 async function doLogin() {
   const idInput = document.getElementById("li-id");
   const pwInput = document.getElementById("li-pw");
@@ -1216,9 +1250,7 @@ async function doLogin() {
     return;
   }
 
-  if (err) {
-    err.classList.remove("show");
-  }
+  if (err) err.classList.remove("show");
   appState.currentReviewer = id;
   appState.currentReviewerRole = role;
   await loadTicketsFromApi();
@@ -1303,9 +1335,9 @@ function renderLoginOverlayHtml() {
             <div>
               <label class="lf-label">권한 등급</label>
               <select id="li-role" class="lf-input">
-                <option value="일반 운영자" ${appState.currentReviewerRole === "일반 운영자" ? "selected" : ""}>일반 운영자</option>
-                <option value="주임 운영자" ${appState.currentReviewerRole === "주임 운영자" ? "selected" : ""}>주임 운영자</option>
-                <option value="관리자" ${appState.currentReviewerRole === "관리자" ? "selected" : ""}>관리자</option>
+                <option value="일반 운영자">일반 운영자</option>
+                <option value="주임 운영자">주임 운영자</option>
+                <option value="관리자">관리자</option>
               </select>
             </div>
           </div>
@@ -2116,9 +2148,11 @@ function bindEvents() {
 
   document.querySelectorAll("[data-side-tab]").forEach((button) => {
     button.addEventListener("click", () => {
-      appState.activeSideTab = button.dataset.sideTab;
+      const tab = button.dataset.sideTab;
+      appState.activeSideTab = tab;
       appState.ticketListPage = 1;
       render();
+      loadTicketsFromApi(tab); // [추가] 탭 클릭 시 해당 탭 기준으로 API 재호출
     });
   });
 
