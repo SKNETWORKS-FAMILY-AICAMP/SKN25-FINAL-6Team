@@ -23,13 +23,6 @@ def route_by_category(state: ChatbotState) -> str:
     return CATEGORY_NODE_BY_NAME.get(str(category), "voc_agent")
 
 
-def route_after_draft_persistence(state: ChatbotState) -> str:
-    """Skip safety scoring for fixed VOC responses, otherwise run safety."""
-    if state.get("category") == "voc":
-        return "final_response"
-    return "safety_layer"
-
-
 def route_after_safety(state: ChatbotState) -> str:
     """Return to the concrete category node on retry, or finish when safety passes/exhausts."""
     if state.get("safety_action") == "MASKING":
