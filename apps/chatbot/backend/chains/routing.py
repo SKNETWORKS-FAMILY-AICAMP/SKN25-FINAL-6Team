@@ -11,10 +11,14 @@ CATEGORY_NODE_BY_NAME = {
     "voc": "voc_agent",
     "결제": "payment_agent",
     "인게임/버그": "bug_agent",
-    "인게임버그": "bug_agent",
     "FAQ": "faq_agent",
     "VOC": "voc_agent",
 }
+
+
+def _is_voc_state(state: ChatbotState) -> bool:
+    category = str(state.get("category") or "").strip().lower()
+    return category == "voc" or state.get("reasoning_node") == "voc_agent"
 
 
 def route_by_category(state: ChatbotState) -> str:
@@ -25,13 +29,15 @@ def route_by_category(state: ChatbotState) -> str:
 
 def route_after_draft_persistence(state: ChatbotState) -> str:
     """Skip safety scoring for fixed VOC responses, otherwise run safety."""
-    if state.get("category") == "voc":
+    if _is_voc_state(state):
         return "final_response"
     return "safety_layer"
 
 
 def route_after_safety(state: ChatbotState) -> str:
     """Return to the concrete category node on retry, or finish when safety passes/exhausts."""
+    if _is_voc_state(state):
+        return "final_response"
     if state.get("safety_action") == "MASKING":
         if state.get("retry_count", 0) <= MAX_MASKING_RETRY:
             return "draft_persistence"

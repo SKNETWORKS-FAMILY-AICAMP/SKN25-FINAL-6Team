@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from chatbot.chains.routing import route_after_draft_persistence, route_by_category
+from chatbot.chains.routing import route_after_draft_persistence, route_after_safety, route_by_category
 
 from chatbot.constants import VOC_FIXED_RESPONSE
 from chatbot.generation import ticket_preprocess, voc_agent
@@ -18,6 +18,7 @@ from chatbot.generation.response.fixed_responses import (
     SAFE_FALLBACK_RESPONSE,
 )
 from chatbot.notifications import dispatcher
+from chatbot.observability.logger import log_event
 from chatbot.safety import safety_layer
 from chatbot.service.chatbot_service import build_state, last_message_text
 from chatbot.utils.input_preprocessing import preprocess_user_input
@@ -98,6 +99,19 @@ def test_last_message_text_requires_final_text() -> None:
 
 def test_last_message_text_returns_final_text() -> None:
     assert last_message_text({"final_text": "final answer", "draft_text": "draft"}) == "final answer"
+
+
+def test_log_event_accepts_error_category_for_failed_operations() -> None:
+    event = log_event(
+        "db_write_failed",
+        ticket_id=1,
+        tool_name="write_answer_draft",
+        status="error",
+        error_message="not null violation",
+        error_category="database_constraint",
+    )
+
+    assert event["error_category"] == "database_constraint"
 
 
 def test_evidence_grounding_scores_use_retrieved_documents() -> None:
@@ -503,11 +517,6 @@ def _patch_final_response_writes(monkeypatch) -> list[dict]:
         def invoke(args):
             return json.dumps({"stored": True, "ticket_status": args["payload"]["status"]})
 
-    class FakeWriteInsight:
-        @staticmethod
-        def invoke(args):
-            return json.dumps({"stored": True, "insight_id": 456})
-
     monkeypatch.setattr(
         "chatbot.generation.response.final_response.write_final_response",
         FakeWriteFinalResponse,
@@ -515,10 +524,6 @@ def _patch_final_response_writes(monkeypatch) -> list[dict]:
     monkeypatch.setattr(
         "chatbot.generation.response.final_response.update_qa_ticket_status",
         FakeUpdateTicketStatus,
-    )
-    monkeypatch.setattr(
-        "chatbot.generation.response.final_response.write_insight",
-        FakeWriteInsight,
     )
     monkeypatch.setattr(
         "chatbot.generation.response.final_response.dispatch_urgent_alert",
@@ -549,6 +554,19 @@ def test_final_response_uses_fixed_block_and_review_responses(monkeypatch) -> No
 
     assert final_response_node(_final_state("FAQ", "BLOCK_RESPONSE"))["final_text"] == BLOCK_RESPONSE
     assert final_response_node(_final_state("FAQ", "REVIEW_QUEUE"))["final_text"] == REVIEW_QUEUE_RESPONSE
+
+
+def test_final_response_does_not_write_chatbot_insight(monkeypatch) -> None:
+    _patch_final_response_writes(monkeypatch)
+
+    result = final_response_node({
+        **_final_state("payment"),
+        "user_id": 1,
+        "account_id": 101,
+        "raw_query": "결제 문의입니다.",
+    })
+
+    assert "insight_result" not in result
 
 
 def test_dispatch_urgent_alert_creates_github_issue_for_bug_agent(monkeypatch) -> None:
@@ -693,6 +711,19 @@ def test_route_by_legacy_display_categories() -> None:
     assert route_by_category({"category": "인게임/버그"}) == "bug_agent"
     assert route_by_category({"category": "FAQ"}) == "faq_agent"
     assert route_by_category({"category": "VOC"}) == "voc_agent"
+
+
+def test_voc_skips_safety_and_never_retries_from_safety() -> None:
+    voc_state = {
+        "category": "VOC",
+        "reasoning_node": "voc_agent",
+        "safety_passed": False,
+        "safety_action": "AUTO_RESPONSE",
+        "retry_count": 0,
+    }
+
+    assert route_after_draft_persistence(voc_state) == "final_response"
+    assert route_after_safety(voc_state) == "final_response"
 
 
 def test_route_after_draft_persistence_skips_safety_for_voc() -> None:

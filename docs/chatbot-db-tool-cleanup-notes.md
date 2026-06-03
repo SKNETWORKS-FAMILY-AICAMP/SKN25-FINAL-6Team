@@ -73,14 +73,14 @@ agent/node
 | `write_final_response` | `final_response_repository.save_final_response` | 최종 답변 저장 |
 | `write_failed_query` | `failed_query_repository.save_failed_query` | FAQ 실패 쿼리 저장 |
 | `update_qa_ticket_status` | `ticket_repository.update_qa_ticket_status` | QA 티켓 상태 변경 |
-| `write_insight` | `insight_repository.save_insight` | chatbot insight 저장 |
+| `write_insight` | `insight_repository.save_insight` | operation-owned insight 저장용 tool (chatbot final_response에서는 호출하지 않음) |
 
 현재 node에서 직접 `.invoke()`하는 write tool:
 
 - `ticket_preprocess.py`: `write_qa_ticket`
 - `persistence.py`: `write_answer_draft`, `write_evidence_docs`
 - `safety_layer.py`: `write_safety_results`
-- `final_response.py`: `write_final_response`, `update_qa_ticket_status`, `write_insight`
+- `final_response.py`: `write_final_response`, `update_qa_ticket_status`
 - `faq_agent.py`: `write_failed_query`
 
 ## Cleanup Candidates
@@ -145,4 +145,4 @@ RAG cleanup: enrich, embed, vector search, rerank, evidence answer
   별도 VOC 전용 DB 저장 tool/repository 호출은 제거된 상태다.
 - payment context 조회를 node 직접 조회로 고정할지, LLM tool 호출로 남길지
 - bug context 조회도 payment처럼 node 직접 조회로 바꿀지
-- Slack/insight 저장을 chatbot final_response 단계에 유지할지 operation으로 이동할지
+- insight 저장은 chatbot final_response 단계에서 제거하고 operation/CS automation 책임으로 유지할지 확정

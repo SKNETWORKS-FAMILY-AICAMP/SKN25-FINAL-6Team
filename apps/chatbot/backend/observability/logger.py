@@ -41,6 +41,7 @@ def log_event(
     tool_name: str | None = None,
     status: str = "ok",
     error_message: str | None = None,
+    error_category: str | None = None,
     metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Print a structured admin log event as JSON and return it for tests."""
@@ -54,6 +55,7 @@ def log_event(
         tool_name=tool_name,
         status=status,
         error_message=error_message,
+        error_category=error_category,
         metadata=metadata or {},
     )
     print(json.dumps(event, ensure_ascii=False, default=str))

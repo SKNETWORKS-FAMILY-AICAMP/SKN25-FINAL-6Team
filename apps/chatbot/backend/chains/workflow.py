@@ -56,7 +56,6 @@ workflow.add_conditional_edges(
         "payment_agent": "payment_agent",
         "bug_agent": "bug_agent",
         "faq_agent": "faq_agent",
-        "voc_agent": "voc_agent",
         "draft_persistence": "draft_persistence",
         "final_response": "final_response",
     },
