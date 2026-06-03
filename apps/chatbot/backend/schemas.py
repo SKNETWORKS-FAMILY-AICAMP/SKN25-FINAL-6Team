@@ -70,9 +70,6 @@ class ChatbotState(AgentState):
     review_required: NotRequired[bool | None]
     masking_applied: NotRequired[bool | None]
     masking_labels: NotRequired[list[str]]
-    voc_type: NotRequired[str | None]
-    sentiment: NotRequired[str | None]
-    topic_keywords: NotRequired[list[str]]
     notification_result: NotRequired[dict[str, Any] | None]
 
     # Multi-turn bookkeeping.

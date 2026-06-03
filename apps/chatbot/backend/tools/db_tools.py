@@ -167,15 +167,3 @@ def update_qa_ticket_status(payload: dict) -> str:
     from chatbot.repository.ticket_repository import update_qa_ticket_status as update_status
 
     return _json(update_status(payload))
-
-
-@tool(parse_docstring=True)
-def write_insight(payload: dict) -> str:
-    """Write a summarized chatbot insight row.
-
-    Args:
-        payload: Insight fields including user_id, ticket_id, category, sentiment, and risk fields.
-    """
-    from chatbot.repository.insight_repository import save_insight
-
-    return _json(save_insight(payload))
