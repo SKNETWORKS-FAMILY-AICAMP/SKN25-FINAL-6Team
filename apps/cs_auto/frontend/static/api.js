@@ -239,6 +239,7 @@ function mapTicketSummary(row) {
     priorityTone: priority.tone,
     level: riskLevel(row.risk_level),
     channel: sourceLabel(row.source_type),
+    sourceType: row.source_type || "unknown",
     channelIcon: row.source_type === "naver_cafe" ? "brand-blogger" : "mail",
     category: row.routing_target || row.source_type || "unclassified",
     status: row.status || "open",
@@ -258,6 +259,7 @@ function mapTicketSummary(row) {
     draft: "아직 생성된 초안이 없습니다.",
     draftId: row.draft_id || null,
     draftStatus: row.draft_id ? "draft" : "draft",
+    canEditDraft: Boolean(row.can_edit_draft),
     isDraftEditing: false,
     regenCount: 0,
     regenLimit: 3,
@@ -296,8 +298,10 @@ function applyTicketDetail(detail) {
     draft: latestResponse?.final_text || latestDraft?.draft_text || existing?.draft || "아직 생성된 초안이 없습니다.",
     draftId: latestDraft?.draft_id || existing?.draftId || null,
     draftStatus: latestResponse ? "approved" : latestDraft ? "draft" : "draft",
+    canEditDraft: Boolean(detail.ticket.can_edit_draft),
     lastGeneratedAt: latestDraft?.created_at ? formatCsDateTime(latestDraft.created_at) : existing?.lastGeneratedAt || "-",
     status: detail.ticket.status || existing?.status || "open",
+    sourceType: detail.ticket.source_type || existing?.sourceType || "unknown",
     assignee,
     statusText: getStatusText({
       status: detail.ticket.status || existing?.status || "open",
@@ -472,6 +476,11 @@ async function doLogin() {
 // `PATCH /drafts/{draftId}`로 초안 수정 내용을 저장하거나, 로컬 편집 모드만 토글한다.
 async function confirmDraft() {
   const ticket = getSelectedTicket();
+  if (!ticket?.canEditDraft) {
+    ticket.isDraftEditing = false;
+    render();
+    return;
+  }
   if (ticket?.draftId && ticket.isDraftEditing) {
     try {
       await csApi(`/drafts/${ticket.draftId}`, {
@@ -508,6 +517,25 @@ async function confirmDraft() {
 // `POST /drafts/{draftId}/approve`로 초안을 승인하고 상세 정보를 다시 불러온다.
 async function approveDraft() {
   const ticket = getSelectedTicket();
+  if (ticket?.sourceType === "chatbot" && ticket.status === "pending") {
+    try {
+      await csApi(`/tickets/${ticket.id}/resolve`, {
+        method: "POST",
+        body: JSON.stringify({
+          reviewer_id: appState.currentReviewer,
+          reason: "resolved by email",
+        }),
+      });
+      await loadTicketsFromApi();
+    } catch (error) {
+      console.error("resolve ticket failed", error);
+      showLoginError(`처리 완료 실패: ${error.message}`);
+    }
+    return;
+  }
+  if (!ticket?.canEditDraft) {
+    return;
+  }
   if (ticket?.draftId) {
     try {
       await csApi(`/drafts/${ticket.draftId}/approve`, {
@@ -538,6 +566,9 @@ async function approveDraft() {
 // `POST /drafts/{draftId}/reject` 후 워크플로를 재실행해 초안을 다시 생성한다.
 async function regenerateDraft() {
   const ticket = getSelectedTicket();
+  if (!ticket?.canEditDraft) {
+    return;
+  }
   const reason = appState.regenReason.trim();
   if ((ticket.regenCount || 0) >= (ticket.regenLimit || 3) || !reason) {
     return;

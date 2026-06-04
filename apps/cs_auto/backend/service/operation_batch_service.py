@@ -63,8 +63,9 @@ CONTEXT_NODE_BY_ROUTE = {
     "refund": "refund_context",
     "item_delivery": "item_delivery_context",
     "gacha": "gacha_context",
-    "policy": "policy_context",
-    "outage": "outage_context",
+    "policy": "document_retrieval_context",
+    "abuse": "document_retrieval_context",
+    "outage": "document_retrieval_context",
 }
 
 
@@ -180,35 +181,28 @@ def _gacha_rows(cur: Any, *, user_id: Any, account_id: Any, **_: Any) -> list[di
 
 
 
-def _documents_rows(cur: Any, pattern: str) -> list[dict[str, Any]]:
-    cur.execute(
-        """
-        SELECT documents_id, source_type, category, title, raw_content, source_url, published_at, updated_at
-        FROM documents
-        WHERE category ILIKE %s OR title ILIKE %s OR raw_content ILIKE %s
-        ORDER BY updated_at DESC NULLS LAST, published_at DESC NULLS LAST
-        LIMIT 10
-        """,
-        (pattern, pattern, pattern),
-    )
-    return [dict(row) for row in cur.fetchall()]
-
-
-_ROUTE_QUERY_FN = {
+_DB_ROUTE_QUERY_FN = {
     "payment": _payment_rows,
     "refund": _refund_rows,
     "item_delivery": _item_delivery_rows,
     "gacha": _gacha_rows,
-    "outage": lambda cur, **_: _documents_rows(cur, "%outage%"),
-    "policy": lambda cur, **_: _documents_rows(cur, "%policy%"),
 }
 
 
 def _load_context_rows(route: str, ticket: Ticket) -> list[dict[str, Any]]:
+    """Load only route-specific DB rows.
+
+    Document evidence is retrieved separately from the full document corpus by
+    ``workflow.agents.context._retrieve_docs``. Routes without a user/account DB
+    table intentionally return an empty DB context.
+    """
+
     user_id = ticket.user_id or ticket.metadata.get("user_id")
     account_id = ticket.metadata.get("account_id")
     ticket_id = str(ticket.ticket_id)
-    query_fn = _ROUTE_QUERY_FN.get(route, _ROUTE_QUERY_FN["policy"])
+    query_fn = _DB_ROUTE_QUERY_FN.get(route)
+    if query_fn is None:
+        return []
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
             return query_fn(cur, user_id=user_id, account_id=account_id, ticket_id=ticket_id)
@@ -260,16 +254,15 @@ def _insert_draft(result: DraftStepResult, analysis_id: int) -> int:
             cur.execute(
                 """
                 INSERT INTO answer_draft (
-                    ticket_id, analysis_id, draft_text, prompt_version, created_at
+                    ticket_id, analysis_id, draft_text, created_at
                 )
-                VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP)
+                VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
                 RETURNING draft_id
                 """,
                 (
                     result.ticket_id,
                     analysis_id,
                     result.answer_draft or result.urgent_draft,
-                    "operation-batch-v1",
                 ),
             )
             return int(cur.fetchone()[0])
@@ -394,7 +387,7 @@ def _load_draft_row(draft_id: int) -> dict[str, Any]:
         with conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
                 """
-                SELECT draft_id, ticket_id, analysis_id, draft_text, prompt_version, created_at
+                SELECT draft_id, ticket_id, analysis_id, draft_text, created_at
                 FROM answer_draft
                 WHERE draft_id = %s
                 """,
@@ -609,7 +602,10 @@ def build_draft_inputs(ticket: Ticket, analysis_result: AnalysisStepResult) -> D
 def persist_draft_result(result: DraftStepResult, analysis_id: int) -> int:
     draft_id = _insert_draft(result, analysis_id)
     _insert_evidence_docs(result, draft_id)
-    _update_ticket_status(result.ticket_id, "pending")
+    source_type = result.ticket.channel or result.ticket.metadata.get("source_type")
+    current_status = result.ticket.metadata.get("status")
+    if not (source_type == "naver_cafe" and current_status == "open"):
+        _update_ticket_status(result.ticket_id, "pending")
     result.draft_id = draft_id
     return draft_id
 
@@ -656,7 +652,10 @@ def list_analysis_candidate_ticket_ids(*, limit: int = 200, target_date: date | 
                         ORDER BY a.analyzed_at DESC NULLS LAST, a.analysis_id DESC
                         LIMIT 1
                     ) latest_analysis ON TRUE
-                    WHERE t.status IN ('open', 'pending', 'human_review_pending')
+                    WHERE (
+                        (t.source_type = 'chatbot' AND t.status IN ('pending', 'resolved'))
+                        OR (t.source_type = 'naver_cafe' AND t.status IN ('open', 'pending'))
+                    )
                       AND latest_analysis.analysis_id IS NULL
                     ORDER BY t.inquiry_created_at ASC NULLS LAST, t.ticket_id ASC
                     LIMIT %s
@@ -675,7 +674,10 @@ def list_analysis_candidate_ticket_ids(*, limit: int = 200, target_date: date | 
                         ORDER BY a.analyzed_at DESC NULLS LAST, a.analysis_id DESC
                         LIMIT 1
                     ) latest_analysis ON TRUE
-                    WHERE t.status IN ('open', 'pending', 'human_review_pending')
+                    WHERE (
+                        (t.source_type = 'chatbot' AND t.status IN ('pending', 'resolved'))
+                        OR (t.source_type = 'naver_cafe' AND t.status IN ('open', 'pending'))
+                    )
                       AND latest_analysis.analysis_id IS NULL
                       AND t.inquiry_created_at >= %s
                       AND t.inquiry_created_at < %s::date + INTERVAL '1 day'
@@ -716,7 +718,7 @@ def list_naver_cafe_draft_candidate_ticket_ids(*, limit: int = 200, target_date:
                         ORDER BY f.created_at DESC NULLS LAST, f.response_id DESC
                         LIMIT 1
                     ) latest_response ON TRUE
-                    WHERE t.status IN ('open', 'pending', 'human_review_pending')
+                    WHERE t.status = 'open'
                       AND t.source_type = 'naver_cafe'
                       AND latest_draft.draft_id IS NULL
                       AND latest_response.response_id IS NULL
@@ -749,7 +751,7 @@ def list_naver_cafe_draft_candidate_ticket_ids(*, limit: int = 200, target_date:
                         ORDER BY f.created_at DESC NULLS LAST, f.response_id DESC
                         LIMIT 1
                     ) latest_response ON TRUE
-                    WHERE t.status IN ('open', 'pending', 'human_review_pending')
+                    WHERE t.status = 'open'
                       AND t.source_type = 'naver_cafe'
                       AND latest_draft.draft_id IS NULL
                       AND latest_response.response_id IS NULL

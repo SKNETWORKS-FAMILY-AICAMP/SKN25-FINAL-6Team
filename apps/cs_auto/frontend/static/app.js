@@ -792,6 +792,9 @@ function updateTicketHistory(ticket, decision, tone, reason) {
 
 function requestRegenerateDraft() {
   const ticket = getSelectedTicket();
+  if (!ticket?.canEditDraft) {
+    return;
+  }
   if ((ticket.regenCount || 0) >= (ticket.regenLimit || 3)) {
     return;
   }
@@ -1065,6 +1068,9 @@ function render() {
   const ticket = getSelectedTicket();
   const draftMeta = draftStatusMeta(ticket.draftStatus);
   const remainingRegens = Math.max((ticket.regenLimit || 3) - (ticket.regenCount || 0), 0);
+  const canModifyDraft = Boolean(ticket.canEditDraft);
+  const canResolveTicket = ticket.sourceType === "chatbot" && ticket.status === "pending";
+  const canCompleteAnswer = canResolveTicket || (canModifyDraft && Boolean(ticket.draftId));
   const ticketListPagination = getTicketListPagination();
   const renderedSideTabs = getRenderedSideTabs();
   const reviewHistorySidebarGroups = getReviewHistorySidebarGroups();
@@ -1219,10 +1225,10 @@ function render() {
                     </div>
                   </div>
                   <div class="subcard-body">
-                    <textarea id="draft-input" class="min-h-[180px] w-full resize-y rounded-[7px] border border-sand-300 bg-white px-3 py-2.5 text-xs leading-[1.6] text-ink-900 outline-none ${ticket.isDraftEditing ? "focus:border-brand-500" : "text-ink-500"}" ${ticket.isDraftEditing ? "" : "readonly"}>${escapeHtml(ticket.draft)}</textarea>
+                    <textarea id="draft-input" class="min-h-[180px] w-full resize-y rounded-[7px] border border-sand-300 bg-white px-3 py-2.5 text-xs leading-[1.6] text-ink-900 outline-none ${ticket.isDraftEditing && canModifyDraft ? "focus:border-brand-500" : "text-ink-500"}" ${ticket.isDraftEditing && canModifyDraft ? "" : "readonly"}>${escapeHtml(ticket.draft)}</textarea>
                     <div class="mt-2 flex flex-wrap gap-1.5">
-                      <button id="confirm-draft-btn" class="btn btn-ghost btn-sm"><i class="ti ti-device-floppy"></i> ${ticket.isDraftEditing ? "수정 완료" : "수정"}</button>
-                      <button id="regen-toggle-btn" class="btn btn-ghost btn-sm ml-auto ${remainingRegens === 0 ? "cursor-not-allowed opacity-40 hover:border-sand-300 hover:text-ink-700" : ""}" ${remainingRegens === 0 ? "disabled" : ""}><i class="ti ti-refresh"></i> 재생성</button>
+                      <button id="confirm-draft-btn" class="btn btn-ghost btn-sm ${canModifyDraft ? "" : "cursor-not-allowed opacity-40 hover:border-sand-300 hover:text-ink-700"}" ${canModifyDraft ? "" : "disabled"}><i class="ti ti-device-floppy"></i> ${ticket.isDraftEditing ? "수정 완료" : "수정"}</button>
+                      <button id="regen-toggle-btn" class="btn btn-ghost btn-sm ml-auto ${remainingRegens === 0 || !canModifyDraft ? "cursor-not-allowed opacity-40 hover:border-sand-300 hover:text-ink-700" : ""}" ${remainingRegens === 0 || !canModifyDraft ? "disabled" : ""}><i class="ti ti-refresh"></i> 재생성</button>
                     </div>
                     <div class="${appState.showRegenBox ? "block" : "hidden"} mt-2 rounded-lg border border-brand-200 bg-brand-500/5 p-3">
                       <label class="mb-1 block text-[11px] font-medium text-brand-500">재생성 사유 입력</label>
@@ -1246,7 +1252,7 @@ function render() {
                       ${renderTimelineItem("발송", ticket.status === "done" ? "done" : "pending", true)}
                     </div>
                     <div class="mt-3 flex flex-col gap-1.5">
-                      <button id="complete-answer-btn" class="btn btn-primary btn-sm w-full justify-center"><i class="ti ti-check"></i> 답변 완료</button>
+                      <button id="complete-answer-btn" class="btn btn-primary btn-sm w-full justify-center ${canCompleteAnswer ? "" : "cursor-not-allowed opacity-40"}" ${canCompleteAnswer ? "" : "disabled"}><i class="ti ti-check"></i> 답변 완료</button>
                     </div>
                   </div>
                 </div>
@@ -1491,16 +1497,30 @@ function bindEvents() {
 
   const confirmDraftBtn = document.getElementById("confirm-draft-btn");
   if (confirmDraftBtn) {
-    confirmDraftBtn.addEventListener("click", confirmDraft);
+    confirmDraftBtn.addEventListener("click", () => {
+      if (!getSelectedTicket()?.canEditDraft) return;
+      confirmDraft();
+    });
   }
 
   const completeAnswerBtn = document.getElementById("complete-answer-btn");
   if (completeAnswerBtn) {
-    completeAnswerBtn.addEventListener("click", approveDraft);
+    completeAnswerBtn.addEventListener("click", () => {
+      const ticket = getSelectedTicket();
+      const canResolveTicket = ticket?.sourceType === "chatbot" && ticket.status === "pending";
+      const canCompleteAnswer = canResolveTicket || (ticket?.canEditDraft && Boolean(ticket.draftId));
+      if (!canCompleteAnswer) return;
+      approveDraft();
+    });
   }
 
   const regenToggleBtn = document.getElementById("regen-toggle-btn");
-  if (regenToggleBtn) regenToggleBtn.addEventListener("click", requestRegenerateDraft);
+  if (regenToggleBtn) {
+    regenToggleBtn.addEventListener("click", () => {
+      if (!getSelectedTicket()?.canEditDraft) return;
+      requestRegenerateDraft();
+    });
+  }
 
   const regenCancelBtn = document.getElementById("regen-cancel-btn");
   if (regenCancelBtn) {
@@ -1512,7 +1532,12 @@ function bindEvents() {
   }
 
   const regenSubmitBtn = document.getElementById("regen-submit-btn");
-  if (regenSubmitBtn) regenSubmitBtn.addEventListener("click", regenerateDraft);
+  if (regenSubmitBtn) {
+    regenSubmitBtn.addEventListener("click", () => {
+      if (!getSelectedTicket()?.canEditDraft) return;
+      regenerateDraft();
+    });
+  }
 
   const loginBtn = document.getElementById("login-btn");
   if (loginBtn) {

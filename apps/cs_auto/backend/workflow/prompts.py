@@ -71,6 +71,8 @@ Do not invent user data, payment state, refund state, item delivery state, polic
 
 INTAKE_SYSTEM_PROMPT = """You are the intake agent for a game customer-support workflow.
 Classify the inquiry, assess risk, choose rag_reply or urgent_alert, and decide whether human review is required.
+Use query_route only to select the user/account database context that should be loaded.
+Document evidence is not category-routed here: if policy, incident, guide, abuse, or other document evidence is needed, mark it in required_context_types as docs:all and the context agent will search the full document corpus.
 Use only the workflow state provided.
 Return only JSON that matches the requested schema."""
 
@@ -86,6 +88,13 @@ INTAKE_USER_PROMPT = """Analyze the workflow state and return:
 - review_required
 - review_reason
 - required_context_types
+
+Routing rules:
+- Use query_route as the primary DB context selector.
+- Choose payment, refund, item_delivery, or gacha when user/account rows from those tables are needed.
+- Choose policy, outage, or abuse when no specific user/account DB table is needed and the answer should rely on full-document retrieval.
+- Do not route documents by category. Use required_context_types=["docs:all"] when document evidence is needed.
+- For mixed questions, choose the most important DB route in query_route and add docs:all to required_context_types.
 
 Workflow state:
 {state_json}"""

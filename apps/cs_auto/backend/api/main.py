@@ -49,6 +49,11 @@ class RegenerateDraftRequest(BaseModel):
     reviewer_id: str | None = None
 
 
+class ResolveTicketRequest(BaseModel):
+    reviewer_id: str | None = None
+    reason: str = Field(default="resolved by email", min_length=1)
+
+
 class AdminLoginRequest(BaseModel):
     login_id: str = Field(min_length=1)
     password: str = Field(min_length=1)
@@ -101,17 +106,22 @@ def _ticket_list_where(*, status: str | None, today_only: bool, assignee_id: str
     params: list[Any] = []
     if status:
         if status == "open":
-            clauses.append(
-                "(t.status = %s OR (t.status = 'pending' AND NOT EXISTS "
-                "(SELECT 1 FROM answer_draft d WHERE d.ticket_id = t.ticket_id)))"
-            )
-            params.append(status)
+            clauses.append("(t.source_type = 'naver_cafe' AND t.status = 'open')")
         elif status == "pending":
-            clauses.append("(t.status = %s OR t.status = 'human_review_pending')")
-            params.append(status)
+            clauses.append(
+                "((t.source_type = 'chatbot' AND t.status = 'pending') "
+                "OR (t.source_type = 'naver_cafe' AND t.status = 'pending') "
+                "OR t.status = 'human_review_pending')"
+            )
         else:
             clauses.append("t.status = %s")
             params.append(status)
+    else:
+        clauses.append(
+            "((t.source_type = 'chatbot' AND t.status = 'pending') "
+            "OR (t.source_type = 'naver_cafe' AND t.status IN ('open', 'pending')) "
+            "OR t.status = 'human_review_pending')"
+        )
     if today_only:
         clauses.append(
             "t.inquiry_created_at >= CURRENT_DATE "
@@ -141,9 +151,12 @@ def _list_ticket_rows(cur: Any, *, status: str | None, limit: int, today_only: b
             t.source_type,
             CASE
                 WHEN t.status = 'human_review_pending' THEN 'pending'
-                WHEN t.status = 'pending' AND latest_draft.draft_id IS NULL THEN 'open'
                 ELSE t.status
             END AS status,
+            CASE
+                WHEN t.source_type = 'naver_cafe' AND t.status = 'open' THEN TRUE
+                ELSE FALSE
+            END AS can_edit_draft,
             t.assignee_id,
             t.inquiry_created_at,
             u.nickname,
@@ -210,7 +223,7 @@ def _insert_review_log(
 def _draft_for_update(cur: Any, draft_id: int) -> dict[str, Any]:
     cur.execute(
         """
-        SELECT draft_id, ticket_id, analysis_id, draft_text, prompt_version, created_at
+        SELECT draft_id, ticket_id, analysis_id, draft_text, created_at
         FROM answer_draft
         WHERE draft_id = %s
         FOR UPDATE
@@ -223,7 +236,7 @@ def _draft_for_update(cur: Any, draft_id: int) -> dict[str, Any]:
     return dict(row)
 
 
-_TERMINAL_STATUSES = {"closed", "urgent_alert_pending", "workflow_running"}
+_TERMINAL_STATUSES = {"closed", "resolved", "urgent_alert_pending", "workflow_running"}
 
 
 def _ensure_ticket_reprocessable(ticket_id: int) -> None:
@@ -285,6 +298,61 @@ def _ensure_draft_reprocessable(cur: Any, draft: dict[str, Any]) -> None:
         raise HTTPException(status_code=409, detail=f"draft {draft_id} is already approved")
 
 
+def _ensure_draft_editable(cur: Any, draft: dict[str, Any]) -> None:
+    cur.execute(
+        """
+        SELECT source_type, status
+        FROM qa_ticket
+        WHERE ticket_id = %s
+        """,
+        (draft["ticket_id"],),
+    )
+    ticket = cur.fetchone()
+    if ticket is None:
+        raise HTTPException(status_code=404, detail=f"ticket not found: {draft['ticket_id']}")
+    if ticket["source_type"] != "naver_cafe" or ticket["status"] != "open":
+        raise HTTPException(
+            status_code=409,
+            detail="only open naver_cafe tickets can edit drafts",
+        )
+
+
+def _resolve_ticket(cur: Any, *, ticket_id: int, reviewer_id: str | None, reason: str) -> None:
+    cur.execute(
+        """
+        SELECT ticket_id, source_type, status
+        FROM qa_ticket
+        WHERE ticket_id = %s
+        FOR UPDATE
+        """,
+        (ticket_id,),
+    )
+    ticket = cur.fetchone()
+    if ticket is None:
+        raise HTTPException(status_code=404, detail=f"ticket not found: {ticket_id}")
+    if ticket["source_type"] != "chatbot" or ticket["status"] != "pending":
+        raise HTTPException(
+            status_code=409,
+            detail="only chatbot pending tickets can be resolved by email",
+        )
+    cur.execute("UPDATE qa_ticket SET status = 'resolved' WHERE ticket_id = %s", (ticket_id,))
+    cur.execute(
+        """
+        INSERT INTO admin_event_logs (
+            ticket_id, node_name, event_type, status, metadata, created_at
+        )
+        VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+        """,
+        (
+            ticket_id,
+            "operation_review_api",
+            "ticket_resolved",
+            "resolved",
+            Json({"reviewer_id": reviewer_id, "reason": reason}),
+        ),
+    )
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
@@ -330,6 +398,14 @@ def assign_ticket(ticket_id: int, request: AssignRequest) -> dict[str, Any]:
                 (request.reviewer_id, ticket_id),
             )
     return {"ticket_id": ticket_id, "assignee_id": request.reviewer_id}
+
+
+@app.post("/tickets/{ticket_id}/resolve")
+def resolve_ticket(ticket_id: int, request: ResolveTicketRequest) -> dict[str, Any]:
+    with db_connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            _resolve_ticket(cur, ticket_id=ticket_id, reviewer_id=request.reviewer_id, reason=request.reason)
+    return {"ticket_id": ticket_id, "status": "resolved"}
 
 
 @app.get("/tickets")
@@ -422,7 +498,11 @@ def get_ticket_detail(ticket_id: int) -> dict[str, Any]:
                     a.uid,
                     a.server_region,
                     a.progression_level,
-                    a.account_status
+                    a.account_status,
+                    CASE
+                        WHEN t.source_type = 'naver_cafe' AND t.status = 'open' THEN TRUE
+                        ELSE FALSE
+                    END AS can_edit_draft
                 FROM qa_ticket t
                 LEFT JOIN community_users u ON u.user_id = t.user_id
                 LEFT JOIN game_accounts a ON a.account_id = t.account_id
@@ -435,8 +515,6 @@ def get_ticket_detail(ticket_id: int) -> dict[str, Any]:
             sections = _fetch_ticket_sections(cur, ticket_id)
             if ticket.get("status") == "human_review_pending":
                 ticket["status"] = "pending"
-            elif ticket.get("status") == "pending" and not sections["drafts"]:
-                ticket["status"] = "open"
     return {"ticket": ticket, **sections}
 
 
@@ -445,6 +523,8 @@ def edit_draft(draft_id: int, request: DraftEditRequest) -> ReviewActionResponse
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
             draft = _draft_for_update(cur, draft_id)
+            _ensure_draft_reprocessable(cur, draft)
+            _ensure_draft_editable(cur, draft)
             _insert_review_log(
                 cur,
                 ticket_id=draft["ticket_id"],
@@ -471,6 +551,7 @@ def approve_draft(draft_id: int, request: ApproveDraftRequest) -> ReviewActionRe
         with conn.cursor(row_factory=dict_row) as cur:
             draft = _draft_for_update(cur, draft_id)
             _ensure_draft_reprocessable(cur, draft)
+            _ensure_draft_editable(cur, draft)
             _insert_review_log(
                 cur,
                 ticket_id=draft["ticket_id"],
@@ -502,6 +583,7 @@ def regenerate_draft(draft_id: int, request: RegenerateDraftRequest) -> ReviewAc
         with conn.cursor(row_factory=dict_row) as cur:
             draft = _draft_for_update(cur, draft_id)
             _ensure_draft_reprocessable(cur, draft)
+            _ensure_draft_editable(cur, draft)
             _insert_review_log(
                 cur,
                 ticket_id=draft["ticket_id"],

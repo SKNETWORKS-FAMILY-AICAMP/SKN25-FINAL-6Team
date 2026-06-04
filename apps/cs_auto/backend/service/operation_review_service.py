@@ -22,7 +22,7 @@ class ReviewStepResult(BaseModel):
     status: str | None = None
 
 
-_TERMINAL_TICKET_STATUSES = {"closed", "urgent_alert_pending"}
+_TERMINAL_TICKET_STATUSES = {"closed", "resolved", "urgent_alert_pending"}
 _ACTIVE_WORKFLOW_STATUS = "workflow_running"
 _SAFETY_REASON_MAX_LENGTH = 255
 
@@ -32,7 +32,7 @@ def _load_draft_row(draft_id: int) -> dict[str, Any]:
         with conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
                 """
-                SELECT draft_id, ticket_id, analysis_id, draft_text, prompt_version, created_at
+                SELECT draft_id, ticket_id, analysis_id, draft_text, created_at
                 FROM answer_draft
                 WHERE draft_id = %s
                 """,
@@ -238,10 +238,10 @@ def finalize_review_result(
         if not effective_answer:
             raise ValueError("approved review result requires final_answer")
         response_id = _insert_final_response(review_result.ticket_id, draft_id, effective_answer, review_result.approval_route)
-        _update_ticket_status(review_result.ticket_id, "closed")
+        _update_ticket_status(review_result.ticket_id, "resolved")
         review_result.response_id = response_id
         review_result.final_answer = effective_answer
-        review_result.status = "closed"
+        review_result.status = "resolved"
         return review_result
 
     if review_result.approval_route == "urgent_alert":
@@ -315,11 +315,11 @@ def approve_existing_draft(draft_id: int, final_text: str | None = None) -> dict
     if not final_answer:
         raise ValueError("approve_existing_draft requires final_text or stored draft_text")
     response_id = _insert_final_response(str(draft["ticket_id"]), draft_id, str(final_answer), "approved")
-    _update_ticket_status(str(draft["ticket_id"]), "closed")
+    _update_ticket_status(str(draft["ticket_id"]), "resolved")
     return {
         "ticket_id": int(draft["ticket_id"]),
         "draft_id": draft_id,
-        "status": "closed",
+        "status": "resolved",
         "response_id": response_id,
         "next_draft_id": draft_id,
     }
