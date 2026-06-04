@@ -297,6 +297,34 @@ table.tbl tr:hover td{background:rgba(96,150,180,0.03)}
 .action-item{display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--surface);border-radius:7px;font-size:12px;color:var(--text2);border-left:3px solid var(--c1);font-weight:400}
 .action-item i{font-size:14px;color:var(--c1)}
 
+/* ── LOADING OVERLAY ── */
+#loading-overlay{
+  display:none;position:fixed;inset:0;z-index:300;
+  background:rgba(247,245,240,0.7);
+  align-items:center;justify-content:center;
+}
+#loading-overlay.show{display:flex}
+#loading-overlay i{font-size:36px;color:var(--c1);animation:spin 0.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── TOAST ── */
+#toast{
+  position:fixed;bottom:24px;right:24px;z-index:400;
+  display:flex;flex-direction:column;gap:8px;pointer-events:none;
+}
+.toast-item{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 16px;border-radius:9px;
+  font-size:12px;font-weight:500;font-family:var(--font);
+  box-shadow:0 4px 16px rgba(0,0,0,0.12);
+  animation:toast-in 0.2s ease;pointer-events:auto;
+  max-width:320px;
+}
+.toast-item.success{background:var(--green-bg);border:1px solid #A7DFC3;color:var(--green)}
+.toast-item.error{background:var(--red-bg);border:1px solid var(--red-border);color:var(--red)}
+.toast-item i{font-size:15px;flex-shrink:0}
+@keyframes toast-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
 /* ── SCROLLBAR ── */
 ::-webkit-scrollbar{width:4px}
 ::-webkit-scrollbar-track{background:transparent}
@@ -511,10 +539,10 @@ table.tbl tr:hover td{background:rgba(96,150,180,0.03)}
 <!-- ── SIDEBAR ── -->
 <aside class="sidebar">
   <div class="s-sec">운영 현황</div>
-  <div class="nav-item active" onclick="activateSide(this)"><i class="ti ti-inbox" aria-hidden="true"></i> 전체 문의 <span class="nb">48</span></div>
-  <div class="nav-item" onclick="activateSide(this)"><i class="ti ti-clock" aria-hidden="true"></i> 처리 대기 <span class="nb">12</span></div>
-  <div class="nav-item" onclick="activateSide(this)"><i class="ti ti-check" aria-hidden="true"></i> 처리 완료 <span class="nb" style="background:var(--green-bg);color:var(--green)">33</span></div>
-  <div class="nav-item" onclick="activateSide(this)"><i class="ti ti-flame" aria-hidden="true"></i> 긴급 미응답 <span class="nb red">3</span></div>
+  <div class="nav-item active" onclick="activateSide(this)"><i class="ti ti-inbox" aria-hidden="true"></i> 전체 문의 <span class="nb" id="sb-total">48</span></div>
+  <div class="nav-item" onclick="activateSide(this)"><i class="ti ti-clock" aria-hidden="true"></i> 처리 대기 <span class="nb" id="sb-pending">12</span></div>
+  <div class="nav-item" onclick="activateSide(this)"><i class="ti ti-check" aria-hidden="true"></i> 처리 완료 <span class="nb" id="sb-closed" style="background:var(--green-bg);color:var(--green)">33</span></div>
+  <div class="nav-item" onclick="activateSide(this)"><i class="ti ti-flame" aria-hidden="true"></i> 긴급 미응답 <span class="nb red" id="sb-urgent">3</span></div>
 
   <div class="sb-bottom">
     <div class="sb-lbl" style="margin-top:8px">외부 채널</div>
@@ -535,7 +563,7 @@ table.tbl tr:hover td{background:rgba(96,150,180,0.03)}
     <span class="pg-title">운영 현황</span>
     <span class="pg-sub">2026.05.01 – 05.28</span>
     <div class="toolbar-right">
-      <button class="btn btn-ghost btn-sm"><i class="ti ti-refresh" aria-hidden="true"></i> 새로고침</button>
+      <button class="btn btn-ghost btn-sm" onclick="loadDashboardLiveData()"><i class="ti ti-refresh" aria-hidden="true"></i> 새로고침</button>
       <button class="btn btn-primary btn-sm"><i class="ti ti-download" aria-hidden="true"></i> 내보내기</button>
     </div>
   </div>
@@ -576,22 +604,22 @@ table.tbl tr:hover td{background:rgba(96,150,180,0.03)}
           <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0">
             <div style="padding-right:14px;border-right:1px solid var(--border);margin-right:14px">
               <div style="font-size:10px;color:var(--text3);font-weight:500;margin-bottom:3px">응답 완료</div>
-              <div style="font-size:22px;font-weight:900;color:var(--green);font-family:var(--mono);letter-spacing:-0.03em;line-height:1">85.1<span style="font-size:13px;font-weight:700">%</span></div>
-              <div style="font-size:10px;color:var(--green);margin-top:3px;font-weight:600">▲ 3.2%</div>
+              <div id="ov-response-rate" style="font-size:22px;font-weight:900;color:var(--green);font-family:var(--mono);letter-spacing:-0.03em;line-height:1">85.1<span style="font-size:13px;font-weight:700">%</span></div>
+              <div id="ov-response-rate-delta" style="font-size:10px;color:var(--green);margin-top:3px;font-weight:600">▲ 3.2%</div>
             </div>
             <div style="padding-right:14px;border-right:1px solid var(--border);margin-right:14px">
               <div style="font-size:10px;color:var(--text3);font-weight:500;margin-bottom:3px">초안 작성</div>
-              <div style="font-size:22px;font-weight:900;color:var(--c1);font-family:var(--mono);letter-spacing:-0.03em;line-height:1">91.3<span style="font-size:13px;font-weight:700">%</span></div>
+              <div id="ov-draft-rate" style="font-size:22px;font-weight:900;color:var(--c1);font-family:var(--mono);letter-spacing:-0.03em;line-height:1">91.3<span style="font-size:13px;font-weight:700">%</span></div>
               <div style="font-size:10px;color:var(--green);margin-top:3px;font-weight:600">▲ 1.8%</div>
             </div>
             <div style="padding-right:14px;border-right:1px solid var(--border);margin-right:14px">
               <div style="font-size:10px;color:var(--text3);font-weight:500;margin-bottom:3px">분석 완료</div>
-              <div style="font-size:22px;font-weight:900;color:var(--c1);font-family:var(--mono);letter-spacing:-0.03em;line-height:1">94.7<span style="font-size:13px;font-weight:700">%</span></div>
+              <div id="ov-analysis-rate" style="font-size:22px;font-weight:900;color:var(--c1);font-family:var(--mono);letter-spacing:-0.03em;line-height:1">94.7<span style="font-size:13px;font-weight:700">%</span></div>
               <div style="font-size:10px;color:var(--green);margin-top:3px;font-weight:600">▲ 0.5%</div>
             </div>
             <div>
               <div style="font-size:10px;color:var(--text3);font-weight:500;margin-bottom:3px">첫 응답 시간</div>
-              <div style="font-size:22px;font-weight:900;color:var(--amber);font-family:var(--mono);letter-spacing:-0.03em;line-height:1">2.4<span style="font-size:13px;font-weight:700">h</span></div>
+              <div id="ov-avg-latency" style="font-size:22px;font-weight:900;color:var(--amber);font-family:var(--mono);letter-spacing:-0.03em;line-height:1">2.4<span style="font-size:13px;font-weight:700">h</span></div>
               <div style="font-size:10px;color:var(--green);margin-top:3px;font-weight:600">▼ 0.3h 단축</div>
             </div>
           </div>
@@ -603,22 +631,22 @@ table.tbl tr:hover td{background:rgba(96,150,180,0.03)}
           <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0">
             <div style="padding-right:14px;border-right:1px solid var(--border);margin-right:14px">
               <div style="font-size:10px;color:var(--text3);font-weight:500;margin-bottom:3px">24h 응답률</div>
-              <div style="font-size:22px;font-weight:900;color:var(--green);font-family:var(--mono);letter-spacing:-0.03em;line-height:1">78.2<span style="font-size:13px;font-weight:700">%</span></div>
+              <div id="ov-24h-rate" style="font-size:22px;font-weight:900;color:var(--green);font-family:var(--mono);letter-spacing:-0.03em;line-height:1">78.2<span style="font-size:13px;font-weight:700">%</span></div>
               <div style="font-size:10px;color:var(--amber);margin-top:3px;font-weight:600">목표 80%</div>
             </div>
             <div style="padding-right:14px;border-right:1px solid var(--border);margin-right:14px">
               <div style="font-size:10px;color:var(--text3);font-weight:500;margin-bottom:3px">미응답 비율</div>
-              <div style="font-size:22px;font-weight:900;color:var(--red);font-family:var(--mono);letter-spacing:-0.03em;line-height:1">14.9<span style="font-size:13px;font-weight:700">%</span></div>
+              <div id="ov-unanswered-rate" style="font-size:22px;font-weight:900;color:var(--red);font-family:var(--mono);letter-spacing:-0.03em;line-height:1">14.9<span style="font-size:13px;font-weight:700">%</span></div>
               <div style="font-size:10px;color:var(--red);margin-top:3px;font-weight:600">▼ 개선 필요</div>
             </div>
             <div style="padding-right:14px;border-right:1px solid var(--border);margin-right:14px;position:relative">
               <div style="font-size:10px;color:var(--text3);font-weight:500;margin-bottom:3px">24h 이상 대기</div>
-              <div style="font-size:22px;font-weight:900;color:var(--red);font-family:var(--mono);letter-spacing:-0.03em;line-height:1">5</div>
+              <div id="ov-old-pending" style="font-size:22px;font-weight:900;color:var(--red);font-family:var(--mono);letter-spacing:-0.03em;line-height:1">5</div>
               <div style="font-size:10px;color:var(--red);margin-top:3px;font-weight:600">즉시 처리 필요</div>
             </div>
             <div>
               <div style="font-size:10px;color:var(--text3);font-weight:500;margin-bottom:3px">긴급 미응답</div>
-              <div style="font-size:22px;font-weight:900;color:var(--red);font-family:var(--mono);letter-spacing:-0.03em;line-height:1">3</div>
+              <div id="ov-urgent-unanswered" style="font-size:22px;font-weight:900;color:var(--red);font-family:var(--mono);letter-spacing:-0.03em;line-height:1">3</div>
               <div style="font-size:10px;color:var(--red);margin-top:3px;font-weight:600">에스컬레이션</div>
             </div>
           </div>
@@ -785,7 +813,7 @@ table.tbl tr:hover td{background:rgba(96,150,180,0.03)}
     <span class="pg-title">위험 신호</span>
     <span class="pg-sub">AI 안전성 분석</span>
     <div class="toolbar-right">
-      <button class="btn btn-ghost btn-sm"><i class="ti ti-refresh" aria-hidden="true"></i> 새로고침</button>
+      <button class="btn btn-ghost btn-sm" onclick="loadDashboardLiveData()"><i class="ti ti-refresh" aria-hidden="true"></i> 새로고침</button>
     </div>
   </div>
 
@@ -819,18 +847,18 @@ table.tbl tr:hover td{background:rgba(96,150,180,0.03)}
 
   <!-- 위험 요약 -->
   <div class="kpi-grid" style="padding-top:10px">
-    <div class="kpi-card red"><div class="kpi-lbl">고위험 문의</div><div class="kpi-num red">7</div><div class="kpi-sub">즉각 검토 필요</div></div>
-    <div class="kpi-card red"><div class="kpi-lbl">치명 위험 문의</div><div class="kpi-num red">2</div><div class="kpi-sub">최우선 에스컬레이션</div></div>
-    <div class="kpi-card amber"><div class="kpi-lbl">사람 검토 필요</div><div class="kpi-num amber">14</div><div class="kpi-sub">AI 검수 불충분</div></div>
-    <div class="kpi-card purple"><div class="kpi-lbl">부정 반응 포함</div><div class="kpi-num purple">9</div><div class="kpi-sub">이용자 불만 감지</div></div>
+    <div class="kpi-card red"><div class="kpi-lbl">고위험 문의</div><div class="kpi-num red" id="rk-high-risk">7</div><div class="kpi-sub">즉각 검토 필요</div></div>
+    <div class="kpi-card red"><div class="kpi-lbl">치명 위험 문의</div><div class="kpi-num red" id="rk-critical-risk">2</div><div class="kpi-sub">최우선 에스컬레이션</div></div>
+    <div class="kpi-card amber"><div class="kpi-lbl">사람 검토 필요</div><div class="kpi-num amber" id="rk-human-review">14</div><div class="kpi-sub">AI 검수 불충분</div></div>
+    <div class="kpi-card purple"><div class="kpi-lbl">부정 반응 포함</div><div class="kpi-num purple" id="rk-negative-sentiment">9</div><div class="kpi-sub">이용자 불만 감지</div></div>
   </div>
 
   <!-- 경보 상태 -->
   <div class="alert-status-grid">
-    <div class="alert-status-card"><div class="alert-dot off"></div><div class="as-label">환각 경보</div><span class="as-state off">꺼짐</span></div>
-    <div class="alert-status-card"><div class="alert-dot off"></div><div class="as-label">독성 경보</div><span class="as-state off">꺼짐</span></div>
-    <div class="alert-status-card"><div class="alert-dot on"></div><div class="as-label">정책 위반 경보</div><span class="as-state on">켜짐</span></div>
-    <div class="alert-status-card"><div class="alert-dot off"></div><div class="as-label">사실성 부족 경보</div><span class="as-state off">꺼짐</span></div>
+    <div class="alert-status-card"><div class="alert-dot off" id="rk-dot-hallucination"></div><div class="as-label">환각 경보</div><span class="as-state off" id="rk-alert-hallucination">꺼짐</span></div>
+    <div class="alert-status-card"><div class="alert-dot off" id="rk-dot-toxicity"></div><div class="as-label">독성 경보</div><span class="as-state off" id="rk-alert-toxicity">꺼짐</span></div>
+    <div class="alert-status-card"><div class="alert-dot on" id="rk-dot-policy"></div><div class="as-label">정책 위반 경보</div><span class="as-state on" id="rk-alert-policy">켜짐</span></div>
+    <div class="alert-status-card"><div class="alert-dot off" id="rk-dot-factuality"></div><div class="as-label">사실성 부족 경보</div><span class="as-state off" id="rk-alert-factuality">꺼짐</span></div>
   </div>
 
   <!-- AI 블록 -->
@@ -927,7 +955,7 @@ table.tbl tr:hover td{background:rgba(96,150,180,0.03)}
     <span class="pg-title">응답 품질</span>
     <span class="pg-sub">파이프라인 품질 현황</span>
     <div class="toolbar-right">
-      <button class="btn btn-ghost btn-sm"><i class="ti ti-refresh" aria-hidden="true"></i> 새로고침</button>
+      <button class="btn btn-ghost btn-sm" onclick="loadDashboardLiveData()"><i class="ti ti-refresh" aria-hidden="true"></i> 새로고침</button>
     </div>
   </div>
 
@@ -949,10 +977,10 @@ table.tbl tr:hover td{background:rgba(96,150,180,0.03)}
 
   <!-- 파이프라인 갭 -->
   <div class="gap-grid">
-    <div class="gap-card"><div class="gap-lbl">분석 누락</div><div class="gap-num">13</div><div class="gap-bar-bg"><div class="gap-bar-fill" style="width:5%"></div></div><div class="gap-sub">분석 미완료 건수</div></div>
-    <div class="gap-card"><div class="gap-lbl">초안 누락</div><div class="gap-num">17</div><div class="gap-bar-bg"><div class="gap-bar-fill" style="width:7%"></div></div><div class="gap-sub">초안 미생성 건수</div></div>
-    <div class="gap-card"><div class="gap-lbl">응답 누락</div><div class="gap-num">37</div><div class="gap-bar-bg"><div class="gap-bar-fill" style="width:15%"></div></div><div class="gap-sub">미응답 건수</div></div>
-    <div class="gap-card"><div class="gap-lbl">품질 점검 비율</div><div class="gap-num" style="color:var(--c1)">88.7<span style="font-size:16px">%</span></div><div class="gap-bar-bg"><div class="gap-bar-fill" style="width:88.7%;background:var(--c1)"></div></div><div class="gap-sub">안전 점검 커버리지</div></div>
+    <div class="gap-card"><div class="gap-lbl">분석 누락</div><div class="gap-num" id="gp-no-analysis">13</div><div class="gap-bar-bg"><div class="gap-bar-fill" id="gp-bar-analysis" style="width:5%"></div></div><div class="gap-sub">분석 미완료 건수</div></div>
+    <div class="gap-card"><div class="gap-lbl">초안 누락</div><div class="gap-num" id="gp-no-draft">17</div><div class="gap-bar-bg"><div class="gap-bar-fill" id="gp-bar-draft" style="width:7%"></div></div><div class="gap-sub">초안 미생성 건수</div></div>
+    <div class="gap-card"><div class="gap-lbl">응답 누락</div><div class="gap-num" id="gp-no-response">37</div><div class="gap-bar-bg"><div class="gap-bar-fill" id="gp-bar-response" style="width:15%"></div></div><div class="gap-sub">미응답 건수</div></div>
+    <div class="gap-card"><div class="gap-lbl">품질 점검 비율</div><div class="gap-num" id="gp-quality-rate" style="color:var(--c1)">88.7<span style="font-size:16px">%</span></div><div class="gap-bar-bg"><div class="gap-bar-fill" id="gp-bar-quality" style="width:88.7%;background:var(--c1)"></div></div><div class="gap-sub">안전 점검 커버리지</div></div>
   </div>
 
   <!-- AI 블록 -->
@@ -1044,7 +1072,7 @@ table.tbl tr:hover td{background:rgba(96,150,180,0.03)}
     <span class="pg-title">주간 보고서</span>
     <span class="pg-sub">2026년 21주차 (05.19 – 05.25)</span>
     <div class="toolbar-right">
-      <button class="btn btn-ghost btn-sm"><i class="ti ti-refresh" aria-hidden="true"></i> 새로고침</button>
+      <button class="btn btn-ghost btn-sm" onclick="loadDashboardLiveData()"><i class="ti ti-refresh" aria-hidden="true"></i> 새로고침</button>
     </div>
   </div>
 
@@ -1179,7 +1207,7 @@ table.tbl tr:hover td{background:rgba(96,150,180,0.03)}
         <div class="ra-lbl">PDF 생성 + 다운로드</div>
         <div class="ra-sub">주간 보고서를 PDF 파일로 생성하여 다운로드합니다</div>
       </div>
-      <div class="ra-actions"><button class="btn btn-danger"><i class="ti ti-download" aria-hidden="true"></i> PDF 다운로드</button></div>
+      <div class="ra-actions"><button class="btn btn-danger" onclick="downloadWeeklyPdf()"><i class="ti ti-download" aria-hidden="true"></i> PDF 다운로드</button></div>
     </div>
     <div class="report-action-card">
       <div class="ra-icon" style="background:#E8F0FB"><i class="ti ti-brand-slack" style="color:#4A154B" aria-hidden="true"></i></div>
@@ -1187,7 +1215,7 @@ table.tbl tr:hover td{background:rgba(96,150,180,0.03)}
         <div class="ra-lbl">기본 채널로 Slack 전송</div>
         <div class="ra-sub">기획팀 Slack 채널로 즉시 전송합니다</div>
       </div>
-      <div class="ra-actions"><button class="btn btn-ghost"><i class="ti ti-send" aria-hidden="true"></i> 즉시 전송</button></div>
+      <div class="ra-actions"><button class="btn btn-ghost" id="btn-slack-send" onclick="sendWeeklySlack()"><i class="ti ti-send" aria-hidden="true"></i> 즉시 전송</button></div>
     </div>
     
     </div>
@@ -1200,16 +1228,16 @@ table.tbl tr:hover td{background:rgba(96,150,180,0.03)}
   <div class="detail-drawer">
     <div class="drawer-head">
       <div style="display:flex;flex-direction:column;gap:2px;flex:1">
-        <div style="font-size:10px;font-weight:600;color:var(--text3);font-family:var(--mono)">#TK-2041</div>
-        <h3>결제 후 아이템 미지급 — 즉각 환불 요청</h3>
+        <div id="dtl-ticket-id" style="font-size:10px;font-weight:600;color:var(--text3);font-family:var(--mono)">#TK-2041</div>
+        <h3 id="dtl-title">결제 후 아이템 미지급 — 즉각 환불 요청</h3>
         <div style="display:flex;align-items:center;gap:6px;margin-top:3px">
-          <span class="assignee-tag"><i class="ti ti-user" aria-hidden="true"></i> reviewer_01 담당</span>
-          <span class="live-status"><span class="live-dot"></span>reviewer_01 응대중</span>
+          <span class="assignee-tag" id="dtl-assignee"><i class="ti ti-user" aria-hidden="true"></i> reviewer_01 담당</span>
+          <span class="live-status" id="dtl-live-status"><span class="live-dot"></span>reviewer_01 응대중</span>
         </div>
       </div>
       <div style="display:flex;gap:5px;align-items:flex-start">
-        <span class="badge b-urg">긴급</span>
-        <span class="badge b-hi">HIGH</span>
+        <span class="badge b-urg" id="dtl-badge-status">긴급</span>
+        <span class="badge b-hi" id="dtl-badge-risk">HIGH</span>
         <button class="btn btn-ghost btn-xs" style="margin-left:4px" onclick="closeDetail()"><i class="ti ti-x" aria-hidden="true"></i></button>
       </div>
     </div>
@@ -1218,7 +1246,7 @@ table.tbl tr:hover td{background:rgba(96,150,180,0.03)}
       <!-- 티켓 기본 정보 -->
       <div class="drawer-section">
         <div class="ds-head"><i class="ti ti-ticket" aria-hidden="true"></i> 티켓 기본 정보</div>
-        <div class="ds-body">
+        <div class="ds-body" id="dtl-ticket-info">
           <div class="df df3" style="margin-bottom:8px">
             <div class="d-field"><label>상태</label><div class="dv"><span class="badge b-urg">긴급</span></div></div>
             <div class="d-field"><label>접수 경로</label><div class="dv"><span class="badge b-ch">이메일</span></div></div>
@@ -1234,7 +1262,7 @@ table.tbl tr:hover td{background:rgba(96,150,180,0.03)}
       <!-- 계정 정보 -->
       <div class="drawer-section">
         <div class="ds-head"><i class="ti ti-user-circle" aria-hidden="true"></i> 계정 정보</div>
-        <div class="ds-body">
+        <div class="ds-body" id="dtl-account-info">
           <div class="df df3">
             <div class="d-field"><label>이메일</label><div class="dv masked">dr***@gm**.com</div></div>
             <div class="d-field"><label>UID</label><div class="dv mono">UID-20483810</div></div>
@@ -1249,7 +1277,7 @@ table.tbl tr:hover td{background:rgba(96,150,180,0.03)}
       <!-- 문의 분석 이력 -->
       <div class="drawer-section">
         <div class="ds-head"><i class="ti ti-brain" aria-hidden="true"></i> 문의 분석 이력</div>
-        <div class="ds-body">
+        <div class="ds-body" id="dtl-analysis">
           <div style="font-size:12px;background:rgba(96,150,180,0.07);border-left:3px solid var(--c1);border-radius:0 7px 7px 0;padding:8px 10px;color:var(--text2);line-height:1.6;margin-bottom:8px;font-weight:400">9,900원 결제 후 다이아 패키지 미지급. 즉각 지급 또는 환불 처리 필요한 고위험 결제 문의.</div>
           <div class="df" style="grid-template-columns:1fr 1fr 1fr">
             <div class="d-field"><label>분류</label><div class="dv mono" style="font-size:11px">payment_issue</div></div>
@@ -1262,7 +1290,7 @@ table.tbl tr:hover td{background:rgba(96,150,180,0.03)}
       <!-- 생성된 초안 -->
       <div class="drawer-section">
         <div class="ds-head"><i class="ti ti-pencil" aria-hidden="true"></i> 생성된 초안</div>
-        <div class="ds-body">
+        <div class="ds-body" id="dtl-draft">
           <div class="body-txt" style="color:var(--text)">안녕하세요, 게임 CS팀입니다.<br><br>결제 후 아이템이 지급되지 않아 불편을 드려 대단히 죄송합니다. 서버 지연으로 인해 다이아 패키지가 반영되지 않은 것으로 파악되었습니다. 즉시 수동 지급 처리해 드리겠습니다.</div>
         </div>
       </div>
@@ -1270,7 +1298,7 @@ table.tbl tr:hover td{background:rgba(96,150,180,0.03)}
       <!-- 첨부된 근거 -->
       <div class="drawer-section">
         <div class="ds-head"><i class="ti ti-books" aria-hidden="true"></i> 첨부된 근거</div>
-        <div class="ds-body" style="display:flex;flex-direction:column;gap:5px">
+        <div class="ds-body" id="dtl-evidence" style="display:flex;flex-direction:column;gap:5px">
           <div style="padding:6px 9px;background:var(--surface);border-radius:6px;font-size:11px;color:var(--text2)"><strong style="font-weight:600;color:var(--text)">#1</strong> 환불 정책 — FAQ_payment_v3.md</div>
           <div style="padding:6px 9px;background:var(--surface);border-radius:6px;font-size:11px;color:var(--text2)"><strong style="font-weight:600;color:var(--text)">#2</strong> 결제 오류 처리 절차 — ops_manual_ch4.pdf</div>
           <div style="padding:6px 9px;background:var(--surface);border-radius:6px;font-size:11px;color:var(--text2)"><strong style="font-weight:600;color:var(--text)">#3</strong> 다이아 패키지 지급 기준 — item_guide.md</div>
@@ -1280,7 +1308,7 @@ table.tbl tr:hover td{background:rgba(96,150,180,0.03)}
       <!-- 안전 점검 결과 -->
       <div class="drawer-section">
         <div class="ds-head"><i class="ti ti-shield-check" aria-hidden="true"></i> 안전 점검 결과</div>
-        <div class="ds-body">
+        <div class="ds-body" id="dtl-safety">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
             <div style="display:flex;justify-content:space-between;background:var(--surface);border-radius:6px;padding:6px 9px;font-size:11px"><span style="color:var(--text2)">근거 일치</span><span style="color:var(--green);font-weight:700">통과</span></div>
             <div style="display:flex;justify-content:space-between;background:var(--surface);border-radius:6px;padding:6px 9px;font-size:11px"><span style="color:var(--text2)">환각 탐지</span><span style="color:var(--amber);font-weight:700">주의 1건</span></div>
@@ -1293,7 +1321,7 @@ table.tbl tr:hover td{background:rgba(96,150,180,0.03)}
       <!-- 실제 전송 응답 -->
       <div class="drawer-section">
         <div class="ds-head"><i class="ti ti-mail-forward" aria-hidden="true"></i> 실제 전송 응답</div>
-        <div class="ds-body">
+        <div class="ds-body" id="dtl-response">
           <div style="font-size:11px;color:var(--text3);margin-bottom:6px;font-family:var(--mono)">발송 시각: 2026-05-28 10:15 · 이메일</div>
           <div class="body-txt" style="color:var(--text);font-size:12px">안녕하세요, 게임 CS팀입니다. 결제 후 아이템이 지급되지 않아 불편을 드려 대단히 죄송합니다. 즉시 다이아 패키지를 수동으로 지급해 드렸습니다. 재접속 후 인벤토리를 확인해 주세요.</div>
         </div>
@@ -1302,7 +1330,7 @@ table.tbl tr:hover td{background:rgba(96,150,180,0.03)}
       <!-- 이용자 피드백 -->
       <div class="drawer-section">
         <div class="ds-head"><i class="ti ti-mood" aria-hidden="true"></i> 이용자 피드백</div>
-        <div class="ds-body">
+        <div class="ds-body" id="dtl-voc">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
             <span class="badge b-done">긍정</span>
             <span style="font-size:12px;color:var(--text2);font-weight:400">빠른 처리 감사합니다. 해결되었습니다.</span>
@@ -1314,7 +1342,7 @@ table.tbl tr:hover td{background:rgba(96,150,180,0.03)}
       <!-- 운영 처리 로그 -->
       <div class="drawer-section">
         <div class="ds-head"><i class="ti ti-list-details" aria-hidden="true"></i> 운영 처리 로그</div>
-        <div class="ds-body">
+        <div class="ds-body" id="dtl-op-logs">
           <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:5px">결제 / 환불 / 아이템 / 가챠</div>
           <div class="log-item"><span class="lt">10:05</span><span class="lm"><strong>아이템 수동 지급</strong> — 다이아 패키지 100개 지급 완료 (운영자: reviewer_01)</span></div>
           <div class="log-item"><span class="lt">09:55</span><span class="lm"><strong>결제 확인</strong> — 스토어 영수증 #RT-48291 정상 확인</span></div>
@@ -1325,7 +1353,7 @@ table.tbl tr:hover td{background:rgba(96,150,180,0.03)}
       <!-- 워크플로 로그 -->
       <div class="drawer-section">
         <div class="ds-head"><i class="ti ti-git-merge" aria-hidden="true"></i> 워크플로 로그</div>
-        <div class="ds-body">
+        <div class="ds-body" id="dtl-workflow-logs">
           <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:5px">검수 이벤트 / 실패 쿼리</div>
           <div class="log-item"><span class="lt">10:05</span><span class="lm"><strong>승인</strong> — reviewer_01 · 수동 지급 문구 추가 후 승인</span></div>
           <div class="log-item"><span class="lt">10:02</span><span class="lm"><strong>수정</strong> — reviewer_01 · 수동 지급 문구 추가</span></div>
@@ -1340,6 +1368,9 @@ table.tbl tr:hover td{background:rgba(96,150,180,0.03)}
 
 </main>
 </div>
+
+<div id="loading-overlay"><i class="ti ti-loader-2" aria-hidden="true"></i></div>
+<div id="toast"></div>
 
 <script src="./api.js"></script>
 <script src="./app.js"></script>
