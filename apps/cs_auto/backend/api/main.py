@@ -25,6 +25,7 @@ _FRONTEND_STATIC_DIR = Path(__file__).resolve().parents[2] / "frontend" / "stati
 
 
 @app.middleware("http")
+# cs_auto_prefix_compat ?? ??
 async def cs_auto_prefix_compat(request: Request, call_next: Any) -> Any:
     path = request.scope.get("path", "")
     if path == "/cs-auto":
@@ -103,20 +104,24 @@ class ReviewActionResponse(BaseModel):
     run_workflow_url: str | None = None
 
 
+# _row_to_dict ?? ??
 def _row_to_dict(row: Any) -> dict[str, Any] | None:
     return dict(row) if row is not None else None
 
 
+# _fetch_one ?? ??
 def _fetch_one(cur: Any, sql: str, params: tuple[Any, ...]) -> dict[str, Any] | None:
     cur.execute(sql, params)
     return _row_to_dict(cur.fetchone())
 
 
+# _fetch_all ?? ??
 def _fetch_all(cur: Any, sql: str, params: tuple[Any, ...] = ()) -> list[dict[str, Any]]:
     cur.execute(sql, params)
     return [dict(row) for row in cur.fetchall()]
 
 
+# _ticket_list_where ?? ??
 def _ticket_list_where(
     *,
     status: str | None,
@@ -240,6 +245,7 @@ def _list_ticket_rows(
     )
 
 
+# _insert_review_log ?? ??
 def _insert_review_log(
     cur: Any,
     *,
@@ -272,6 +278,7 @@ def _insert_review_log(
     )
 
 
+# _draft_for_update ?? ??
 def _draft_for_update(cur: Any, draft_id: int) -> dict[str, Any]:
     cur.execute(
         """
@@ -291,6 +298,7 @@ def _draft_for_update(cur: Any, draft_id: int) -> dict[str, Any]:
 _TERMINAL_STATUSES = {"closed", "resolved", "urgent_alert_pending", "workflow_running"}
 
 
+# _ensure_ticket_reprocessable ?? ??
 def _ensure_ticket_reprocessable(ticket_id: int) -> None:
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
@@ -305,6 +313,7 @@ def _ensure_ticket_reprocessable(ticket_id: int) -> None:
                 )
 
 
+# _ensure_draft_reprocessable ?? ??
 def _ensure_draft_reprocessable(cur: Any, draft: dict[str, Any]) -> None:
     draft_id = int(draft["draft_id"])
     ticket_id = int(draft["ticket_id"])
@@ -350,6 +359,7 @@ def _ensure_draft_reprocessable(cur: Any, draft: dict[str, Any]) -> None:
         raise HTTPException(status_code=409, detail=f"draft {draft_id} is already approved")
 
 
+# _ensure_draft_saveable ?? ??
 def _ensure_draft_saveable(cur: Any, draft: dict[str, Any], reviewer_id: str | None) -> None:
     if not reviewer_id:
         raise HTTPException(status_code=400, detail="reviewer_id is required to edit drafts")
@@ -371,6 +381,7 @@ def _ensure_draft_saveable(cur: Any, draft: dict[str, Any], reviewer_id: str | N
         )
 
 
+# _ensure_draft_actionable ?? ??
 def _ensure_draft_actionable(cur: Any, draft: dict[str, Any]) -> None:
     cur.execute(
         """
@@ -390,6 +401,7 @@ def _ensure_draft_actionable(cur: Any, draft: dict[str, Any]) -> None:
         )
 
 
+# _start_ticket_edit ?? ??
 def _start_ticket_edit(cur: Any, *, ticket_id: int, reviewer_id: str) -> dict[str, Any]:
     cur.execute(
         """
@@ -437,6 +449,7 @@ def _start_ticket_edit(cur: Any, *, ticket_id: int, reviewer_id: str) -> dict[st
     return dict(updated)
 
 
+# _resolve_ticket ?? ??
 def _resolve_ticket(cur: Any, *, ticket_id: int, reviewer_id: str | None, reason: str) -> None:
     cur.execute(
         """
@@ -474,12 +487,14 @@ def _resolve_ticket(cur: Any, *, ticket_id: int, reviewer_id: str | None, reason
 
 
 @app.get("/health")
+# health ?? ??
 def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
 
 @app.post("/auth/admin/login", response_model=AdminLoginResponse)
+# admin_login ?? ??
 def admin_login(request: AdminLoginRequest) -> AdminLoginResponse:
     result = login_admin_with_credentials(request.login_id, request.password)
     return AdminLoginResponse(**result)
@@ -487,6 +502,7 @@ def admin_login(request: AdminLoginRequest) -> AdminLoginResponse:
 
 # [수정] 담당자 자동 할당 제거 — 할당은 티켓 선택 시 /assign 엔드포인트에서 처리
 @app.post("/tickets/{ticket_id}/run-workflow", response_model=RunWorkflowResponse)
+# run_workflow ?? ??
 def run_workflow(ticket_id: int) -> RunWorkflowResponse:
     _ensure_ticket_reprocessable(ticket_id)
     try:
@@ -507,6 +523,7 @@ def run_workflow(ticket_id: int) -> RunWorkflowResponse:
 
 # [추가] 티켓 담당자 명시적 할당 엔드포인트
 @app.post("/tickets/{ticket_id}/assign")
+# assign_ticket ?? ??
 def assign_ticket(ticket_id: int, request: AssignRequest) -> dict[str, Any]:
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
@@ -521,6 +538,7 @@ def assign_ticket(ticket_id: int, request: AssignRequest) -> dict[str, Any]:
 
 
 @app.post("/tickets/{ticket_id}/resolve")
+# resolve_ticket ?? ??
 def resolve_ticket(ticket_id: int, request: ResolveTicketRequest) -> dict[str, Any]:
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
@@ -529,6 +547,7 @@ def resolve_ticket(ticket_id: int, request: ResolveTicketRequest) -> dict[str, A
 
 
 @app.post("/tickets/{ticket_id}/start-edit")
+# start_edit_ticket ?? ??
 def start_edit_ticket(ticket_id: int, request: StartEditRequest) -> dict[str, Any]:
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
@@ -537,6 +556,7 @@ def start_edit_ticket(ticket_id: int, request: StartEditRequest) -> dict[str, An
 
 
 @app.get("/tickets")
+# list_tickets ?? ??
 def list_tickets(
     status: str | None = Query(default=None),
     source_type: str | None = Query(default=None),
@@ -556,6 +576,7 @@ def list_tickets(
             )
 
 @app.get("/tickets/chatbot-pending")
+# list_chatbot_pending_tickets ?? ??
 def list_chatbot_pending_tickets(
     limit: int = Query(default=50, ge=1, le=200),
 ) -> list[dict[str, Any]]:
@@ -587,6 +608,7 @@ def list_chatbot_pending_tickets(
 
 
 @app.get("/tickets/today")
+# list_today_tickets ?? ??
 def list_today_tickets(
     status: str | None = Query(default="open"),
     limit: int = Query(default=100, ge=1, le=200),
@@ -596,6 +618,7 @@ def list_today_tickets(
             return _list_ticket_rows(cur, status=status, limit=limit, today_only=True)
 
 
+# _fetch_ticket_sections ?? ??
 def _fetch_ticket_sections(cur: Any, ticket_id: int) -> dict[str, Any]:
     analyses = _fetch_all(
         cur,
@@ -648,6 +671,7 @@ def _fetch_ticket_sections(cur: Any, ticket_id: int) -> dict[str, Any]:
 
 
 @app.get("/tickets/{ticket_id}")
+# get_ticket_detail ?? ??
 def get_ticket_detail(ticket_id: int) -> dict[str, Any]:
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
@@ -691,6 +715,7 @@ def get_ticket_detail(ticket_id: int) -> dict[str, Any]:
 
 
 @app.patch("/drafts/{draft_id}")
+# edit_draft ?? ??
 def edit_draft(draft_id: int, request: DraftEditRequest) -> ReviewActionResponse:
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
@@ -718,6 +743,7 @@ def edit_draft(draft_id: int, request: DraftEditRequest) -> ReviewActionResponse
 
 
 @app.post("/drafts/{draft_id}/approve")
+# approve_draft ?? ??
 def approve_draft(draft_id: int, request: ApproveDraftRequest) -> ReviewActionResponse:
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
@@ -751,6 +777,7 @@ def approve_draft(draft_id: int, request: ApproveDraftRequest) -> ReviewActionRe
 
 
 @app.post("/drafts/{draft_id}/regenerate")
+# regenerate_draft ?? ??
 def regenerate_draft(draft_id: int, request: RegenerateDraftRequest) -> ReviewActionResponse:
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
@@ -783,6 +810,7 @@ def regenerate_draft(draft_id: int, request: RegenerateDraftRequest) -> ReviewAc
 
 
 @app.post("/drafts/{draft_id}/reject")
+# reject_draft ?? ??
 def reject_draft(draft_id: int, request: RegenerateDraftRequest) -> ReviewActionResponse:
     return regenerate_draft(draft_id, request)
 

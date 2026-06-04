@@ -19,7 +19,6 @@ const appState = {
   workflowVisible: false,
   workflowProgress: 0,
   workflowLabel: "문의 내용 분석 중...",
-  workflowMode: "default",
   workflowLogs: [],
   allTickets: [],
   tickets: [
@@ -527,23 +526,6 @@ const FILTER_REVIEW = filterTabs[2];
 const FILTER_URGENT = filterTabs[3];
 const FILTER_DONE = filterTabs[4];
 const categoryTabs = ["전체", "결제", "계정", "버그", "환불"];
-const workflowStepsByMode = {
-  default: [
-    { label: "문의 내용 분석 중...", progress: 20 },
-    { label: "카테고리 분류 중...", progress: 40 },
-    { label: "근거 문서 검색 중...", progress: 60 },
-    { label: "안전성 검토 중...", progress: 80 },
-    { label: "초안 생성 완료", progress: 100 },
-  ],
-  regenerate: [
-    { label: "사유 기반 ticket analysis 중...", progress: 20 },
-    { label: "사유 반영 초안 생성 중...", progress: 40 },
-    { label: "사유 반영 검토 중...", progress: 60 },
-    { label: "사유 반영 안전성 검토 중...", progress: 80 },
-    { label: "사유 반영 재생성 완료", progress: 100 },
-  ],
-};
-
 const {
   approveDraft,
   confirmDraft,
@@ -567,10 +549,12 @@ const {
 
 let operatorMenuListenerBound = false;
 
+// getSelectedTicket ?? ??
 function getSelectedTicket() {
   return appState.tickets.find((ticket) => ticket.id === appState.selectedTicketId) || appState.tickets[0];
 }
 
+// getReviewerInitials ?? ??
 function getReviewerInitials(id) {
   return (id || "")
     .replace(/[^a-zA-Z0-9가-힣]/g, "")
@@ -578,10 +562,12 @@ function getReviewerInitials(id) {
     .toUpperCase() || "OP";
 }
 
+// getCurrentReviewerDisplayName ?? ??
 function getCurrentReviewerDisplayName() {
   return appState.currentReviewerDisplayName || appState.currentReviewer || "OP";
 }
 
+// showLoginError ?? ??
 function showLoginError(message) {
   const err = document.getElementById("li-err");
   if (!err) return;
@@ -589,6 +575,7 @@ function showLoginError(message) {
   err.innerHTML = `<i class="ti ti-alert-circle" aria-hidden="true"></i> ${escapeHtml(message)}`;
 }
 
+// doLogout ?? ??
 function doLogout() {
   appState.currentReviewer = null;
   appState.currentReviewerDisplayName = null;
@@ -601,6 +588,7 @@ function doLogout() {
   render();
 }
 
+// toggleOpMenu ?? ??
 function toggleOpMenu(event) {
   event.stopPropagation();
   const dropdown = document.getElementById("op-dropdown");
@@ -609,6 +597,7 @@ function toggleOpMenu(event) {
   }
 }
 
+// ensureOperatorMenuListener ?? ??
 function ensureOperatorMenuListener() {
   if (operatorMenuListenerBound) return;
   document.addEventListener("click", () => {
@@ -620,6 +609,7 @@ function ensureOperatorMenuListener() {
   operatorMenuListenerBound = true;
 }
 
+// renderAuthSlotHtml ?? ??
 function renderAuthSlotHtml() {
   if (!appState.currentReviewer) {
     return `
@@ -651,6 +641,7 @@ function renderAuthSlotHtml() {
   `;
 }
 
+// renderLoginOverlayHtml ?? ??
 function renderLoginOverlayHtml() {
   return `
     <div id="login-overlay" class="login-overlay ${appState.currentReviewer ? "hidden" : ""}">
@@ -685,6 +676,7 @@ function renderLoginOverlayHtml() {
   `;
 }
 
+// badgeClassByTone ?? ??
 function badgeClassByTone(tone) {
   if (tone === "urgent") return "border border-brand-300 bg-brand-100 text-brand-700";
   if (tone === "review") return "border border-brand-200 bg-brand-500/10 text-brand-700";
@@ -693,18 +685,21 @@ function badgeClassByTone(tone) {
   return "bg-brand-500/10 text-brand-500";
 }
 
+// levelClass ?? ??
 function levelClass(level) {
   if (level === "HIGH") return "bg-alert-redBg text-alert-red";
   if (level === "MID") return "bg-alert-amberBg text-alert-amber";
   return "bg-brand-500/10 text-brand-500";
 }
 
+// riskSignalEmoji ?? ??
 function riskSignalEmoji(level) {
   if (level === "HIGH") return "🔴";
   if (level === "MID") return "🟡";
   return "🟢";
 }
 
+// escapeHtml ?? ??
 function escapeHtml(value) {
   return String(value)
     .replaceAll("&", "&amp;")
@@ -714,10 +709,12 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
+// nl2br ?? ??
 function nl2br(value) {
   return escapeHtml(value).replaceAll("\n", "<br>");
 }
 
+// draftStatusMeta ?? ??
 function draftStatusMeta(status) {
   if (status === "approved") {
     return {
@@ -740,20 +737,13 @@ function draftStatusMeta(status) {
   };
 }
 
+// timeStampLabel ?? ??
 function timeStampLabel() {
   const now = new Date();
   return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
 }
 
-function getDraftRegenerationText(ticket, reason) {
-  const variants = [
-    `${ticket.nickname}님, 안녕하세요. ${reason} 요청을 반영해 문의 내용을 다시 점검하고 있으며 확인 즉시 후속 조치를 안내드리겠습니다.`,
-    `${ticket.nickname}님, 불편을 드려 죄송합니다. ${reason} 기준으로 접수 내용을 재확인 중이며 처리 결과를 빠르게 회신드리겠습니다.`,
-    `${ticket.nickname}님, 요청하신 사항을 정상 접수했습니다. ${reason} 사유를 반영해 관련 이력과 운영 기준을 다시 검토한 뒤 필요한 조치를 안내드리겠습니다.`
-  ];
-  return variants[Math.min(ticket.regenCount - 1, variants.length - 1)];
-}
-
+// getAnswerWorkflowStage ?? ??
 function getAnswerWorkflowStage() {
   if (!appState.workflowVisible) {
     return 3;
@@ -770,20 +760,7 @@ function getAnswerWorkflowStage() {
   return 0;
 }
 
-function getWorkflowSteps() {
-  return workflowStepsByMode[appState.workflowMode] || workflowStepsByMode.default;
-}
-
-function getWorkflowTimelineLabels() {
-  const steps = getWorkflowSteps();
-  return {
-    analysis: steps[0].label,
-    draft: steps[1].label,
-    review: steps[2].label,
-    send: steps[3].label,
-  };
-}
-
+// renderTimelineItem ?? ??
 function renderTimelineItem(label, state, terminal = false) {
   const bubbleClass = state === "done"
     ? "bg-alert-greenBg text-alert-green"
@@ -808,6 +785,7 @@ function renderTimelineItem(label, state, terminal = false) {
   `;
 }
 
+// updateTicketHistory ?? ??
 function updateTicketHistory(ticket, decision, tone, reason) {
   appState.history = [
     { decision, tone, reviewer: appState.currentReviewer || "system", reason, time: timeStampLabel() },
@@ -816,6 +794,7 @@ function updateTicketHistory(ticket, decision, tone, reason) {
   ticket.lastAction = reason;
 }
 
+// requestRegenerateDraft ?? ??
 function requestRegenerateDraft() {
   const ticket = getSelectedTicket();
   if (!ticket?.draftId || ticket.sourceType !== "naver_cafe") {
@@ -832,6 +811,7 @@ function requestRegenerateDraft() {
   render();
 }
 
+// getReviewedTickets ?? ??
 function getReviewedTickets() {
   if (!appState.currentReviewer) {
     return [];
@@ -839,6 +819,7 @@ function getReviewedTickets() {
   return appState.tickets.filter((ticket) => getAssignedReviewer(ticket) === appState.currentReviewer || isDoneTicket(ticket));
 }
 
+// getTicketListPagination ?? ??
 function getTicketListPagination() {
   const pageSize = 4;
   const visibleTickets = getVisibleTickets();
@@ -852,6 +833,7 @@ function getTicketListPagination() {
   };
 }
 
+// formatReviewDateLabel ?? ??
 function formatReviewDateLabel(createdAt) {
   const [monthDay] = String(createdAt).split(" ");
   const [month, day] = monthDay.split("-").map(Number);
@@ -860,6 +842,7 @@ function formatReviewDateLabel(createdAt) {
   return `${String(month).padStart(2, "0")}.${String(day).padStart(2, "0")} ${weekdays[date.getDay()]}요일`;
 }
 
+// getReviewHistorySidebarGroups ?? ??
 function getReviewHistorySidebarGroups() {
   const groups = new Map();
   getReviewedTickets().forEach((ticket) => {
@@ -879,6 +862,7 @@ function getReviewHistorySidebarGroups() {
     }));
 }
 
+// getReviewSelectedDateKey ?? ??
 function getReviewSelectedDateKey() {
   if (appState.reviewSelectedDate) {
     return appState.reviewSelectedDate;
@@ -890,6 +874,7 @@ function getReviewSelectedDateKey() {
   return getReviewHistorySidebarGroups()[0]?.dateKey || null;
 }
 
+// syncReviewCalendarState ?? ??
 function syncReviewCalendarState() {
   const selectedDateKey = getReviewSelectedDateKey();
   if (!selectedDateKey) {
@@ -904,6 +889,7 @@ function syncReviewCalendarState() {
   }
 }
 
+// getReviewCalendarEvents ?? ??
 function getReviewCalendarEvents() {
   return getReviewedTickets().map((ticket) => ({
     title: ticket.title,
@@ -915,6 +901,7 @@ function getReviewCalendarEvents() {
   }));
 }
 
+// formatDateToIsoLocal ?? ??
 function formatDateToIsoLocal(date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -922,6 +909,7 @@ function formatDateToIsoLocal(date) {
   return `${year}-${month}-${day}`;
 }
 
+// initReviewHistoryCalendar ?? ??
 function initReviewHistoryCalendar() {
   const calendarRoot = document.getElementById("review-history-calendar");
   if (!calendarRoot || typeof FullCalendar === "undefined") {
@@ -984,6 +972,7 @@ function initReviewHistoryCalendar() {
   reviewCalendarInstance.render();
 }
 
+// renderReviewHistoryContent ?? ??
 function renderReviewHistoryContent() {
   const selectedDateKey = getReviewSelectedDateKey();
   const reviewedTickets = getReviewedTickets().filter((ticket) => {
@@ -1089,6 +1078,7 @@ function renderReviewHistoryContent() {
   `;
 }
 
+// render ?? ??
 function render() {
   syncReviewCalendarState();
   const ticket = getSelectedTicket();
@@ -1303,6 +1293,15 @@ function render() {
                     <div class="flex items-center gap-1.5 text-xs font-bold text-ink-900"><i class="ti ti-activity text-sm text-brand-500"></i> 처리 현황</div>
                   </div>
                   <div class="subcard-body px-2.5 py-2.5">
+                    <div class="mb-3 rounded-lg border border-sand-300 bg-white px-3 py-2">
+                      <div class="flex items-center justify-between gap-2 text-[10px] font-semibold text-ink-500">
+                        <span>${escapeHtml(appState.workflowLabel || "문의 내용 분석 중...")}</span>
+                        <span>${Math.max(0, Math.min(100, appState.workflowProgress || 0))}%</span>
+                      </div>
+                      <div class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-sand-200">
+                        <div class="h-full rounded-full bg-brand-500 transition-all duration-300" style="width: ${Math.max(0, Math.min(100, appState.workflowProgress || 0))}%"></div>
+                      </div>
+                    </div>
                     <div class="flex flex-col gap-0">
                       ${renderTimelineItem("AI 분석 완료", answerWorkflowStage > 1 ? "done" : answerWorkflowStage === 1 ? "active" : "pending")}
                       ${renderTimelineItem("초안 생성", answerWorkflowStage > 2 ? "done" : answerWorkflowStage === 2 ? "active" : "pending")}
@@ -1416,6 +1415,7 @@ function render() {
   }
 }
 
+// bindEvents ?? ??
 function bindEvents() {
   document.querySelectorAll("[data-top-tab]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -1690,29 +1690,6 @@ function bindEvents() {
       appState.regenReason = event.target.value;
     });
   }
-}
-
-function startWorkflow(onComplete) {
-  appState.workflowVisible = true;
-  appState.workflowProgress = 0;
-  appState.workflowLabel = workflowSteps[0].label;
-  render();
-
-  let index = 0;
-  const timer = setInterval(() => {
-    if (index >= workflowSteps.length) {
-      clearInterval(timer);
-      if (typeof onComplete === "function") {
-        onComplete();
-      }
-      return;
-    }
-
-    appState.workflowLabel = workflowSteps[index].label;
-    appState.workflowProgress = workflowSteps[index].progress;
-    render();
-    index += 1;
-  }, 700);
 }
 
 render();

@@ -24,6 +24,7 @@ class ContextAgentResult(BaseModel):
     errors: list[str] = Field(default_factory=list)
 
 
+# _query_text ?? ??
 def _query_text(state: OperationState) -> str:
     query_text = state.query_text or state.ticket.body or state.ticket.title
     if not query_text:
@@ -31,6 +32,7 @@ def _query_text(state: OperationState) -> str:
     return query_text
 
 
+# _keyword_terms ?? ??
 def _keyword_terms(query_text: str) -> list[str]:
     terms = re.findall(r"[0-9A-Za-z가-힣]{2,}", query_text)
     stopwords = {"윈도우", "확인", "싶습니다", "포함", "되는지", "나온"}
@@ -44,6 +46,7 @@ def _keyword_terms(query_text: str) -> list[str]:
     return keywords[:6]
 
 
+# _rrf_merge ?? ??
 def _rrf_merge(
     keyword_rows: dict[str, dict[str, Any]],
     vector_rows: dict[str, dict[str, Any]],
@@ -78,6 +81,7 @@ def _rrf_merge(
     return [row for _, row in scored[:top_k]]
 
 
+# _retrieve_docs ?? ??
 def _retrieve_docs(state: OperationState) -> list[EvidenceDocument]:
     query_text = _query_text(state)
     query_embedding = get_query_embedding(query_text)
@@ -168,6 +172,7 @@ def _retrieve_docs(state: OperationState) -> list[EvidenceDocument]:
     ]
 
 
+# run_context_agent ?? ??
 def run_context_agent(
     *,
     state: OperationState,

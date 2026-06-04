@@ -69,6 +69,7 @@ CONTEXT_NODE_BY_ROUTE = {
 }
 
 
+# _fetch_ticket ?? ??
 def _fetch_ticket(ticket_id: str) -> dict[str, Any]:
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
@@ -106,6 +107,7 @@ def _fetch_ticket(ticket_id: str) -> dict[str, Any]:
             return dict(row)
 
 
+# _ticket_from_row ?? ??
 def _ticket_from_row(row: dict[str, Any]) -> Ticket:
     return Ticket(
         ticket_id=str(row.get("ticket_id")),
@@ -119,6 +121,7 @@ def _ticket_from_row(row: dict[str, Any]) -> Ticket:
     )
 
 
+# _payment_rows ?? ??
 def _payment_rows(cur: Any, *, user_id: Any, account_id: Any, **_: Any) -> list[dict[str, Any]]:
     cur.execute(
         """
@@ -134,6 +137,7 @@ def _payment_rows(cur: Any, *, user_id: Any, account_id: Any, **_: Any) -> list[
     return [dict(row) for row in cur.fetchall()]
 
 
+# _refund_rows ?? ??
 def _refund_rows(cur: Any, *, user_id: Any, account_id: Any, **_: Any) -> list[dict[str, Any]]:
     cur.execute(
         """
@@ -150,6 +154,7 @@ def _refund_rows(cur: Any, *, user_id: Any, account_id: Any, **_: Any) -> list[d
     return [dict(row) for row in cur.fetchall()]
 
 
+# _item_delivery_rows ?? ??
 def _item_delivery_rows(cur: Any, *, user_id: Any, account_id: Any, **_: Any) -> list[dict[str, Any]]:
     cur.execute(
         """
@@ -165,6 +170,7 @@ def _item_delivery_rows(cur: Any, *, user_id: Any, account_id: Any, **_: Any) ->
     return [dict(row) for row in cur.fetchall()]
 
 
+# _gacha_rows ?? ??
 def _gacha_rows(cur: Any, *, user_id: Any, account_id: Any, **_: Any) -> list[dict[str, Any]]:
     cur.execute(
         """
@@ -189,6 +195,7 @@ _DB_ROUTE_QUERY_FN = {
 }
 
 
+# _load_context_rows ?? ??
 def _load_context_rows(route: str, ticket: Ticket) -> list[dict[str, Any]]:
     """Load only route-specific DB rows.
 
@@ -208,6 +215,7 @@ def _load_context_rows(route: str, ticket: Ticket) -> list[dict[str, Any]]:
             return query_fn(cur, user_id=user_id, account_id=account_id, ticket_id=ticket_id)
 
 
+# _query_text ?? ??
 def _query_text(ticket: Ticket) -> str:
     query_text = ticket.body or ticket.title
     if not query_text:
@@ -215,6 +223,7 @@ def _query_text(ticket: Ticket) -> str:
     return query_text
 
 
+# _safety_reason_text ?? ??
 def _safety_reason_text(reasons: list[str]) -> str:
     text = "\n".join(reason.strip() for reason in reasons if reason and reason.strip())
     if len(text) <= _SAFETY_REASON_MAX_LENGTH:
@@ -222,6 +231,7 @@ def _safety_reason_text(reasons: list[str]) -> str:
     return text[: _SAFETY_REASON_MAX_LENGTH - 3].rstrip() + "..."
 
 
+# _insert_analysis ?? ??
 def _insert_analysis(ticket: Ticket, query_text: str, analysis: AnalysisResult) -> int:
     with db_connection() as conn:
         with conn.cursor() as cur:
@@ -248,6 +258,7 @@ def _insert_analysis(ticket: Ticket, query_text: str, analysis: AnalysisResult) 
             return int(cur.fetchone()[0])
 
 
+# _insert_draft ?? ??
 def _insert_draft(result: DraftStepResult, analysis_id: int) -> int:
     with db_connection() as conn:
         with conn.cursor() as cur:
@@ -268,6 +279,7 @@ def _insert_draft(result: DraftStepResult, analysis_id: int) -> int:
             return int(cur.fetchone()[0])
 
 
+# _insert_evidence_docs ?? ??
 def _insert_evidence_docs(result: DraftStepResult, draft_id: int) -> None:
     cited_ids = set(result.evidence_doc_ids)
     cited_docs = [doc for doc in result.retrieved_docs if getattr(doc, "doc_id", None) in cited_ids]
@@ -296,6 +308,7 @@ def _insert_evidence_docs(result: DraftStepResult, draft_id: int) -> None:
                 )
 
 
+# _insert_safety_result ?? ??
 def _insert_safety_result(ticket_id: str, approval_route: str, safety_result: SafetyResult, retry_count: int = 0) -> int:
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
@@ -337,6 +350,7 @@ def _insert_safety_result(ticket_id: str, approval_route: str, safety_result: Sa
             return int(cur.fetchone()["safety_id"])
 
 
+# _insert_final_response ?? ??
 def _insert_final_response(ticket_id: str, draft_id: int, final_text: str, safety_action: str) -> int:
     with db_connection() as conn:
         with conn.cursor() as cur:
@@ -353,6 +367,7 @@ def _insert_final_response(ticket_id: str, draft_id: int, final_text: str, safet
             return int(cur.fetchone()[0])
 
 
+# _insert_notification ?? ??
 def _insert_notification(ticket_id: str, message: str | None) -> int:
     with db_connection() as conn:
         with conn.cursor() as cur:
@@ -369,6 +384,7 @@ def _insert_notification(ticket_id: str, message: str | None) -> int:
             return int(cur.fetchone()[0])
 
 
+# _update_ticket_status ?? ??
 def _update_ticket_status(ticket_id: str, status: str) -> None:
     with db_connection() as conn:
         with conn.cursor() as cur:
@@ -382,6 +398,7 @@ def _update_ticket_status(ticket_id: str, status: str) -> None:
             )
 
 
+# _load_draft_row ?? ??
 def _load_draft_row(draft_id: int) -> dict[str, Any]:
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
@@ -399,6 +416,7 @@ def _load_draft_row(draft_id: int) -> dict[str, Any]:
             return dict(row)
 
 
+# _latest_draft_id ?? ??
 def _latest_draft_id(ticket_id: str) -> int:
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
@@ -418,6 +436,7 @@ def _latest_draft_id(ticket_id: str) -> int:
             return int(row["draft_id"])
 
 
+# _update_draft_text ?? ??
 def _update_draft_text(draft_id: int, draft_text: str) -> None:
     with db_connection() as conn:
         with conn.cursor() as cur:
@@ -431,6 +450,7 @@ def _update_draft_text(draft_id: int, draft_text: str) -> None:
             )
 
 
+# _load_latest_analysis_row ?? ??
 def _load_latest_analysis_row(ticket_id: str) -> dict[str, Any]:
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
@@ -460,11 +480,13 @@ def _load_latest_analysis_row(ticket_id: str) -> dict[str, Any]:
             return dict(row)
 
 
+# load_ticket_payload ?? ??
 def load_ticket_payload(ticket_id: int | str) -> Ticket:
     row = _fetch_ticket(str(ticket_id))
     return _ticket_from_row(row)
 
 
+# load_latest_analysis_result ?? ??
 def load_latest_analysis_result(ticket_id: int | str) -> AnalysisStepResult:
     ticket = load_ticket_payload(ticket_id)
     row = _load_latest_analysis_row(str(ticket_id))
@@ -489,6 +511,7 @@ def load_latest_analysis_result(ticket_id: int | str) -> AnalysisStepResult:
     )
 
 
+# classify_ticket ?? ??
 def classify_ticket(ticket: Ticket) -> AnalysisStepResult:
     query_text = _query_text(ticket)
     state = OperationState(ticket_id=str(ticket.ticket_id), ticket=ticket, query_text=query_text)
@@ -515,12 +538,14 @@ def classify_ticket(ticket: Ticket) -> AnalysisStepResult:
     )
 
 
+# persist_analysis_result ?? ??
 def persist_analysis_result(result: AnalysisStepResult) -> int:
     analysis_id = _insert_analysis(result.ticket, result.query_text, result.analysis)
     result.analysis_id = analysis_id
     return analysis_id
 
 
+# build_draft_inputs ?? ??
 def build_draft_inputs(ticket: Ticket, analysis_result: AnalysisStepResult, *, regeneration_reason: str | None = None) -> DraftStepResult:
     route = analysis_result.analysis.query_route
     target_route = analysis_result.analysis.target_route
@@ -584,6 +609,7 @@ def build_draft_inputs(ticket: Ticket, analysis_result: AnalysisStepResult, *, r
     )
 
 
+# persist_draft_result ?? ??
 def persist_draft_result(result: DraftStepResult, analysis_id: int) -> int:
     source_type = result.ticket.channel or result.ticket.metadata.get("source_type")
     current_status = result.ticket.metadata.get("status")
@@ -600,6 +626,7 @@ def persist_draft_result(result: DraftStepResult, analysis_id: int) -> int:
     return draft_id
 
 
+# run_analysis_step ?? ??
 def run_analysis_step(ticket_id: int | str, *, persist: bool = True) -> AnalysisStepResult:
     ticket = load_ticket_payload(ticket_id)
     result = classify_ticket(ticket)
@@ -608,6 +635,7 @@ def run_analysis_step(ticket_id: int | str, *, persist: bool = True) -> Analysis
     return result
 
 
+# run_draft_step ?? ??
 def run_draft_step(ticket_id: int | str, *, persist_analysis: bool = True, persist_draft: bool = True, regeneration_reason: str | None = None) -> DraftStepResult:
     ticket = load_ticket_payload(ticket_id)
     analysis_result = classify_ticket(ticket)
@@ -619,6 +647,7 @@ def run_draft_step(ticket_id: int | str, *, persist_analysis: bool = True, persi
     return result
 
 
+# run_draft_step_from_latest_analysis ?? ??
 def run_draft_step_from_latest_analysis(ticket_id: int | str, *, persist_draft: bool = True, regeneration_reason: str | None = None) -> DraftStepResult:
     analysis_result = load_latest_analysis_result(ticket_id)
     result = build_draft_inputs(analysis_result.ticket, analysis_result, regeneration_reason=regeneration_reason)
@@ -627,6 +656,7 @@ def run_draft_step_from_latest_analysis(ticket_id: int | str, *, persist_draft: 
     return result
 
 
+# list_analysis_candidate_ticket_ids ?? ??
 def list_analysis_candidate_ticket_ids(*, limit: int = 200, target_date: date | None = None) -> list[int]:
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
@@ -679,6 +709,7 @@ def list_analysis_candidate_ticket_ids(*, limit: int = 200, target_date: date | 
             return [int(row["ticket_id"]) for row in cur.fetchall()]
 
 
+# list_naver_cafe_draft_candidate_ticket_ids ?? ??
 def list_naver_cafe_draft_candidate_ticket_ids(*, limit: int = 200, target_date: date | None = None) -> list[int]:
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
@@ -755,6 +786,7 @@ def list_naver_cafe_draft_candidate_ticket_ids(*, limit: int = 200, target_date:
             return [int(row["ticket_id"]) for row in cur.fetchall()]
 
 
+# list_chatbot_draft_candidate_ticket_ids ?? ??
 def list_chatbot_draft_candidate_ticket_ids(*, limit: int = 200, target_date: date | None = None) -> list[int]:
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
@@ -835,6 +867,7 @@ def list_chatbot_draft_candidate_ticket_ids(*, limit: int = 200, target_date: da
             return [int(row["ticket_id"]) for row in cur.fetchall()]
 
 
+# _is_analysis_candidate ?? ??
 def _is_analysis_candidate(ticket_id: int) -> bool:
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
@@ -858,6 +891,7 @@ def _is_analysis_candidate(ticket_id: int) -> bool:
             return False
 
 
+# run_scheduled_analysis_batch ?? ??
 def run_scheduled_analysis_batch(*, limit: int = 200, target_date: date | None = None) -> BatchRunSummary:
     summary = BatchRunSummary(job_name="scheduled_analysis_batch")
     for ticket_id in list_analysis_candidate_ticket_ids(limit=limit, target_date=target_date):
@@ -872,6 +906,7 @@ def run_scheduled_analysis_batch(*, limit: int = 200, target_date: date | None =
     return summary
 
 
+# run_scheduled_naver_cafe_draft_batch ?? ??
 def run_scheduled_naver_cafe_draft_batch(*, limit: int = 200, target_date: date | None = None) -> BatchRunSummary:
     summary = BatchRunSummary(job_name="scheduled_naver_cafe_draft_batch")
     for ticket_id in list_naver_cafe_draft_candidate_ticket_ids(limit=limit, target_date=target_date):
@@ -885,5 +920,6 @@ def run_scheduled_naver_cafe_draft_batch(*, limit: int = 200, target_date: date 
     return summary
 
 
+# run_scheduled_chatbot_draft_batch ?? ??
 def run_scheduled_chatbot_draft_batch(*, limit: int = 200, target_date: date | None = None) -> BatchRunSummary:
     return BatchRunSummary(job_name="scheduled_chatbot_draft_batch")

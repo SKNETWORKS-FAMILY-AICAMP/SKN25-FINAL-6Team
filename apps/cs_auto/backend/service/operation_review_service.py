@@ -27,6 +27,7 @@ _ACTIVE_WORKFLOW_STATUS = "workflow_running"
 _SAFETY_REASON_MAX_LENGTH = 255
 
 
+# _load_draft_row ?? ??
 def _load_draft_row(draft_id: int) -> dict[str, Any]:
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
@@ -44,6 +45,7 @@ def _load_draft_row(draft_id: int) -> dict[str, Any]:
             return dict(row)
 
 
+# _update_draft_text ?? ??
 def _update_draft_text(draft_id: int, draft_text: str) -> None:
     with db_connection() as conn:
         with conn.cursor() as cur:
@@ -57,6 +59,7 @@ def _update_draft_text(draft_id: int, draft_text: str) -> None:
             )
 
 
+# _insert_final_response ?? ??
 def _insert_final_response(ticket_id: str, draft_id: int, final_text: str, safety_action: str) -> int:
     with db_connection() as conn:
         with conn.cursor() as cur:
@@ -83,6 +86,7 @@ def _insert_final_response(ticket_id: str, draft_id: int, final_text: str, safet
 """
 notification logs가 뭐하는 DB더라....
 """
+# _insert_notification ?? ??
 def _insert_notification(ticket_id: str, message: str | None) -> int:
     with db_connection() as conn:
         with conn.cursor() as cur:
@@ -99,6 +103,7 @@ def _insert_notification(ticket_id: str, message: str | None) -> int:
             return int(cur.fetchone()[0])
 
 
+# _update_ticket_status ?? ??
 def _update_ticket_status(ticket_id: str, status: str) -> None:
     with db_connection() as conn:
         with conn.cursor() as cur:
@@ -112,6 +117,7 @@ def _update_ticket_status(ticket_id: str, status: str) -> None:
             )
 
 
+# _safety_reason_text ?? ??
 def _safety_reason_text(reasons: list[str]) -> str:
     text = "\n".join(reason.strip() for reason in reasons if reason and reason.strip())
     if len(text) <= _SAFETY_REASON_MAX_LENGTH:
@@ -119,6 +125,7 @@ def _safety_reason_text(reasons: list[str]) -> str:
     return text[: _SAFETY_REASON_MAX_LENGTH - 3].rstrip() + "..."
 
 
+# _begin_ticket_workflow ?? ??
 def _begin_ticket_workflow(ticket_id: str) -> str:
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
@@ -152,6 +159,7 @@ def _begin_ticket_workflow(ticket_id: str) -> str:
             return current_status
 
 
+# review_draft_result ?? ??
 def review_draft_result(result: DraftStepResult) -> ReviewStepResult:
     state = OperationState(
         ticket_id=result.ticket_id,
@@ -183,6 +191,7 @@ def review_draft_result(result: DraftStepResult) -> ReviewStepResult:
     )
 
 
+# persist_review_result ?? ??
 def persist_review_result(result: ReviewStepResult, retry_count: int = 0) -> int:
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
@@ -226,6 +235,7 @@ def persist_review_result(result: ReviewStepResult, retry_count: int = 0) -> int
             return safety_id
 
 
+# finalize_review_result ?? ??
 def finalize_review_result(
     review_result: ReviewStepResult,
     *,
@@ -255,6 +265,7 @@ def finalize_review_result(
     return review_result
 
 
+# run_review_step ?? ??
 def run_review_step(
     ticket_id: int | str,
     *,
@@ -269,6 +280,7 @@ def run_review_step(
     return result
 
 
+# run_workflow_step ?? ??
 def run_workflow_step(ticket_id: int | str, *, regeneration_reason: str | None = None) -> dict[str, Any]:
     normalized_ticket_id = str(ticket_id)
     previous_status = _begin_ticket_workflow(normalized_ticket_id)
@@ -296,6 +308,7 @@ def run_workflow_step(ticket_id: int | str, *, regeneration_reason: str | None =
         raise
 
 
+# edit_existing_draft ?? ??
 def edit_existing_draft(draft_id: int, draft_text: str) -> dict[str, Any]:
     draft = _load_draft_row(draft_id)
     _update_draft_text(draft_id, draft_text)
@@ -309,6 +322,7 @@ def edit_existing_draft(draft_id: int, draft_text: str) -> dict[str, Any]:
     }
 
 
+# approve_existing_draft ?? ??
 def approve_existing_draft(draft_id: int, final_text: str | None = None) -> dict[str, Any]:
     draft = _load_draft_row(draft_id)
     final_answer = final_text or draft.get("draft_text")
@@ -325,6 +339,7 @@ def approve_existing_draft(draft_id: int, final_text: str | None = None) -> dict
     }
 
 
+# regenerate_from_draft ?? ??
 def regenerate_from_draft(draft_id: int, *, reason: str | None = None) -> dict[str, Any]:
     draft = _load_draft_row(draft_id)
     result = run_workflow_step(int(draft["ticket_id"]), regeneration_reason=reason)

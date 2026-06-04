@@ -21,6 +21,7 @@ async function csApi(path, options = {}) {
   return response.json();
 }
 
+// ensureCurrentReviewer ?? ??
 function ensureCurrentReviewer() {
   if (appState.currentReviewer) {
     return appState.currentReviewer;
@@ -35,6 +36,7 @@ function ensureCurrentReviewer() {
 
 let workflowAnimationTimer = null;
 
+// getWorkflowAnimationSteps ?? ??
 function getWorkflowAnimationSteps(mode) {
   if (mode === "regenerate") {
     return [
@@ -54,6 +56,7 @@ function getWorkflowAnimationSteps(mode) {
   ];
 }
 
+// startWorkflowAnimation ?? ??
 function startWorkflowAnimation(mode = "default") {
   const steps = getWorkflowAnimationSteps(mode);
   if (workflowAnimationTimer) {
@@ -61,7 +64,6 @@ function startWorkflowAnimation(mode = "default") {
     workflowAnimationTimer = null;
   }
 
-  appState.workflowMode = mode;
   appState.workflowVisible = true;
   appState.workflowProgress = 0;
   appState.workflowLabel = steps[0].label;
@@ -72,7 +74,6 @@ function startWorkflowAnimation(mode = "default") {
     if (index >= steps.length) {
       clearInterval(workflowAnimationTimer);
       workflowAnimationTimer = null;
-      appState.workflowMode = "default";
       return;
     }
 
@@ -122,6 +123,7 @@ function riskLevel(level) {
   return String(level || "LOW").toUpperCase();
 }
 
+// formatReviewerRole ?? ??
 function formatReviewerRole(role) {
   if (role === "admin") return "관리자";
   if (role === "reviewer") return "운영자";
@@ -166,6 +168,7 @@ function isPendingTicket(ticket) {
   return Boolean(ticket) && ticket.status === "open" && !isDoneTicket(ticket) && !isUrgentTicket(ticket);
 }
 
+// isChatbotPendingTicket ?? ??
 function isChatbotPendingTicket(ticket) {
   return Boolean(ticket) && ticket.sourceType === "chatbot" && ticket.status === "pending";
 }
@@ -181,6 +184,7 @@ function isTodayTicket(ticket) {
     && date.getDate() === now.getDate();
 }
 
+// getAssignedReviewer ?? ??
 function getAssignedReviewer(ticket) {
   const reviewer = ticket?.assignee;
   if (!reviewer || reviewer === "unassigned" || reviewer === "미할당") {
@@ -302,6 +306,7 @@ function syncTicketInAllTickets(ticket) {
   }
 }
 
+// mapTicketSummary ?? ??
 function mapTicketSummary(row) {
   const priority = priorityMeta(row.status, row.risk_level);
   // [추가] 목록 API 응답의 assignee_id 사용 (기존 reviewer_id → assignee_id로 변경)
@@ -687,25 +692,6 @@ async function regenerateDraft() {
     }
     return;
   }
-
-/*
-  ticket.regenCount = (ticket.regenCount || 0) + 1;
-  ticket.isDraftEditing = false;
-  ticket.draftStatus = "draft";
-  ticket.status = "review";
-  ticket.priorityTone = "review";
-  ticket.priorityLabel = "검토 중";
-  ticket.statusText = `${appState.currentReviewer || "reviewer"} 재생성 검토 중`;
-  updateTicketHistory(ticket, "재생성", "pending", `재생성 ${ticket.regenCount}회 · 사유: ${reason}`);
-  appState.showRegenBox = false;
-  appState.regenReason = "";
-  startWorkflow(() => {
-    ticket.draft = getDraftRegenerationText(ticket, reason);
-    ticket.lastGeneratedAt = timeStampLabel();
-    render();
-  });
-}
-*/
 
 window.CsAutoApi = {
   approveDraft,
