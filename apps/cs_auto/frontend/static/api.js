@@ -21,6 +21,68 @@ async function csApi(path, options = {}) {
   return response.json();
 }
 
+function ensureCurrentReviewer() {
+  if (appState.currentReviewer) {
+    return appState.currentReviewer;
+  }
+  const reviewerId = prompt("리뷰어 ID를 입력하세요", "reviewer_01");
+  if (!reviewerId || !reviewerId.trim()) {
+    return null;
+  }
+  appState.currentReviewer = reviewerId.trim();
+  return appState.currentReviewer;
+}
+
+let workflowAnimationTimer = null;
+
+function getWorkflowAnimationSteps(mode) {
+  if (mode === "regenerate") {
+    return [
+      { label: "사유 기반 ticket analysis 중...", progress: 20 },
+      { label: "사유 반영 초안 생성 중...", progress: 40 },
+      { label: "사유 반영 검토 중...", progress: 60 },
+      { label: "사유 반영 안전성 검토 중...", progress: 80 },
+      { label: "사유 반영 재생성 완료", progress: 100 },
+    ];
+  }
+  return [
+    { label: "문의 내용 분석 중...", progress: 20 },
+    { label: "카테고리 분류 중...", progress: 40 },
+    { label: "근거 문서 검색 중...", progress: 60 },
+    { label: "안전성 검토 중...", progress: 80 },
+    { label: "초안 생성 완료", progress: 100 },
+  ];
+}
+
+function startWorkflowAnimation(mode = "default") {
+  const steps = getWorkflowAnimationSteps(mode);
+  if (workflowAnimationTimer) {
+    clearInterval(workflowAnimationTimer);
+    workflowAnimationTimer = null;
+  }
+
+  appState.workflowMode = mode;
+  appState.workflowVisible = true;
+  appState.workflowProgress = 0;
+  appState.workflowLabel = steps[0].label;
+  render();
+
+  let index = 0;
+  workflowAnimationTimer = setInterval(() => {
+    if (index >= steps.length) {
+      clearInterval(workflowAnimationTimer);
+      workflowAnimationTimer = null;
+      appState.workflowMode = "default";
+      return;
+    }
+
+    appState.workflowLabel = steps[index].label;
+    appState.workflowProgress = steps[index].progress;
+    render();
+    index += 1;
+  }, 700);
+}
+
 // 백엔드 일시 값을 화면용 날짜/시간 문자열로 바꾼다.
 function formatCsDateTime(value) {
   if (!value) return "-";
@@ -104,6 +166,10 @@ function isPendingTicket(ticket) {
   return Boolean(ticket) && ticket.status === "open" && !isDoneTicket(ticket) && !isUrgentTicket(ticket);
 }
 
+function isChatbotPendingTicket(ticket) {
+  return Boolean(ticket) && ticket.sourceType === "chatbot" && ticket.status === "pending";
+}
+
 // API 응답의 담당자 값에서 실질적인 운영자 ID만 추출한다.
 function isTodayTicket(ticket) {
   if (!ticket?.inquiryCreatedAt) return false;
@@ -165,6 +231,9 @@ function matchesSideTab(ticket, label) {
   if (label === SIDE_TAB_PENDING) {
     return isPendingTicket(ticket);
   }
+  if (label === SIDE_TAB_CHATBOT_PENDING) {
+    return isChatbotPendingTicket(ticket);
+  }
   if (label === SIDE_TAB_URGENT) {
     return isUrgentTicket(ticket);
   }
@@ -201,6 +270,7 @@ function getRenderedSideTabs() {
   const countTickets = Array.isArray(appState.allTickets) ? appState.allTickets : appState.tickets;
   const counts = {
     pending: countTickets.filter(isPendingTicket).length,
+    chatbotPending: countTickets.filter(isChatbotPendingTicket).length,
     urgent: countTickets.filter(isUrgentTicket).length,
   };
 
@@ -210,6 +280,9 @@ function getRenderedSideTabs() {
     }
     if (tab.label === SIDE_TAB_PENDING) {
       return { ...tab, count: String(counts.pending) };
+    }
+    if (tab.label === SIDE_TAB_CHATBOT_PENDING) {
+      return { ...tab, count: String(counts.chatbotPending) };
     }
     if (tab.label === SIDE_TAB_URGENT) {
       return { ...tab, count: String(counts.urgent), red: true };
@@ -233,6 +306,7 @@ function mapTicketSummary(row) {
   const priority = priorityMeta(row.status, row.risk_level);
   // [추가] 목록 API 응답의 assignee_id 사용 (기존 reviewer_id → assignee_id로 변경)
   const assignee = row.assignee_id || null;
+  const hasDraft = Boolean(row.draft_id);
   return {
     id: String(row.ticket_id),
     priorityLabel: priority.label,
@@ -251,14 +325,16 @@ function mapTicketSummary(row) {
     accountId: row.account_id ? `account_${row.account_id}` : "-",
     createdAt: formatCsDateTime(row.inquiry_created_at),
     inquiryCreatedAt: row.inquiry_created_at || null,
-    body: row.title || "",
+    body: row.raw_query || row.title || "",
     aiSummary: "워크플로 실행 전입니다.",
     route: row.routing_target || "unknown",
     direction: row.routing_target || "unrouted",
     risk: riskLevel(row.risk_level),
-    draft: "아직 생성된 초안이 없습니다.",
-    draftId: row.draft_id || null,
-    draftStatus: row.draft_id ? "draft" : "draft",
+    draft: row.source_type === "chatbot"
+      ? (row.raw_query || row.title || "대화 내용 없음")
+      : (row.draft_text || "초안 없음"),
+    draftId: row.source_type === "chatbot" ? null : (row.draft_id || null),
+    draftStatus: row.source_type === "chatbot" ? "missing" : (hasDraft ? "draft" : "missing"),
     canEditDraft: Boolean(row.can_edit_draft),
     isDraftEditing: false,
     regenCount: 0,
@@ -295,18 +371,23 @@ function applyTicketDetail(detail) {
     direction: latestAnalysis?.routing_target || existing?.direction || "unrouted",
     risk: riskLevel(latestAnalysis?.risk_level || existing?.risk),
     level: riskLevel(latestAnalysis?.risk_level || existing?.level),
-    draft: latestResponse?.final_text || latestDraft?.draft_text || existing?.draft || "아직 생성된 초안이 없습니다.",
-    draftId: latestDraft?.draft_id || existing?.draftId || null,
-    draftStatus: latestResponse ? "approved" : latestDraft ? "draft" : "draft",
+    draft: detail.ticket.source_type === "chatbot"
+      ? (detail.ticket.raw_query || existing?.draft || "대화 내용 없음")
+      : (latestResponse?.final_text || latestDraft?.draft_text || existing?.draft || "초안 없음"),
+    draftId: detail.ticket.source_type === "chatbot" ? null : (latestDraft?.draft_id || existing?.draftId || null),
+    draftStatus: detail.ticket.source_type === "chatbot" ? "missing" : (latestResponse ? "approved" : latestDraft ? "draft" : "missing"),
     canEditDraft: Boolean(detail.ticket.can_edit_draft),
     lastGeneratedAt: latestDraft?.created_at ? formatCsDateTime(latestDraft.created_at) : existing?.lastGeneratedAt || "-",
     status: detail.ticket.status || existing?.status || "open",
     sourceType: detail.ticket.source_type || existing?.sourceType || "unknown",
+    email: detail.ticket.email || existing?.email || "-",
+    userStatus: detail.ticket.user_status || existing?.userStatus || "-",
+    lastLoginAt: detail.ticket.last_login_at ? formatCsDateTime(detail.ticket.last_login_at) : existing?.lastLoginAt || "-",
     assignee,
     statusText: getStatusText({
       status: detail.ticket.status || existing?.status || "open",
       priorityTone: priority.tone,
-      draftStatus: latestResponse ? "approved" : latestDraft ? "draft" : "draft",
+      draftStatus: latestResponse ? "approved" : latestDraft ? "draft" : "missing",
       assignee,
       risk: latestAnalysis?.risk_level || existing?.risk,
     }),
@@ -342,8 +423,11 @@ function applyTicketDetail(detail) {
 // [추가] 사이드바 탭별 API 경로 반환
 // 현재 선택된 사이드 탭에 맞춰 목록 조회용 API 경로를 만든다.
 function ticketApiPath(sideTab) {
+  if (sideTab === SIDE_TAB_CHATBOT_PENDING) {
+    return "/tickets?source_type=chatbot&status=pending&limit=200";
+  }
   if (sideTab === SIDE_TAB_PENDING) {
-    return "/tickets?status=open&limit=200";
+    return "/tickets?source_type=naver_cafe&status=open&limit=200";
   }
   if (sideTab === SIDE_TAB_URGENT) {
     return "/tickets?limit=200";
@@ -397,18 +481,11 @@ async function loadTicketDetail(ticketId) {
 async function runWorkflowForSelectedTicket() {
   const ticket = getSelectedTicket();
   if (!ticket) return;
-  appState.workflowVisible = true;
-  appState.workflowProgress = 15;
-  appState.workflowLabel = "워크플로 실행 중...";
-  render();
+  startWorkflowAnimation("default");
   try {
     // [수정] 담당자 자동 할당 제거 — 할당은 티켓 선택(loadTicketDetail) 시 처리
     await csApi(`/tickets/${ticket.id}/run-workflow`, { method: "POST" });
     await loadTicketDetail(ticket.id);
-    appState.workflowVisible = true;
-    appState.workflowProgress = 100;
-    appState.workflowLabel = "초안 생성 완료";
-    render();
   } catch (error) {
     console.error("workflow failed", error);
     showLoginError(`워크플로 실행 실패: ${error.message}`);
@@ -476,18 +553,21 @@ async function doLogin() {
 // `PATCH /drafts/{draftId}`로 초안 수정 내용을 저장하거나, 로컬 편집 모드만 토글한다.
 async function confirmDraft() {
   const ticket = getSelectedTicket();
-  if (!ticket?.canEditDraft) {
-    ticket.isDraftEditing = false;
-    render();
-    return;
-  }
-  if (ticket?.draftId && ticket.isDraftEditing) {
+  if (!ticket) return;
+  const reviewerId = ensureCurrentReviewer();
+  if (!reviewerId) return;
+
+  if (ticket.isDraftEditing) {
+    if (!ticket.draftId) {
+      showLoginError("저장할 초안이 없습니다.");
+      return;
+    }
     try {
       await csApi(`/drafts/${ticket.draftId}`, {
         method: "PATCH",
         body: JSON.stringify({
           draft_text: ticket.draft,
-          reviewer_id: appState.currentReviewer,
+          reviewer_id: reviewerId,
         }),
       });
       await loadTicketDetail(ticket.id);
@@ -497,32 +577,46 @@ async function confirmDraft() {
     }
     return;
   }
-  if (!ticket.isDraftEditing) {
-    ticket.isDraftEditing = true;
+
+  if (ticket.sourceType !== "naver_cafe" || !ticket.draftId) {
     render();
     return;
   }
 
-  ticket.isDraftEditing = false;
-  ticket.draftStatus = "confirmed";
-  ticket.confirmedDraft = ticket.draft;
-  ticket.status = "review";
-  ticket.priorityTone = "review";
-  ticket.priorityLabel = "검토 중";
-  ticket.statusText = `${appState.currentReviewer || "reviewer"} 검토 확정`;
-  updateTicketHistory(ticket, "확정", "review", "AI 답변 초안 수정 후 확정");
+  if (ticket.status === "pending" || ticket.status === "open") {
+    ticket.isDraftEditing = true;
+    ticket.assignee = reviewerId;
+    render();
+    try {
+      const result = await csApi(`/tickets/${ticket.id}/start-edit`, {
+        method: "POST",
+        body: JSON.stringify({ reviewer_id: reviewerId }),
+      });
+      ticket.status = result.status || "pending";
+      ticket.assignee = result.assignee_id || reviewerId;
+      ticket.isDraftEditing = true;
+      render();
+    } catch (error) {
+      console.error("start edit failed", error);
+      showLoginError(`답변 수정 시작 실패: ${error.message}`);
+    }
+    return;
+  }
+
   render();
 }
 
 // `POST /drafts/{draftId}/approve`로 초안을 승인하고 상세 정보를 다시 불러온다.
 async function approveDraft() {
   const ticket = getSelectedTicket();
+  const reviewerId = ensureCurrentReviewer();
+  if (!reviewerId) return;
   if (ticket?.sourceType === "chatbot" && ticket.status === "pending") {
     try {
       await csApi(`/tickets/${ticket.id}/resolve`, {
         method: "POST",
         body: JSON.stringify({
-          reviewer_id: appState.currentReviewer,
+          reviewer_id: reviewerId,
           reason: "resolved by email",
         }),
       });
@@ -533,7 +627,7 @@ async function approveDraft() {
     }
     return;
   }
-  if (!ticket?.canEditDraft) {
+  if (ticket?.sourceType !== "naver_cafe" || !ticket?.draftId) {
     return;
   }
   if (ticket?.draftId) {
@@ -542,7 +636,7 @@ async function approveDraft() {
         method: "POST",
         body: JSON.stringify({
           final_text: ticket.draft,
-          reviewer_id: appState.currentReviewer,
+          reviewer_id: reviewerId,
         }),
       });
       await loadTicketDetail(ticket.id);
@@ -563,31 +657,30 @@ async function approveDraft() {
   render();
 }
 
-// `POST /drafts/{draftId}/reject` 후 워크플로를 재실행해 초안을 다시 생성한다.
+// `POST /drafts/{draftId}/regenerate`로 draft가 있는 티켓만 초안을 다시 생성한다.
 async function regenerateDraft() {
   const ticket = getSelectedTicket();
-  if (!ticket?.canEditDraft) {
+  if (ticket?.sourceType !== "naver_cafe" || !ticket?.draftId) {
     return;
   }
+  const reviewerId = ensureCurrentReviewer();
+  if (!reviewerId) return;
   const reason = appState.regenReason.trim();
   if ((ticket.regenCount || 0) >= (ticket.regenLimit || 3) || !reason) {
     return;
   }
   try {
-    if (ticket?.draftId) {
-      await csApi(`/drafts/${ticket.draftId}/reject`, {
-        method: "POST",
-        body: JSON.stringify({
-          reason,
-          reviewer_id: appState.currentReviewer,
-        }),
-      });
-    } else {
-      await csApi(`/tickets/${ticket.id}/run-workflow`, { method: "POST" });
-    }
-      appState.showRegenBox = false;
-      appState.regenReason = "";
-      await loadTicketDetail(ticket.id);
+    startWorkflowAnimation("regenerate");
+    await csApi(`/drafts/${ticket.draftId}/regenerate`, {
+      method: "POST",
+      body: JSON.stringify({
+        reason,
+        reviewer_id: reviewerId,
+      }),
+    });
+    appState.showRegenBox = false;
+    appState.regenReason = "";
+    await loadTicketDetail(ticket.id);
     } catch (error) {
       console.error("regenerate draft failed", error);
       showLoginError(`재생성 실패: ${error.message}`);

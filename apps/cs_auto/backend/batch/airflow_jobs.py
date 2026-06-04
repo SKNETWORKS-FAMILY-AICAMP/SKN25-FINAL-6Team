@@ -79,3 +79,4 @@ def run_naver_cafe_draft_batch(
     if summary.failed_count:
         raise RuntimeError(f"naver_cafe draft batch failed for ticket_ids={summary.failed_ticket_ids}")
     return payload
+

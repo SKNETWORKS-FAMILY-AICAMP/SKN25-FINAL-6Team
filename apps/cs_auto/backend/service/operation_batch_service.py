@@ -559,7 +559,7 @@ def build_draft_inputs(ticket: Ticket, analysis_result: AnalysisStepResult, *, r
     )
     draft_response = run_drafting_agent(state)
     valid_ids = {doc.doc_id for doc in context_result.retrieved_docs if doc.doc_id}
-    filtered_ids = [doc_id for doc_id in draft_response.evidence_doc_ids if doc_id in valid_ids]
+    filtered_ids = [doc_id for doc_id in draft_response.evidence_doc_ids if doc_id in valid_ids][:3]
     if not filtered_ids:
         filtered_ids = [doc_id for doc_id in context_result.evidence_doc_ids[:3] if doc_id in valid_ids]
 
@@ -585,10 +585,15 @@ def build_draft_inputs(ticket: Ticket, analysis_result: AnalysisStepResult, *, r
 
 
 def persist_draft_result(result: DraftStepResult, analysis_id: int) -> int:
-    draft_id = _insert_draft(result, analysis_id)
-    _insert_evidence_docs(result, draft_id)
     source_type = result.ticket.channel or result.ticket.metadata.get("source_type")
     current_status = result.ticket.metadata.get("status")
+    if source_type == "chatbot":
+        if current_status != "pending":
+            _update_ticket_status(result.ticket_id, "pending")
+        result.draft_id = None
+        return 0
+    draft_id = _insert_draft(result, analysis_id)
+    _insert_evidence_docs(result, draft_id)
     if not (source_type == "naver_cafe" and current_status == "open"):
         _update_ticket_status(result.ticket_id, "pending")
     result.draft_id = draft_id
@@ -642,7 +647,7 @@ def list_analysis_candidate_ticket_ids(*, limit: int = 200, target_date: date | 
                         OR (t.source_type = 'naver_cafe' AND t.status IN ('open', 'pending'))
                     )
                       AND latest_analysis.analysis_id IS NULL
-                    ORDER BY t.inquiry_created_at ASC NULLS LAST, t.ticket_id ASC
+                    ORDER BY t.inquiry_created_at DESC NULLS LAST, t.ticket_id DESC
                     LIMIT %s
                     """,
                     (limit,),
@@ -666,7 +671,7 @@ def list_analysis_candidate_ticket_ids(*, limit: int = 200, target_date: date | 
                       AND latest_analysis.analysis_id IS NULL
                       AND t.inquiry_created_at >= %s
                       AND t.inquiry_created_at < %s::date + INTERVAL '1 day'
-                    ORDER BY t.inquiry_created_at ASC NULLS LAST, t.ticket_id ASC
+                    ORDER BY t.inquiry_created_at DESC NULLS LAST, t.ticket_id DESC
                     LIMIT %s
                     """,
                     (target_date, target_date, limit),
@@ -682,7 +687,7 @@ def list_naver_cafe_draft_candidate_ticket_ids(*, limit: int = 200, target_date:
                 query = """
                     SELECT t.ticket_id
                     FROM qa_ticket t
-                    JOIN LATERAL (
+                    LEFT JOIN LATERAL (
                         SELECT analysis_id
                         FROM ticket_analysis a
                         WHERE a.ticket_id = t.ticket_id
@@ -707,7 +712,7 @@ def list_naver_cafe_draft_candidate_ticket_ids(*, limit: int = 200, target_date:
                       AND t.source_type = 'naver_cafe'
                       AND latest_draft.draft_id IS NULL
                       AND latest_response.response_id IS NULL
-                    ORDER BY t.inquiry_created_at ASC NULLS LAST, t.ticket_id ASC
+                    ORDER BY t.inquiry_created_at DESC NULLS LAST, t.ticket_id DESC
                     LIMIT %s
                 """
                 params = [limit]
@@ -715,7 +720,7 @@ def list_naver_cafe_draft_candidate_ticket_ids(*, limit: int = 200, target_date:
                 query = """
                     SELECT t.ticket_id
                     FROM qa_ticket t
-                    JOIN LATERAL (
+                    LEFT JOIN LATERAL (
                         SELECT analysis_id
                         FROM ticket_analysis a
                         WHERE a.ticket_id = t.ticket_id
@@ -742,7 +747,87 @@ def list_naver_cafe_draft_candidate_ticket_ids(*, limit: int = 200, target_date:
                       AND latest_response.response_id IS NULL
                       AND t.inquiry_created_at >= %s
                       AND t.inquiry_created_at < %s::date + INTERVAL '1 day'
-                    ORDER BY t.inquiry_created_at ASC NULLS LAST, t.ticket_id ASC
+                    ORDER BY t.inquiry_created_at DESC NULLS LAST, t.ticket_id DESC
+                    LIMIT %s
+                """
+                params = [target_date, target_date, limit]
+            cur.execute(query, tuple(params))
+            return [int(row["ticket_id"]) for row in cur.fetchall()]
+
+
+def list_chatbot_draft_candidate_ticket_ids(*, limit: int = 200, target_date: date | None = None) -> list[int]:
+    with db_connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            params: list[Any]
+            if target_date is None:
+                query = """
+                    SELECT t.ticket_id
+                    FROM qa_ticket t
+                    LEFT JOIN LATERAL (
+                        SELECT analysis_id
+                        FROM ticket_analysis a
+                        WHERE a.ticket_id = t.ticket_id
+                        ORDER BY a.analyzed_at DESC NULLS LAST, a.analysis_id DESC
+                        LIMIT 1
+                    ) latest_analysis ON TRUE
+                    LEFT JOIN LATERAL (
+                        SELECT draft_id
+                        FROM answer_draft d
+                        WHERE d.ticket_id = t.ticket_id
+                        ORDER BY d.created_at DESC NULLS LAST, d.draft_id DESC
+                        LIMIT 1
+                    ) latest_draft ON TRUE
+                    LEFT JOIN LATERAL (
+                        SELECT response_id
+                        FROM final_response f
+                        WHERE f.ticket_id = t.ticket_id
+                        ORDER BY f.created_at DESC NULLS LAST, f.response_id DESC
+                        LIMIT 1
+                    ) latest_response ON TRUE
+                    WHERE t.status IN ('open', 'pending')
+                      AND t.source_type = 'chatbot'
+                      AND latest_draft.draft_id IS NULL
+                      AND latest_response.response_id IS NULL
+                    ORDER BY CASE WHEN t.status = 'pending' THEN 0 ELSE 1 END,
+                             t.inquiry_created_at ASC NULLS LAST,
+                             t.ticket_id ASC
+                    LIMIT %s
+                """
+                params = [limit]
+            else:
+                query = """
+                    SELECT t.ticket_id
+                    FROM qa_ticket t
+                    LEFT JOIN LATERAL (
+                        SELECT analysis_id
+                        FROM ticket_analysis a
+                        WHERE a.ticket_id = t.ticket_id
+                        ORDER BY a.analyzed_at DESC NULLS LAST, a.analysis_id DESC
+                        LIMIT 1
+                    ) latest_analysis ON TRUE
+                    LEFT JOIN LATERAL (
+                        SELECT draft_id
+                        FROM answer_draft d
+                        WHERE d.ticket_id = t.ticket_id
+                        ORDER BY d.created_at DESC NULLS LAST, d.draft_id DESC
+                        LIMIT 1
+                    ) latest_draft ON TRUE
+                    LEFT JOIN LATERAL (
+                        SELECT response_id
+                        FROM final_response f
+                        WHERE f.ticket_id = t.ticket_id
+                        ORDER BY f.created_at DESC NULLS LAST, f.response_id DESC
+                        LIMIT 1
+                    ) latest_response ON TRUE
+                    WHERE t.status IN ('open', 'pending')
+                      AND t.source_type = 'chatbot'
+                      AND latest_draft.draft_id IS NULL
+                      AND latest_response.response_id IS NULL
+                      AND t.inquiry_created_at >= %s
+                      AND t.inquiry_created_at < %s::date + INTERVAL '1 day'
+                    ORDER BY CASE WHEN t.status = 'pending' THEN 0 ELSE 1 END,
+                             t.inquiry_created_at ASC NULLS LAST,
+                             t.ticket_id ASC
                     LIMIT %s
                 """
                 params = [target_date, target_date, limit]
@@ -791,10 +876,14 @@ def run_scheduled_naver_cafe_draft_batch(*, limit: int = 200, target_date: date 
     summary = BatchRunSummary(job_name="scheduled_naver_cafe_draft_batch")
     for ticket_id in list_naver_cafe_draft_candidate_ticket_ids(limit=limit, target_date=target_date):
         try:
-            run_draft_step_from_latest_analysis(ticket_id, persist_draft=True)
+            run_draft_step(ticket_id, persist_analysis=True, persist_draft=True)
             summary.processed_ticket_ids.append(ticket_id)
         except LookupError:
             summary.skipped_ticket_ids.append(ticket_id)
         except Exception:
             summary.failed_ticket_ids.append(ticket_id)
     return summary
+
+
+def run_scheduled_chatbot_draft_batch(*, limit: int = 200, target_date: date | None = None) -> BatchRunSummary:
+    return BatchRunSummary(job_name="scheduled_chatbot_draft_batch")
