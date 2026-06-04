@@ -19,6 +19,5 @@ Write tools:
 - `write_failed_query(payload)`
 - `write_voc_feedback(payload)`
 - `update_qa_ticket_status(payload)`
-- `write_insight(payload)`
 
 The chatbot no longer writes `ticket_analysis`; CS automation owns analysis rows.

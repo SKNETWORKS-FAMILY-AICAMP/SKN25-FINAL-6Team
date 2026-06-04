@@ -137,7 +137,7 @@ VOC 이해
 - 결제/환불/지급/가챠 로그 조회
 - FAQ/정책 문서 검색
 - 답변 초안 생성
-- 티켓 분석, 답변, 근거, safety 결과 저장
+- 답변, 근거, safety 결과 저장
 
 ## 폴더 구조
 
@@ -342,7 +342,6 @@ print(result["messages"][-1].content)
 | 대상 | 내용 |
 |------|------|
 | `QA_ticket` | 문의 원문 및 Q/A 누적 기록 |
-| `ticket_analysis` | 카테고리 및 라우팅 결과 |
 | `answer_draft` | 생성된 답변 초안 |
 | `evidence_docs` | 답변에 사용된 근거 문서/로그 |
 | `safety_results` | safety 평가 결과 |

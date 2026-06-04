@@ -66,21 +66,19 @@ agent/node
 | Tool | Repository | 용도 |
 | --- | --- | --- |
 | `write_qa_ticket` | `ticket_repository.save_qa_ticket` | QA 티켓 저장 |
-| `write_ticket_analysis` | `analysis_repository.save_ticket_analysis` | 티켓 분석 저장 |
 | `write_answer_draft` | `draft_repository.save_answer_draft` | 답변 초안 저장 |
 | `write_evidence_docs` | `draft_repository.save_evidence_docs` | 근거 문서 저장 |
 | `write_safety_results` | `safety_repository.save_safety_results` | safety 평가 저장 |
 | `write_final_response` | `final_response_repository.save_final_response` | 최종 답변 저장 |
 | `write_failed_query` | `failed_query_repository.save_failed_query` | FAQ 실패 쿼리 저장 |
 | `update_qa_ticket_status` | `ticket_repository.update_qa_ticket_status` | QA 티켓 상태 변경 |
-| `write_insight` | `insight_repository.save_insight` | chatbot insight 저장 |
 
 현재 node에서 직접 `.invoke()`하는 write tool:
 
 - `ticket_preprocess.py`: `write_qa_ticket`
 - `persistence.py`: `write_answer_draft`, `write_evidence_docs`
 - `safety_layer.py`: `write_safety_results`
-- `final_response.py`: `write_final_response`, `update_qa_ticket_status`, `write_insight`
+- `final_response.py`: `write_final_response`, `update_qa_ticket_status`
 - `faq_agent.py`: `write_failed_query`
 
 ## Cleanup Candidates
@@ -99,7 +97,6 @@ LangChain tool은 LLM이 필요할 때 호출할 수 있게 해주는 interface�
 - `write_safety_results` -> `safety_repository.save_safety_results`
 - `write_final_response` -> `final_response_repository.save_final_response`
 - `update_qa_ticket_status` -> `ticket_repository.update_qa_ticket_status`
-- `write_insight` -> `insight_repository.save_insight`
 - `write_failed_query` -> `failed_query_repository.save_failed_query`
 
 ### 2. Agent tool은 LLM이 선택해야 하는 read만 유지 후보
@@ -145,4 +142,4 @@ RAG cleanup: enrich, embed, vector search, rerank, evidence answer
   별도 VOC 전용 DB 저장 tool/repository 호출은 제거된 상태다.
 - payment context 조회를 node 직접 조회로 고정할지, LLM tool 호출로 남길지
 - bug context 조회도 payment처럼 node 직접 조회로 바꿀지
-- Slack/insight 저장을 chatbot final_response 단계에 유지할지 operation으로 이동할지
+- insight 저장은 chatbot final_response 단계에서 제거했고, operation/CS automation 책임으로 유지한다.
