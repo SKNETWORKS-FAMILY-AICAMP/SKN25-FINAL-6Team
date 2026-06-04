@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from typing import Any
@@ -9,7 +10,8 @@ from langchain_openai import ChatOpenAI
 
 from chatbot.generation.policies import FAQ_POLICY
 from chatbot.generation.response.fixed_responses import SAFE_FALLBACK_RESPONSE
-from chatbot.observability.logger import EVENT_NODE_COMPLETED, EVENT_NODE_STARTED, log_event
+from chatbot.observability.logger import EVENT_NODE_COMPLETED, EVENT_NODE_STARTED, EVENT_TOOL_COMPLETED, log_event
+from chatbot.retrieval.cache_store import get_cached_retrieval, set_cached_retrieval
 from common.retrieval.vector_tools import embed_query, enrich_retrieval_query, rerank_documents, search_document_chunks
 from chatbot.schemas import ChatbotState
 from chatbot.tools.db_tools import write_failed_query
@@ -78,6 +80,38 @@ def _retrieval_candidate_top_k(final_top_k: int) -> int:
     return max(configured, final_top_k)
 
 
+def _env_flag(name: str, default: bool = False) -> bool:
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _retrieval_cache_enabled() -> bool:
+    """Allow retrieval caching only when explicitly enabled for FAQ/RAG."""
+    return _env_flag("FAQ_RETRIEVAL_CACHE_ENABLED", False)
+
+
+def _retrieval_cache_hash(
+    *,
+    retrieval_query: str,
+    enrichment: Any,
+    final_top_k: int,
+    candidate_top_k: int,
+) -> str:
+    """Hash retrieval inputs without storing the raw query in Redis keys."""
+    enrichment_payload = enrichment.model_dump() if hasattr(enrichment, "model_dump") else enrichment
+    payload = {
+        "retrieval_query": retrieval_query,
+        "enrichment": enrichment_payload,
+        "final_top_k": final_top_k,
+        "candidate_top_k": candidate_top_k,
+        "prefer_faq": True,
+    }
+    encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str)
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
 def _is_low_evidence(documents: list[dict[str, Any]]) -> tuple[bool, str | None]:
     if not documents:
         return True, "no_retrieved_documents"
@@ -120,7 +154,38 @@ def _retrieve_documents(
     enrichment: Any,
     final_top_k: int,
     candidate_top_k: int,
+    state: ChatbotState | None = None,
 ) -> list[dict[str, Any]]:
+    cache_hash = _retrieval_cache_hash(
+        retrieval_query=retrieval_query,
+        enrichment=enrichment,
+        final_top_k=final_top_k,
+        candidate_top_k=candidate_top_k,
+    )
+    cache_enabled = _retrieval_cache_enabled()
+    cache_namespace = "retrieval"
+    if cache_enabled:
+        cached = get_cached_retrieval(cache_hash)
+        if cached.get("hit"):
+            documents = list(cached.get("documents") or [])
+            log_event(
+                EVENT_TOOL_COMPLETED,
+                ticket_id=state.get("ticket_id") if state else None,
+                session_id=state.get("session_id") if state else None,
+                category=state.get("category") if state else None,
+                routing_target=state.get("routing_target") if state else None,
+                tool_name="faq_retrieval_cache",
+                metadata={
+                    "cache_enabled": True,
+                    "cache_hit": True,
+                    "cache_namespace": cache_namespace,
+                    "cache_key_hash": cache_hash,
+                    "document_count": len(documents),
+                    "retrieval_query_length": len(retrieval_query),
+                },
+            )
+            return documents
+
     embedding_json = _embed_query(retrieval_query)
     documents = search_document_chunks(
         embedding_json=embedding_json,
@@ -129,7 +194,45 @@ def _retrieve_documents(
         prefer_faq=True,
         enrichment=enrichment,
     )
-    return _rerank_documents(documents, retrieval_query)[:final_top_k]
+    retrieved_documents = _rerank_documents(documents, retrieval_query)[:final_top_k]
+    if cache_enabled:
+        ttl = int(os.environ.get("FAQ_RETRIEVAL_CACHE_TTL", "3600"))
+        cache_result = set_cached_retrieval(cache_hash, retrieved_documents, ttl=ttl)
+        log_event(
+            EVENT_TOOL_COMPLETED,
+            ticket_id=state.get("ticket_id") if state else None,
+            session_id=state.get("session_id") if state else None,
+            category=state.get("category") if state else None,
+            routing_target=state.get("routing_target") if state else None,
+            tool_name="faq_retrieval_cache",
+            metadata={
+                "cache_enabled": True,
+                "cache_hit": False,
+                "cache_namespace": cache_namespace,
+                "cache_key_hash": cache_hash,
+                "cache_backend": cache_result.get("backend"),
+                "cache_ttl": ttl,
+                "document_count": len(retrieved_documents),
+                "retrieval_query_length": len(retrieval_query),
+            },
+        )
+    else:
+        log_event(
+            EVENT_TOOL_COMPLETED,
+            ticket_id=state.get("ticket_id") if state else None,
+            session_id=state.get("session_id") if state else None,
+            category=state.get("category") if state else None,
+            routing_target=state.get("routing_target") if state else None,
+            tool_name="faq_retrieval_cache",
+            metadata={
+                "cache_enabled": False,
+                "cache_hit": False,
+                "cache_namespace": cache_namespace,
+                "document_count": len(retrieved_documents),
+                "retrieval_query_length": len(retrieval_query),
+            },
+        )
+    return retrieved_documents
 
 
 def _retry_retrieval_with_rewrite(
@@ -156,6 +259,7 @@ def _retry_retrieval_with_rewrite(
         enrichment=None,
         final_top_k=final_top_k,
         candidate_top_k=candidate_top_k,
+        state=state,
     )
     _print_retrieval_summary(
         original_query=original_query,
@@ -297,6 +401,7 @@ def run_faq_rag(state: ChatbotState) -> dict[str, Any]:
         enrichment=enriched,
         final_top_k=final_top_k,
         candidate_top_k=candidate_top_k,
+        state=state,
     )
     _print_retrieval_summary(
         original_query=query,

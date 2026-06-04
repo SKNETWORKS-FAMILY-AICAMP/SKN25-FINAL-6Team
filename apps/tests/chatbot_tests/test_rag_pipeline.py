@@ -4,6 +4,7 @@ import json
 
 from chatbot.chains import persistence
 from chatbot.generation import faq_agent
+from chatbot.retrieval import cache_store
 from common.retrieval import vector_tools
 from common.retrieval.vector_tools import RetrievalQuery, hybrid_rank_documents, refine_query_text, search_document_chunks
 
@@ -194,6 +195,66 @@ def test_run_faq_rag_generates_once_with_evidence(monkeypatch) -> None:
     assert len(calls) == 1
     assert calls[0]["original_query"] == "payment item delivery"
     assert calls[0]["retrieval_query"] == "payment item delivery"
+
+
+def test_run_faq_rag_reuses_cached_retrieved_documents(monkeypatch) -> None:
+    """FAQ/RAG should cache evidence documents while still generating a fresh answer."""
+    calls = {"embed": 0, "search": 0, "rerank": 0, "answer": 0}
+    cache_events = []
+    docs = [
+        {
+            "chunk_id": "doc-1",
+            "document_id": "doc",
+            "source_type": "hoyoverse_qna_common",
+            "category": "결제_관련_이슈",
+            "title": "payment guide",
+            "chunk_text": "payment item delivery can be checked in logs",
+            "score": 0.03,
+            "cosine_score": 0.9,
+            "bm25_score": 1.2,
+        }
+    ]
+
+    cache_store.clear_cache_for_tests()
+    monkeypatch.setenv("FAQ_RETRIEVAL_CACHE_ENABLED", "true")
+    monkeypatch.setattr(faq_agent, "enrich_retrieval_query", lambda text: _retrieval_query())
+    monkeypatch.setattr(
+        faq_agent,
+        "log_event",
+        lambda event_type, **kwargs: cache_events.append({"event_type": event_type, **kwargs}),
+    )
+
+    def fake_embed_query(text):
+        calls["embed"] += 1
+        return "[1.0,0.0]"
+
+    def fake_search_document_chunks(**kwargs):
+        calls["search"] += 1
+        return docs
+
+    def fake_rerank_documents(documents, query):
+        calls["rerank"] += 1
+        return documents
+
+    def fake_generate_evidence_answer(**kwargs):
+        calls["answer"] += 1
+        return f"answer {calls['answer']}"
+
+    monkeypatch.setattr(faq_agent, "_embed_query", fake_embed_query)
+    monkeypatch.setattr(faq_agent, "search_document_chunks", fake_search_document_chunks)
+    monkeypatch.setattr(faq_agent, "_rerank_documents", fake_rerank_documents)
+    monkeypatch.setattr(faq_agent, "_generate_evidence_answer", fake_generate_evidence_answer)
+
+    first = faq_agent.run_faq_rag(_state())
+    second = faq_agent.run_faq_rag(_state())
+
+    assert first["draft_text"] == "answer 1"
+    assert second["draft_text"] == "answer 2"
+    assert first["retrieved_documents"] == docs
+    assert second["retrieved_documents"] == docs
+    assert calls == {"embed": 1, "search": 1, "rerank": 1, "answer": 2}
+    assert [event["metadata"]["cache_hit"] for event in cache_events] == [False, True]
+    assert all(event["tool_name"] == "faq_retrieval_cache" for event in cache_events)
 
 
 def test_run_faq_rag_prefers_normalized_query_over_legacy_enriched_query(monkeypatch) -> None:
@@ -585,5 +646,3 @@ def test_draft_persistence_falls_back_to_draft_evidence(monkeypatch) -> None:
             "retrieval_rank": 1,
         }
     ]
-
-
