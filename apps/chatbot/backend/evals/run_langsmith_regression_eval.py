@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import os
 import sys
 import time
 from pathlib import Path
 from typing import Any
+from importlib.util import find_spec
 
 from dotenv import load_dotenv
 from langsmith import evaluate
@@ -61,6 +63,7 @@ def chatbot_target(inputs: dict[str, Any]) -> dict[str, Any]:
             "payment_context_counts": {},
             "faq_failure_reason": None,
             "observed_evidence_types": [],
+            "retrieved_contexts": [],
         }
 
     account_id = int(inputs.get("account_id") or 0)
@@ -115,11 +118,21 @@ def chatbot_target(inputs: dict[str, Any]) -> dict[str, Any]:
         ),
         "latency_ms": latency_ms,
         "retrieved_document_count": len(retrieved_documents),
+        "retrieved_contexts": _retrieved_contexts(retrieved_documents),
         "payment_context_count": payment_context.get("count", 0),
         "payment_context_counts": payment_counts,
         "faq_failure_reason": state.get("faq_failure_reason"),
         "observed_evidence_types": observed_evidence_types,
     }
+
+
+def _retrieved_contexts(retrieved_documents: list[dict[str, Any]]) -> list[str]:
+    contexts = []
+    for document in retrieved_documents:
+        text = document.get("chunk_text") or document.get("content") or document.get("text")
+        if text:
+            contexts.append(str(text))
+    return contexts
 
 
 def _observed_evidence_types(
@@ -182,48 +195,143 @@ def answer_non_empty(outputs: dict[str, Any]) -> dict[str, Any]:
     return {"key": "answer_non_empty", "score": bool(str(outputs.get("answer") or "").strip())}
 
 
-def answer_correctness(outputs: dict[str, Any], reference_outputs: dict[str, Any]) -> dict[str, Any]:
-    """Lightweight reference-overlap proxy; use LLM/RAGAS judges for stricter scoring."""
-    answer = str(outputs.get("answer") or "")
-    reference = str(reference_outputs.get("reference_answer") or "")
-    keywords = [word for word in reference.replace(",", " ").replace(".", " ").split() if len(word) >= 3]
-    if not keywords:
-        return {"key": "answer_correctness", "value": "not_applicable"}
-    hits = sum(1 for word in keywords if word in answer)
-    score = hits / len(keywords)
-    return {"key": "answer_correctness", "score": score, "value": round(score, 3)}
+def _ragas_judges() -> dict[str, Any]:
+    api_key = os.environ.get("LLM_API_KEY") or os.environ.get("OPENAI_API_KEY")
+    if api_key:
+        os.environ.setdefault("OPENAI_API_KEY", api_key)
+
+    llm_model = os.environ.get("RAGAS_LLM_MODEL") or os.environ.get("LLM_MODEL") or "gpt-4o-mini"
+    embedding_model = os.environ.get("RAGAS_EMBEDDING_MODEL") or os.environ.get(
+        "EMBEDDING_MODEL",
+        "text-embedding-3-small",
+    )
+    if embedding_model.startswith("openai:"):
+        embedding_model = embedding_model.split(":", 1)[1]
+
+    from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+    from ragas.embeddings import LangchainEmbeddingsWrapper
+    from ragas.llms import LangchainLLMWrapper
+
+    return {
+        "llm": LangchainLLMWrapper(ChatOpenAI(model=llm_model, api_key=api_key, temperature=0)),
+        "embeddings": LangchainEmbeddingsWrapper(OpenAIEmbeddings(model=embedding_model, api_key=api_key)),
+    }
 
 
-def faithfulness(outputs: dict[str, Any], reference_outputs: dict[str, Any]) -> dict[str, Any]:
-    required = _required_evidence(reference_outputs)
-    if not required:
-        return {"key": "faithfulness", "value": "not_applicable"}
-    observed_hits, required_count = _evidence_match(required, outputs.get("observed_evidence_types") or [])
-    grounded = observed_hits > 0 and bool(str(outputs.get("answer") or "").strip())
-    if outputs.get("faq_failure_reason") in {"no_retrieved_documents", "empty_retrieved_documents"}:
-        grounded = False
-    return {"key": "faithfulness", "score": grounded, "value": f"{observed_hits}/{required_count}"}
+def _ragas_metric_result(
+    *,
+    key: str,
+    metric_name: str,
+    inputs: dict[str, Any],
+    outputs: dict[str, Any],
+    reference_outputs: dict[str, Any],
+) -> dict[str, Any]:
+    answer = str(outputs.get("answer") or "").strip()
+    reference = str(reference_outputs.get("reference_answer") or "").strip()
+    contexts = list(outputs.get("retrieved_contexts") or [])
+    if not answer or not reference:
+        return {"key": key, "value": "not_applicable"}
+    if metric_name != "factual_correctness" and not contexts:
+        return {"key": key, "score": 0.0, "value": "no_retrieved_contexts"}
+
+    try:
+        from ragas import SingleTurnSample
+        from ragas.metrics import (
+            FactualCorrectness,
+            Faithfulness,
+            LLMContextPrecisionWithReference,
+            LLMContextRecall,
+        )
+    except ImportError:
+        return {"key": key, "value": "not_applicable"}
+
+    metric_by_name = {
+        "factual_correctness": FactualCorrectness,
+        "faithfulness": Faithfulness,
+        "context_precision": LLMContextPrecisionWithReference,
+        "context_recall": LLMContextRecall,
+    }
+    metric_cls = metric_by_name[metric_name]
+    metric = metric_cls()
+    judges = _ragas_judges()
+    if hasattr(metric, "llm"):
+        metric.llm = judges["llm"]
+    if hasattr(metric, "embeddings"):
+        metric.embeddings = judges["embeddings"]
+
+    sample = SingleTurnSample(
+        user_input=str(inputs.get("user_message") or ""),
+        response=answer,
+        reference=reference,
+        retrieved_contexts=contexts,
+    )
+    try:
+        score = asyncio.run(metric.single_turn_ascore(sample))
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        try:
+            score = loop.run_until_complete(metric.single_turn_ascore(sample))
+        finally:
+            loop.close()
+    except Exception as exc:
+        return {"key": key, "value": f"ragas_error:{type(exc).__name__}"}
+    return {"key": key, "score": float(score), "value": round(float(score), 3)}
 
 
-def context_precision(outputs: dict[str, Any], reference_outputs: dict[str, Any]) -> dict[str, Any]:
-    if not reference_outputs.get("required_evidence_types"):
-        return {"key": "context_precision", "value": "not_applicable"}
-    observed = outputs.get("observed_evidence_types") or []
-    if not observed:
-        return {"key": "context_precision", "score": 0.0, "value": "0/0"}
-    required = set(_required_evidence(reference_outputs))
-    hits = sum(1 for evidence_type in observed if evidence_type in required)
-    score = hits / len(observed)
-    return {"key": "context_precision", "score": score, "value": f"{hits}/{len(observed)}"}
+def answer_correctness(
+    inputs: dict[str, Any],
+    outputs: dict[str, Any],
+    reference_outputs: dict[str, Any],
+) -> dict[str, Any]:
+    return _ragas_metric_result(
+        key="answer_correctness",
+        metric_name="factual_correctness",
+        inputs=inputs,
+        outputs=outputs,
+        reference_outputs=reference_outputs,
+    )
 
 
-def context_recall(outputs: dict[str, Any], reference_outputs: dict[str, Any]) -> dict[str, Any]:
-    required = _required_evidence(reference_outputs)
-    if not required:
-        return {"key": "context_recall", "value": "not_applicable"}
-    hits, total = _evidence_match(required, outputs.get("observed_evidence_types") or [])
-    score = hits / total
-    return {"key": "context_recall", "score": score, "value": f"{hits}/{total}"}
+def faithfulness(
+    inputs: dict[str, Any],
+    outputs: dict[str, Any],
+    reference_outputs: dict[str, Any],
+) -> dict[str, Any]:
+    return _ragas_metric_result(
+        key="faithfulness",
+        metric_name="faithfulness",
+        inputs=inputs,
+        outputs=outputs,
+        reference_outputs=reference_outputs,
+    )
+
+
+def context_precision(
+    inputs: dict[str, Any],
+    outputs: dict[str, Any],
+    reference_outputs: dict[str, Any],
+) -> dict[str, Any]:
+    return _ragas_metric_result(
+        key="context_precision",
+        metric_name="context_precision",
+        inputs=inputs,
+        outputs=outputs,
+        reference_outputs=reference_outputs,
+    )
+
+
+def context_recall(
+    inputs: dict[str, Any],
+    outputs: dict[str, Any],
+    reference_outputs: dict[str, Any],
+) -> dict[str, Any]:
+    return _ragas_metric_result(
+        key="context_recall",
+        metric_name="context_recall",
+        inputs=inputs,
+        outputs=outputs,
+        reference_outputs=reference_outputs,
+    )
 
 
 def tool_db_call_accuracy(outputs: dict[str, Any], reference_outputs: dict[str, Any]) -> dict[str, Any]:
@@ -249,13 +357,6 @@ def latency(outputs: dict[str, Any]) -> dict[str, Any]:
     latency_ms = float(outputs.get("latency_ms") or 0)
     target_ms = float(os.environ.get("EVAL_LATENCY_TARGET_MS", "30000"))
     return {"key": "latency", "score": latency_ms <= target_ms, "value": round(latency_ms, 1)}
-
-
-def cost(outputs: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "key": "cost",
-        "value": "not_available_from_code_evaluator; check LangSmith trace token/cost fields",
-    }
 
 
 def redis_cache_observed(outputs: dict[str, Any], reference_outputs: dict[str, Any]) -> dict[str, Any]:
@@ -295,23 +396,29 @@ def main() -> None:
             examples = examples[: args.limit]
         data = examples
 
-    results = evaluate(
-        chatbot_target,
-        data=data,
-        evaluators=[
-            route_accuracy,
+    evaluators = [
+        route_accuracy,
+        tool_db_call_accuracy,
+        safety_pass_accuracy,
+        latency,
+        action_match,
+        answer_non_empty,
+        redis_cache_observed,
+    ]
+    if find_spec("ragas") is not None:
+        evaluators[1:1] = [
             answer_correctness,
             faithfulness,
             context_precision,
             context_recall,
-            tool_db_call_accuracy,
-            safety_pass_accuracy,
-            latency,
-            cost,
-            action_match,
-            answer_non_empty,
-            redis_cache_observed,
-        ],
+        ]
+    else:
+        print("Skipped RAGAS evaluators: ragas is not installed.")
+
+    results = evaluate(
+        chatbot_target,
+        data=data,
+        evaluators=evaluators,
         experiment_prefix=args.experiment_prefix,
         max_concurrency=args.max_concurrency,
     )
