@@ -40,8 +40,27 @@ def _load_jsonl(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
+def _load_json(path: Path) -> list[dict[str, Any]]:
+    """Load either a plain list of LangSmith examples or a wrapped dataset JSON."""
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if isinstance(data, list):
+        return data
+    if isinstance(data, dict) and isinstance(data.get("examples"), list):
+        return data["examples"]
+    raise ValueError(f"Unsupported JSON dataset shape: {path}")
+
+
+def _load_rows(path: Path) -> list[dict[str, Any]]:
+    """Accept JSONL for existing flow and JSON for paper-based curated datasets."""
+    if path.suffix == ".jsonl":
+        return _load_jsonl(path)
+    if path.suffix == ".json":
+        return _load_json(path)
+    raise ValueError(f"Unsupported dataset extension: {path.suffix}")
+
+
 def upload_dataset(path: Path, *, dataset_name: str, description: str, recreate: bool) -> None:
-    rows = _load_jsonl(path)
+    rows = _load_rows(path)
     if not rows:
         raise ValueError(f"No rows found in {path}")
 
@@ -67,7 +86,7 @@ def upload_dataset(path: Path, *, dataset_name: str, description: str, recreate:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Upload chatbot regression JSONL to LangSmith.")
+    parser = argparse.ArgumentParser(description="Upload chatbot regression JSON or JSONL to LangSmith.")
     parser.add_argument("--input", type=Path, default=DEFAULT_DATASET_PATH)
     parser.add_argument("--dataset-name", default="gameops-chatbot-regression-v1")
     parser.add_argument(
