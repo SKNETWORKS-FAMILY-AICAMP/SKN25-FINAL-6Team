@@ -160,6 +160,9 @@ def _list_ticket_rows(cur: Any, *, status: str | None, limit: int, today_only: b
             t.assignee_id,
             t.inquiry_created_at,
             u.nickname,
+            u.email,
+            u.user_status,
+            u.last_login_at,
             latest_draft.draft_id,
             latest_draft.created_at AS draft_created_at,
             latest_analysis.risk_level,
@@ -420,6 +423,37 @@ def list_tickets(
             return _list_ticket_rows(cur, status=status, limit=limit, today_only=today_only, assignee_id=assignee_id)
 
 
+@app.get("/tickets/chatbot-pending")
+def list_chatbot_pending_tickets(
+    limit: int = Query(default=50, ge=1, le=200),
+) -> list[dict[str, Any]]:
+    with db_connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            return _fetch_all(
+                cur,
+                """
+                SELECT
+                    t.ticket_id,
+                    t.user_id,
+                    t.title,
+                    t.source_type,
+                    t.status,
+                    t.inquiry_created_at,
+                    u.email,
+                    u.nickname,
+                    u.user_status,
+                    u.last_login_at
+                FROM qa_ticket t
+                LEFT JOIN community_users u ON u.user_id = t.user_id
+                WHERE t.source_type = 'chatbot'
+                  AND t.status = 'pending'
+                ORDER BY t.inquiry_created_at DESC NULLS LAST, t.ticket_id DESC
+                LIMIT %s
+                """,
+                (limit,),
+            )
+
+
 @app.get("/tickets/today")
 def list_today_tickets(
     status: str | None = Query(default="open"),
@@ -594,7 +628,7 @@ def regenerate_draft(draft_id: int, request: RegenerateDraftRequest) -> ReviewAc
             )
 
     try:
-        result = regenerate_from_draft(draft_id)
+        result = regenerate_from_draft(draft_id, reason=request.reason)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
