@@ -12,6 +12,35 @@ from langsmith import Client
 
 DEFAULT_DATASET_PATH = Path(__file__).parent / "datasets" / "gameops-chatbot-regression-v1.jsonl"
 REPO_ROOT = Path(__file__).resolve().parents[4]
+EVIDENCE_LABEL_MAP = {
+    "account_policy": "policy_document",
+    "payment_policy": "policy_document",
+    "security_policy": "policy_document",
+    "privacy_policy": "policy_document",
+    "event_notice": "notice_document",
+    "maintenance_notice": "notice_document",
+    "attendance_event_notice": "notice_document",
+    "package_guide": "game_guide",
+    "ranking_reward_guide": "game_guide",
+    "patch_note": "game_guide",
+    "event_participation_logs": "item_delivery_logs",
+    "account_reward_logs": "item_delivery_logs",
+    "ranking_logs": "item_delivery_logs",
+    "attendance_logs": "item_delivery_logs",
+    "quest_progress_logs": "bug_report_context",
+}
+ALLOWED_EVIDENCE_LABELS = {
+    "faq_document",
+    "policy_document",
+    "notice_document",
+    "game_guide",
+    "payments",
+    "refunds",
+    "item_delivery_logs",
+    "gacha_logs",
+    "bug_report_context",
+    "redis_retrieval_cache",
+}
 
 
 def load_chatbot_langsmith_env() -> None:
@@ -50,12 +79,26 @@ def _load_json(path: Path) -> list[dict[str, Any]]:
     raise ValueError(f"Unsupported JSON dataset shape: {path}")
 
 
+def _normalize_row(row: dict[str, Any]) -> dict[str, Any]:
+    outputs = row.setdefault("outputs", {})
+    metadata = row.get("metadata") or {}
+    normalized_evidence = []
+    for label in outputs.get("required_evidence_types") or []:
+        mapped = EVIDENCE_LABEL_MAP.get(label, label)
+        if mapped in ALLOWED_EVIDENCE_LABELS and mapped not in normalized_evidence:
+            normalized_evidence.append(mapped)
+    outputs["required_evidence_types"] = normalized_evidence
+    outputs.setdefault("requires_rag", bool(metadata.get("requires_rag")))
+    outputs.setdefault("test_type", metadata.get("test_type"))
+    return row
+
+
 def _load_rows(path: Path) -> list[dict[str, Any]]:
     """Accept JSONL for existing flow and JSON for paper-based curated datasets."""
     if path.suffix == ".jsonl":
-        return _load_jsonl(path)
+        return [_normalize_row(row) for row in _load_jsonl(path)]
     if path.suffix == ".json":
-        return _load_json(path)
+        return [_normalize_row(row) for row in _load_json(path)]
     raise ValueError(f"Unsupported dataset extension: {path.suffix}")
 
 

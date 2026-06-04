@@ -172,6 +172,19 @@ def _required_evidence(reference_outputs: dict[str, Any]) -> list[str]:
     return list(reference_outputs.get("required_evidence_types") or [])
 
 
+def _requires_ragas(reference_outputs: dict[str, Any]) -> bool:
+    if reference_outputs.get("requires_rag"):
+        return True
+    rag_evidence = {
+        "faq_document",
+        "policy_document",
+        "notice_document",
+        "game_guide",
+        "redis_retrieval_cache",
+    }
+    return bool(rag_evidence & set(_required_evidence(reference_outputs)))
+
+
 def _evidence_match(required: list[str], observed: list[str]) -> tuple[int, int]:
     required_set = set(required)
     observed_set = set(observed)
@@ -243,7 +256,7 @@ def _ragas_metric_result(
     outputs: dict[str, Any],
     reference_outputs: dict[str, Any],
 ) -> dict[str, Any]:
-    if not reference_outputs.get("requires_rag"):
+    if not _requires_ragas(reference_outputs):
         return {"key": key, "value": "not_applicable"}
 
     answer = str(outputs.get("answer") or "").strip()
