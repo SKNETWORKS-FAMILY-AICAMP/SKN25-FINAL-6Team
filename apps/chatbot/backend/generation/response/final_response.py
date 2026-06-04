@@ -15,10 +15,10 @@ from chatbot.tools.db_tools import update_qa_ticket_status, write_final_response
 
 def _ticket_status_for_decision(decision: str) -> str:
     if decision == "REVIEW_QUEUE":
-        return "review_required"
+        return "pending"
     if decision == "BLOCK_RESPONSE":
-        return "blocked"
-    return "answered"
+        return "pending"
+    return "resolved"
 
 
 def final_response_node(state: ChatbotState) -> dict:

@@ -38,7 +38,7 @@ def ticket_preprocess_node(state: ChatbotState) -> dict:
                 "session_id": state.get("session_id"),
                 "raw_query": raw_query,
                 "source_type": state["source_type"],
-                "status": "open",
+                "status": "pending",
             },
         }
     )
