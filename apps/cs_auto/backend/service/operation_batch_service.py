@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 
 from common.db.connection import db_connection
 from workflow.agents import run_context_agent, run_drafting_agent, run_intake_agent
-from workflow.state import AnalysisResult, OperationState, Ticket
+from workflow.state import AnalysisResult, OperationState, SafetyResult, Ticket
 
 
 class AnalysisStepResult(BaseModel):
@@ -460,25 +460,6 @@ def _load_latest_analysis_row(ticket_id: str) -> dict[str, Any]:
             return dict(row)
 
 
-def _latest_draft_id(ticket_id: str) -> int:
-    with db_connection() as conn:
-        with conn.cursor(row_factory=dict_row) as cur:
-            cur.execute(
-                """
-                SELECT draft_id
-                FROM answer_draft
-                WHERE ticket_id = %s
-                ORDER BY created_at DESC NULLS LAST, draft_id DESC
-                LIMIT 1
-                """,
-                (ticket_id,),
-            )
-            row = cur.fetchone()
-            if row is None:
-                raise LookupError(f"answer_draft not found for ticket_id={ticket_id}")
-            return int(row["draft_id"])
-
-
 def load_ticket_payload(ticket_id: int | str) -> Ticket:
     row = _fetch_ticket(str(ticket_id))
     return _ticket_from_row(row)
@@ -540,7 +521,7 @@ def persist_analysis_result(result: AnalysisStepResult) -> int:
     return analysis_id
 
 
-def build_draft_inputs(ticket: Ticket, analysis_result: AnalysisStepResult) -> DraftStepResult:
+def build_draft_inputs(ticket: Ticket, analysis_result: AnalysisStepResult, *, regeneration_reason: str | None = None) -> DraftStepResult:
     route = analysis_result.analysis.query_route
     target_route = analysis_result.analysis.target_route
     if route is None or target_route is None:
@@ -555,13 +536,17 @@ def build_draft_inputs(ticket: Ticket, analysis_result: AnalysisStepResult) -> D
         target_route=target_route,
         analysis=analysis_result.analysis,
         metadata=analysis_result.metadata,
+        regeneration_reason=regeneration_reason,
     )
+    context_node_name = CONTEXT_NODE_BY_ROUTE.get(route)
+    if context_node_name is None:
+        raise ValueError(f"unsupported query_route for draft: {route!r}")
     context_result = run_context_agent(
         state=state,
         route=route,
         target_route=target_route,
         context_rows=context_rows,
-        context_node_name=CONTEXT_NODE_BY_ROUTE[route],
+        context_node_name=context_node_name,
     )
     state = state.model_copy(
         update={
@@ -623,20 +608,20 @@ def run_analysis_step(ticket_id: int | str, *, persist: bool = True) -> Analysis
     return result
 
 
-def run_draft_step(ticket_id: int | str, *, persist_analysis: bool = True, persist_draft: bool = True) -> DraftStepResult:
+def run_draft_step(ticket_id: int | str, *, persist_analysis: bool = True, persist_draft: bool = True, regeneration_reason: str | None = None) -> DraftStepResult:
     ticket = load_ticket_payload(ticket_id)
     analysis_result = classify_ticket(ticket)
     if persist_analysis:
         persist_analysis_result(analysis_result)
-    result = build_draft_inputs(ticket, analysis_result)
+    result = build_draft_inputs(ticket, analysis_result, regeneration_reason=regeneration_reason)
     if persist_draft and analysis_result.analysis_id is not None:
         persist_draft_result(result, analysis_result.analysis_id)
     return result
 
 
-def run_draft_step_from_latest_analysis(ticket_id: int | str, *, persist_draft: bool = True) -> DraftStepResult:
+def run_draft_step_from_latest_analysis(ticket_id: int | str, *, persist_draft: bool = True, regeneration_reason: str | None = None) -> DraftStepResult:
     analysis_result = load_latest_analysis_result(ticket_id)
-    result = build_draft_inputs(analysis_result.ticket, analysis_result)
+    result = build_draft_inputs(analysis_result.ticket, analysis_result, regeneration_reason=regeneration_reason)
     if persist_draft and analysis_result.analysis_id is not None:
         persist_draft_result(result, analysis_result.analysis_id)
     return result
@@ -850,9 +835,35 @@ def list_chatbot_draft_candidate_ticket_ids(*, limit: int = 200, target_date: da
             return [int(row["ticket_id"]) for row in cur.fetchall()]
 
 
+def _is_analysis_candidate(ticket_id: int) -> bool:
+    with db_connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                SELECT source_type, status
+                FROM qa_ticket
+                WHERE ticket_id = %s
+                """,
+                (ticket_id,),
+            )
+            row = cur.fetchone()
+            if row is None:
+                return False
+            source_type = row["source_type"]
+            status = row["status"]
+            if source_type == "chatbot" and status in ("pending", "resolved"):
+                return True
+            if source_type == "naver_cafe" and status in ("open", "pending"):
+                return True
+            return False
+
+
 def run_scheduled_analysis_batch(*, limit: int = 200, target_date: date | None = None) -> BatchRunSummary:
     summary = BatchRunSummary(job_name="scheduled_analysis_batch")
     for ticket_id in list_analysis_candidate_ticket_ids(limit=limit, target_date=target_date):
+        if not _is_analysis_candidate(ticket_id):
+            summary.skipped_ticket_ids.append(ticket_id)
+            continue
         try:
             run_analysis_step(ticket_id, persist=True)
             summary.processed_ticket_ids.append(ticket_id)

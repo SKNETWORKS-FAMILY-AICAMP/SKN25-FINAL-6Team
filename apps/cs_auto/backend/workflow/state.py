@@ -114,6 +114,8 @@ class OperationState(OperationModel):
     safety_id: int | None = None
     response_id: int | None = None
 
+    regeneration_reason: str | None = None
+
     retry_count: int | None = None
     max_retries: int | None = None
     status: str | None = None

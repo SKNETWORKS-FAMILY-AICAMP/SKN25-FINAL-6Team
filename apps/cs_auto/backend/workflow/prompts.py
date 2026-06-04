@@ -114,6 +114,7 @@ Rules:
 - If target_route is urgent_alert, fill urgent_alert_message.
 - If review is needed, set review_required=true and explain why.
 - Return evidence_doc_ids that support the draft.
+- If regeneration_reason is present in the workflow state, the previous draft was rejected for that reason. Address the issue explicitly in the new draft.
 
 Workflow state:
 {state_json}"""

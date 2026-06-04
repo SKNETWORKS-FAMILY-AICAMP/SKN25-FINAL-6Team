@@ -269,11 +269,11 @@ def run_review_step(
     return result
 
 
-def run_workflow_step(ticket_id: int | str) -> dict[str, Any]:
+def run_workflow_step(ticket_id: int | str, *, regeneration_reason: str | None = None) -> dict[str, Any]:
     normalized_ticket_id = str(ticket_id)
     previous_status = _begin_ticket_workflow(normalized_ticket_id)
     try:
-        draft_result = run_draft_step(normalized_ticket_id, persist_analysis=True, persist_draft=True)
+        draft_result = run_draft_step(normalized_ticket_id, persist_analysis=True, persist_draft=True, regeneration_reason=regeneration_reason)
         review_result = review_draft_result(draft_result)
         persist_review_result(review_result)
         finalized = finalize_review_result(
@@ -325,9 +325,9 @@ def approve_existing_draft(draft_id: int, final_text: str | None = None) -> dict
     }
 
 
-def regenerate_from_draft(draft_id: int) -> dict[str, Any]:
+def regenerate_from_draft(draft_id: int, *, reason: str | None = None) -> dict[str, Any]:
     draft = _load_draft_row(draft_id)
-    result = run_workflow_step(int(draft["ticket_id"]))
+    result = run_workflow_step(int(draft["ticket_id"]), regeneration_reason=reason)
     return {
         "ticket_id": int(draft["ticket_id"]),
         "draft_id": draft_id,
