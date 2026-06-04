@@ -5,9 +5,10 @@ import asyncio
 import os
 import sys
 import time
+from functools import lru_cache
+from importlib.util import find_spec
 from pathlib import Path
 from typing import Any
-from importlib.util import find_spec
 
 from dotenv import load_dotenv
 from langsmith import evaluate
@@ -25,6 +26,13 @@ from chatbot.service.chatbot_service import stream_chatbot
 
 CHATBOT_ROUTES = {"payment_agent", "bug_agent", "faq_agent", "voc_agent"}
 CHATBOT_CATEGORIES = {"payment", "bug", "faq", "voc"}
+SOURCE_TYPE_EVIDENCE = {
+    "hoyoverse_qna_common": "faq_document",
+    "hoyoverse_qna_onlygenshin": "faq_document",
+    "hoyoverse_policy": "policy_document",
+    "naver_cafe_notice": "notice_document",
+    "naver_cafe_guide": "game_guide",
+}
 
 
 def load_chatbot_langsmith_env() -> None:
@@ -102,6 +110,7 @@ def chatbot_target(inputs: dict[str, Any]) -> dict[str, Any]:
         retrieved_documents=retrieved_documents,
         payment_counts=payment_counts,
         route=state.get("reasoning_node"),
+        cache_events=cache_events,
     )
     return {
         "answer": result.get("answer"),
@@ -140,15 +149,22 @@ def _observed_evidence_types(
     retrieved_documents: list[dict[str, Any]],
     payment_counts: dict[str, Any],
     route: str | None,
+    cache_events: list[dict[str, Any]],
 ) -> list[str]:
     observed: set[str] = set()
-    if retrieved_documents:
-        observed.update({"faq_document", "policy_document", "notice_document", "game_guide"})
+    for document in retrieved_documents:
+        source_type = str(document.get("source_type") or "")
+        if source_type in SOURCE_TYPE_EVIDENCE:
+            observed.add(SOURCE_TYPE_EVIDENCE[source_type])
+        elif source_type in {"payments", "refunds", "item_delivery_logs", "gacha_logs"}:
+            observed.add(source_type)
     for evidence_type in ("payments", "refunds", "item_delivery_logs", "gacha_logs"):
         if int(payment_counts.get(evidence_type) or 0) > 0:
             observed.add(evidence_type)
     if route == "bug_agent":
         observed.add("bug_report_context")
+    if cache_events:
+        observed.add("redis_retrieval_cache")
     return sorted(observed)
 
 
@@ -195,6 +211,7 @@ def answer_non_empty(outputs: dict[str, Any]) -> dict[str, Any]:
     return {"key": "answer_non_empty", "score": bool(str(outputs.get("answer") or "").strip())}
 
 
+@lru_cache(maxsize=1)
 def _ragas_judges() -> dict[str, Any]:
     api_key = os.environ.get("LLM_API_KEY") or os.environ.get("OPENAI_API_KEY")
     if api_key:
@@ -226,6 +243,9 @@ def _ragas_metric_result(
     outputs: dict[str, Any],
     reference_outputs: dict[str, Any],
 ) -> dict[str, Any]:
+    if not reference_outputs.get("requires_rag"):
+        return {"key": key, "value": "not_applicable"}
+
     answer = str(outputs.get("answer") or "").strip()
     reference = str(reference_outputs.get("reference_answer") or "").strip()
     contexts = list(outputs.get("retrieved_contexts") or [])
@@ -379,6 +399,7 @@ def main() -> None:
     parser.add_argument("--max-concurrency", type=int, default=1)
     parser.add_argument("--limit", type=int, help="Evaluate only the first N examples after slicing locally.")
     parser.add_argument("--test-type", help="Evaluate only examples whose metadata.test_type matches this value.")
+    parser.add_argument("--enable-ragas", action="store_true", help="Run RAGAS judge metrics for RAG examples.")
     args = parser.parse_args()
 
     load_chatbot_langsmith_env()
@@ -405,14 +426,14 @@ def main() -> None:
         answer_non_empty,
         redis_cache_observed,
     ]
-    if find_spec("ragas") is not None:
+    if args.enable_ragas and find_spec("ragas") is not None:
         evaluators[1:1] = [
             answer_correctness,
             faithfulness,
             context_precision,
             context_recall,
         ]
-    else:
+    elif args.enable_ragas:
         print("Skipped RAGAS evaluators: ragas is not installed.")
 
     results = evaluate(
