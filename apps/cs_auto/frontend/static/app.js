@@ -19,6 +19,7 @@ const appState = {
   workflowVisible: false,
   workflowProgress: 0,
   workflowLabel: "문의 내용 분석 중...",
+  workflowMode: "default",
   workflowLogs: [],
   allTickets: [],
   tickets: [
@@ -510,27 +511,38 @@ const topTabs = [
 
 const sideTabs = [
   { label: "대기 중", icon: "clock", count: "12" },
+  { label: "챗봇 대기", icon: "mail", count: "0" },
   { label: "긴급", icon: "flame", count: "3", red: true },
   { label: "전체", icon: "list" }
 ];
 
 const filterTabs = ["전체", "대기", "검토 중", "긴급", "종료"];
 const SIDE_TAB_PENDING = sideTabs[0].label;
-const SIDE_TAB_URGENT = sideTabs[1].label;
-const SIDE_TAB_ALL = sideTabs[2].label;
+const SIDE_TAB_CHATBOT_PENDING = sideTabs[1].label;
+const SIDE_TAB_URGENT = sideTabs[2].label;
+const SIDE_TAB_ALL = sideTabs[3].label;
 const FILTER_ALL = filterTabs[0];
 const FILTER_PENDING = filterTabs[1];
 const FILTER_REVIEW = filterTabs[2];
 const FILTER_URGENT = filterTabs[3];
 const FILTER_DONE = filterTabs[4];
 const categoryTabs = ["전체", "결제", "계정", "버그", "환불"];
-const workflowSteps = [
-  { label: "문의 내용 분석 중...", progress: 20 },
-  { label: "카테고리 분류 중...", progress: 40 },
-  { label: "근거 문서 검색 중...", progress: 60 },
-  { label: "안전성 검토 중...", progress: 80 },
-  { label: "초안 생성 완료", progress: 100 }
-];
+const workflowStepsByMode = {
+  default: [
+    { label: "문의 내용 분석 중...", progress: 20 },
+    { label: "카테고리 분류 중...", progress: 40 },
+    { label: "근거 문서 검색 중...", progress: 60 },
+    { label: "안전성 검토 중...", progress: 80 },
+    { label: "초안 생성 완료", progress: 100 },
+  ],
+  regenerate: [
+    { label: "사유 기반 ticket analysis 중...", progress: 20 },
+    { label: "사유 반영 초안 생성 중...", progress: 40 },
+    { label: "사유 반영 검토 중...", progress: 60 },
+    { label: "사유 반영 안전성 검토 중...", progress: 80 },
+    { label: "사유 반영 재생성 완료", progress: 100 },
+  ],
+};
 
 const {
   approveDraft,
@@ -758,6 +770,20 @@ function getAnswerWorkflowStage() {
   return 0;
 }
 
+function getWorkflowSteps() {
+  return workflowStepsByMode[appState.workflowMode] || workflowStepsByMode.default;
+}
+
+function getWorkflowTimelineLabels() {
+  const steps = getWorkflowSteps();
+  return {
+    analysis: steps[0].label,
+    draft: steps[1].label,
+    review: steps[2].label,
+    send: steps[3].label,
+  };
+}
+
 function renderTimelineItem(label, state, terminal = false) {
   const bubbleClass = state === "done"
     ? "bg-alert-greenBg text-alert-green"
@@ -792,7 +818,7 @@ function updateTicketHistory(ticket, decision, tone, reason) {
 
 function requestRegenerateDraft() {
   const ticket = getSelectedTicket();
-  if (!ticket?.canEditDraft) {
+  if (!ticket?.draftId || ticket.sourceType !== "naver_cafe") {
     return;
   }
   if ((ticket.regenCount || 0) >= (ticket.regenLimit || 3)) {
@@ -1068,9 +1094,14 @@ function render() {
   const ticket = getSelectedTicket();
   const draftMeta = draftStatusMeta(ticket.draftStatus);
   const remainingRegens = Math.max((ticket.regenLimit || 3) - (ticket.regenCount || 0), 0);
-  const canModifyDraft = Boolean(ticket.canEditDraft);
+  const hasAnswerDraft = ticket.sourceType === "naver_cafe" && Boolean(ticket.draftId);
+  const canStartEdit = hasAnswerDraft && ticket.status === "open";
+  const canSaveDraft = Boolean(ticket.isDraftEditing && ticket.status === "pending" && getAssignedReviewer(ticket) === appState.currentReviewer);
+  const canModifyDraft = hasAnswerDraft || Boolean(ticket.isDraftEditing && ticket.status === "pending" && getAssignedReviewer(ticket) === appState.currentReviewer);
+  const canRegenerateDraft = hasAnswerDraft;
   const canResolveTicket = ticket.sourceType === "chatbot" && ticket.status === "pending";
-  const canCompleteAnswer = canResolveTicket || (canModifyDraft && Boolean(ticket.draftId));
+  const canCompleteAnswer = canResolveTicket || hasAnswerDraft;
+  const showDraftEditor = !canResolveTicket;
   const ticketListPagination = getTicketListPagination();
   const renderedSideTabs = getRenderedSideTabs();
   const reviewHistorySidebarGroups = getReviewHistorySidebarGroups();
@@ -1214,32 +1245,59 @@ function render() {
                 </div>
               </div>
 
-              <div class="grid grid-cols-[1fr_172px] gap-2.5">
+              ${canResolveTicket ? `
                 <div class="subcard">
                   <div class="subcard-head">
-                    <div class="flex items-center gap-1.5 text-xs font-bold text-ink-900">
-                      <i class="ti ti-message-2 text-sm text-brand-500"></i> 답변 초안
-                    </div>
-                    <div class="flex items-center gap-1.5">
-                      <span class="text-[10px] text-ink-500">재생성 ${ticket.regenCount || 0}/${ticket.regenLimit || 3}</span>
-                    </div>
+                    <div class="flex items-center gap-1.5 text-xs font-bold text-ink-900"><i class="ti ti-mail text-sm text-brand-500"></i> 이메일 발송 정보</div>
                   </div>
-                  <div class="subcard-body">
-                    <textarea id="draft-input" class="min-h-[180px] w-full resize-y rounded-[7px] border border-sand-300 bg-white px-3 py-2.5 text-xs leading-[1.6] text-ink-900 outline-none ${ticket.isDraftEditing && canModifyDraft ? "focus:border-brand-500" : "text-ink-500"}" ${ticket.isDraftEditing && canModifyDraft ? "" : "readonly"}>${escapeHtml(ticket.draft)}</textarea>
-                    <div class="mt-2 flex flex-wrap gap-1.5">
-                      <button id="confirm-draft-btn" class="btn btn-ghost btn-sm ${canModifyDraft ? "" : "cursor-not-allowed opacity-40 hover:border-sand-300 hover:text-ink-700"}" ${canModifyDraft ? "" : "disabled"}><i class="ti ti-device-floppy"></i> ${ticket.isDraftEditing ? "수정 완료" : "수정"}</button>
-                      <button id="regen-toggle-btn" class="btn btn-ghost btn-sm ml-auto ${remainingRegens === 0 || !canModifyDraft ? "cursor-not-allowed opacity-40 hover:border-sand-300 hover:text-ink-700" : ""}" ${remainingRegens === 0 || !canModifyDraft ? "disabled" : ""}><i class="ti ti-refresh"></i> 재생성</button>
+                  <div class="subcard-body grid grid-cols-2 gap-2 text-xs text-ink-700">
+                    <div><span class="text-ink-500">이메일</span><div class="font-semibold text-ink-900">${escapeHtml(ticket.email || "-")}</div></div>
+                    <div><span class="text-ink-500">닉네임</span><div class="font-semibold text-ink-900">${escapeHtml(ticket.nickname || "-")}</div></div>
+                    <div><span class="text-ink-500">유저 상태</span><div class="font-semibold text-ink-900">${escapeHtml(ticket.userStatus || "-")}</div></div>
+                    <div><span class="text-ink-500">마지막 로그인</span><div class="font-semibold text-ink-900">${escapeHtml(ticket.lastLoginAt || "-")}</div></div>
+                  </div>
+                </div>
+              ` : ""}
+
+              <div class="grid grid-cols-[1fr_172px] gap-2.5">
+                ${showDraftEditor ? `
+                  <div class="subcard">
+                    <div class="subcard-head">
+                      <div class="flex items-center gap-1.5 text-xs font-bold text-ink-900">
+                        <i class="ti ti-message-2 text-sm text-brand-500"></i> 답변 초안
+                      </div>
+                      <div class="flex items-center gap-1.5">
+                        <span class="text-[10px] text-ink-500">재생성 ${ticket.regenCount || 0}/${ticket.regenLimit || 3}</span>
+                      </div>
                     </div>
-                    <div class="${appState.showRegenBox ? "block" : "hidden"} mt-2 rounded-lg border border-brand-200 bg-brand-500/5 p-3">
-                      <label class="mb-1 block text-[11px] font-medium text-brand-500">재생성 사유 입력</label>
-                      <textarea id="regen-reason-input" class="min-h-[52px] w-full resize-none rounded-md border border-brand-200 bg-white px-2.5 py-2 text-xs outline-none" placeholder="예: 문체를 더 정중하게 수정, 환불 기준 문구 반영">${escapeHtml(appState.regenReason)}</textarea>
-                      <div class="mt-1.5 flex gap-1">
-                        <button id="regen-submit-btn" class="btn btn-primary btn-sm"><i class="ti ti-send"></i> 사유 반영 재생성</button>
-                        <button id="regen-cancel-btn" class="btn btn-ghost btn-sm">취소</button>
+                    <div class="subcard-body">
+                      <textarea id="draft-input" class="min-h-[180px] w-full resize-y rounded-[7px] border border-sand-300 bg-white px-3 py-2.5 text-xs leading-[1.6] text-ink-900 outline-none ${ticket.isDraftEditing && canModifyDraft ? "focus:border-brand-500" : "text-ink-500"}" ${ticket.isDraftEditing && canModifyDraft ? "" : "readonly"}>${escapeHtml(ticket.draft)}</textarea>
+                      <div class="mt-2 flex flex-wrap gap-1.5">
+                      <button type="button" id="confirm-draft-btn" class="btn btn-ghost btn-sm ${canModifyDraft ? "" : "cursor-not-allowed opacity-40 hover:border-sand-300 hover:text-ink-700"}" ${canModifyDraft ? "" : "disabled"}><i class="ti ti-device-floppy"></i> ${ticket.isDraftEditing ? "수정 완료" : "수정"}</button>
+                      <button type="button" id="regen-toggle-btn" class="btn btn-ghost btn-sm ml-auto ${remainingRegens === 0 || !canRegenerateDraft ? "cursor-not-allowed opacity-40 hover:border-sand-300 hover:text-ink-700" : ""}" ${remainingRegens === 0 || !canRegenerateDraft ? "disabled" : ""}><i class="ti ti-refresh"></i> 재생성</button>
+                      </div>
+                      <div class="${appState.showRegenBox ? "block" : "hidden"} mt-2 rounded-lg border border-brand-200 bg-brand-500/5 p-3">
+                        <label class="mb-1 block text-[11px] font-medium text-brand-500">재생성 사유 입력</label>
+                        <textarea id="regen-reason-input" class="min-h-[52px] w-full resize-none rounded-md border border-brand-200 bg-white px-2.5 py-2 text-xs outline-none" placeholder="예: 문체를 더 정중하게 수정, 환불 기준 문구 반영">${escapeHtml(appState.regenReason)}</textarea>
+                        <div class="mt-1.5 flex gap-1">
+                        <button type="button" id="regen-submit-btn" class="btn btn-primary btn-sm"><i class="ti ti-send"></i> 사유 반영 재생성</button>
+                        <button type="button" id="regen-cancel-btn" class="btn btn-ghost btn-sm">취소</button>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
+                ` : `
+                  <div class="subcard">
+                    <div class="subcard-head">
+                      <div class="flex items-center gap-1.5 text-xs font-bold text-ink-900">
+                        <i class="ti ti-message-2 text-sm text-brand-500"></i> 대화 내용
+                      </div>
+                    </div>
+                    <div class="subcard-body">
+                      <div class="whitespace-pre-wrap rounded-[7px] border border-sand-300 bg-sand-100 px-3 py-2.5 text-xs leading-[1.7] text-ink-800">${escapeHtml(ticket.body)}</div>
+                    </div>
+                  </div>
+                `}
                 <div class="subcard">
                   <div class="subcard-head">
                     <div class="flex items-center gap-1.5 text-xs font-bold text-ink-900"><i class="ti ti-activity text-sm text-brand-500"></i> 처리 현황</div>
@@ -1252,7 +1310,7 @@ function render() {
                       ${renderTimelineItem("발송", ticket.status === "done" ? "done" : "pending", true)}
                     </div>
                     <div class="mt-3 flex flex-col gap-1.5">
-                      <button id="complete-answer-btn" class="btn btn-primary btn-sm w-full justify-center ${canCompleteAnswer ? "" : "cursor-not-allowed opacity-40"}" ${canCompleteAnswer ? "" : "disabled"}><i class="ti ti-check"></i> 답변 완료</button>
+                  <button type="button" id="complete-answer-btn" class="btn btn-primary btn-sm w-full justify-center ${canCompleteAnswer ? "" : "cursor-not-allowed opacity-40"}" ${canCompleteAnswer ? "" : "disabled"}><i class="ti ti-check"></i> ${canResolveTicket ? "이메일 발송 처리" : "답변 완료"}</button>
                     </div>
                   </div>
                 </div>
@@ -1328,6 +1386,7 @@ function render() {
                     </span>
                   </div>
                   <div class="mb-1 text-xs font-medium leading-[1.4] text-ink-900">${item.title}</div>
+                  <div class="mb-1 line-clamp-2 text-[11px] leading-[1.45] text-ink-600">${escapeHtml(item.draft || "초안 없음")}</div>
                   <div class="flex flex-wrap items-center gap-1">
                     <span class="badge border border-sand-300 bg-sand-100 text-ink-700">${item.channel}</span>
                     <span class="badge ${draftStatusMeta(item.draftStatus).chipClass}">${draftStatusMeta(item.draftStatus).label}</span>
@@ -1372,6 +1431,9 @@ function bindEvents() {
     button.addEventListener("click", () => {
       const tab = button.dataset.sideTab;
       appState.activeSideTab = tab;
+      if (tab === SIDE_TAB_CHATBOT_PENDING) {
+        appState.activeFilter = FILTER_ALL;
+      }
       appState.ticketListPage = 1;
       render();
       loadTicketsFromApi(tab); // [추가] 탭 클릭 시 해당 탭 기준으로 API 재호출
@@ -1497,18 +1559,21 @@ function bindEvents() {
 
   const confirmDraftBtn = document.getElementById("confirm-draft-btn");
   if (confirmDraftBtn) {
-    confirmDraftBtn.addEventListener("click", () => {
-      if (!getSelectedTicket()?.canEditDraft) return;
+    confirmDraftBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      const selected = getSelectedTicket();
+      if (!selected?.draftId && !selected?.isDraftEditing) return;
       confirmDraft();
     });
   }
 
   const completeAnswerBtn = document.getElementById("complete-answer-btn");
   if (completeAnswerBtn) {
-    completeAnswerBtn.addEventListener("click", () => {
+    completeAnswerBtn.addEventListener("click", (event) => {
+      event.preventDefault();
       const ticket = getSelectedTicket();
       const canResolveTicket = ticket?.sourceType === "chatbot" && ticket.status === "pending";
-      const canCompleteAnswer = canResolveTicket || (ticket?.canEditDraft && Boolean(ticket.draftId));
+      const canCompleteAnswer = canResolveTicket || (ticket?.sourceType === "naver_cafe" && Boolean(ticket?.draftId));
       if (!canCompleteAnswer) return;
       approveDraft();
     });
@@ -1516,15 +1581,18 @@ function bindEvents() {
 
   const regenToggleBtn = document.getElementById("regen-toggle-btn");
   if (regenToggleBtn) {
-    regenToggleBtn.addEventListener("click", () => {
-      if (!getSelectedTicket()?.canEditDraft) return;
+    regenToggleBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      const selected = getSelectedTicket();
+      if (!selected?.draftId || selected.sourceType !== "naver_cafe") return;
       requestRegenerateDraft();
     });
   }
 
   const regenCancelBtn = document.getElementById("regen-cancel-btn");
   if (regenCancelBtn) {
-    regenCancelBtn.addEventListener("click", () => {
+    regenCancelBtn.addEventListener("click", (event) => {
+      event.preventDefault();
       appState.showRegenBox = false;
       appState.regenReason = "";
       render();
@@ -1533,8 +1601,10 @@ function bindEvents() {
 
   const regenSubmitBtn = document.getElementById("regen-submit-btn");
   if (regenSubmitBtn) {
-    regenSubmitBtn.addEventListener("click", () => {
-      if (!getSelectedTicket()?.canEditDraft) return;
+    regenSubmitBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      const selected = getSelectedTicket();
+      if (!selected?.draftId || selected.sourceType !== "naver_cafe") return;
       regenerateDraft();
     });
   }

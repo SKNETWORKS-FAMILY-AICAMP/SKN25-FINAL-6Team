@@ -178,7 +178,7 @@ def drafting_agent(state: OperationState) -> StateUpdate:
     urgent_draft = response.urgent_alert_message.strip() if response.urgent_alert_message else None
     operator_handoff = response.operator_handoff_answer.strip() if response.operator_handoff_answer else None
     valid_ids = {doc.doc_id for doc in current.retrieved_docs if doc.doc_id}
-    filtered_ids = [doc_id for doc_id in response.evidence_doc_ids if doc_id in valid_ids]
+    filtered_ids = [doc_id for doc_id in response.evidence_doc_ids if doc_id in valid_ids][:3]
     return {
         "answer_draft": answer_draft,
         "urgent_draft": urgent_draft,

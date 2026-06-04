@@ -154,7 +154,7 @@ def _retrieve_docs(state: OperationState) -> list[EvidenceDocument]:
                 )
                 vector_rows = {row["chunk_id"]: dict(row) for row in cur.fetchall()}
 
-    merged = _rrf_merge(keyword_rows, vector_rows, top_k=8)
+    merged = _rrf_merge(keyword_rows, vector_rows, top_k=3)
     return [
         EvidenceDocument(
             doc_id=row.get("chunk_id"),

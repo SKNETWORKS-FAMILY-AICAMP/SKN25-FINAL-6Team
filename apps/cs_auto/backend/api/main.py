@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Literal
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.staticfiles import StaticFiles
 from psycopg.rows import dict_row
 from psycopg.types.json import Json
@@ -22,6 +22,18 @@ from service.admin_account_service import login_admin_with_credentials
 
 app = FastAPI(title="Operation Review API", version="2.0.0")
 _FRONTEND_STATIC_DIR = Path(__file__).resolve().parents[2] / "frontend" / "static"
+
+
+@app.middleware("http")
+async def cs_auto_prefix_compat(request: Request, call_next: Any) -> Any:
+    path = request.scope.get("path", "")
+    if path == "/cs-auto":
+        request.scope["path"] = "/"
+    elif path.startswith("/cs-auto/api/"):
+        request.scope["path"] = path.removeprefix("/cs-auto/api")
+    elif path.startswith("/cs-auto/"):
+        request.scope["path"] = path.removeprefix("/cs-auto")
+    return await call_next(request)
 
 
 ReviewDecision = Literal["approved", "regenerate", "edited"]
@@ -52,6 +64,10 @@ class RegenerateDraftRequest(BaseModel):
 class ResolveTicketRequest(BaseModel):
     reviewer_id: str | None = None
     reason: str = Field(default="resolved by email", min_length=1)
+
+
+class StartEditRequest(BaseModel):
+    reviewer_id: str = Field(min_length=1)
 
 
 class AdminLoginRequest(BaseModel):
@@ -101,7 +117,13 @@ def _fetch_all(cur: Any, sql: str, params: tuple[Any, ...] = ()) -> list[dict[st
     return [dict(row) for row in cur.fetchall()]
 
 
-def _ticket_list_where(*, status: str | None, today_only: bool, assignee_id: str | None = None) -> tuple[str, list[Any]]:
+def _ticket_list_where(
+    *,
+    status: str | None,
+    source_type: str | None,
+    today_only: bool,
+    assignee_id: str | None = None,
+) -> tuple[str, list[Any]]:
     clauses: list[str] = []
     params: list[Any] = []
     if status:
@@ -122,6 +144,9 @@ def _ticket_list_where(*, status: str | None, today_only: bool, assignee_id: str
             "OR (t.source_type = 'naver_cafe' AND t.status IN ('open', 'pending')) "
             "OR t.status = 'human_review_pending')"
         )
+    if source_type:
+        clauses.append("t.source_type = %s")
+        params.append(source_type)
     if today_only:
         clauses.append(
             "t.inquiry_created_at >= CURRENT_DATE "
@@ -137,8 +162,21 @@ def _ticket_list_where(*, status: str | None, today_only: bool, assignee_id: str
 
 
 # [추가] assignee_id 파라미터 및 SELECT 컬럼 추가
-def _list_ticket_rows(cur: Any, *, status: str | None, limit: int, today_only: bool = False, assignee_id: str | None = None) -> list[dict[str, Any]]:
-    where_sql, params = _ticket_list_where(status=status, today_only=today_only, assignee_id=assignee_id)
+def _list_ticket_rows(
+    cur: Any,
+    *,
+    status: str | None,
+    source_type: str | None = None,
+    limit: int,
+    today_only: bool = False,
+    assignee_id: str | None = None,
+) -> list[dict[str, Any]]:
+    where_sql, params = _ticket_list_where(
+        status=status,
+        source_type=source_type,
+        today_only=today_only,
+        assignee_id=assignee_id,
+    )
     params.append(limit)
     return _fetch_all(
         cur,
@@ -148,26 +186,34 @@ def _list_ticket_rows(cur: Any, *, status: str | None, limit: int, today_only: b
             t.user_id,
             t.account_id,
             t.title,
+            t.raw_query,
             t.source_type,
             CASE
                 WHEN t.status = 'human_review_pending' THEN 'pending'
                 ELSE t.status
             END AS status,
             CASE
-                WHEN t.source_type = 'naver_cafe' AND t.status = 'open' THEN TRUE
+                WHEN t.source_type = 'naver_cafe'
+                 AND EXISTS (
+                     SELECT 1
+                     FROM answer_draft d
+                     WHERE d.ticket_id = t.ticket_id
+                 )
+                THEN TRUE
                 ELSE FALSE
             END AS can_edit_draft,
             t.assignee_id,
             t.inquiry_created_at,
             u.nickname,
             latest_draft.draft_id,
+            latest_draft.draft_text,
             latest_draft.created_at AS draft_created_at,
             latest_analysis.risk_level,
             latest_analysis.routing_target
         FROM qa_ticket t
         LEFT JOIN community_users u ON u.user_id = t.user_id
         LEFT JOIN LATERAL (
-            SELECT draft_id, created_at
+            SELECT draft_id, draft_text, created_at
             FROM answer_draft d
             WHERE d.ticket_id = t.ticket_id
             ORDER BY d.created_at DESC NULLS LAST, d.draft_id DESC
@@ -181,7 +227,10 @@ def _list_ticket_rows(cur: Any, *, status: str | None, limit: int, today_only: b
             LIMIT 1
         ) latest_analysis ON TRUE
         {where_sql}
-        ORDER BY t.inquiry_created_at DESC NULLS LAST, t.ticket_id DESC
+        ORDER BY
+            CASE WHEN latest_draft.draft_id IS NULL THEN 1 ELSE 0 END ASC,
+            t.inquiry_created_at ASC NULLS FIRST,
+            t.ticket_id ASC
         LIMIT %s
         """,
         tuple(params),
@@ -298,7 +347,28 @@ def _ensure_draft_reprocessable(cur: Any, draft: dict[str, Any]) -> None:
         raise HTTPException(status_code=409, detail=f"draft {draft_id} is already approved")
 
 
-def _ensure_draft_editable(cur: Any, draft: dict[str, Any]) -> None:
+def _ensure_draft_saveable(cur: Any, draft: dict[str, Any], reviewer_id: str | None) -> None:
+    if not reviewer_id:
+        raise HTTPException(status_code=400, detail="reviewer_id is required to edit drafts")
+    cur.execute(
+        """
+        SELECT source_type, status, assignee_id
+        FROM qa_ticket
+        WHERE ticket_id = %s
+        """,
+        (draft["ticket_id"],),
+    )
+    ticket = cur.fetchone()
+    if ticket is None:
+        raise HTTPException(status_code=404, detail=f"ticket not found: {draft['ticket_id']}")
+    if ticket["status"] != "pending" or ticket["assignee_id"] != reviewer_id:
+        raise HTTPException(
+            status_code=409,
+            detail="only the assigned reviewer can edit pending ticket drafts",
+        )
+
+
+def _ensure_draft_actionable(cur: Any, draft: dict[str, Any]) -> None:
     cur.execute(
         """
         SELECT source_type, status
@@ -310,11 +380,58 @@ def _ensure_draft_editable(cur: Any, draft: dict[str, Any]) -> None:
     ticket = cur.fetchone()
     if ticket is None:
         raise HTTPException(status_code=404, detail=f"ticket not found: {draft['ticket_id']}")
-    if ticket["source_type"] != "naver_cafe" or ticket["status"] != "open":
+    if ticket["source_type"] != "naver_cafe" or ticket["status"] not in ("open", "pending"):
         raise HTTPException(
             status_code=409,
-            detail="only open naver_cafe tickets can edit drafts",
+            detail="only naver_cafe tickets can process drafts",
         )
+
+
+def _start_ticket_edit(cur: Any, *, ticket_id: int, reviewer_id: str) -> dict[str, Any]:
+    cur.execute(
+        """
+        SELECT ticket_id, source_type, status
+        FROM qa_ticket
+        WHERE ticket_id = %s
+        FOR UPDATE
+        """,
+        (ticket_id,),
+    )
+    ticket = cur.fetchone()
+    if ticket is None:
+        raise HTTPException(status_code=404, detail=f"ticket not found: {ticket_id}")
+    if ticket["source_type"] != "naver_cafe" or ticket["status"] not in ("open", "pending"):
+        raise HTTPException(
+            status_code=409,
+            detail="only naver_cafe tickets with a draft can start editing",
+        )
+    cur.execute(
+        """
+        UPDATE qa_ticket
+        SET status = 'pending',
+            assignee_id = %s
+        WHERE ticket_id = %s
+        RETURNING ticket_id, status, assignee_id
+        """,
+        (reviewer_id, ticket_id),
+    )
+    updated = cur.fetchone()
+    cur.execute(
+        """
+        INSERT INTO admin_event_logs (
+            ticket_id, node_name, event_type, status, metadata, created_at
+        )
+        VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+        """,
+        (
+            ticket_id,
+            "operation_review_api",
+            "start_edit",
+            "pending",
+            Json({"reviewer_id": reviewer_id}),
+        ),
+    )
+    return dict(updated)
 
 
 def _resolve_ticket(cur: Any, *, ticket_id: int, reviewer_id: str | None, reason: str) -> None:
@@ -408,26 +525,33 @@ def resolve_ticket(ticket_id: int, request: ResolveTicketRequest) -> dict[str, A
     return {"ticket_id": ticket_id, "status": "resolved"}
 
 
+@app.post("/tickets/{ticket_id}/start-edit")
+def start_edit_ticket(ticket_id: int, request: StartEditRequest) -> dict[str, Any]:
+    with db_connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            result = _start_ticket_edit(cur, ticket_id=ticket_id, reviewer_id=request.reviewer_id)
+    return dict(result)
+
+
 @app.get("/tickets")
 def list_tickets(
     status: str | None = Query(default=None),
+    source_type: str | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=200),
     today_only: bool = Query(default=False),
     assignee_id: str | None = Query(default=None),  # [추가] 담당자 필터
 ) -> list[dict[str, Any]]:
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
-            return _list_ticket_rows(cur, status=status, limit=limit, today_only=today_only, assignee_id=assignee_id)
+            return _list_ticket_rows(
+                cur,
+                status=status,
+                source_type=source_type,
+                limit=limit,
+                today_only=today_only,
+                assignee_id=assignee_id,
+            )
 
-
-@app.get("/tickets/today")
-def list_today_tickets(
-    status: str | None = Query(default="open"),
-    limit: int = Query(default=100, ge=1, le=200),
-) -> list[dict[str, Any]]:
-    with db_connection() as conn:
-        with conn.cursor(row_factory=dict_row) as cur:
-            return _list_ticket_rows(cur, status=status, limit=limit, today_only=True)
 
 
 def _fetch_ticket_sections(cur: Any, ticket_id: int) -> dict[str, Any]:
@@ -500,7 +624,13 @@ def get_ticket_detail(ticket_id: int) -> dict[str, Any]:
                     a.progression_level,
                     a.account_status,
                     CASE
-                        WHEN t.source_type = 'naver_cafe' AND t.status = 'open' THEN TRUE
+                        WHEN t.source_type = 'naver_cafe'
+                         AND EXISTS (
+                             SELECT 1
+                             FROM answer_draft d
+                             WHERE d.ticket_id = t.ticket_id
+                         )
+                        THEN TRUE
                         ELSE FALSE
                     END AS can_edit_draft
                 FROM qa_ticket t
@@ -524,7 +654,7 @@ def edit_draft(draft_id: int, request: DraftEditRequest) -> ReviewActionResponse
         with conn.cursor(row_factory=dict_row) as cur:
             draft = _draft_for_update(cur, draft_id)
             _ensure_draft_reprocessable(cur, draft)
-            _ensure_draft_editable(cur, draft)
+            _ensure_draft_saveable(cur, draft, request.reviewer_id)
             _insert_review_log(
                 cur,
                 ticket_id=draft["ticket_id"],
@@ -551,7 +681,7 @@ def approve_draft(draft_id: int, request: ApproveDraftRequest) -> ReviewActionRe
         with conn.cursor(row_factory=dict_row) as cur:
             draft = _draft_for_update(cur, draft_id)
             _ensure_draft_reprocessable(cur, draft)
-            _ensure_draft_editable(cur, draft)
+            _ensure_draft_actionable(cur, draft)
             _insert_review_log(
                 cur,
                 ticket_id=draft["ticket_id"],
@@ -562,6 +692,7 @@ def approve_draft(draft_id: int, request: ApproveDraftRequest) -> ReviewActionRe
             )
 
     try:
+        
         result = approve_existing_draft(draft_id, request.final_text or None)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -583,7 +714,7 @@ def regenerate_draft(draft_id: int, request: RegenerateDraftRequest) -> ReviewAc
         with conn.cursor(row_factory=dict_row) as cur:
             draft = _draft_for_update(cur, draft_id)
             _ensure_draft_reprocessable(cur, draft)
-            _ensure_draft_editable(cur, draft)
+            _ensure_draft_actionable(cur, draft)
             _insert_review_log(
                 cur,
                 ticket_id=draft["ticket_id"],
@@ -611,9 +742,7 @@ def regenerate_draft(draft_id: int, request: RegenerateDraftRequest) -> ReviewAc
 
 @app.post("/drafts/{draft_id}/reject")
 def reject_draft(draft_id: int, request: RegenerateDraftRequest) -> ReviewActionResponse:
-    result = regenerate_draft(draft_id, request)
-    result.run_workflow_url = f"/tickets/{result.ticket_id}/run-workflow"
-    return result
+    return regenerate_draft(draft_id, request)
 
 
 if _FRONTEND_STATIC_DIR.exists():

@@ -1,0 +1,13 @@
+{
+  "logged_at": "2026-06-04T14:52:15",
+  "run_label": "manual",
+  "job_name": "scheduled_analysis_batch",
+  "processed_count": 1,
+  "failed_count": 0,
+  "skipped_count": 0,
+  "processed_ticket_ids": [
+    1364
+  ],
+  "failed_ticket_ids": [],
+  "skipped_ticket_ids": []
+}

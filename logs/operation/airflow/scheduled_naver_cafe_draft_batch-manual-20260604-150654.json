@@ -1,0 +1,13 @@
+{
+  "logged_at": "2026-06-04T15:06:54",
+  "run_label": "manual",
+  "job_name": "scheduled_naver_cafe_draft_batch",
+  "processed_count": 1,
+  "failed_count": 0,
+  "skipped_count": 0,
+  "processed_ticket_ids": [
+    10186
+  ],
+  "failed_ticket_ids": [],
+  "skipped_ticket_ids": []
+}
