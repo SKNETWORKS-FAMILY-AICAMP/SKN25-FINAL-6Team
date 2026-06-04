@@ -2,11 +2,25 @@
 
 import json
 
+import pytest
+
 from chatbot.chains import persistence
 from chatbot.generation import faq_agent
 from chatbot.retrieval import cache_store
 from common.retrieval import vector_tools
 from common.retrieval.vector_tools import RetrievalQuery, hybrid_rank_documents, refine_query_text, search_document_chunks
+
+
+@pytest.fixture(autouse=True)
+def _isolate_faq_retrieval_cache(monkeypatch):
+    """Keep FAQ/RAG tests independent from real Redis env values and cache state."""
+    cache_store.clear_cache_for_tests()
+    monkeypatch.delenv("FAQ_RETRIEVAL_CACHE_ENABLED", raising=False)
+    monkeypatch.delenv("FAQ_RETRIEVAL_CACHE_TTL", raising=False)
+    monkeypatch.delenv("REDIS_ENABLED", raising=False)
+    monkeypatch.delenv("REDIS_URL", raising=False)
+    yield
+    cache_store.clear_cache_for_tests()
 
 
 def _retrieval_query() -> RetrievalQuery:
