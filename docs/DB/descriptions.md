@@ -1,13 +1,13 @@
- # DB Descriptions
+# DB Descriptions
 
-Generated from the live PostgreSQL database on 2026-05-26.
+Generated from the live PostgreSQL database on 2026-06-06.
 
 ## Basic Info
 
 | Item | Value |
 | --- | --- |
 | DBMS | PostgreSQL |
-| Version | `PostgreSQL 16.14 (Ubuntu 16.14-0ubuntu0.24.04.1)` |
+| Version | `PostgreSQL 16.14 (Ubuntu 16.14-0ubuntu0.24.04.1) on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, 64-bit` |
 | Host | `100.97.235.15` |
 | Server Address | `100.97.235.15/32` |
 | Port | `5432` |
@@ -15,55 +15,56 @@ Generated from the live PostgreSQL database on 2026-05-26.
 | User | `game_cs_user` |
 | Schema | `public` |
 | Extensions | `plpgsql 1.0`, `vector 0.6.0` |
-| Public Tables | 40 |
-| Public Columns | 330 |
+| Public Tables | 39 |
+| Public Columns | 323 |
+| Main Tables | 20 |
+| `_ex` Tables | 19 |
 
 ## Table Summary
 
-Row counts are PostgreSQL `pg_stat_user_tables.n_live_tup` estimates at verification time. The current public schema contains 20 main tables and 20 `_ex` template/mirror tables.
+Row counts are exact `COUNT(*)` results at verification time. The current public schema contains 20 main tables and 19 `_ex` template/mirror tables.
 
-| Table | Estimated Rows | Columns | Primary Key | PK Default | Purpose |
+| Table | Exact Rows | Columns | Primary Key | PK Default | Purpose |
 | --- | ---: | ---: | --- | --- | --- |
-| `admin_event_logs` | 0 | 13 | `log_id` | `nextval('admin_event_logs_log_id_seq'::regclass)` | Operation/admin workflow event and error logs |
+| `admin_event_logs` | 942 | 14 | `log_id` | `nextval('admin_event_logs_log_id_seq'::regclass)` | Operation/admin workflow event and error logs |
 | `admin_event_logs_ex` | 3 | 13 | none | none | Template/example copy of `admin_event_logs` |
-| `answer_draft` | 0 | 6 | `draft_id` | none | Generated answer drafts for tickets |
+| `admin_users` | 1 | 9 | `admin_id` | `nextval('admin_users_admin_id_seq'::regclass)` | Administrator/operator login accounts and auth metadata |
+| `answer_draft` | 263 | 5 | `draft_id` | none | Generated answer drafts for tickets |
 | `answer_draft_ex` | 329 | 6 | none | none | Template/example copy of `answer_draft` |
-| `community_users` | 630 | 8 | `user_id` | none | Reduced community user profile data |
+| `community_users` | 630 | 8 | `user_id` | none | Community user profile data |
 | `community_users_ex` | 6,288 | 8 | none | none | Template/source-scale copy of `community_users` |
 | `documents` | 1,201 | 8 | `documents_id` | none | Source documents for policy, notice, guide, incident, and RAG retrieval |
-| `documents_chunks` | 0 | 6 | `chunk_id` | none | Searchable chunks split from source documents |
+| `documents_chunks` | 2,151 | 6 | `chunk_id` | none | Searchable chunks split from source documents |
 | `documents_chunks_ex` | 3,864 | 6 | none | none | Template/example copy of `documents_chunks` |
-| `documents_embeddings` | 0 | 7 | `embedding_id` | none | Vector embeddings for document chunks |
+| `documents_embeddings` | 2,151 | 7 | `embedding_id` | none | Vector embeddings for document chunks |
 | `documents_embeddings_ex` | 3,864 | 7 | none | none | Template/example copy of `documents_embeddings` |
 | `documents_ex` | 1,201 | 8 | none | none | Template/example copy of `documents` |
-| `evidence_docs` | 0 | 7 | `evidence_id` | none | Retrieved evidence saved for answer drafts |
+| `evidence_docs` | 792 | 7 | `evidence_id` | none | Retrieved evidence saved for answer drafts |
 | `evidence_docs_ex` | 837 | 7 | none | none | Template/example copy of `evidence_docs` |
 | `failed_queries` | 0 | 6 | `failed_query_id` | none | Failed ticket/query processing logs |
 | `failed_queries_ex` | 11 | 6 | none | none | Template/example copy of `failed_queries` |
-| `final_response` | 0 | 6 | `response_id` | none | Final customer-facing responses |
+| `final_response` | 493 | 6 | `response_id` | none | Final customer-facing responses |
 | `final_response_ex` | 311 | 6 | none | none | Template/example copy of `final_response` |
-| `gacha_logs` | 180 | 8 | `gacha_id` | none | Reduced gacha pull history per game account |
+| `gacha_logs` | 180 | 8 | `gacha_id` | none | Gacha pull history per game account |
 | `gacha_logs_ex` | 5 | 8 | none | none | Template/example copy of `gacha_logs` |
-| `game_accounts` | 630 | 8 | `account_id` | none | Reduced game account data linked to community users |
+| `game_accounts` | 630 | 8 | `account_id` | none | Game account data linked to community users |
 | `game_accounts_ex` | 6,288 | 8 | none | none | Template/source-scale copy of `game_accounts` |
-| `insight` | 0 | 10 | `insight_id` | none | Ticket/user/account-level insight analysis data |
+| `insight` | 4 | 10 | `insight_id` | `nextval('insight_insight_id_seq'::regclass)` | Ticket/user/account-level insight analysis data |
 | `insight_ex` | 5 | 10 | none | none | Template/example copy of `insight` |
-| `item_delivery_logs` | 140 | 9 | `delivery_id` | none | Reduced paid or reward item delivery history |
+| `item_delivery_logs` | 140 | 9 | `delivery_id` | none | Paid or reward item delivery history |
 | `item_delivery_logs_ex` | 5 | 9 | none | none | Template/example copy of `item_delivery_logs` |
-| `notification_logs` | 0 | 8 | `notification_id` | `nextval('notification_logs_notification_id_seq'::regclass)` | Notification send results and errors |
+| `notification_logs` | 5 | 8 | `notification_id` | `nextval('notification_logs_notification_id_seq'::regclass)` | Notification send results and errors |
 | `notification_logs_ex` | 2 | 8 | none | none | Template/example copy of `notification_logs` |
-| `payments` | 320 | 10 | `payment_id` | none | Reduced payment transaction history |
+| `payments` | 320 | 10 | `payment_id` | none | Payment transaction history |
 | `payments_ex` | 11 | 10 | none | none | Template/example copy of `payments` |
-| `qa_ticket` | 950 | 10 | `ticket_id` | none | Reduced customer inquiry/QA tickets |
+| `qa_ticket` | 1,472 | 12 | `ticket_id` | none | Customer inquiry/QA tickets |
 | `qa_ticket_ex` | 9,349 | 10 | none | none | Template/source-scale copy of `qa_ticket` |
-| `refunds` | 55 | 6 | `refund_id` | none | Reduced refund request and processing history |
+| `refunds` | 55 | 6 | `refund_id` | none | Refund request and processing history |
 | `refunds_ex` | 5 | 6 | none | none | Template/example copy of `refunds` |
-| `safety_results` | 0 | 10 | `safety_id` | none | Safety and grounding check results for drafts |
+| `safety_results` | 2 | 10 | `safety_id` | none | Safety and grounding check results for drafts |
 | `safety_results_ex` | 287 | 10 | none | none | Template/example copy of `safety_results` |
-| `ticket_analysis` | 0 | 10 | `analysis_id` | none | Ticket classification, risk, sentiment, and routing analysis |
+| `ticket_analysis` | 967 | 10 | `analysis_id` | none | Ticket classification, risk, sentiment, and routing analysis |
 | `ticket_analysis_ex` | 351 | 10 | none | none | Template/example copy of `ticket_analysis` |
-| `voc_feedback` | 0 | 9 | `voc_id` | none | VOC feedback and topic keyword records |
-| `voc_feedback_ex` | 43 | 9 | none | none | Template/example copy of `voc_feedback` |
 
 ## Data Type Summary
 
@@ -72,20 +73,21 @@ Row counts are PostgreSQL `pg_stat_user_tables.n_live_tup` estimates at verifica
 | `USER-DEFINED` | `vector` | 2 |
 | `character varying` | `varchar` | 130 |
 | `double precision` | `float8` | 10 |
-| `integer` | `int4` | 100 |
-| `json` | `json` | 4 |
+| `integer` | `int4` | 95 |
+| `json` | `json` | 2 |
 | `numeric` | `numeric` | 2 |
-| `text` | `text` | 34 |
-| `timestamp without time zone` | `timestamp` | 48 |
+| `text` | `text` | 33 |
+| `timestamp without time zone` | `timestamp` | 49 |
 
 ## Data Load Sources
 
 | Source | Target Tables | Notes |
 | --- | --- | --- |
-| `data/processed/community_users.csv` | `community_users` | 9,221 source rows; upserted by `user_id`, resulting in 6,288 distinct users in the table. |
-| `data/processed/qa_ticket.csv` | `qa_ticket` | `source_type` appears twice in the CSV header and `notebooks/insert_processed_data.ipynb` keeps the first occurrence. |
-| `notebooks/insert_processed_data.ipynb` | `community_users`, `game_accounts`, `qa_ticket` | Derives game account rows from distinct non-null `qa_ticket.account_id` to `user_id` mappings before loading tickets. |
-| `notebooks/generate_operation_workflow_sample_data.ipynb` | `payments`, `refunds`, `item_delivery_logs`, `gacha_logs`, `insight`, `voc_feedback` | Adds operation workflow sample context rows used by the cs_auto service-based workflow. |
+| `data/processed/community_users.csv` | `community_users` | Source user CSV used by earlier load notebooks and reduced dataset generation. |
+| `data/processed/qa_ticket.csv` | `qa_ticket` | Source inquiry CSV used by earlier load notebooks and reduced dataset generation. |
+| `notebooks/insert_processed_data.ipynb` | `community_users`, `game_accounts`, `qa_ticket` | Historical ingestion notebook for user/account/ticket data. |
+| `notebooks/generate_operation_workflow_sample_data.ipynb` | `payments`, `refunds`, `item_delivery_logs`, `gacha_logs`, `insight` | Historical operation workflow sample context generation. Older notes may mention `voc_feedback`, but that table is not present in the live public schema. |
+| `docs/data_generation/repopulate_reduced_dataset.py` | `community_users`, `game_accounts`, `qa_ticket`, `payments`, `refunds`, `item_delivery_logs`, `gacha_logs` | Current reduced dataset repopulation script that uses live `_ex` template tables. |
 
 ## Reduced Dataset Reference
 
@@ -97,46 +99,54 @@ The reduced dataset workflow documented in `docs/data_generation/` reuses this l
 
 ## `_ex` Mirror Table Note
 
-The `_ex` tables are template or source-scale mirrors paired with the 20 main tables.
+The `_ex` tables are template or source-scale mirrors paired with most main tables.
 
-- Main tables reflect the current reduced dataset and current workflow output state.
+- Main tables reflect the current reduced dataset and workflow output state.
 - `_ex` tables preserve template/example rows or source-scale reference data.
-- Detailed column descriptions below focus on the 20 main tables. Each `_ex` table mirrors the column layout of its corresponding base table.
+- `admin_users` is currently a main auth table with no `_ex` mirror.
+- `voc_feedback` and `voc_feedback_ex` are not present in the live public schema at this verification point.
+- Detailed column descriptions below focus on the main tables. `_ex` tables mirror the column layout of their corresponding base table unless explicitly changed in PostgreSQL.
 
 ## Search Indexes
 
 | Table | Index | Definition Summary |
 | --- | --- | --- |
-| `documents_chunks` | `idx_documents_chunks_document_id` | `idx_documents_chunks_document_id ON documents_chunks USING btree (document_id)` |
-| `documents_chunks` | `idx_documents_chunks_document_order` | `idx_documents_chunks_document_order ON documents_chunks USING btree (document_id, chunk_order)` |
-| `documents_chunks` | `uq_documents_chunks_document_order` | `UNIQUE uq_documents_chunks_document_order ON documents_chunks USING btree (document_id, chunk_order)` |
-| `documents_embeddings` | `idx_documents_embeddings_chunk_id` | `idx_documents_embeddings_chunk_id ON documents_embeddings USING btree (chunk_id)` |
-| `documents_embeddings` | `idx_documents_embeddings_source_category` | `idx_documents_embeddings_source_category ON documents_embeddings USING btree (source_type, category)` |
-| `documents_embeddings` | `idx_documents_embeddings_vector_cosine` | `idx_documents_embeddings_vector_cosine ON documents_embeddings USING ivfflat (embedding_vector vector_cosine_ops) WITH (lists='100')` |
-| `documents_embeddings` | `uq_documents_embeddings_chunk_id` | `UNIQUE uq_documents_embeddings_chunk_id ON documents_embeddings USING btree (chunk_id)` |
+| `documents_chunks` | `documents_chunks_pkey` | `UNIQUE documents_chunks_pkey ON public.documents_chunks USING btree (chunk_id)` |
+| `documents_chunks` | `idx_documents_chunks_document_id` | `idx_documents_chunks_document_id ON public.documents_chunks USING btree (document_id)` |
+| `documents_chunks` | `idx_documents_chunks_document_order` | `idx_documents_chunks_document_order ON public.documents_chunks USING btree (document_id, chunk_order)` |
+| `documents_chunks` | `uq_documents_chunks_document_order` | `UNIQUE uq_documents_chunks_document_order ON public.documents_chunks USING btree (document_id, chunk_order)` |
+| `documents_embeddings` | `documents_embeddings_pkey` | `UNIQUE documents_embeddings_pkey ON public.documents_embeddings USING btree (embedding_id)` |
+| `documents_embeddings` | `idx_documents_embeddings_chunk_id` | `idx_documents_embeddings_chunk_id ON public.documents_embeddings USING btree (chunk_id)` |
+| `documents_embeddings` | `idx_documents_embeddings_source_category` | `idx_documents_embeddings_source_category ON public.documents_embeddings USING btree (source_type, category)` |
+| `documents_embeddings` | `idx_documents_embeddings_vector_cosine` | `idx_documents_embeddings_vector_cosine ON public.documents_embeddings USING ivfflat (embedding_vector vector_cosine_ops) WITH (lists='100')` |
+| `documents_embeddings` | `uq_documents_embeddings_chunk_id` | `UNIQUE uq_documents_embeddings_chunk_id ON public.documents_embeddings USING btree (chunk_id)` |
 
 ## Operation Workflow Tables
 
-`src/operation/workflow/nodes.py`, `src/operation/api/main.py`, and `src/dashboard/workflow/nodes.py` use these tables.
+`apps/chatbot`, `apps/cs_auto`, and `apps/dashboard` use these tables through the shared PostgreSQL connection layer.
 
-| Phase | Tables |
+| Phase | Live Tables |
 | --- | --- |
+| Admin auth | `admin_users` |
 | Ticket load | `qa_ticket`, `community_users`, `game_accounts` |
 | Payment context | `payments`, `game_accounts` |
 | Refund context | `refunds`, `payments`, `game_accounts` |
 | Item delivery context | `item_delivery_logs`, `game_accounts` |
 | Gacha context | `gacha_logs`, `game_accounts` |
-| Abuse context | `insight`, `voc_feedback` |
+| Abuse/VOC context | `insight` |
 | Policy/outage context | `documents` |
 | RAG retrieval | `documents_chunks`, `documents`, `documents_embeddings` |
 | Workflow writes | `ticket_analysis`, `answer_draft`, `evidence_docs`, `safety_results`, `final_response`, `notification_logs`, `failed_queries`, `admin_event_logs` |
 
-Live DB note: these workflow write tables currently have primary keys with no database-side default, so inserts must provide IDs explicitly unless a migration adds defaults: `answer_draft`, `evidence_docs`, `failed_queries`, `final_response`, `safety_results`, `ticket_analysis`. `docs/DB/migrations/20260521_operation_workflow_identity_defaults.sql` is a reference migration for part of this ID strategy.
+Live DB note: `voc_feedback` is referenced by some older project documents, but it is not present in the current live public schema.
+
+Primary-key note: these workflow write tables currently have primary keys with no database-side default, so inserts must provide IDs explicitly unless a migration adds defaults: `answer_draft`, `evidence_docs`, `failed_queries`, `final_response`, `safety_results`, `ticket_analysis`. `docs/DB/migrations/20260521_operation_workflow_identity_defaults.sql` is a reference migration for part of this ID strategy.
 
 ## Key Relationships
 
 | From | To | On Update | On Delete |
 | --- | --- | --- | --- |
+| `admin_event_logs.actor_admin_id` | `admin_users.admin_id` | NO ACTION | SET NULL |
 | `admin_event_logs.ticket_id` | `qa_ticket.ticket_id` | NO ACTION | NO ACTION |
 | `answer_draft.analysis_id` | `ticket_analysis.analysis_id` | NO ACTION | CASCADE |
 | `answer_draft.ticket_id` | `qa_ticket.ticket_id` | NO ACTION | CASCADE |
@@ -156,23 +166,21 @@ Live DB note: these workflow write tables currently have primary keys with no da
 | `notification_logs.ticket_id` | `qa_ticket.ticket_id` | NO ACTION | NO ACTION |
 | `payments.account_id` | `game_accounts.account_id` | NO ACTION | CASCADE |
 | `qa_ticket.account_id` | `game_accounts.account_id` | NO ACTION | SET NULL |
+| `qa_ticket.assignee_admin_id` | `admin_users.admin_id` | NO ACTION | SET NULL |
 | `qa_ticket.user_id` | `community_users.user_id` | NO ACTION | CASCADE |
 | `refunds.payment_id` | `payments.payment_id` | NO ACTION | CASCADE |
 | `safety_results.draft_id` | `answer_draft.draft_id` | NO ACTION | CASCADE |
 | `ticket_analysis.ticket_id` | `qa_ticket.ticket_id` | NO ACTION | CASCADE |
-| `voc_feedback.account_id` | `game_accounts.account_id` | NO ACTION | NO ACTION |
-| `voc_feedback.ticket_id` | `qa_ticket.ticket_id` | NO ACTION | NO ACTION |
-| `voc_feedback.user_id` | `community_users.user_id` | NO ACTION | NO ACTION |
 
 ## Table Details
 
 ### `admin_event_logs`
 
 - Purpose: Operation/admin workflow event and error logs
-- Estimated Rows: 0
+- Exact Rows: 942
 - Primary Key: `log_id`
 - Primary Key Default: `nextval('admin_event_logs_log_id_seq'::regclass)`
-- Foreign Keys: `ticket_id` -> `qa_ticket.ticket_id` (NO ACTION)
+- Foreign Keys: `actor_admin_id` -> `admin_users.admin_id` (SET NULL), `ticket_id` -> `qa_ticket.ticket_id` (NO ACTION)
 - Columns:
 
 | # | Column | Data Type | Nullable | Default | Key / Reference |
@@ -190,14 +198,41 @@ Live DB note: these workflow write tables currently have primary keys with no da
 | 11 | `error_category` | `varchar(100)` | YES |  |  |
 | 12 | `metadata` | `json` | YES |  |  |
 | 13 | `created_at` | `timestamp` | YES | `CURRENT_TIMESTAMP` |  |
+| 14 | `actor_admin_id` | `integer` | YES |  | FK -> `admin_users.admin_id` |
 
 - Indexes:
-  - `admin_event_logs_pkey`: `UNIQUE admin_event_logs_pkey ON admin_event_logs USING btree (log_id)`
+  - `admin_event_logs_pkey`: `UNIQUE admin_event_logs_pkey ON public.admin_event_logs USING btree (log_id)`
+  - `idx_admin_event_logs_actor_admin_id`: `idx_admin_event_logs_actor_admin_id ON public.admin_event_logs USING btree (actor_admin_id)`
+
+### `admin_users`
+
+- Purpose: Administrator/operator login accounts and auth metadata
+- Exact Rows: 1
+- Primary Key: `admin_id`
+- Primary Key Default: `nextval('admin_users_admin_id_seq'::regclass)`
+- Foreign Keys: none
+- Columns:
+
+| # | Column | Data Type | Nullable | Default | Key / Reference |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `admin_id` | `integer` | NO | `nextval('admin_users_admin_id_seq'::regclass)` | PK |
+| 2 | `login_id` | `varchar(100)` | NO |  | UNIQUE |
+| 3 | `password_hash` | `text` | NO |  |  |
+| 4 | `display_name` | `varchar(100)` | NO |  |  |
+| 5 | `role` | `varchar(30)` | NO |  |  |
+| 6 | `status` | `varchar(30)` | NO | `'active'::character varying` |  |
+| 7 | `last_login_at` | `timestamp` | YES |  |  |
+| 8 | `password_updated_at` | `timestamp` | NO | `CURRENT_TIMESTAMP` |  |
+| 9 | `created_at` | `timestamp` | NO | `CURRENT_TIMESTAMP` |  |
+
+- Indexes:
+  - `admin_users_pkey`: `UNIQUE admin_users_pkey ON public.admin_users USING btree (admin_id)`
+  - `uq_admin_users_login_id`: `UNIQUE uq_admin_users_login_id ON public.admin_users USING btree (login_id)`
 
 ### `answer_draft`
 
 - Purpose: Generated answer drafts for tickets
-- Estimated Rows: 97
+- Exact Rows: 263
 - Primary Key: `draft_id`
 - Primary Key Default: none
 - Foreign Keys: `analysis_id` -> `ticket_analysis.analysis_id` (CASCADE), `ticket_id` -> `qa_ticket.ticket_id` (CASCADE)
@@ -207,20 +242,20 @@ Live DB note: these workflow write tables currently have primary keys with no da
 | ---: | --- | --- | --- | --- | --- |
 | 1 | `draft_id` | `integer` | NO |  | PK |
 | 2 | `ticket_id` | `integer` | NO |  | FK -> `qa_ticket.ticket_id` |
-| 3 | `analysis_id` | `integer` | NO |  | FK -> `ticket_analysis.analysis_id` |
+| 3 | `analysis_id` | `integer` | YES |  | FK -> `ticket_analysis.analysis_id` |
 | 4 | `draft_text` | `text` | YES |  |  |
-| 5 | `prompt_version` | `varchar` | YES |  |  |
 | 6 | `created_at` | `timestamp` | YES |  |  |
 
 - Indexes:
-  - `answer_draft_pkey`: `UNIQUE answer_draft_pkey ON answer_draft USING btree (draft_id)`
+  - `answer_draft_pkey`: `UNIQUE answer_draft_pkey ON public.answer_draft USING btree (draft_id)`
 
 ### `community_users`
 
 - Purpose: Community user profile data
-- Estimated Rows: 6,288
+- Exact Rows: 630
 - Primary Key: `user_id`
 - Primary Key Default: none
+- Foreign Keys: none
 - Columns:
 
 | # | Column | Data Type | Nullable | Default | Key / Reference |
@@ -235,14 +270,15 @@ Live DB note: these workflow write tables currently have primary keys with no da
 | 8 | `password_updated_at` | `timestamp` | YES |  |  |
 
 - Indexes:
-  - `community_users_pkey`: `UNIQUE community_users_pkey ON community_users USING btree (user_id)`
+  - `community_users_pkey`: `UNIQUE community_users_pkey ON public.community_users USING btree (user_id)`
 
 ### `documents`
 
 - Purpose: Source documents for policy, notice, guide, incident, and RAG retrieval
-- Estimated Rows: 1,201
+- Exact Rows: 1,201
 - Primary Key: `documents_id`
 - Primary Key Default: none
+- Foreign Keys: none
 - Columns:
 
 | # | Column | Data Type | Nullable | Default | Key / Reference |
@@ -257,15 +293,14 @@ Live DB note: these workflow write tables currently have primary keys with no da
 | 8 | `updated_at` | `timestamp` | YES |  |  |
 
 - Indexes:
-  - `documents_pkey`: `UNIQUE documents_pkey ON documents USING btree (documents_id)`
+  - `documents_pkey`: `UNIQUE documents_pkey ON public.documents USING btree (documents_id)`
 
 ### `documents_chunks`
 
 - Purpose: Searchable chunks split from source documents
-- Estimated Rows: 3,864
+- Exact Rows: 2,151
 - Primary Key: `chunk_id`
 - Primary Key Default: none
-- Unique: `uq_documents_chunks_document_order` (`document_id`, `chunk_order`)
 - Foreign Keys: `document_id` -> `documents.documents_id` (CASCADE)
 - Columns:
 
@@ -279,18 +314,17 @@ Live DB note: these workflow write tables currently have primary keys with no da
 | 6 | `created_at` | `timestamp` | YES | `CURRENT_TIMESTAMP` |  |
 
 - Indexes:
-  - `documents_chunks_pkey`: `UNIQUE documents_chunks_pkey ON documents_chunks USING btree (chunk_id)`
-  - `idx_documents_chunks_document_id`: `idx_documents_chunks_document_id ON documents_chunks USING btree (document_id)`
-  - `idx_documents_chunks_document_order`: `idx_documents_chunks_document_order ON documents_chunks USING btree (document_id, chunk_order)`
-  - `uq_documents_chunks_document_order`: `UNIQUE uq_documents_chunks_document_order ON documents_chunks USING btree (document_id, chunk_order)`
+  - `documents_chunks_pkey`: `UNIQUE documents_chunks_pkey ON public.documents_chunks USING btree (chunk_id)`
+  - `idx_documents_chunks_document_id`: `idx_documents_chunks_document_id ON public.documents_chunks USING btree (document_id)`
+  - `idx_documents_chunks_document_order`: `idx_documents_chunks_document_order ON public.documents_chunks USING btree (document_id, chunk_order)`
+  - `uq_documents_chunks_document_order`: `UNIQUE uq_documents_chunks_document_order ON public.documents_chunks USING btree (document_id, chunk_order)`
 
 ### `documents_embeddings`
 
 - Purpose: Vector embeddings for document chunks
-- Estimated Rows: 3,864
+- Exact Rows: 2,151
 - Primary Key: `embedding_id`
 - Primary Key Default: none
-- Unique: `uq_documents_embeddings_chunk_id` (`chunk_id`)
 - Foreign Keys: `chunk_id` -> `documents_chunks.chunk_id` (CASCADE)
 - Columns:
 
@@ -305,16 +339,16 @@ Live DB note: these workflow write tables currently have primary keys with no da
 | 7 | `created_at` | `timestamp` | YES | `CURRENT_TIMESTAMP` |  |
 
 - Indexes:
-  - `documents_embeddings_pkey`: `UNIQUE documents_embeddings_pkey ON documents_embeddings USING btree (embedding_id)`
-  - `idx_documents_embeddings_chunk_id`: `idx_documents_embeddings_chunk_id ON documents_embeddings USING btree (chunk_id)`
-  - `idx_documents_embeddings_source_category`: `idx_documents_embeddings_source_category ON documents_embeddings USING btree (source_type, category)`
-  - `idx_documents_embeddings_vector_cosine`: `idx_documents_embeddings_vector_cosine ON documents_embeddings USING ivfflat (embedding_vector vector_cosine_ops) WITH (lists='100')`
-  - `uq_documents_embeddings_chunk_id`: `UNIQUE uq_documents_embeddings_chunk_id ON documents_embeddings USING btree (chunk_id)`
+  - `documents_embeddings_pkey`: `UNIQUE documents_embeddings_pkey ON public.documents_embeddings USING btree (embedding_id)`
+  - `idx_documents_embeddings_chunk_id`: `idx_documents_embeddings_chunk_id ON public.documents_embeddings USING btree (chunk_id)`
+  - `idx_documents_embeddings_source_category`: `idx_documents_embeddings_source_category ON public.documents_embeddings USING btree (source_type, category)`
+  - `idx_documents_embeddings_vector_cosine`: `idx_documents_embeddings_vector_cosine ON public.documents_embeddings USING ivfflat (embedding_vector vector_cosine_ops) WITH (lists='100')`
+  - `uq_documents_embeddings_chunk_id`: `UNIQUE uq_documents_embeddings_chunk_id ON public.documents_embeddings USING btree (chunk_id)`
 
 ### `evidence_docs`
 
 - Purpose: Retrieved evidence saved for answer drafts
-- Estimated Rows: 195
+- Exact Rows: 792
 - Primary Key: `evidence_id`
 - Primary Key Default: none
 - Foreign Keys: `draft_id` -> `answer_draft.draft_id` (CASCADE)
@@ -331,12 +365,12 @@ Live DB note: these workflow write tables currently have primary keys with no da
 | 7 | `retrieval_rank` | `integer` | YES |  |  |
 
 - Indexes:
-  - `evidence_docs_pkey`: `UNIQUE evidence_docs_pkey ON evidence_docs USING btree (evidence_id)`
+  - `evidence_docs_pkey`: `UNIQUE evidence_docs_pkey ON public.evidence_docs USING btree (evidence_id)`
 
 ### `failed_queries`
 
 - Purpose: Failed ticket/query processing logs
-- Estimated Rows: 9
+- Exact Rows: 0
 - Primary Key: `failed_query_id`
 - Primary Key Default: none
 - Foreign Keys: `ticket_id` -> `qa_ticket.ticket_id` (NO ACTION)
@@ -352,12 +386,12 @@ Live DB note: these workflow write tables currently have primary keys with no da
 | 6 | `created_at` | `timestamp` | YES | `CURRENT_TIMESTAMP` |  |
 
 - Indexes:
-  - `failed_queries_pkey`: `UNIQUE failed_queries_pkey ON failed_queries USING btree (failed_query_id)`
+  - `failed_queries_pkey`: `UNIQUE failed_queries_pkey ON public.failed_queries USING btree (failed_query_id)`
 
 ### `final_response`
 
 - Purpose: Final customer-facing responses
-- Estimated Rows: 80
+- Exact Rows: 493
 - Primary Key: `response_id`
 - Primary Key Default: none
 - Foreign Keys: `draft_id` -> `answer_draft.draft_id` (NO ACTION), `ticket_id` -> `qa_ticket.ticket_id` (NO ACTION)
@@ -373,12 +407,12 @@ Live DB note: these workflow write tables currently have primary keys with no da
 | 6 | `created_at` | `timestamp` | YES | `CURRENT_TIMESTAMP` |  |
 
 - Indexes:
-  - `final_response_pkey`: `UNIQUE final_response_pkey ON final_response USING btree (response_id)`
+  - `final_response_pkey`: `UNIQUE final_response_pkey ON public.final_response USING btree (response_id)`
 
 ### `gacha_logs`
 
 - Purpose: Gacha pull history per game account
-- Estimated Rows: 5
+- Exact Rows: 180
 - Primary Key: `gacha_id`
 - Primary Key Default: none
 - Foreign Keys: `account_id` -> `game_accounts.account_id` (CASCADE)
@@ -396,12 +430,12 @@ Live DB note: these workflow write tables currently have primary keys with no da
 | 8 | `pulled_at` | `timestamp` | YES |  |  |
 
 - Indexes:
-  - `gacha_logs_pkey`: `UNIQUE gacha_logs_pkey ON gacha_logs USING btree (gacha_id)`
+  - `gacha_logs_pkey`: `UNIQUE gacha_logs_pkey ON public.gacha_logs USING btree (gacha_id)`
 
 ### `game_accounts`
 
 - Purpose: Game account data linked to community users
-- Estimated Rows: 6,288
+- Exact Rows: 630
 - Primary Key: `account_id`
 - Primary Key Default: none
 - Foreign Keys: `user_id` -> `community_users.user_id` (CASCADE)
@@ -419,20 +453,20 @@ Live DB note: these workflow write tables currently have primary keys with no da
 | 8 | `created_at` | `timestamp` | YES |  |  |
 
 - Indexes:
-  - `game_accounts_pkey`: `UNIQUE game_accounts_pkey ON game_accounts USING btree (account_id)`
+  - `game_accounts_pkey`: `UNIQUE game_accounts_pkey ON public.game_accounts USING btree (account_id)`
 
 ### `insight`
 
 - Purpose: Ticket/user/account-level insight analysis data
-- Estimated Rows: 5
+- Exact Rows: 4
 - Primary Key: `insight_id`
-- Primary Key Default: none
+- Primary Key Default: `nextval('insight_insight_id_seq'::regclass)`
 - Foreign Keys: `account_id` -> `game_accounts.account_id` (SET NULL), `ticket_id` -> `qa_ticket.ticket_id` (CASCADE), `user_id` -> `community_users.user_id` (CASCADE)
 - Columns:
 
 | # | Column | Data Type | Nullable | Default | Key / Reference |
 | ---: | --- | --- | --- | --- | --- |
-| 1 | `insight_id` | `integer` | NO |  | PK |
+| 1 | `insight_id` | `integer` | NO | `nextval('insight_insight_id_seq'::regclass)` | PK |
 | 2 | `user_id` | `integer` | NO |  | FK -> `community_users.user_id` |
 | 3 | `ticket_id` | `integer` | NO |  | FK -> `qa_ticket.ticket_id` |
 | 4 | `account_id` | `integer` | YES |  | FK -> `game_accounts.account_id` |
@@ -444,12 +478,12 @@ Live DB note: these workflow write tables currently have primary keys with no da
 | 10 | `inquiry_created_at` | `timestamp` | YES |  |  |
 
 - Indexes:
-  - `insight_pkey`: `UNIQUE insight_pkey ON insight USING btree (insight_id)`
+  - `insight_pkey`: `UNIQUE insight_pkey ON public.insight USING btree (insight_id)`
 
 ### `item_delivery_logs`
 
 - Purpose: Paid or reward item delivery history
-- Estimated Rows: 5
+- Exact Rows: 140
 - Primary Key: `delivery_id`
 - Primary Key Default: none
 - Foreign Keys: `account_id` -> `game_accounts.account_id` (CASCADE), `payment_id` -> `payments.payment_id` (SET NULL)
@@ -468,12 +502,12 @@ Live DB note: these workflow write tables currently have primary keys with no da
 | 9 | `delivered_at` | `timestamp` | YES |  |  |
 
 - Indexes:
-  - `item_delivery_logs_pkey`: `UNIQUE item_delivery_logs_pkey ON item_delivery_logs USING btree (delivery_id)`
+  - `item_delivery_logs_pkey`: `UNIQUE item_delivery_logs_pkey ON public.item_delivery_logs USING btree (delivery_id)`
 
 ### `notification_logs`
 
 - Purpose: Notification send results and errors
-- Estimated Rows: 0
+- Exact Rows: 5
 - Primary Key: `notification_id`
 - Primary Key Default: `nextval('notification_logs_notification_id_seq'::regclass)`
 - Foreign Keys: `ticket_id` -> `qa_ticket.ticket_id` (NO ACTION)
@@ -491,12 +525,12 @@ Live DB note: these workflow write tables currently have primary keys with no da
 | 8 | `sent_at` | `timestamp` | YES | `CURRENT_TIMESTAMP` |  |
 
 - Indexes:
-  - `notification_logs_pkey`: `UNIQUE notification_logs_pkey ON notification_logs USING btree (notification_id)`
+  - `notification_logs_pkey`: `UNIQUE notification_logs_pkey ON public.notification_logs USING btree (notification_id)`
 
 ### `payments`
 
 - Purpose: Payment transaction history
-- Estimated Rows: 11
+- Exact Rows: 320
 - Primary Key: `payment_id`
 - Primary Key Default: none
 - Foreign Keys: `account_id` -> `game_accounts.account_id` (CASCADE)
@@ -516,15 +550,15 @@ Live DB note: these workflow write tables currently have primary keys with no da
 | 10 | `paid_at` | `timestamp` | YES |  |  |
 
 - Indexes:
-  - `payments_pkey`: `UNIQUE payments_pkey ON payments USING btree (payment_id)`
+  - `payments_pkey`: `UNIQUE payments_pkey ON public.payments USING btree (payment_id)`
 
 ### `qa_ticket`
 
 - Purpose: Customer inquiry/QA tickets
-- Estimated Rows: 9,243
+- Exact Rows: 1,472
 - Primary Key: `ticket_id`
 - Primary Key Default: none
-- Foreign Keys: `account_id` -> `game_accounts.account_id` (SET NULL), `user_id` -> `community_users.user_id` (CASCADE)
+- Foreign Keys: `account_id` -> `game_accounts.account_id` (SET NULL), `assignee_admin_id` -> `admin_users.admin_id` (SET NULL), `user_id` -> `community_users.user_id` (CASCADE)
 - Columns:
 
 | # | Column | Data Type | Nullable | Default | Key / Reference |
@@ -535,18 +569,21 @@ Live DB note: these workflow write tables currently have primary keys with no da
 | 4 | `title` | `varchar` | YES |  |  |
 | 5 | `raw_query` | `text` | YES |  |  |
 | 6 | `source_type` | `varchar` | YES |  |  |
-| 7 | `status` | `varchar` | YES |  |  |
-| 8 | `inquiry_created_at` | `timestamp` | YES |  |  |
-| 9 | `session_id` | `integer` | YES |  |  |
-| 10 | `responder_type` | `varchar(100)` | YES |  |  |
+| 8 | `status` | `varchar` | YES |  |  |
+| 9 | `inquiry_created_at` | `timestamp` | YES |  |  |
+| 10 | `session_id` | `integer` | YES |  |  |
+| 12 | `responder_type` | `varchar(100)` | YES |  |  |
+| 13 | `assignee_id` | `varchar` | YES |  |  |
+| 14 | `assignee_admin_id` | `integer` | YES |  | FK -> `admin_users.admin_id` |
 
 - Indexes:
-  - `qa_ticket_pkey`: `UNIQUE qa_ticket_pkey ON qa_ticket USING btree (ticket_id)`
+  - `idx_qa_ticket_assignee_admin_id`: `idx_qa_ticket_assignee_admin_id ON public.qa_ticket USING btree (assignee_admin_id)`
+  - `qa_ticket_pkey`: `UNIQUE qa_ticket_pkey ON public.qa_ticket USING btree (ticket_id)`
 
 ### `refunds`
 
 - Purpose: Refund request and processing history
-- Estimated Rows: 5
+- Exact Rows: 55
 - Primary Key: `refund_id`
 - Primary Key Default: none
 - Foreign Keys: `payment_id` -> `payments.payment_id` (CASCADE)
@@ -562,12 +599,12 @@ Live DB note: these workflow write tables currently have primary keys with no da
 | 6 | `processed_at` | `timestamp` | YES |  |  |
 
 - Indexes:
-  - `refunds_pkey`: `UNIQUE refunds_pkey ON refunds USING btree (refund_id)`
+  - `refunds_pkey`: `UNIQUE refunds_pkey ON public.refunds USING btree (refund_id)`
 
 ### `safety_results`
 
 - Purpose: Safety and grounding check results for drafts
-- Estimated Rows: 95
+- Exact Rows: 2
 - Primary Key: `safety_id`
 - Primary Key Default: none
 - Foreign Keys: `draft_id` -> `answer_draft.draft_id` (CASCADE)
@@ -587,12 +624,12 @@ Live DB note: these workflow write tables currently have primary keys with no da
 | 10 | `retry_count` | `integer` | YES | `0` |  |
 
 - Indexes:
-  - `safety_results_pkey`: `UNIQUE safety_results_pkey ON safety_results USING btree (safety_id)`
+  - `safety_results_pkey`: `UNIQUE safety_results_pkey ON public.safety_results USING btree (safety_id)`
 
 ### `ticket_analysis`
 
 - Purpose: Ticket classification, risk, sentiment, and routing analysis
-- Estimated Rows: 118
+- Exact Rows: 967
 - Primary Key: `analysis_id`
 - Primary Key Default: none
 - Foreign Keys: `ticket_id` -> `qa_ticket.ticket_id` (CASCADE)
@@ -607,33 +644,9 @@ Live DB note: these workflow write tables currently have primary keys with no da
 | 5 | `enriched_query` | `text` | YES |  |  |
 | 6 | `risk_level` | `varchar` | YES |  |  |
 | 7 | `sentiment` | `varchar` | YES |  |  |
-| 8 | `routing_target` | `varchar` | YES |  |  |
-| 9 | `summary` | `text` | YES |  |  |
-| 10 | `analyzed_at` | `timestamp` | YES |  |  |
+| 9 | `routing_target` | `varchar` | YES |  |  |
+| 10 | `summary` | `text` | YES |  |  |
+| 11 | `analyzed_at` | `timestamp` | YES |  |  |
 
 - Indexes:
-  - `ticket_analysis_pkey`: `UNIQUE ticket_analysis_pkey ON ticket_analysis USING btree (analysis_id)`
-
-### `voc_feedback`
-
-- Purpose: VOC feedback and topic keyword records
-- Estimated Rows: 5
-- Primary Key: `voc_id`
-- Primary Key Default: none
-- Foreign Keys: `account_id` -> `game_accounts.account_id` (NO ACTION), `ticket_id` -> `qa_ticket.ticket_id` (NO ACTION), `user_id` -> `community_users.user_id` (NO ACTION)
-- Columns:
-
-| # | Column | Data Type | Nullable | Default | Key / Reference |
-| ---: | --- | --- | --- | --- | --- |
-| 1 | `voc_id` | `integer` | NO |  | PK |
-| 2 | `ticket_id` | `integer` | NO |  | FK -> `qa_ticket.ticket_id` |
-| 3 | `user_id` | `integer` | NO |  | FK -> `community_users.user_id` |
-| 4 | `account_id` | `integer` | YES |  | FK -> `game_accounts.account_id` |
-| 5 | `voc_type` | `varchar(100)` | YES |  |  |
-| 6 | `sentiment` | `varchar(50)` | YES |  |  |
-| 7 | `raw_content` | `text` | NO |  |  |
-| 8 | `topic_keywords` | `json` | YES |  |  |
-| 9 | `created_at` | `timestamp` | YES | `CURRENT_TIMESTAMP` |  |
-
-- Indexes:
-  - `voc_feedback_pkey`: `UNIQUE voc_feedback_pkey ON voc_feedback USING btree (voc_id)`
+  - `ticket_analysis_pkey`: `UNIQUE ticket_analysis_pkey ON public.ticket_analysis USING btree (analysis_id)`
