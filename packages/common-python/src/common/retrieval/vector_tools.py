@@ -32,7 +32,6 @@ SOURCE_PRIORITY = {
     "naver_cafe_notice": 1,
 }
 
-
 class RetrievalQuery(BaseModel):
     """Normalized retrieval-query enrichment output."""
 
@@ -57,6 +56,10 @@ def _embedding_model_name() -> str:
     """Resolve EMBEDDING_MODEL, supporting openai:<model> shorthand."""
     raw = os.environ.get("EMBEDDING_MODEL", "text-embedding-3-small")
     return raw.split(":", 1)[1] if raw.startswith("openai:") else raw
+
+
+def _db_side_vector_search_enabled() -> bool:
+    return os.environ.get("RETRIEVAL_DB_SIDE_VECTOR", "true").strip().lower() not in {"0", "false", "no", "off"}
 
 
 def _cosine(a: list[float], b: list[float]) -> float:
@@ -366,9 +369,14 @@ def hybrid_rank_documents(
     enriched_rows: list[dict[str, Any]] = []
     for row in rows:
         row = dict(row)
-        raw_vector = str(row.pop("embedding_vector", "")).strip("[]")
-        db_vector = [float(value) for value in raw_vector.split(",") if value.strip()]
-        cosine_score = _cosine(query_vector, db_vector) if db_vector else 0.0
+        if "cosine_score" in row and row["cosine_score"] is not None:
+            # pre-computed by DB via pgvector <=> — skip Python cosine
+            cosine_score = float(row["cosine_score"])
+            row.pop("embedding_vector", None)
+        else:
+            raw_vector = str(row.pop("embedding_vector", "")).strip("[]")
+            db_vector = [float(value) for value in raw_vector.split(",") if value.strip()]
+            cosine_score = _cosine(query_vector, db_vector) if db_vector else 0.0
         bm25_score = bm25_by_id.get(row["chunk_id"], 0.0)
         row["cosine_score"] = cosine_score
         row["bm25_score"] = bm25_score
@@ -435,8 +443,16 @@ def _fetch_candidate_rows(
     faq_only: bool,
     enrichment: RetrievalQuery | None = None,
     use_query_filter: bool = True,
+    query_vector: list[float] | None = None,
 ) -> list[dict[str, Any]]:
-    """Fetch candidate document chunks and embeddings from Postgres."""
+    """Fetch candidate document chunks from Postgres.
+
+    When query_vector is provided, vector similarity is computed inside the DB
+    using pgvector's <=> operator and only the top candidate_limit rows by
+    cosine distance are returned — avoiding transferring raw embedding vectors
+    over the network. Without query_vector the legacy path returns raw vectors
+    for Python-side cosine scoring.
+    """
     faq_clause = ""
     faq_params: list[str] = []
     if faq_only:
@@ -475,9 +491,22 @@ def _fetch_candidate_rows(
         f"WHEN d.source_type = '{source_type}' THEN {priority}"
         for source_type, priority in SOURCE_PRIORITY.items()
     ) + " ELSE 0 END"
-    order_clause = "c.created_at DESC NULLS LAST"
-    if not use_query_filter and faq_only:
-        order_clause = f"{source_priority_sql} DESC, c.created_at DESC NULLS LAST"
+
+    if query_vector is not None:
+        vector_literal = "[" + ",".join(str(v) for v in query_vector) + "]"
+        order_clause = f"e.embedding_vector <=> '{vector_literal}'::vector"
+        cosine_select = f"1 - (e.embedding_vector <=> '{vector_literal}'::vector) AS cosine_score"
+        embedding_select = ""
+    else:
+        order_clause = "c.created_at DESC NULLS LAST"
+        if not use_query_filter and faq_only:
+            order_clause = f"{source_priority_sql} DESC, c.created_at DESC NULLS LAST"
+        cosine_select = ""
+        embedding_select = "e.embedding_vector::text AS embedding_vector,"
+
+    extra_select = ", ".join(filter(None, [cosine_select]))
+    if extra_select:
+        extra_select = ", " + extra_select
 
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
@@ -490,7 +519,9 @@ def _fetch_candidate_rows(
                     d.category,
                     d.title,
                     c.chunk_text,
-                    e.embedding_vector::text AS embedding_vector
+                    {embedding_select}
+                    c.created_at
+                    {extra_select}
                 FROM documents_chunks c
                 JOIN documents d ON d.documents_id = c.document_id
                 JOIN documents_embeddings e ON e.chunk_id = c.chunk_id
@@ -528,6 +559,7 @@ def search_document_chunks(
     retrieval_query = refine_query_text(query_text)
     if isinstance(enrichment, dict):
         enrichment = RetrievalQuery.model_validate(enrichment)
+    db_side_query_vec = query_vec if _db_side_vector_search_enabled() else None
 
     rows = _fetch_candidate_rows(
         retrieval_query=retrieval_query,
@@ -535,6 +567,7 @@ def search_document_chunks(
         faq_only=prefer_faq,
         enrichment=enrichment,
         use_query_filter=True,
+        query_vector=db_side_query_vec,
     )
     candidate_scope = "faq"
 
@@ -545,6 +578,7 @@ def search_document_chunks(
             faq_only=True,
             enrichment=None,
             use_query_filter=False,
+            query_vector=db_side_query_vec,
         )
         rows_by_id = {row["chunk_id"]: row for row in rows}
         for row in broad_rows:
@@ -559,6 +593,7 @@ def search_document_chunks(
             faq_only=False,
             enrichment=enrichment,
             use_query_filter=True,
+            query_vector=db_side_query_vec,
         )
         candidate_scope = "all"
 

@@ -68,7 +68,7 @@ def _embed_query(text: str) -> str:
 def _rerank_documents(documents: list[dict[str, Any]], query: str) -> list[dict[str, Any]]:
     reranked_json = rerank_documents.invoke(
         {
-            "docs_json": json.dumps(documents, ensure_ascii=False),
+            "docs_json": json.dumps(documents, ensure_ascii=False, default=str),
             "query": query,
         }
     )

@@ -1,5 +1,6 @@
 ﻿from __future__ import annotations
 
+from datetime import datetime
 import json
 
 import pytest
@@ -41,6 +42,31 @@ def _state() -> dict:
         "routing_target": "rag_reply",
         "retry_count": 0,
     }
+
+
+def test_rerank_documents_serializes_datetime_fields(monkeypatch) -> None:
+    captured_payload = {}
+
+    class FakeRerankTool:
+        def invoke(self, payload):
+            captured_payload.update(payload)
+            return json.dumps([{"chunk_id": "doc-1"}])
+
+    monkeypatch.setattr(faq_agent, "rerank_documents", FakeRerankTool())
+
+    result = faq_agent._rerank_documents(
+        [
+            {
+                "chunk_id": "doc-1",
+                "created_at": datetime(2026, 6, 4, 12, 0, 0),
+                "chunk_text": "evidence",
+            }
+        ],
+        "query",
+    )
+
+    assert result == [{"chunk_id": "doc-1"}]
+    assert "2026-06-04 12:00:00" in captured_payload["docs_json"]
 
 
 def test_run_faq_rag_blocks_llm_when_no_documents(monkeypatch) -> None:
@@ -411,7 +437,15 @@ def test_hybrid_rank_documents_combines_bm25_and_cosine() -> None:
 def test_search_document_chunks_prefers_faq_then_falls_back(monkeypatch) -> None:
     calls = []
 
-    def fake_fetch_candidate_rows(*, retrieval_query, candidate_limit, faq_only, enrichment=None, use_query_filter=True):
+    def fake_fetch_candidate_rows(
+        *,
+        retrieval_query,
+        candidate_limit,
+        faq_only,
+        enrichment=None,
+        use_query_filter=True,
+        query_vector=None,
+    ):
         calls.append((faq_only, use_query_filter))
         if faq_only and use_query_filter:
             return []
@@ -446,7 +480,15 @@ def test_search_document_chunks_prefers_faq_then_falls_back(monkeypatch) -> None
 def test_search_document_chunks_adds_broad_faq_candidates_when_query_candidates_are_sparse(monkeypatch) -> None:
     calls = []
 
-    def fake_fetch_candidate_rows(*, retrieval_query, candidate_limit, faq_only, enrichment=None, use_query_filter=True):
+    def fake_fetch_candidate_rows(
+        *,
+        retrieval_query,
+        candidate_limit,
+        faq_only,
+        enrichment=None,
+        use_query_filter=True,
+        query_vector=None,
+    ):
         calls.append((faq_only, use_query_filter))
         if use_query_filter:
             return [

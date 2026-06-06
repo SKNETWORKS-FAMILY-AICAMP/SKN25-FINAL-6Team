@@ -164,6 +164,85 @@ def _evaluate_safety(text: str, documents: list[dict[str, Any]] | None = None) -
     return is_blocked, scores, f"{moderation_reason}; grounding={grounding_reason}"
 
 
+def _lightweight_safety_scores(text: str, documents: list[dict[str, Any]]) -> tuple[dict[str, float], str]:
+    factuality_score, hallucination_score, grounding_reason = _evidence_grounding_scores(
+        text,
+        documents,
+    )
+    return (
+        {
+            "toxicity_score": 0.0,
+            "policy_violation_score": 0.0,
+            "factuality_score": factuality_score,
+            "hallucination_score": hallucination_score,
+        },
+        f"rule_base: moderation skipped; grounding={grounding_reason}",
+    )
+
+
+def _contains_sensitive_keyword(text: str) -> bool:
+    return bool(
+        re.search(
+            r"결제|환불|취소|계정\s*복구|계정\s*삭제|탈퇴|비밀번호|토큰|카드|개인정보|주민번호|관리자|운영자",
+            text,
+            flags=re.IGNORECASE,
+        )
+    )
+
+
+def _requires_second_pass_safety(
+    *,
+    state: ChatbotState,
+    evaluation_text: str,
+    documents: list[dict[str, Any]],
+    requires_grounding: bool,
+    scores: dict[str, float],
+    mask_labels: list[str],
+) -> tuple[bool, str]:
+    detected_labels = set(state.get("input_detected_labels") or [])
+    sensitive_labels = {
+        "rrn",
+        "card_number",
+        "email",
+        "phone",
+        "api_key",
+        "password",
+        "account_id",
+        "prompt_injection",
+        "profanity",
+    }
+    if mask_labels or detected_labels & sensitive_labels:
+        return True, "sensitive_or_masked_content"
+
+    if str(state.get("category") or "").lower() == "payment":
+        return True, "payment_sensitive_category"
+
+    if _contains_sensitive_keyword(
+        " ".join(
+            str(state.get(key) or "")
+            for key in ("raw_query", "masked_content", "normalized_query", "draft_text")
+        )
+    ):
+        return True, "sensitive_keyword"
+
+    if state.get("review_required") is True or state.get("routing_target") == "urgent_alert":
+        return True, "review_candidate"
+
+    if not evaluation_text.strip() or len(evaluation_text.strip()) < 10:
+        return True, "short_or_empty_draft"
+
+    if requires_grounding:
+        if not documents:
+            return True, "missing_grounding_documents"
+        if (
+            scores["factuality_score"] < FACTUALITY_WARN_THRESHOLD
+            or scores["hallucination_score"] > HALLUCINATION_WARN_THRESHOLD
+        ):
+            return True, "weak_grounding"
+
+    return False, "simple_rule_pass"
+
+
 def _requires_document_grounding(state: ChatbotState, documents: list[dict[str, Any]]) -> bool:
     return (
         state.get("reasoning_node") == "faq_agent"
@@ -289,7 +368,21 @@ def safety_layer_node(state: ChatbotState) -> dict:
     evaluation_text = masked_text if mask_labels else draft_text
     requires_grounding = _requires_document_grounding(state, documents)
     grounding_documents = documents if requires_grounding else [{"chunk_text": evaluation_text}]
-    is_blocked, scores, safety_reason = _evaluate_safety(evaluation_text, grounding_documents)
+    scores, safety_reason = _lightweight_safety_scores(evaluation_text, grounding_documents)
+    second_pass_required, second_pass_reason = _requires_second_pass_safety(
+        state=state,
+        evaluation_text=evaluation_text,
+        documents=documents,
+        requires_grounding=requires_grounding,
+        scores=scores,
+        mask_labels=mask_labels,
+    )
+    is_blocked = False
+    if second_pass_required:
+        is_blocked, scores, safety_reason = _evaluate_safety(evaluation_text, grounding_documents)
+        safety_reason = f"{safety_reason}; second_pass={second_pass_reason}"
+    else:
+        safety_reason = f"{safety_reason}; second_pass={second_pass_reason}"
     if mask_labels:
         update = _masking_update(
             state=state,
@@ -351,6 +444,8 @@ def safety_layer_node(state: ChatbotState) -> dict:
             "safety_action": safety_action,
             "draft_id": draft_id,
             "review_required": review_required,
+            "second_pass_required": second_pass_required,
+            "second_pass_reason": second_pass_reason,
         },
     )
 
