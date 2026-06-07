@@ -28,6 +28,7 @@ env/
 # Logs and runtime artifacts
 *.log
 *.tmp
+data/cache/
 
 # Generated test artifacts
 tests/operation/operation_workflow_graph.png

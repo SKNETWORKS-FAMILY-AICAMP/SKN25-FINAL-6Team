@@ -25,3 +25,4 @@ typing-extensions==4.15.0
 tzdata==2026.2
 pytest==8.4.2
 ragas
+rank-bm25==0.2.2

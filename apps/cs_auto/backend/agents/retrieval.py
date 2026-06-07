@@ -7,6 +7,11 @@
 
 from __future__ import annotations
 
+import math
+import os
+import pickle
+from collections import Counter
+from pathlib import Path
 from typing import Any, Literal
 
 from langchain_core.runnables import RunnableLambda
@@ -14,6 +19,12 @@ from psycopg.rows import dict_row
 from pydantic import BaseModel, ConfigDict, Field
 
 from common.db.connection import db_connection
+from common.llm.client import get_query_embedding
+
+try:
+    from rank_bm25 import BM25Okapi
+except ImportError:  # pragma: no cover - 배포 환경에 라이브러리가 없으면 공식 계산 fallback을 사용한다.
+    BM25Okapi = None
 
 
 RoutingTarget = Literal["DB_only", "doc_only", "DB&DOC", "fixed_answer", "human_review"]
@@ -82,8 +93,251 @@ def _safe_text(value: object, limit: int = 600) -> str:
     return str(value or "").replace("\n", " ").strip()[:limit]
 
 
+_PROJECT_ROOT = Path(__file__).resolve().parents[4]
+_BM25_INDEX_PATH = Path(
+    os.environ.get("CS_AUTO_BM25_INDEX_PATH", _PROJECT_ROOT / "data" / "cache" / "cs_auto_bm25_index.pkl")
+)
+
+
+def _bm25_tokens(text: str) -> list[str]:
+    tokens: list[str] = []
+    current: list[str] = []
+    for char in text:
+        if char.isalnum() or char == "_":
+            current.append(char.lower())
+            continue
+        if len(current) > 1:
+            tokens.append("".join(current))
+        current = []
+    if len(current) > 1:
+        tokens.append("".join(current))
+    return tokens
+
+
+def _vector_literal(vector: list[float]) -> str:
+    values = [str(float(value)) for value in vector if math.isfinite(float(value))]
+    return "[" + ",".join(values) + "]"
+
+
+def _parse_vector_literal(value: object) -> list[float]:
+    raw = str(value or "").strip().strip("[]")
+    if not raw:
+        return []
+    return [float(item) for item in raw.split(",") if item.strip()]
+
+
+def _cosine_similarity(query_vector: list[float], document_vector: list[float]) -> float:
+    dot_product = sum(q * d for q, d in zip(query_vector, document_vector))
+    query_norm = math.sqrt(sum(q * q for q in query_vector))
+    document_norm = math.sqrt(sum(d * d for d in document_vector))
+    if query_norm == 0 or document_norm == 0:
+        return 0.0
+    return dot_product / (query_norm * document_norm)
+
+
+def _bm25_scores(query: str, rows: list[dict[str, Any]]) -> dict[str, float]:
+    query_terms = _bm25_tokens(query)
+    if not query_terms or not rows:
+        return {str(row.get("chunk_id")): 0.0 for row in rows}
+
+    tokenized_docs: dict[str, list[str]] = {}
+    document_frequency: Counter[str] = Counter()
+    for row in rows:
+        chunk_id = str(row.get("chunk_id") or "")
+        text = f"{row.get('title') or ''} {row.get('category') or ''} {row.get('chunk_text') or ''}"
+        tokens = _bm25_tokens(text)
+        tokenized_docs[chunk_id] = tokens
+        document_frequency.update(set(tokens))
+
+    avg_doc_len = sum(len(tokens) for tokens in tokenized_docs.values()) / max(len(rows), 1)
+    k1 = 1.5
+    b = 0.75
+    total_docs = len(rows)
+    scores: dict[str, float] = {}
+
+    for chunk_id, tokens in tokenized_docs.items():
+        term_counts = Counter(tokens)
+        doc_len = len(tokens) or 1
+        score = 0.0
+        for term in query_terms:
+            tf = term_counts.get(term, 0)
+            if tf == 0:
+                continue
+            df = document_frequency.get(term, 0)
+            idf = math.log(1 + (total_docs - df + 0.5) / (df + 0.5))
+            denominator = tf + k1 * (1 - b + b * doc_len / max(avg_doc_len, 1))
+            score += idf * (tf * (k1 + 1)) / denominator
+        scores[chunk_id] = score
+
+    return scores
+
+
 class DocumentRetriever:
     """documents/documents_chunks 기반 문서 검색기."""
+
+    def _fetch_bm25_index_rows(self) -> list[dict[str, object]]:
+        with db_connection() as conn:
+            with conn.cursor(row_factory=dict_row) as cur:
+                return _fetch_all(
+                    cur,
+                    """
+                    SELECT
+                        c.chunk_id,
+                        c.document_id,
+                        c.chunk_text,
+                        c.chunk_order,
+                        d.source_type,
+                        d.category,
+                        d.title,
+                        d.source_url,
+                        d.published_at,
+                        d.updated_at
+                    FROM documents_chunks c
+                    JOIN documents d ON d.documents_id = c.document_id
+                    ORDER BY d.updated_at DESC NULLS LAST, c.document_id ASC, c.chunk_order ASC
+                    """,
+                )
+
+    def _load_or_build_bm25_index(self) -> dict[str, object]:
+        if BM25Okapi is None:
+            return {"bm25": None, "rows": [], "tokenized_corpus": []}
+
+        if _BM25_INDEX_PATH.exists():
+            with _BM25_INDEX_PATH.open("rb") as file:
+                payload = pickle.load(file)
+            if payload.get("version") == 1 and payload.get("bm25") is not None:
+                return payload
+
+        rows = self._fetch_bm25_index_rows()
+        tokenized_corpus = [
+            _bm25_tokens(f"{row.get('title') or ''} {row.get('category') or ''} {row.get('chunk_text') or ''}")
+            for row in rows
+        ]
+        payload = {
+            "version": 1,
+            "rows": rows,
+            "tokenized_corpus": tokenized_corpus,
+            "bm25": BM25Okapi(tokenized_corpus),
+        }
+        _BM25_INDEX_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with _BM25_INDEX_PATH.open("wb") as file:
+            pickle.dump(payload, file)
+        return payload
+
+    # def search_hybrid_documents(
+    #     self,
+    #     query: str,
+    #     category: str | None = None,
+    #     source_type: str | None = None,
+    #     limit: int | None = None,
+    # ) -> list[dict[str, object]]:
+    #     """dense 대체 검색과 키워드 검색 결과를 병합한다."""
+    #
+    #     dense_results = self.search_dense_documents(query, category, source_type, limit)
+    #     bm25_results = self.search_bm25_documents(query, category, source_type, limit)
+    #     return self.merge_and_rerank_documents(query, dense_results, bm25_results)[: limit or 5]
+    #
+    # def search_dense_documents(
+    #     self,
+    #     query: str,
+    #     category: str | None = None,
+    #     source_type: str | None = None,
+    #     limit: int | None = None,
+    # ) -> list[dict[str, object]]:
+    #     """현재 로컬 배치에서는 embedding 비용을 피하고 키워드 검색을 dense 후보로 재사용한다."""
+    #
+    #     rows = self.search_bm25_documents(query, category, source_type, limit)
+    #     for row in rows:
+    #         row["dense_score"] = row.get("relevance_score", 0.0)
+    #     return rows
+    #
+    # def search_bm25_documents(
+    #     self,
+    #     query: str,
+    #     category: str | None = None,
+    #     source_type: str | None = None,
+    #     limit: int | None = None,
+    # ) -> list[dict[str, object]]:
+    #     """PostgreSQL ILIKE 조건으로 문서 chunk 후보를 조회한다."""
+    #
+    #     clauses = ["TRUE"]
+    #     params: list[Any] = []
+    #     if category:
+    #         clauses.append("LOWER(COALESCE(d.category, '')) = LOWER(%s)")
+    #         params.append(category)
+    #     if source_type:
+    #         clauses.append("LOWER(COALESCE(d.source_type, '')) = LOWER(%s)")
+    #         params.append(source_type)
+    #
+    #     terms = _query_terms(query)
+    #     if terms:
+    #         term_clauses = []
+    #         for term in terms:
+    #             term_clauses.append("(c.chunk_text ILIKE %s OR d.title ILIKE %s OR d.raw_content ILIKE %s)")
+    #             params.extend([f"%{term}%", f"%{term}%", f"%{term}%"])
+    #         clauses.append("(" + " OR ".join(term_clauses) + ")")
+    #
+    #     params.append(limit or 5)
+    #     with db_connection() as conn:
+    #         with conn.cursor(row_factory=dict_row) as cur:
+    #             rows = _fetch_all(
+    #                 cur,
+    #                 f"""
+    #                 SELECT
+    #                     c.chunk_id,
+    #                     c.document_id,
+    #                     c.chunk_text,
+    #                     c.chunk_order,
+    #                     d.source_type,
+    #                     d.category,
+    #                     d.title,
+    #                     d.source_url,
+    #                     d.published_at,
+    #                     d.updated_at
+    #                 FROM documents_chunks c
+    #                 JOIN documents d ON d.documents_id = c.document_id
+    #                 WHERE {" AND ".join(clauses)}
+    #                 ORDER BY d.updated_at DESC NULLS LAST, c.chunk_order ASC
+    #                 LIMIT %s
+    #                 """,
+    #                 tuple(params),
+    #             )
+    #
+    #     return [
+    #         {
+    #             **row,
+    #             "bm25_score": float((limit or 5) - index),
+    #             "relevance_score": max(0.1, 1.0 - (index * 0.1)),
+    #             "retrieval_rank": index + 1,
+    #         }
+    #         for index, row in enumerate(rows)
+    #     ]
+    #
+    # def merge_and_rerank_documents(
+    #     self,
+    #     query: str,
+    #     dense_results: list[dict[str, object]],
+    #     bm25_results: list[dict[str, object]],
+    # ) -> list[dict[str, object]]:
+    #     """중복 chunk를 합치고 relevance_score 기준으로 재정렬한다."""
+    #
+    #     by_chunk: dict[str, dict[str, object]] = {}
+    #     for source_name, results in (("dense", dense_results), ("bm25", bm25_results)):
+    #         for row in results:
+    #             chunk_id = str(row.get("chunk_id") or "")
+    #             if not chunk_id:
+    #                 continue
+    #             current = by_chunk.setdefault(chunk_id, {**row, "retrieval_sources": []})
+    #             current["retrieval_sources"] = [*current.get("retrieval_sources", []), source_name]
+    #             current["relevance_score"] = max(
+    #                 float(current.get("relevance_score") or 0.0),
+    #                 float(row.get("relevance_score") or row.get("bm25_score") or 0.0),
+    #             )
+    #
+    #     ranked = sorted(by_chunk.values(), key=lambda item: float(item.get("relevance_score") or 0.0), reverse=True)
+    #     for index, row in enumerate(ranked):
+    #         row["retrieval_rank"] = index + 1
+    #     return ranked
 
     def search_hybrid_documents(
         self,
@@ -92,11 +346,13 @@ class DocumentRetriever:
         source_type: str | None = None,
         limit: int | None = None,
     ) -> list[dict[str, object]]:
-        """dense 대체 검색과 키워드 검색 결과를 병합한다."""
+        """BM25 rank와 pgvector cosine rank를 RRF로 병합한다."""
 
-        dense_results = self.search_dense_documents(query, category, source_type, limit)
-        bm25_results = self.search_bm25_documents(query, category, source_type, limit)
-        return self.merge_and_rerank_documents(query, dense_results, bm25_results)[: limit or 5]
+        top_k = limit or 5
+        candidate_limit = max(top_k * 10, 50)
+        dense_results = self.search_dense_documents(query, category, source_type, candidate_limit)
+        bm25_results = self.search_bm25_documents(query, category, source_type, candidate_limit)
+        return self.merge_and_rerank_documents(query, dense_results, bm25_results)[:top_k]
 
     def search_dense_documents(
         self,
@@ -105,12 +361,68 @@ class DocumentRetriever:
         source_type: str | None = None,
         limit: int | None = None,
     ) -> list[dict[str, object]]:
-        """현재 로컬 배치에서는 embedding 비용을 피하고 키워드 검색을 dense 후보로 재사용한다."""
+        """pgvector cosine similarity로 문서 chunk를 검색한다."""
 
-        rows = self.search_bm25_documents(query, category, source_type, limit)
-        for row in rows:
-            row["dense_score"] = row.get("relevance_score", 0.0)
-        return rows
+        query = query.strip()
+        if not query:
+            return []
+        query_vector = get_query_embedding(query)
+        if not query_vector:
+            return []
+
+        clauses = ["TRUE"]
+        filter_params: list[Any] = []
+        if category:
+            clauses.append("LOWER(COALESCE(d.category, '')) = LOWER(%s)")
+            filter_params.append(category)
+        if source_type:
+            clauses.append("LOWER(COALESCE(d.source_type, '')) = LOWER(%s)")
+            filter_params.append(source_type)
+
+        vector = _vector_literal(query_vector)
+        with db_connection() as conn:
+            with conn.cursor(row_factory=dict_row) as cur:
+                rows = _fetch_all(
+                    cur,
+                    f"""
+                    SELECT
+                        c.chunk_id,
+                        c.document_id,
+                        c.chunk_text,
+                        c.chunk_order,
+                        d.source_type,
+                        d.category,
+                        d.title,
+                        d.source_url,
+                        d.published_at,
+                        d.updated_at,
+                        e.embedding_vector::text AS embedding_vector,
+                        (e.embedding_vector <=> %s::vector) AS cosine_distance,
+                        (1 - (e.embedding_vector <=> %s::vector)) AS cosine_score
+                    FROM documents_chunks c
+                    JOIN documents d ON d.documents_id = c.document_id
+                    JOIN documents_embeddings e ON e.chunk_id = c.chunk_id
+                    WHERE {" AND ".join(clauses)}
+                    ORDER BY e.embedding_vector <=> %s::vector ASC
+                    LIMIT %s
+                    """,
+                    (vector, vector, *filter_params, vector, limit or 5),
+                )
+
+        for index, row in enumerate(rows):
+            document_vector = _parse_vector_literal(row.get("embedding_vector"))
+            cosine_score = _cosine_similarity(query_vector, document_vector)
+            row["pgvector_cosine_score"] = float(row.get("cosine_score") or 0.0)
+            row["dense_score"] = cosine_score
+            row["cosine_score"] = cosine_score
+            row["dense_rank"] = index + 1
+            row["relevance_score"] = max(0.0, cosine_score)
+            row["retrieval_rank"] = index + 1
+        ranked = sorted(rows, key=lambda row: float(row.get("cosine_score") or 0.0), reverse=True)
+        for index, row in enumerate(ranked):
+            row["dense_rank"] = index + 1
+            row["retrieval_rank"] = index + 1
+        return ranked
 
     def search_bm25_documents(
         self,
@@ -119,7 +431,40 @@ class DocumentRetriever:
         source_type: str | None = None,
         limit: int | None = None,
     ) -> list[dict[str, object]]:
-        """PostgreSQL ILIKE 조건으로 문서 chunk 후보를 조회한다."""
+        """rank_bm25 인덱스 파일 기반으로 문서 chunk 후보를 랭킹한다."""
+
+        query_terms = _bm25_tokens(query)
+        if not query_terms:
+            return []
+
+        if BM25Okapi is not None:
+            payload = self._load_or_build_bm25_index()
+            bm25 = payload.get("bm25")
+            rows = list(payload.get("rows") or [])
+            tokenized_corpus = list(payload.get("tokenized_corpus") or [])
+            if bm25 is not None and rows:
+                scores = bm25.get_scores(query_terms)
+                scored_rows: list[tuple[float, dict[str, object]]] = []
+                query_term_set = set(query_terms)
+                for score, row, document_terms in zip(scores, rows, tokenized_corpus, strict=False):
+                    if category and str(row.get("category") or "").lower() != category.lower():
+                        continue
+                    if source_type and str(row.get("source_type") or "").lower() != source_type.lower():
+                        continue
+                    if not query_term_set.intersection(document_terms):
+                        continue
+                    score_float = float(score)
+                    scored_rows.append((score_float, dict(row)))
+
+                scored_rows.sort(key=lambda item: item[0], reverse=True)
+                ranked = [row for _, row in scored_rows[: limit or 5]]
+                for index, row in enumerate(ranked):
+                    row["bm25_score"] = scored_rows[index][0]
+                    row["bm25_rank"] = index + 1
+                    row["bm25_index_path"] = str(_BM25_INDEX_PATH)
+                    row["relevance_score"] = scored_rows[index][0]
+                    row["retrieval_rank"] = index + 1
+                return ranked
 
         clauses = ["TRUE"]
         params: list[Any] = []
@@ -130,12 +475,15 @@ class DocumentRetriever:
             clauses.append("LOWER(COALESCE(d.source_type, '')) = LOWER(%s)")
             params.append(source_type)
 
-        terms = _query_terms(query)
+        terms = _bm25_tokens(query)[:8]
         if terms:
             term_clauses = []
             for term in terms:
-                term_clauses.append("(c.chunk_text ILIKE %s OR d.title ILIKE %s OR d.raw_content ILIKE %s)")
-                params.extend([f"%{term}%", f"%{term}%", f"%{term}%"])
+                term_clauses.append(
+                    "(LOWER(c.chunk_text) ILIKE %s OR LOWER(d.title) ILIKE %s OR LOWER(d.raw_content) ILIKE %s)"
+                )
+                pattern = f"%{term.lower()}%"
+                params.extend([pattern, pattern, pattern])
             clauses.append("(" + " OR ".join(term_clauses) + ")")
 
         params.append(limit or 5)
@@ -164,15 +512,22 @@ class DocumentRetriever:
                     tuple(params),
                 )
 
-        return [
-            {
-                **row,
-                "bm25_score": float((limit or 5) - index),
-                "relevance_score": max(0.1, 1.0 - (index * 0.1)),
-                "retrieval_rank": index + 1,
-            }
-            for index, row in enumerate(rows)
-        ]
+        bm25_by_chunk = _bm25_scores(query, rows)
+        ranked = sorted(
+            rows,
+            key=lambda row: (
+                bm25_by_chunk.get(str(row.get("chunk_id") or ""), 0.0),
+                row.get("updated_at") is not None,
+            ),
+            reverse=True,
+        )
+        for index, row in enumerate(ranked):
+            bm25_score = bm25_by_chunk.get(str(row.get("chunk_id") or ""), 0.0)
+            row["bm25_score"] = float(bm25_score)
+            row["bm25_rank"] = index + 1
+            row["relevance_score"] = float(bm25_score)
+            row["retrieval_rank"] = index + 1
+        return ranked
 
     def merge_and_rerank_documents(
         self,
@@ -180,22 +535,36 @@ class DocumentRetriever:
         dense_results: list[dict[str, object]],
         bm25_results: list[dict[str, object]],
     ) -> list[dict[str, object]]:
-        """중복 chunk를 합치고 relevance_score 기준으로 재정렬한다."""
+        """dense rank와 BM25 rank를 reciprocal-rank fusion으로 합친다."""
 
         by_chunk: dict[str, dict[str, object]] = {}
         for source_name, results in (("dense", dense_results), ("bm25", bm25_results)):
-            for row in results:
+            for index, row in enumerate(results):
                 chunk_id = str(row.get("chunk_id") or "")
                 if not chunk_id:
                     continue
                 current = by_chunk.setdefault(chunk_id, {**row, "retrieval_sources": []})
-                current["retrieval_sources"] = [*current.get("retrieval_sources", []), source_name]
-                current["relevance_score"] = max(
-                    float(current.get("relevance_score") or 0.0),
-                    float(row.get("relevance_score") or row.get("bm25_score") or 0.0),
-                )
+                if source_name not in current["retrieval_sources"]:
+                    current["retrieval_sources"] = [*current.get("retrieval_sources", []), source_name]
+                for key in ("dense_score", "dense_rank", "cosine_score", "cosine_distance", "bm25_score", "bm25_rank"):
+                    if key in row and row.get(key) is not None:
+                        current[key] = row[key]
+                rank_key = "dense_rank" if source_name == "dense" else "bm25_rank"
+                current.setdefault(rank_key, index + 1)
 
-        ranked = sorted(by_chunk.values(), key=lambda item: float(item.get("relevance_score") or 0.0), reverse=True)
+        rrf_k = 60
+        for row in by_chunk.values():
+            dense_rank = row.get("dense_rank")
+            bm25_rank = row.get("bm25_rank")
+            rrf_score = 0.0
+            if dense_rank is not None:
+                rrf_score += 1 / (rrf_k + int(dense_rank))
+            if bm25_rank is not None:
+                rrf_score += 1 / (rrf_k + int(bm25_rank))
+            row["rrf_score"] = rrf_score
+            row["relevance_score"] = rrf_score
+
+        ranked = sorted(by_chunk.values(), key=lambda item: float(item.get("rrf_score") or 0.0), reverse=True)
         for index, row in enumerate(ranked):
             row["retrieval_rank"] = index + 1
         return ranked
