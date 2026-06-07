@@ -101,18 +101,33 @@ def _query_patterns(query: str, max_tokens: int = 8) -> list[str]:
     return [f"%{token}%" for token in tokens[:max_tokens]]
 
 
+_RULE_POLICY_KEYWORDS = frozenset(["개인정보", "처리방침", "이용약관", "약관"])
+
+
+def _rule_source_types(text: str) -> list[str]:
+    """Return source_type preferences by keyword rules.
+
+    Policy queries are narrowed to hoyoverse_policy; everything else uses all
+    FAQ source types so that naver_cafe_guide / naver_cafe_notice docs are
+    never excluded by an overly specific LLM enrichment guess.
+    """
+    if any(kw in text for kw in _RULE_POLICY_KEYWORDS):
+        return ["hoyoverse_policy"]
+    return list(FAQ_SOURCE_TYPES)
+
+
 def _fallback_enrich_query(text: str) -> RetrievalQuery:
     """Fallback enrichment when the LLM enrichment step is unavailable."""
     query_text = refine_query_text(text)
     return RetrievalQuery(
         query_text=query_text,
-        preferred_source_types=list(FAQ_SOURCE_TYPES),
+        preferred_source_types=_rule_source_types(text),
         preferred_categories=[],
     )
 
 
 def enrich_retrieval_query(text: str) -> RetrievalQuery:
-    """Use the LLM to normalize retrieval intent and optional source/category preferences."""
+    """Use the LLM to normalize retrieval intent; source types are rule-determined."""
     api_key = os.environ.get("LLM_API_KEY")
     model = os.environ.get("QUERY_ENRICHMENT_MODEL") or os.environ.get("LLM_MODEL")
     if not api_key or not model:
@@ -132,12 +147,7 @@ def enrich_retrieval_query(text: str) -> RetrievalQuery:
                 (
                     "system",
                     "You enrich Korean game CS FAQ/RAG search queries. "
-                    "Extract a concise Korean query_text, preferred document source types, and categories. "
-                    "Use only source types from: "
-                    f"{', '.join(FAQ_SOURCE_TYPES)}. "
-                    "For privacy policy questions prefer hoyoverse_policy and category privacy. "
-                    "For terms-of-service questions prefer hoyoverse_policy and category terms. "
-                    "For payment/account/client troubleshooting prefer hoyoverse_qna_common or hoyoverse_qna_onlygenshin. "
+                    "Extract a concise Korean query_text and optional category hints. "
                     "Normalize slang, typos, and equivalent phrases into the same canonical Korean FAQ search query. "
                     "For example, similar phrasings about resetting game progress should become one canonical query. "
                     "Do not preserve vague slang when a clearer FAQ title-style query is possible. "
@@ -146,12 +156,10 @@ def enrich_retrieval_query(text: str) -> RetrievalQuery:
                 ("user", text),
             ]
         )
-        allowed_sources = set(FAQ_SOURCE_TYPES)
-        source_types = [source for source in result.preferred_source_types if source in allowed_sources]
         query_text = refine_query_text(result.query_text or text)
         return RetrievalQuery(
             query_text=query_text,
-            preferred_source_types=source_types or list(FAQ_SOURCE_TYPES),
+            preferred_source_types=_rule_source_types(text),
             preferred_categories=list(dict.fromkeys(result.preferred_categories))[:8],
         )
     except Exception:
