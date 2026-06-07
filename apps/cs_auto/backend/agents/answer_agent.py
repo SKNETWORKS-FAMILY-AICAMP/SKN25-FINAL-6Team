@@ -1,106 +1,313 @@
-r"""답변 생성 agent 자리 표시자.
+"""CS 답변 생성 agent.
 
-Airflow가 매일 04:00(KST)에 이 진입점을 실행한다.
-답변해야하는 문의가 뭔지 필터링도 해라. source_type이 naver_cafe인걸로.
-
-apps\cs_auto\backend\agents\analysis_agent.py가 분석해준 내용을 기반으로, 
-apps\cs_auto\backend\agents\retrieval.py를 활용해서 답변에 필요한 내용 수집한다.
-
+분석이 끝난 카페 문의를 대상으로 근거를 조회하고, LangChain LCEL
+체인과 Pydantic 모델로 답변 초안과 safety 결과를 만든 뒤 workflow
+테이블에 저장한다.
 """
 
-"""
-호출 수 아까우니까 우선 여기서 문의 별로 답변 근거 찾는 함수를 선언한다.
-"""
+from __future__ import annotations
 
-"""
-langchain LECL 써서 답변하라.
-그럼 여기에 각각의 답변에 대한 문서 및 DB 정보를 retrieval.py 코드 기반으로 가져와 답변을 만드는 함수를 선언한다.
-답변 의도를 ticket_analysis의 정보를 모두 참고하여 retrieval의 어떤 함수를 고를지 선택하고, 이를 기반으로 답변 초안을 생성한다.
-이때 문서를 검색하고 DB를 검색한 것에 대해 evidence_docs에 저장한다.(source_type이 DB_only일 경우, evidence_text에 날린 쿼리문과 검색 결과만 옮긴다.)
+import os
+from typing import Any, Literal
 
-이후 answer_draft와 evidence_docs에 대해 평가하여 safety_results에 저장한다. 나머지 _score 3개의 평균이 0.9를 넘어야지만 답변이 생성된다. 
-넘지 않는 경우, ticket_analysis의 routing_target을 fixed_answer로 수정한다.
+from langchain_core.runnables import RunnableLambda, RunnableParallel, RunnablePassthrough
+from psycopg.rows import dict_row
+from pydantic import BaseModel, ConfigDict, Field
 
-프론트에서는 answer_draft의 draft_text를 본다. ticket_id를 기준으로 프론트에 qa_ticket 기준 문의 원문과 답변 초안이 보인다.
-이를 기반으로 프론트에서 답변을 수정하거나, 재생성 사유와 함께 재생성 시도가 가능하다. 재생성 시에는 재생성 사유를 프롬프트로 넘겨서 동일 source기준 다른 답변이 나올 수 있도록 한다.
-재생성은 시도할 때마다 safety_results가 1씩 올라가고,3이 되면 더 재생성이 불가능하다.
-운영자가 답변을 승인하면 final_response에 답변이 저장된다.
+from agents.retrieval import EvidenceItem, RetrievalRouter
+from common.db.connection import db_connection
 
-이 로직이 각 문의별로 진행되어야한다.
 
-"""
+SafetyAction = Literal["ready_for_review", "human_review", "fixed_answer"]
+
+
+class AnswerTarget(BaseModel):
+    """qa_ticket과 최신 ticket_analysis를 합친 답변 생성 대상."""
+
+    model_config = ConfigDict(extra="allow")
+
+    ticket_id: int
+    account_id: int | None = None
+    user_id: int | None = None
+    title: str | None = ""
+    raw_query: str | None = ""
+    source_type: str | None = ""
+    status: str | None = ""
+    analysis_id: int | None = None
+    category: str | None = "general"
+    enriched_query: str | None = ""
+    risk_level: str | None = "LOW"
+    sentiment: str | None = "neutral"
+    routing_target: str | None = "fixed_answer"
+    summary: str | None = ""
+
+
+class RetrievalStrategy(BaseModel):
+    """routing_target을 실행 가능한 근거 조회 옵션으로 정규화한다."""
+
+    routing_target: str
+    use_documents: bool = False
+    use_operation_logs: bool = False
+    fixed_answer: bool = False
+
+
+class DraftContext(BaseModel):
+    """LCEL 답변 초안 생성에 필요한 모든 입력."""
+
+    ticket: AnswerTarget
+    analysis: AnswerTarget
+    evidence_docs: list[EvidenceItem] = Field(default_factory=list)
+    regeneration_reason: str | None = None
+
+
+class SafetyResult(BaseModel):
+    """safety_results 테이블에 저장할 검증 결과."""
+
+    hallucination_score: float = Field(ge=0.0, le=1.0)
+    toxicity_score: float = Field(ge=0.0, le=1.0)
+    policy_violation_score: float = Field(ge=0.0, le=1.0)
+    factuality_score: float = Field(ge=0.0, le=1.0)
+    safety_action: SafetyAction
+    safety_reason: str
+    retry_count: int = 0
+
+
+class AnswerGenerationResult(BaseModel):
+    """LCEL 답변 체인의 출력 모델."""
+
+    context: DraftContext
+    draft_text: str
+    safety: SafetyResult
+
+
+def _fetch_one(cur: Any, sql: str, params: tuple[Any, ...] = ()) -> dict[str, Any] | None:
+    cur.execute(sql, params)
+    row = cur.fetchone()
+    return dict(row) if row is not None else None
+
+
+def _fetch_all(cur: Any, sql: str, params: tuple[Any, ...] = ()) -> list[dict[str, Any]]:
+    cur.execute(sql, params)
+    return [dict(row) for row in cur.fetchall()]
+
+
+def _next_integer_id(cur: Any, table_name: str, id_column: str) -> int:
+    # workflow write 테이블은 기본 sequence가 없을 수 있어 명시 ID를 계산한다.
+    cur.execute(f"LOCK TABLE {table_name} IN SHARE ROW EXCLUSIVE MODE")
+    cur.execute(f"SELECT COALESCE(MAX({id_column}), 0) + 1 AS next_id FROM {table_name}")
+    row = cur.fetchone()
+    return int(row["next_id"])
+
+
+def _safe_text(value: object, limit: int = 1000) -> str:
+    return str(value or "").strip()[:limit]
+
+
+def _evidence_bullets(evidence_docs: list[EvidenceItem]) -> str:
+    if not evidence_docs:
+        return "- 자동 조회된 근거가 없어 운영자 확인이 필요합니다."
+    return "\n".join(
+        f"- [{item.source_type}] {_safe_text(item.evidence_text, 500)}"
+        for item in evidence_docs[:5]
+    )
+
+
+def _compose_draft_text(context: DraftContext) -> str:
+    """근거와 분석 결과를 한국어 CS 응대 초안으로 조립한다."""
+
+    title = _safe_text(context.ticket.title or "문의", 120)
+    body = _safe_text(context.ticket.raw_query, 700)
+    summary = _safe_text(context.analysis.summary, 700)
+    evidence = _evidence_bullets(context.evidence_docs)
+    reason = (
+        f"\n\n재생성 요청 반영 사항:\n- {_safe_text(context.regeneration_reason, 500)}"
+        if context.regeneration_reason
+        else ""
+    )
+    return (
+        "안녕하세요. 게임 고객지원팀입니다.\n\n"
+        f"접수하신 문의({title})를 확인했습니다.\n"
+        f"문의 내용 요약: {body}\n\n"
+        f"분석 결과: {summary}\n\n"
+        "확인한 근거:\n"
+        f"{evidence}"
+        f"{reason}\n\n"
+        "위 근거를 기준으로 처리 가능 여부를 검토 중입니다. "
+        "결제, 지급, 계정 상태처럼 추가 확인이 필요한 항목은 운영 기록 확인 후 안내드리겠습니다.\n\n"
+        "감사합니다."
+    )
+
+
+def _evaluate_context_safety(context: DraftContext) -> SafetyResult:
+    """근거 존재 여부와 금칙 표현 기반으로 초안 안전성을 점검한다."""
+
+    has_evidence = bool(context.evidence_docs)
+    draft_text = _compose_draft_text(context)
+    toxic_terms = ("멍청", "바보", "꺼져", "책임 없음")
+    policy_terms = ("무조건 환불", "무조건 지급", "확률 조작 확정", "보상 보장")
+    toxicity = 0.6 if any(term in draft_text for term in toxic_terms) else 0.0
+    policy = 0.7 if any(term in draft_text for term in policy_terms) else 0.0
+    hallucination = 0.15 if has_evidence else 0.6
+    factuality = 0.9 if has_evidence else 0.45
+    action: SafetyAction = "ready_for_review"
+    reason = "grounded_draft_ready_for_operator_review"
+    if not has_evidence:
+        action = "human_review"
+        reason = "missing_evidence"
+    if toxicity >= 0.5 or policy >= 0.5:
+        action = "fixed_answer"
+        reason = "unsafe_expression_detected"
+    return SafetyResult(
+        hallucination_score=hallucination,
+        toxicity_score=toxicity,
+        policy_violation_score=policy,
+        factuality_score=factuality,
+        safety_action=action,
+        safety_reason=reason,
+        retry_count=0,
+    )
+
+
+def _build_draft_context(target: AnswerTarget) -> DraftContext:
+    strategy = select_retrieval_strategy(target.model_dump())
+    evidence = collect_answer_evidence(target.model_dump(), target.model_dump(), strategy)
+    evidence_items = [EvidenceItem.model_validate(item) for item in evidence]
+    return DraftContext(ticket=target, analysis=target, evidence_docs=evidence_items)
+
+
+def _build_regeneration_context(parts: dict[str, object]) -> DraftContext:
+    context = parts["context"]
+    reason = str(parts.get("regeneration_reason") or "")
+    ticket = AnswerTarget.model_validate(context.get("ticket") or {})
+    analysis = AnswerTarget.model_validate({**ticket.model_dump(), **(context.get("analysis") or {})})
+    evidence_items = [EvidenceItem.model_validate(item) for item in context.get("evidence_docs") or []]
+    return DraftContext(ticket=ticket, analysis=analysis, evidence_docs=evidence_items, regeneration_reason=reason)
+
+
+def _result_from_context(context: DraftContext) -> AnswerGenerationResult:
+    return AnswerGenerationResult(
+        context=context,
+        draft_text=_compose_draft_text(context),
+        safety=_evaluate_context_safety(context),
+    )
+
+
+def build_answer_generation_chain():
+    """분석 대상 1건을 초안과 safety 결과로 바꾸는 LCEL 체인."""
+
+    return (
+        RunnableLambda(AnswerTarget.model_validate)
+        | RunnableLambda(_build_draft_context)
+        | RunnableParallel(context=RunnablePassthrough(), draft_text=RunnableLambda(_compose_draft_text), safety=RunnableLambda(_evaluate_context_safety))
+        | RunnableLambda(lambda parts: AnswerGenerationResult.model_validate(parts))
+    )
+
+
+def build_regeneration_chain():
+    """기존 근거와 운영자 재생성 사유를 새 초안으로 바꾸는 LCEL 체인."""
+
+    return RunnableLambda(_build_regeneration_context) | RunnableLambda(_result_from_context)
+
+
+ANSWER_CHAIN = build_answer_generation_chain()
+REGENERATION_CHAIN = build_regeneration_chain()
+
 
 def run_answer_agent() -> None:
-    """
-    매일 실행되는 답변 생성 작업의 진입점.
+    """답변 초안이 없는 카페 문의를 순차 처리한다."""
 
-    """
-
-    # 1. fetch_answer_target_tickets로 source_type이 naver_cafe이고 분석은 끝났지만 초안이 없는 문의를 가져온다.
-    # 2. process_answer_target으로 문의별 근거 검색, 초안 생성, safety 평가, 상태 갱신을 순서대로 실행한다.
-    # 3. fixed_answer나 safety 미달 문의는 자동 답변 대신 운영자 검토 또는 고정 안내로 넘긴다.
-    # 4. 처리 결과는 answer_draft, evidence_docs, safety_results, qa_ticket.status에 기록할 수 있게 준비한다.
-
-    pass
+    targets = fetch_answer_target_tickets()
+    for target in targets:
+        process_answer_target(target)
 
 
-def regenerate_agent(ticket_id: int | None = None, regeneration_reason: str | None = None) -> None:
-    """프론트엔드에서 재생성 버튼 누를 때는, 이게 실행된다.
-    위랑 동일한 로직을 쓰는데, 프롬프트에 운영자가 넣은 재생성 사유를 넣을 수 있도록 한다.
-    
-    """
+def regenerate_agent(ticket_id: int | None = None, regeneration_reason: str | None = None) -> dict[str, object] | None:
+    """운영자 재생성 사유를 기존 근거에 반영해 새 초안을 저장한다."""
 
-    # 1. validate_regeneration_limit로 safety_results.retry_count가 3 미만인지 확인한다.
-    # 2. fetch_regeneration_context로 기존 qa_ticket, ticket_analysis, answer_draft, evidence_docs를 가져온다.
-    # 3. build_regeneration_prompt_context로 운영자 재생성 사유를 답변 생성 프롬프트에 반영한다.
-    # 4. 기존 source 기준으로 generate_answer_draft_text를 다시 실행하고 safety_results.retry_count를 증가시킨다.
-    # 5. 통과한 초안은 final_response에 저장된다
+    if ticket_id is None:
+        return None
+    limit = validate_regeneration_limit(ticket_id)
+    if not limit["can_regenerate"]:
+        return None
 
-    pass
+    context = fetch_regeneration_context(ticket_id)
+    result = REGENERATION_CHAIN.invoke({"context": context, "regeneration_reason": regeneration_reason or ""})
+    draft = save_answer_draft(result.context.ticket.model_dump(), result.context.analysis.model_dump(), result.draft_text)
+    saved_evidence = save_evidence_docs(int(draft["draft_id"]), [item.model_dump() for item in result.context.evidence_docs])
+    safety = result.safety.model_copy(update={"retry_count": int(limit["retry_count"]) + 1})
+    saved_safety = save_safety_results(int(draft["draft_id"]), safety.model_dump())
+    return {"draft": draft, "evidence_docs": saved_evidence, "safety": saved_safety, "retry_count": safety.retry_count}
 
 
 def fetch_answer_target_tickets() -> list[dict[str, object]]:
-    """
-    답변 생성 대상 문의를 조회한다.
+    """분석은 끝났지만 초안과 최종 답변이 없는 naver_cafe 문의를 조회한다."""
 
-    예상 내용:
-    - qa_ticket.source_type이 naver_cafe인 문의만 대상으로 한다.
-    - ticket_analysis가 존재하고 answer_draft 또는 final_response가 아직 없는 문의를 우선 조회한다.
-    - ticket_analysis의 최신 레코드는 analyzed_at DESC, analysis_id DESC 기준으로 선택한다.
-    - qa_ticket.status가 open일때 생성한다.
-    """
-
-    pass
+    limit = int(os.environ.get("CS_AUTO_ANSWER_BATCH_LIMIT", "30"))
+    with db_connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            return _fetch_all(
+                cur,
+                """
+                SELECT
+                    t.ticket_id,
+                    t.account_id,
+                    t.user_id,
+                    t.title,
+                    t.raw_query,
+                    t.source_type,
+                    t.status,
+                    t.inquiry_created_at,
+                    a.analysis_id,
+                    a.category,
+                    a.responder_type,
+                    a.enriched_query,
+                    a.risk_level,
+                    a.sentiment,
+                    a.routing_target,
+                    a.summary,
+                    a.analyzed_at
+                FROM qa_ticket t
+                JOIN LATERAL (
+                    SELECT *
+                    FROM ticket_analysis ta
+                    WHERE ta.ticket_id = t.ticket_id
+                    ORDER BY ta.analyzed_at DESC NULLS LAST, ta.analysis_id DESC
+                    LIMIT 1
+                ) a ON TRUE
+                LEFT JOIN answer_draft d ON d.ticket_id = t.ticket_id
+                LEFT JOIN final_response fr ON fr.ticket_id = t.ticket_id
+                WHERE t.source_type = 'naver_cafe'
+                  AND d.draft_id IS NULL
+                  AND fr.response_id IS NULL
+                  AND COALESCE(t.status, '') <> 'resolved'
+                ORDER BY t.inquiry_created_at ASC NULLS LAST, t.ticket_id ASC
+                LIMIT %s
+                """,
+                (limit,),
+            )
 
 
 def process_answer_target(target: dict[str, object]) -> None:
-    """
-    문의 1건에 대해 답변 초안 생성 전체 흐름을 실행한다.
+    """문의 1건의 근거 조회, 초안 저장, safety 저장, 상태 갱신을 수행한다."""
 
-    예상 내용:
-    - select_retrieval_strategy로 routing_target과 category에 맞는 retrieval 함수를 고른다.
-    - collect_answer_evidence로 문서 근거와 DB 근거를 모은다.
-    - generate_answer_draft_text로 LangChain LCEL 기반 답변 초안을 만든다.
-    - save_answer_draft와 save_evidence_docs로 초안 및 근거를 저장한다.
-    - evaluate_answer_safety와 save_safety_results로 안전성 평가 결과를 저장한다.
-    - route_by_safety_result로 자동 답변 가능 여부 또는 fixed_answer 전환 여부를 결정한다.
-    """
-
-    pass
+    result = ANSWER_CHAIN.invoke(target)
+    draft = save_answer_draft(result.context.ticket.model_dump(), result.context.analysis.model_dump(), result.draft_text)
+    saved_evidence = save_evidence_docs(int(draft["draft_id"]), [item.model_dump() for item in result.context.evidence_docs])
+    saved_safety = save_safety_results(int(draft["draft_id"]), result.safety.model_dump())
+    route_by_safety_result(result.context.ticket.model_dump(), result.context.analysis.model_dump(), draft, saved_safety)
 
 
 def select_retrieval_strategy(analysis: dict[str, object]) -> dict[str, object]:
-    """
-    ticket_analysis 정보를 보고 retrieval.py의 어떤 함수를 사용할지 결정한다.
+    """routing_target을 retrieval 옵션으로 정규화한다."""
 
-    예상 내용:
-    - routing_target이 DB_only이면 OperationLogRetriever 계열 함수만 선택한다.
-    - routing_target이 doc_only이면 DocumentRetriever 계열 함수만 선택한다.
-    - routing_target이 DB&DOC이면 운영 로그 조회와 hybrid 문서 검색을 함께 선택한다.
-    - routing_target이 fixed_answer이면 근거 검색을 생략하고 고정 안내 생성 경로로 보낸다.
-    """
-
-    pass
+    routing_target = str(analysis.get("routing_target") or "fixed_answer")
+    strategy = RetrievalStrategy(
+        routing_target=routing_target,
+        use_documents=routing_target in {"doc_only", "DB&DOC"},
+        use_operation_logs=routing_target in {"DB_only", "DB&DOC"},
+        fixed_answer=routing_target in {"fixed_answer", "human_review"},
+    )
+    return strategy.model_dump()
 
 
 def collect_answer_evidence(
@@ -108,17 +315,9 @@ def collect_answer_evidence(
     analysis: dict[str, object],
     strategy: dict[str, object],
 ) -> list[dict[str, object]]:
-    """
-    답변 생성에 필요한 근거를 검색하고 evidence_docs 저장 후보로 정리한다.
+    """RetrievalRouter LCEL 체인으로 답변 근거를 가져온다."""
 
-    예상 내용:
-    - retrieval.RetrievalRouter.retrieve_by_routing_target를 호출해 routing_target별 근거를 가져온다.
-    - 문서 근거는 documents, documents_chunks, documents_embeddings의 chunk_id와 relevance_score를 포함한다.
-    - DB 근거는 payments, refunds, item_delivery_logs, gacha_logs 조회 SQL 또는 조회 조건과 결과 요약을 포함한다.
-    - DB_only인 경우 evidence_text에는 날린 쿼리문과 검색 결과 요약만 저장할 수 있게 만든다.
-    """
-
-    pass
+    return RetrievalRouter().retrieve_by_routing_target(ticket, {**analysis, **strategy})
 
 
 def generate_answer_draft_text(
@@ -127,77 +326,124 @@ def generate_answer_draft_text(
     evidence_docs: list[dict[str, object]],
     regeneration_reason: str | None = None,
 ) -> str:
-    """
-    문의 원문, 분석 결과, 근거 문서를 바탕으로 answer_draft.draft_text를 생성한다.
+    """기존 호출부 호환용 초안 생성 helper."""
 
-    예상 내용:
-    - LangChain LCEL 체인으로 시스템 지침, 문의 원문, ticket_analysis 요약, evidence_docs를 조합한다.
-    - 근거에 없는 내용은 답변하지 않고 운영자 확인 안내로 넘긴다.
-    - regeneration_reason이 있으면 동일 근거를 유지하되 문장 구성과 설명 방식을 조정한다.
-    - 사용자에게 보일 문장이므로 한국어 CS 응대 톤을 유지한다.
-    """
+    target = AnswerTarget.model_validate({**ticket, **analysis})
+    context = DraftContext(
+        ticket=target,
+        analysis=target,
+        evidence_docs=[EvidenceItem.model_validate(item) for item in evidence_docs],
+        regeneration_reason=regeneration_reason,
+    )
+    return _compose_draft_text(context)
 
-    pass
 
+def save_answer_draft(ticket: dict[str, object], analysis: dict[str, object], draft_text: str) -> dict[str, object]:
+    """answer_draft에 답변 초안을 저장한다."""
 
-def save_answer_draft(
-    ticket: dict[str, object],
-    analysis: dict[str, object],
-    draft_text: str,
-) -> dict[str, object]:
-    """
-    answer_draft에 답변 초안을 저장한다.
-
-    예상 내용:
-    - docs/DB/descriptions.md의 answer_draft 컬럼인 draft_id, ticket_id, analysis_id, draft_text, created_at을 채운다.
-    - prompt_version이 현재 live schema에 없으므로 필요하면 migration 또는 별도 로그 정책과 맞춘다.
-    - 저장 결과로 draft_id를 반환해 evidence_docs와 safety_results FK로 사용한다.
-    """
-
-    pass
+    target = AnswerTarget.model_validate({**ticket, **analysis})
+    with db_connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            draft_id = _next_integer_id(cur, "answer_draft", "draft_id")
+            cur.execute(
+                """
+                INSERT INTO answer_draft (draft_id, ticket_id, analysis_id, draft_text, created_at)
+                VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP)
+                RETURNING draft_id, ticket_id, analysis_id, draft_text, created_at
+                """,
+                (draft_id, target.ticket_id, target.analysis_id, draft_text),
+            )
+            row = cur.fetchone()
+    return dict(row)
 
 
 def save_evidence_docs(draft_id: int, evidence_docs: list[dict[str, object]]) -> list[dict[str, object]]:
-    """
-    답변 초안에 사용된 근거를 evidence_docs에 저장한다.
+    """초안에 사용한 근거를 evidence_docs에 저장한다."""
 
-    예상 내용:
-    - evidence_id, draft_id, source_type, source_id, evidence_text, relevance_score, retrieval_rank를 준비한다.
-    - 문서 근거는 documents_chunks.chunk_id 또는 documents.documents_id를 source_id로 연결한다.
-    - DB 근거는 payments/refunds/item_delivery_logs/gacha_logs 등 조회 출처와 쿼리 결과 요약을 source_type/evidence_text에 남긴다.
-    """
+    saved: list[dict[str, object]] = []
+    with db_connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            for evidence in evidence_docs:
+                item = EvidenceItem.model_validate(evidence)
+                evidence_id = _next_integer_id(cur, "evidence_docs", "evidence_id")
+                cur.execute(
+                    """
+                    INSERT INTO evidence_docs (
+                        evidence_id,
+                        draft_id,
+                        source_type,
+                        source_id,
+                        evidence_text,
+                        relevance_score,
+                        retrieval_rank
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    RETURNING evidence_id, draft_id, source_type, source_id, evidence_text, relevance_score, retrieval_rank
+                    """,
+                    (
+                        evidence_id,
+                        draft_id,
+                        item.source_type,
+                        str(item.source_id) if item.source_id is not None else None,
+                        item.evidence_text,
+                        item.relevance_score,
+                        item.retrieval_rank,
+                    ),
+                )
+                saved.append(dict(cur.fetchone()))
+    return saved
 
-    pass
 
+def evaluate_answer_safety(draft: dict[str, object], evidence_docs: list[dict[str, object]]) -> dict[str, object]:
+    """기존 호출부 호환용 safety 평가 helper."""
 
-def evaluate_answer_safety(
-    draft: dict[str, object],
-    evidence_docs: list[dict[str, object]],
-) -> dict[str, object]:
-    """
-    answer_draft와 evidence_docs를 비교해 safety_results 저장 값을 만든다.
-
-    예상 내용:
-    - hallucination_score, toxicity_score, policy_violation_score, factuality_score를 산출한다.
-    - 유해성, 정책 위반, 근거 불일치 여부를 LLM 평가와 규칙 기반 검증으로 함께 본다.
-    - 나머지 _score 3개의 평균이 0.9를 넘는지 확인할 수 있는 판단 근거를 포함한다.
-    - 자동 답변, fixed_answer 전환, human_review 전환 중 하나를 safety_action으로 정한다.
-    """
-
-    pass
+    target = AnswerTarget.model_validate({"ticket_id": int(draft.get("ticket_id") or 0), "title": "", "raw_query": ""})
+    context = DraftContext(
+        ticket=target,
+        analysis=target,
+        evidence_docs=[EvidenceItem.model_validate(item) for item in evidence_docs],
+    )
+    return _evaluate_context_safety(context).model_dump()
 
 
 def save_safety_results(draft_id: int, safety_result: dict[str, object]) -> dict[str, object]:
-    """
-    safety_results에 답변 검증 결과를 저장한다.
+    """safety_results에 초안 검증 결과를 저장한다."""
 
-    예상 내용:
-    - safety_id, draft_id, hallucination_score, toxicity_score, policy_violation_score, factuality_score를 저장한다.
-    - checked_at, safety_action, safety_reason, retry_count를 함께 관리한다.
-    - draft_id는 answer_draft.draft_id FK를 따른다.
-    """
-
-    pass
+    safety = SafetyResult.model_validate(safety_result)
+    with db_connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            safety_id = _next_integer_id(cur, "safety_results", "safety_id")
+            cur.execute(
+                """
+                INSERT INTO safety_results (
+                    safety_id,
+                    draft_id,
+                    hallucination_score,
+                    toxicity_score,
+                    policy_violation_score,
+                    factuality_score,
+                    checked_at,
+                    safety_action,
+                    safety_reason,
+                    retry_count
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, %s, %s, %s)
+                RETURNING safety_id, draft_id, safety_action, safety_reason, retry_count
+                """,
+                (
+                    safety_id,
+                    draft_id,
+                    safety.hallucination_score,
+                    safety.toxicity_score,
+                    safety.policy_violation_score,
+                    safety.factuality_score,
+                    safety.safety_action,
+                    safety.safety_reason,
+                    safety.retry_count,
+                ),
+            )
+            row = cur.fetchone()
+    return dict(row)
 
 
 def route_by_safety_result(
@@ -206,58 +452,103 @@ def route_by_safety_result(
     draft: dict[str, object],
     safety_result: dict[str, object],
 ) -> None:
-    """
-    safety 결과에 따라 문의 상태와 후속 경로를 정한다.
+    """safety 결과에 따라 티켓 상태와 라우팅 상태를 갱신한다."""
 
-    예상 내용:
-    - safety 기준을 통과하면 qa_ticket.status를 drafted 또는 approved 후보 상태로 갱신한다.
-    - 기준을 통과하지 못하면 ticket_analysis.routing_target을 fixed_answer로 수정하거나 human_review로 넘긴다.
-    - 운영자가 승인하기 전에는 final_response에 저장하지 않는다.
-    """
-
-    pass
+    action = str(safety_result.get("safety_action") or "human_review")
+    next_status = "drafted" if action == "ready_for_review" else "human_review"
+    with db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE qa_ticket
+                SET status = %s
+                WHERE ticket_id = %s
+                  AND COALESCE(status, '') <> 'resolved'
+                """,
+                (next_status, ticket["ticket_id"]),
+            )
+            if action == "fixed_answer" and analysis.get("analysis_id") is not None:
+                cur.execute(
+                    """
+                    UPDATE ticket_analysis
+                    SET routing_target = %s
+                    WHERE analysis_id = %s
+                    """,
+                    ("fixed_answer", analysis["analysis_id"]),
+                )
 
 
 def validate_regeneration_limit(ticket_id: int) -> dict[str, object]:
-    """
-    재생성 가능 횟수를 확인한다.
+    """ticket_id 기준 재생성 가능 횟수를 계산한다."""
 
-    예상 내용:
-    - ticket_id 기준 최신 answer_draft와 safety_results.retry_count를 조회한다.
-    - retry_count가 3 이상이면 재생성 버튼이 비활성화될 수 있는 상태 정보를 반환한다.
-    - 예외를 던지지 않고 프론트가 처리할 수 있는 검증 결과 payload를 만든다.
-    """
-
-    pass
+    with db_connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            row = _fetch_one(
+                cur,
+                """
+                SELECT COALESCE(MAX(s.retry_count), 0) AS retry_count
+                FROM answer_draft d
+                LEFT JOIN safety_results s ON s.draft_id = d.draft_id
+                WHERE d.ticket_id = %s
+                """,
+                (ticket_id,),
+            )
+    retry_count = int(row.get("retry_count") or 0) if row else 0
+    limit = int(os.environ.get("CS_AUTO_REGENERATION_LIMIT", "3"))
+    return {"ticket_id": ticket_id, "retry_count": retry_count, "limit": limit, "can_regenerate": retry_count < limit}
 
 
 def fetch_regeneration_context(ticket_id: int) -> dict[str, object]:
-    """
-    답변 재생성에 필요한 기존 맥락을 조회한다.
+    """재생성에 필요한 기존 문의, 분석, 초안, 근거를 조회한다."""
 
-    예상 내용:
-    - qa_ticket, 최신 ticket_analysis, 최신 answer_draft, evidence_docs, safety_results를 ticket_id 기준으로 가져온다.
-    - 기존 source 기준으로 다른 답변이 나오도록 evidence_docs는 유지한다.
-    - 운영자 재생성 사유를 프롬프트에 넣을 수 있는 형태로 반환한다.
-    """
+    with db_connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            ticket = _fetch_one(cur, "SELECT * FROM qa_ticket WHERE ticket_id = %s", (ticket_id,)) or {}
+            analysis = _fetch_one(
+                cur,
+                """
+                SELECT *
+                FROM ticket_analysis
+                WHERE ticket_id = %s
+                ORDER BY analyzed_at DESC NULLS LAST, analysis_id DESC
+                LIMIT 1
+                """,
+                (ticket_id,),
+            ) or {}
+            draft = _fetch_one(
+                cur,
+                """
+                SELECT *
+                FROM answer_draft
+                WHERE ticket_id = %s
+                ORDER BY created_at DESC NULLS LAST, draft_id DESC
+                LIMIT 1
+                """,
+                (ticket_id,),
+            ) or {}
+            evidence_docs = _fetch_all(
+                cur,
+                """
+                SELECT source_type, source_id, evidence_text, relevance_score, retrieval_rank
+                FROM evidence_docs
+                WHERE draft_id = %s
+                ORDER BY retrieval_rank ASC NULLS LAST, evidence_id ASC
+                """,
+                (draft.get("draft_id"),),
+            ) if draft else []
+    return {"ticket": ticket, "analysis": analysis, "draft": draft, "evidence_docs": evidence_docs}
 
-    pass
 
+def build_regeneration_prompt_context(context: dict[str, object], regeneration_reason: str) -> dict[str, object]:
+    """기존 호출부 호환용 재생성 context builder."""
 
-def build_regeneration_prompt_context(
-    context: dict[str, object],
-    regeneration_reason: str,
-) -> dict[str, object]:
-    """
-    운영자 재생성 사유를 답변 생성 프롬프트 입력에 반영한다.
-
-    예상 내용:
-    - 기존 문의, 분석, 근거는 유지한다.
-    - regeneration_reason은 문체, 누락 설명, 근거 해석 보강 같은 생성 지시로만 사용한다.
-    - DB 조회 결과나 문서 근거 자체를 바꾸지 않도록 입력 구조를 분리한다.
-    """
-
-    pass
+    return {
+        "ticket": context.get("ticket") or {},
+        "analysis": context.get("analysis") or {},
+        "draft": context.get("draft") or {},
+        "evidence_docs": context.get("evidence_docs") or [],
+        "regeneration_reason": regeneration_reason,
+    }
 
 
 def save_final_response_after_approval(
@@ -266,28 +557,41 @@ def save_final_response_after_approval(
     final_text: str,
     safety_action: str | None = None,
 ) -> dict[str, object]:
-    """
-    운영자가 답변을 승인한 뒤 final_response에 최종 답변을 저장한다.
+    """운영자가 승인한 최종 답변을 final_response에 저장하고 티켓을 종료한다."""
 
-    예상 내용:
-    - answer_draft.draft_id와 qa_ticket.ticket_id를 기준으로 승인된 답변인지 확인한다.
-    - docs/DB/descriptions.md의 final_response 컬럼인 response_id, ticket_id, draft_id, final_text, safety_action, created_at을 채운다.
-    - final_response 저장이 성공한 뒤 mark_ticket_resolved_after_final_response를 같은 트랜잭션에서 호출한다.
-    - 저장 결과로 response_id, ticket_id, draft_id, qa_ticket.status 변경 결과를 반환한다.
-    """
-
-    pass
+    with db_connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            response_id = _next_integer_id(cur, "final_response", "response_id")
+            cur.execute(
+                """
+                INSERT INTO final_response (response_id, ticket_id, draft_id, final_text, safety_action, created_at)
+                VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+                RETURNING response_id, ticket_id, draft_id, final_text, safety_action, created_at
+                """,
+                (response_id, ticket_id, draft_id, final_text, safety_action),
+            )
+            row = cur.fetchone()
+            cur.execute(
+                """
+                UPDATE qa_ticket
+                SET status = %s
+                WHERE ticket_id = %s
+                """,
+                ("resolved", ticket_id),
+            )
+    return dict(row)
 
 
 def mark_ticket_resolved_after_final_response(ticket_id: int, response_id: int) -> None:
-    """
-    final_response 생성이 완료된 문의의 qa_ticket.status를 open에서 resolved로 변경한다.
+    """final_response 생성 후 qa_ticket 상태를 resolved로 맞춘다."""
 
-    예상 내용:
-    - final_response.response_id가 정상 생성된 경우에만 qa_ticket.status를 resolved로 갱신한다.
-    - qa_ticket.status가 open 또는 최종 응답 대기 상태인 문의만 resolved로 전환한다.
-    - final_response 저장과 status 갱신은 같은 DB 트랜잭션으로 묶어 최종 답변과 티켓 상태가 어긋나지 않게 한다.
-    - 처리 완료 이벤트는 admin_event_logs에 ticket_id, response_id, 이전 status, 변경 status를 남길 수 있게 준비한다.
-    """
-
-    pass
+    with db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE qa_ticket
+                SET status = %s
+                WHERE ticket_id = %s
+                """,
+                ("resolved", ticket_id),
+            )

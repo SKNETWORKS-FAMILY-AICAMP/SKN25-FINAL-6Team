@@ -3,6 +3,15 @@
 이 함수에서 api 포인트를 만들어내, 프론트에 전달할 수 있도록 한다.
 """
 
+from __future__ import annotations
+
+import os
+
+from psycopg.rows import dict_row
+from psycopg.types.json import Json
+
+from common.db.connection import db_connection
+
 
 def build_cafe_comment_payload(ticket_id: int, response_id: int) -> dict[str, object]:
     """
@@ -14,7 +23,46 @@ def build_cafe_comment_payload(ticket_id: int, response_id: int) -> dict[str, ob
     - 카페 게시글 URL, 댓글 본문, 운영자 식별 정보, 재시도 가능 여부를 정리한다.
     """
 
-    pass
+    with db_connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                SELECT
+                    t.ticket_id,
+                    t.source_type,
+                    t.title,
+                    t.raw_query,
+                    t.session_id,
+                    fr.response_id,
+                    fr.final_text,
+                    fr.created_at
+                FROM qa_ticket t
+                JOIN final_response fr ON fr.ticket_id = t.ticket_id
+                WHERE t.ticket_id = %s
+                  AND fr.response_id = %s
+                """,
+                (ticket_id, response_id),
+            )
+            row = cur.fetchone()
+
+    if row is None:
+        return {
+            "ready": False,
+            "ticket_id": ticket_id,
+            "response_id": response_id,
+            "reason": "final_response_not_found",
+        }
+
+    return {
+        "ready": row["source_type"] == "naver_cafe",
+        "ticket_id": row["ticket_id"],
+        "response_id": row["response_id"],
+        "source_type": row["source_type"],
+        "post_reference": row["session_id"],
+        "title": row["title"],
+        "comment_text": row["final_text"],
+        "created_at": row["created_at"],
+    }
 
 
 def upload_comment_to_naver_cafe(payload: dict[str, object]) -> dict[str, object]:
@@ -28,7 +76,26 @@ def upload_comment_to_naver_cafe(payload: dict[str, object]) -> dict[str, object
     - 업로드 실패 시 final_response와 qa_ticket 상태를 되돌리지 않고 재시도 가능한 실패 정보를 반환한다.
     """
 
-    pass
+    endpoint = os.environ.get("NAVER_CAFE_COMMENT_ENDPOINT")
+    if not payload.get("ready"):
+        return {
+            "status": "skipped",
+            "reason": payload.get("reason") or "unsupported_source_type",
+            "payload": payload,
+        }
+
+    if not endpoint:
+        return {
+            "status": "prepared",
+            "reason": "NAVER_CAFE_COMMENT_ENDPOINT is not configured",
+            "payload": payload,
+        }
+
+    return {
+        "status": "prepared",
+        "endpoint": endpoint,
+        "payload": payload,
+    }
 
 
 def record_cafe_upload_result(
@@ -45,4 +112,58 @@ def record_cafe_upload_result(
     - 프론트엔드가 업로드 완료 또는 재시도 필요 상태를 표시할 수 있는 payload를 반환한다.
     """
 
-    pass
+    status = str(upload_result.get("status") or "unknown")
+    error_message = upload_result.get("reason")
+    with db_connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                INSERT INTO notification_logs (
+                    ticket_id,
+                    channel,
+                    status,
+                    message,
+                    error_message,
+                    error_category
+                )
+                VALUES (%s, %s, %s, %s, %s, %s)
+                RETURNING notification_id, sent_at
+                """,
+                (
+                    ticket_id,
+                    "naver_cafe",
+                    status,
+                    str(upload_result.get("payload", {}).get("comment_text") or ""),
+                    error_message,
+                    "external_endpoint" if error_message else None,
+                ),
+            )
+            notification = cur.fetchone()
+            cur.execute(
+                """
+                INSERT INTO admin_event_logs (
+                    ticket_id,
+                    node_name,
+                    event_type,
+                    status,
+                    metadata
+                )
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                (
+                    ticket_id,
+                    "cs_auto_cafe_upload",
+                    "cafe_comment_upload",
+                    status,
+                    Json({"response_id": response_id, "upload_result": upload_result}),
+                ),
+            )
+
+    return {
+        "ticket_id": ticket_id,
+        "response_id": response_id,
+        "status": status,
+        "notification_id": notification["notification_id"] if notification else None,
+        "sent_at": notification["sent_at"] if notification else None,
+        "upload_result": upload_result,
+    }

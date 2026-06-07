@@ -1,130 +1,291 @@
-"""문의 분석 agent 자리 표시자.
+"""CS 문의 분석 agent.
 
-Airflow가 매일 01:00(KST)에 이 진입점을 실행한다
-langchain의 LECL를 사용하고, langchain에 있는 도구를 적극 사용한다.
-
+Airflow 배치가 호출하는 1단계 agent이다. 아직 분석되지 않은
+`qa_ticket`을 읽고, LangChain LCEL 체인과 Pydantic 모델로 문의를
+정규화한 뒤 `ticket_analysis`에 저장한다.
 """
+
+from __future__ import annotations
+
+import os
+import re
+from typing import Any, Literal
+
+from langchain_core.runnables import RunnableLambda, RunnableParallel, RunnablePassthrough
+from psycopg.rows import dict_row
+from psycopg.types.json import Json
+from pydantic import BaseModel, ConfigDict
+
+from common.db.connection import db_connection
+
+
+Category = Literal["payment", "refund", "account", "bug", "gacha", "policy", "general"]
+RoutingTarget = Literal["DB_only", "doc_only", "DB&DOC", "fixed_answer", "human_review"]
+Sentiment = Literal["positive", "neutral", "negative"]
+RiskLevel = Literal["LOW", "MID", "HIGH"]
+
+
+class TicketPayload(BaseModel):
+    """DB에서 읽은 qa_ticket 1건을 분석 체인 입력으로 고정한다."""
+
+    model_config = ConfigDict(extra="allow")
+
+    ticket_id: int
+    account_id: int | None = None
+    user_id: int | None = None
+    title: str | None = ""
+    raw_query: str | None = ""
+    source_type: str | None = ""
+    status: str | None = ""
+    session_id: str | None = None
+    responder_type: str | None = "agent"
+
+
+class EnrichedTicket(BaseModel):
+    """분류와 라우팅에 쓰기 좋은 텍스트를 포함한 중간 상태."""
+
+    ticket: TicketPayload
+    enriched_query: str
+    normalized_query: str
+
+
+class AnalysisResult(BaseModel):
+    """ticket_analysis 테이블에 저장할 분석 결과."""
+
+    ticket_id: int
+    category: Category
+    responder_type: str = "agent"
+    enriched_query: str
+    risk_level: RiskLevel
+    sentiment: Sentiment
+    routing_target: RoutingTarget
+    summary: str
+
+
+CATEGORY_KEYWORDS: dict[Category, tuple[str, ...]] = {
+    "payment": ("결제", "구매", "충전", "미지급", "상품", "패키지", "쿠폰", "영수증", "다이아"),
+    "refund": ("환불", "취소", "청약철회", "반품", "결제 취소"),
+    "account": ("계정", "로그인", "연동", "복구", "인증", "정지", "탈퇴", "비밀번호"),
+    "bug": ("버그", "오류", "렉", "튕김", "접속", "강제 종료", "채팅", "서버"),
+    "gacha": ("가챠", "뽑기", "확률", "천장", "소환", "픽업"),
+    "policy": ("정책", "제재", "운영", "공지", "약관", "신고"),
+    "general": (),
+}
+
+NEGATIVE_KEYWORDS = ("화남", "짜증", "불만", "최악", "고소", "신고", "빨리", "장난", "문제")
+POSITIVE_KEYWORDS = ("감사", "고맙", "좋아요", "확인 부탁", "문의드립니다")
+HIGH_RISK_KEYWORDS = ("고소", "신고", "환불 거부", "계정 정지", "중복 결제", "미지급", "개인정보", "약관 위반")
+
+
+def _fetch_all(cur: Any, sql: str, params: tuple[Any, ...] = ()) -> list[dict[str, Any]]:
+    cur.execute(sql, params)
+    return [dict(row) for row in cur.fetchall()]
+
+
+def _next_integer_id(cur: Any, table_name: str, id_column: str) -> int:
+    # 현재 workflow write 테이블은 DB 기본값이 없을 수 있어 배치 안에서 다음 ID를 계산한다.
+    cur.execute(f"LOCK TABLE {table_name} IN SHARE ROW EXCLUSIVE MODE")
+    cur.execute(f"SELECT COALESCE(MAX({id_column}), 0) + 1 AS next_id FROM {table_name}")
+    row = cur.fetchone()
+    return int(row["next_id"])
+
+
+def _contains_any(text: str, keywords: tuple[str, ...]) -> bool:
+    return any(keyword in text for keyword in keywords)
+
+
+def _keyword_score(text: str, keywords: tuple[str, ...]) -> int:
+    return sum(1 for keyword in keywords if keyword and keyword in text)
+
+
+def _normalize_text(value: str) -> str:
+    text = re.sub(r"\s+", " ", value).strip()
+    return text[:4000]
+
+
+def _to_ticket_payload(ticket: dict[str, object] | TicketPayload) -> TicketPayload:
+    return TicketPayload.model_validate(ticket)
+
+
+def _build_enriched_ticket(ticket: TicketPayload) -> EnrichedTicket:
+    # title과 raw_query를 함께 보존해 분류 키워드 손실을 줄인다.
+    combined = _normalize_text(f"{ticket.title or ''}\n{ticket.raw_query or ''}")
+    return EnrichedTicket(ticket=ticket, enriched_query=combined, normalized_query=combined.lower())
+
+
+def _classify_category(enriched: EnrichedTicket) -> Category:
+    scores = {
+        category: _keyword_score(enriched.normalized_query, keywords)
+        for category, keywords in CATEGORY_KEYWORDS.items()
+        if category != "general"
+    }
+    category, score = max(scores.items(), key=lambda item: item[1])
+    return category if score > 0 else "general"
+
+
+def _score_sentiment(enriched: EnrichedTicket) -> Sentiment:
+    text = enriched.normalized_query
+    if _contains_any(text, NEGATIVE_KEYWORDS):
+        return "negative"
+    if _contains_any(text, POSITIVE_KEYWORDS):
+        return "positive"
+    return "neutral"
+
+
+def _score_risk(enriched: EnrichedTicket, category: Category) -> RiskLevel:
+    text = enriched.normalized_query
+    if _contains_any(text, HIGH_RISK_KEYWORDS):
+        return "HIGH"
+    if category in {"payment", "refund", "account"}:
+        return "MID"
+    return "LOW"
+
+
+def _decide_routing(enriched: EnrichedTicket, category: Category, risk_level: RiskLevel) -> RoutingTarget:
+    # 카페 외 채널은 자동 게시 대상이 아니므로 운영자 검토로 보낸다.
+    if enriched.ticket.source_type != "naver_cafe":
+        return "human_review"
+    if risk_level == "HIGH":
+        return "DB&DOC"
+    if category in {"payment", "refund", "account", "gacha"}:
+        return "DB&DOC"
+    if category in {"bug", "policy"}:
+        return "doc_only"
+    return "fixed_answer"
+
+
+def _summarize(enriched: EnrichedTicket, category: Category, routing_target: RoutingTarget, sentiment: Sentiment, risk_level: RiskLevel) -> str:
+    return (
+        f"문의는 {category} 유형으로 분류되며 응답 근거 경로는 {routing_target}입니다. "
+        f"감성은 {sentiment}, 위험도는 {risk_level}로 판단됩니다. "
+        "운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다."
+    )
+
+
+def _build_analysis_result(parts: dict[str, object]) -> AnalysisResult:
+    enriched = EnrichedTicket.model_validate(parts["enriched"])
+    category = parts["category"]
+    sentiment = parts["sentiment"]
+    risk_level = parts["risk_level"]
+    routing_target = parts["routing_target"]
+    return AnalysisResult(
+        ticket_id=enriched.ticket.ticket_id,
+        category=category,
+        responder_type=enriched.ticket.responder_type or "agent",
+        enriched_query=enriched.enriched_query,
+        risk_level=risk_level,
+        sentiment=sentiment,
+        routing_target=routing_target,
+        summary=_summarize(enriched, category, routing_target, sentiment, risk_level),
+    )
+
+
+def build_analysis_chain():
+    """문의 1건을 AnalysisResult로 변환하는 LCEL 체인."""
+
+    enrich_chain = RunnableLambda(_to_ticket_payload) | RunnableLambda(_build_enriched_ticket)
+    parallel_chain = RunnableParallel(
+        enriched=RunnablePassthrough(),
+        category=RunnableLambda(_classify_category),
+        sentiment=RunnableLambda(_score_sentiment),
+        risk_level=RunnableLambda(lambda enriched: _score_risk(enriched, _classify_category(enriched))),
+        routing_target=RunnableLambda(
+            lambda enriched: _decide_routing(
+                enriched,
+                _classify_category(enriched),
+                _score_risk(enriched, _classify_category(enriched)),
+            )
+        ),
+    )
+    return enrich_chain | parallel_chain | RunnableLambda(_build_analysis_result)
+
+
+ANALYSIS_CHAIN = build_analysis_chain()
 
 
 def run_analysis_agent() -> None:
-    """
-    매일 실행되는 문의 분석 작업의 진입점.
-    qa_ticket에 있는 값들을 ticket analysis로 만든다.
-     분석의 1순위이다. enriched_query는 일반적 전처리 로직을 거친 쿼리를 의미한다.공백제거, 욕설 제거. 의도 명확히 하기 등이 있다.
+    """분석되지 않은 문의를 순차 처리하고 배치 결과를 운영 로그에 남긴다."""
 
-    2순위는 ticket_analysis에 category는 인게임(돈관련X, 아이템 지급, 가챠 등), 결제 관련, 고객의 피드백으로 나누어 카테고리에 들어간다.
-    3순위는 카테고리와 enriched_query를 보고 routing_target 결정이다. 
-    routing_target을 결정하는 것은 qa_ticket이 naver_cafe일때만  적용한다. DB_only, doc_only, DB&DOC,fixed_answer인지가 들어간다. 
-    category 넘기는것은 answer_agent에 정확도를 높이기 위함이고, routing_target에 들어간 방법론대로 근거를 찾는다.
+    targets = fetch_unanalyzed_tickets()
+    processed = 0
+    for ticket in targets:
+        analysis = analyze_ticket(ticket)
+        saved = save_ticket_analysis(analysis)
+        mark_ticket_analysis_completed(int(saved["ticket_id"]), int(saved["analysis_id"]))
+        processed += 1
 
-    이 뒤 병렬 작업으로 sentiment랑 risk_level를 결정한다. risk_level은 0~1로 하고,0이 안전, 1이 위험으로 한다. sentiment는 0~1로 하고, 0이 긍정, 1이 부정으로 한다.
-    이후 ticket_analysis에 대한 종합적 정보로 summary를 한국어로 작성한다.
-
-    이 작업을 qa_ticket의 ticket_id중 ticket_analysis의 ticket_id에 들어가지 못한 데이터에 대해 정기 실행한다.
-    """
-
-    # 1. fetch_unanalyzed_tickets로 아직 ticket_analysis에 저장되지 않은 qa_ticket 목록을 가져온다.
-    # 2. analyze_ticket로 문의별 전처리, 카테고리, 라우팅, 감성, 위험도, 요약을 생성한다.
-    # 3. save_ticket_analysis로 ticket_analysis 컬럼 구조에 맞는 분석 결과를 저장한다.
-    # 4. mark_ticket_analysis_completed로 qa_ticket.status를 분석 완료 상태로 갱신한다.
-    # 5. log_analysis_batch_event로 배치 처리 결과와 실패 정보를 admin_event_logs 또는 failed_queries에 남긴다.
-
-    pass
+    log_analysis_batch_event({"target_count": len(targets), "processed_count": processed})
 
 
 def fetch_unanalyzed_tickets() -> list[dict[str, object]]:
-    """
-    ticket_analysis에 아직 연결되지 않은 qa_ticket을 조회한다.
+    """ticket_analysis가 아직 연결되지 않은 qa_ticket 목록을 조회한다."""
 
-    예상 내용:
-    - qa_ticket.ticket_id 기준으로 ticket_analysis.ticket_id와 LEFT JOIN한다.
-    - ticket_analysis가 없는 문의만 분석 대상으로 고른다.
-    - raw_query, title, source_type, user_id, account_id, responder_type, inquiry_created_at을 함께 가져온다.
-    - 중복 배치 실행을 피하기 위해 status와 analyzed_at 기준의 처리 가능 조건을 함께 검토한다.
-    """
-
-    pass
+    limit = int(os.environ.get("CS_AUTO_ANALYSIS_BATCH_LIMIT", "50"))
+    with db_connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            return _fetch_all(
+                cur,
+                """
+                SELECT
+                    t.ticket_id,
+                    t.account_id,
+                    t.user_id,
+                    t.title,
+                    t.raw_query,
+                    t.source_type,
+                    t.status,
+                    t.inquiry_created_at,
+                    t.session_id,
+                    t.responder_type
+                FROM qa_ticket t
+                LEFT JOIN ticket_analysis a ON a.ticket_id = t.ticket_id
+                WHERE a.analysis_id IS NULL
+                ORDER BY t.inquiry_created_at ASC NULLS LAST, t.ticket_id ASC
+                LIMIT %s
+                """,
+                (limit,),
+            )
 
 
 def analyze_ticket(ticket: dict[str, object]) -> dict[str, object]:
-    """
-    문의 1건을 ticket_analysis에 저장 가능한 분석 payload로 변환한다.
+    """LCEL 분석 체인을 실행해 저장 가능한 dict payload를 만든다."""
 
-    예상 내용:
-    - build_enriched_query로 raw_query를 검색과 분류에 적합한 문장으로 정리한다.
-    - classify_ticket_category로 인게임, 결제 관련, 고객 피드백 등 운영 카테고리를 정한다.
-    - decide_routing_target로 DB_only, doc_only, DB&DOC, fixed_answer 중 답변 근거 경로를 정한다.
-    - score_sentiment와 score_risk_level을 병렬 실행 가능한 분석 단계로 구성한다.
-    - summarize_ticket_analysis로 운영자가 볼 한국어 요약을 만든다.
-    """
-
-    pass
+    return ANALYSIS_CHAIN.invoke(ticket).model_dump()
 
 
 def build_enriched_query(ticket: dict[str, object]) -> str:
-    """
-    qa_ticket.raw_query와 title을 기반으로 enriched_query를 만든다.
+    """기존 호출부 호환용 helper."""
 
-    예상 내용:
-    - 공백, 반복 문자, 불필요한 특수문자를 정리하되 문의 의미는 지우지 않는다.
-    - 욕설이나 민감 표현은 답변 품질과 안전성 검사를 위해 마스킹 기준을 적용한다.
-    - 결제, 환불, 아이템 지급, 가챠, 장애, 정책 문의의 핵심 키워드를 보존한다.
-    """
-
-    pass
+    return _build_enriched_ticket(TicketPayload.model_validate(ticket)).enriched_query
 
 
 def classify_ticket_category(ticket: dict[str, object], enriched_query: str) -> str:
-    """
-    문의 내용을 ticket_analysis.category에 들어갈 운영 카테고리로 분류한다.
+    """기존 호출부 호환용 category 분류 helper."""
 
-    예상 내용:
-    - docs/cs_auto/prd.md의 결제, 환불, 미지급, 가챠, 확률, 운영 정책, 욕설, 장애 유형을 참고한다.
-    - DB 문서상 category는 varchar이므로 저장 전 운영 기준 카테고리명으로 정규화한다.
-    - category는 answer_agent가 retrieval 함수를 선택할 때 쓰는 1차 힌트가 된다.
-    """
-
-    pass
+    payload = TicketPayload.model_validate({**ticket, "raw_query": enriched_query})
+    return _classify_category(_build_enriched_ticket(payload))
 
 
 def decide_routing_target(ticket: dict[str, object], category: str, enriched_query: str) -> str:
-    """
-    분석 결과를 기반으로 ticket_analysis.routing_target을 결정한다.
+    """기존 호출부 호환용 routing helper."""
 
-    예상 내용:
-    - source_type이 naver_cafe인 문의를 답변 자동화 대상으로 보고 라우팅을 세분화한다.
-    - 운영 로그 확인이 필요한 결제/환불/미지급은 DB_only 또는 DB&DOC 후보로 둔다.
-    - 정책, 공지, FAQ 근거가 필요한 문의는 doc_only 또는 DB&DOC 후보로 둔다.
-    - 근거 기반 답변이 부적절하거나 수동 확인이 필요한 문의는 fixed_answer 후보로 둔다.
-    """
-
-    pass
+    enriched = _build_enriched_ticket(TicketPayload.model_validate({**ticket, "raw_query": enriched_query}))
+    risk = _score_risk(enriched, category)
+    return _decide_routing(enriched, category, risk)
 
 
 def score_sentiment(ticket: dict[str, object], enriched_query: str) -> str:
-    """
-    문의 감성을 ticket_analysis.sentiment에 저장할 값으로 산출한다.
+    """기존 호출부 호환용 sentiment helper."""
 
-    예상 내용:
-    - 기존 주석 지침의 0~1 감성 점수 의미를 유지하되 DB 컬럼이 varchar임을 고려해 저장 표현을 정한다.
-    - 불만, 환불 요구, 장애 항의, 반복 문의 등 부정 신호를 반영한다.
-    - 답변 생성과 대시보드 집계에서 일관되게 사용할 수 있는 값으로 정규화한다.
-    """
-
-    pass
+    payload = TicketPayload.model_validate({**ticket, "raw_query": enriched_query})
+    return _score_sentiment(_build_enriched_ticket(payload))
 
 
 def score_risk_level(ticket: dict[str, object], enriched_query: str, category: str) -> str:
-    """
-    문의 위험도를 ticket_analysis.risk_level에 저장할 값으로 산출한다.
+    """기존 호출부 호환용 risk helper."""
 
-    예상 내용:
-    - 기존 주석 지침의 0~1 위험도 의미를 유지하되 DB 컬럼이 varchar임을 고려해 저장 표현을 정한다.
-    - 결제 미지급, 환불 분쟁, 장애성 문의, 정책 위반 가능성, 욕설/위협 표현을 위험 신호로 본다.
-    - HIGH 또는 urgent_alert 후보를 answer_agent와 dashboard가 구분할 수 있게 만든다.
-    """
-
-    pass
+    payload = TicketPayload.model_validate({**ticket, "raw_query": enriched_query})
+    return _score_risk(_build_enriched_ticket(payload), category)
 
 
 def summarize_ticket_analysis(
@@ -135,16 +296,10 @@ def summarize_ticket_analysis(
     sentiment: str,
     risk_level: str,
 ) -> str:
-    """
-    ticket_analysis.summary에 들어갈 한국어 요약을 작성한다.
+    """기존 호출부 호환용 summary helper."""
 
-    예상 내용:
-    - 문의 원문, 분석 카테고리, 라우팅 근거, 감성, 위험도를 한 문단으로 요약한다.
-    - 운영자가 대시보드에서 빠르게 판단할 수 있도록 결제/지급/정책/장애 핵심 사유를 드러낸다.
-    - 답변 초안 생성 프롬프트에 바로 넣어도 되는 간결한 문장으로 만든다.
-    """
-
-    pass
+    payload = TicketPayload.model_validate({**ticket, "raw_query": enriched_query})
+    return _summarize(_build_enriched_ticket(payload), category, routing_target, sentiment, risk_level)
 
 
 def build_ticket_analysis_payload(
@@ -156,52 +311,115 @@ def build_ticket_analysis_payload(
     risk_level: str,
     summary: str,
 ) -> dict[str, object]:
-    """
-    docs/DB/descriptions.md의 ticket_analysis 컬럼에 맞춘 저장 payload를 만든다.
+    """ticket_analysis 저장 payload를 명시 모델로 검증한다."""
 
-    예상 내용:
-    - analysis_id, ticket_id, category, responder_type, enriched_query, risk_level, sentiment, routing_target, summary, analyzed_at을 준비한다.
-    - 현재 workflow write table은 일부 PK 기본값이 없으므로 ID 생성 전략을 별도 함수 또는 DB migration 정책과 맞춘다.
-    - 하드코딩된 ID나 임의 상수 대신 DB 상태와 설정 기반으로 값을 채운다.
-    """
-
-    pass
+    payload = AnalysisResult(
+        ticket_id=int(ticket["ticket_id"]),
+        category=category,
+        responder_type=str(ticket.get("responder_type") or "agent"),
+        enriched_query=enriched_query,
+        risk_level=risk_level,
+        sentiment=sentiment,
+        routing_target=routing_target,
+        summary=summary,
+    )
+    return payload.model_dump()
 
 
 def save_ticket_analysis(payload: dict[str, object]) -> dict[str, object]:
-    """
-    ticket_analysis에 분석 결과를 저장한다.
+    """분석 결과를 ticket_analysis에 저장한다."""
 
-    예상 내용:
-    - docs/DB/descriptions.md의 ticket_analysis 스키마와 FK(ticket_id -> qa_ticket.ticket_id)를 따른다.
-    - 같은 ticket_id가 중복 저장되지 않도록 저장 전 최신 분석 여부를 확인한다.
-    - 저장 결과로 analysis_id와 ticket_id를 반환해 후속 answer_agent가 사용할 수 있게 한다.
-    """
-
-    pass
+    analysis = AnalysisResult.model_validate(payload)
+    with db_connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            analysis_id = _next_integer_id(cur, "ticket_analysis", "analysis_id")
+            cur.execute(
+                """
+                INSERT INTO ticket_analysis (
+                    analysis_id,
+                    ticket_id,
+                    category,
+                    responder_type,
+                    enriched_query,
+                    risk_level,
+                    sentiment,
+                    routing_target,
+                    summary,
+                    analyzed_at
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+                RETURNING analysis_id, ticket_id
+                """,
+                (
+                    analysis_id,
+                    analysis.ticket_id,
+                    analysis.category,
+                    analysis.responder_type,
+                    analysis.enriched_query,
+                    analysis.risk_level,
+                    analysis.sentiment,
+                    analysis.routing_target,
+                    analysis.summary,
+                ),
+            )
+            row = cur.fetchone()
+    return dict(row)
 
 
 def mark_ticket_analysis_completed(ticket_id: int, analysis_id: int) -> None:
-    """
-    분석이 끝난 qa_ticket의 처리 상태를 갱신한다.
+    """분석 완료 상태와 이벤트 로그를 기록한다."""
 
-    예상 내용:
-    - qa_ticket.status를 analyzed 등 운영 단계와 일치하는 값으로 갱신한다.
-    - ticket_id와 analysis_id를 처리 로그에 연결할 수 있게 남긴다.
-    - answer_agent가 답변 생성 대상만 골라낼 수 있게 상태 전이를 정리한다.
-    """
-
-    pass
+    with db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE qa_ticket
+                SET status = %s
+                WHERE ticket_id = %s
+                  AND COALESCE(status, '') <> %s
+                """,
+                ("analyzed", ticket_id, "resolved"),
+            )
+            cur.execute(
+                """
+                INSERT INTO admin_event_logs (
+                    ticket_id,
+                    node_name,
+                    event_type,
+                    status,
+                    metadata
+                )
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                (
+                    ticket_id,
+                    "cs_auto_analysis_agent",
+                    "ticket_analyzed",
+                    "success",
+                    Json({"analysis_id": analysis_id}),
+                ),
+            )
 
 
 def log_analysis_batch_event(batch_result: dict[str, object]) -> None:
-    """
-    문의 분석 배치의 성공, 실패, 처리 건수를 운영 로그로 남긴다.
+    """배치 처리 건수만 기록하고 원문 문의 전문은 로그에 남기지 않는다."""
 
-    예상 내용:
-    - admin_event_logs에는 node_name, event_type, status, metadata, created_at 중심으로 기록한다.
-    - 특정 문의 처리 실패는 failed_queries에 ticket_id, query, category, reason을 기록하는 구조를 준비한다.
-    - 민감정보가 로그에 남지 않도록 raw_query 전문 저장은 피하고 필요한 요약만 남긴다.
-    """
-
-    pass
+    with db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO admin_event_logs (
+                    node_name,
+                    event_type,
+                    status,
+                    metadata
+                )
+                VALUES (%s, %s, %s, %s)
+                """,
+                (
+                    "cs_auto_analysis_agent",
+                    "analysis_batch_completed",
+                    "success",
+                    Json(batch_result),
+                ),
+            )

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -285,12 +285,14 @@ tailwind.config = {
 <script>
 const appState = {
   currentReviewer: null,
+  currentReviewerId: null,
+  currentSessionId: null,
   currentReviewerRole: "일반 운영자",
   activeTopTab: "답변 생성",
   activeSideTab: "오늘 확인할 문의",
   activeFilter: "전체",
   activeCategory: "전체",
-  selectedTicketId: "TK-2041",
+  selectedTicketId: null,
   ticketListPage: 1,
   reviewSelectedDate: "",
   reviewCalendarYear: 2026,
@@ -304,484 +306,10 @@ const appState = {
   workflowProgress: 0,
   workflowLabel: "문의 내용 분석 중...",
   workflowLogs: [],
-  tickets: [
-    {
-      id: "TK-2041",
-      priorityLabel: "긴급",
-      priorityTone: "urgent",
-      level: "HIGH",
-      channel: "이메일",
-      channelIcon: "mail",
-      category: "결제 오류",
-      status: "review",
-      title: "결제 후 아이템 미지급 즉시 처리 요청",
-      assignee: "reviewer_01",
-      statusText: "reviewer_01 검토 중...",
-      timeAgo: "10분 전",
-      nickname: "DragonSlayer_K",
-      accountId: "user_938",
-      createdAt: "05-28 09:42",
-      body: "오전 9시 30분경 다이아 패키지 9,900원을 결제했는데 아이템이 인벤토리에 들어오지 않았습니다. 결제 영수증은 있는데 게임에 반영되지 않아 빠른 확인 또는 지급 처리를 부탁드립니다.",
-      aiSummary: "9,900원 결제 후 아이템 미지급 정황이 확인된 즉시 지급 또는 환불 처리가 필요한 고위험 결제 문의입니다.",
-      route: "payment_issue",
-      direction: "payment_team",
-      risk: "HIGH",
-      draft: "안녕하세요. 게임 CS팀입니다.\n\n결제 후 아이템이 지급되지 않아 불편을 드려 죄송합니다.\n\n서버 지급 이력을 확인한 결과 다이아 패키지가 인벤토리에 반영되지 않은 것으로 파악되었습니다. 즉시 수동 지급 처리를 진행하겠습니다. 조금만 기다려 주시면 결과를 다시 안내드리겠습니다.\n\n추가 문의가 있으시면 언제든지 회신 부탁드립니다. 감사합니다.",
-      draftStatus: "draft",
-      isDraftEditing: false,
-      regenCount: 0,
-      regenLimit: 3,
-      lastGeneratedAt: "-"
-    },
-    {
-      id: "TK-2040",
-      priorityLabel: "검토 중",
-      priorityTone: "review",
-      level: "MID",
-      channel: "카페",
-      channelIcon: "brand-blogger",
-      category: "계정 문의",
-      status: "review",
-      title: "캐릭터 데이터 복구 요청",
-      assignee: "reviewer_01",
-      statusText: "reviewer_01 검토 진행...",
-      timeAgo: "35분 전",
-      nickname: "Aster_99",
-      accountId: "user_771",
-      createdAt: "05-28 09:17",
-      body: "실수로 캐릭터를 삭제했는데 복구 가능한지 문의드립니다.",
-      aiSummary: "복구 정책 확인이 필요한 계정 문의입니다.",
-      route: "account_restore",
-      direction: "account_team",
-      risk: "MID",
-      draft: "안녕하세요. 계정 복구 가능 여부를 확인 중입니다.",
-      draftStatus: "draft",
-      isDraftEditing: false,
-      regenCount: 0,
-      regenLimit: 3,
-      lastGeneratedAt: "-"
-    },
-    {
-      id: "TK-2039",
-      priorityLabel: "대기",
-      priorityTone: "pending",
-      level: "LOW",
-      channel: "이메일",
-      channelIcon: "mail",
-      category: "결제 오류",
-      status: "pending",
-      title: "패스 구매 혜택이 적용되지 않음",
-      assignee: "미할당",
-      statusText: "대기 중인 문의입니다",
-      timeAgo: "1시간 전",
-      nickname: "Birdy",
-      accountId: "user_532",
-      createdAt: "05-28 08:55",
-      body: "패스를 구매했는데 보상이 적용되지 않았습니다.",
-      aiSummary: "저위험 결제 문의로 분류됩니다.",
-      route: "benefit_missing",
-      direction: "payment_team",
-      risk: "LOW",
-      draft: "안녕하세요. 구매 내역 확인 후 다시 안내드리겠습니다.",
-      draftStatus: "draft",
-      isDraftEditing: false,
-      regenCount: 0,
-      regenLimit: 3,
-      lastGeneratedAt: "-"
-    },
-    {
-      id: "TK-2038",
-      priorityLabel: "완료",
-      priorityTone: "done",
-      level: "LOW",
-      channel: "이메일",
-      channelIcon: "mail",
-      category: "버그",
-      status: "done",
-      title: "버그: 전투 중 앱 강제 종료 현상",
-      assignee: "reviewer_01",
-      statusText: "종료 처리되었습니다",
-      timeAgo: "3시간 전",
-      nickname: "Gale",
-      accountId: "user_288",
-      createdAt: "05-28 06:11",
-      body: "전투 도중 앱이 강제 종료됩니다.",
-      aiSummary: "종료된 버그 문의입니다.",
-      route: "bug_report",
-      direction: "qa_team",
-      risk: "LOW",
-      draft: "패치 일정과 함께 답변을 완료했습니다.",
-      draftStatus: "approved",
-      isDraftEditing: false,
-      regenCount: 1,
-      regenLimit: 3,
-      lastGeneratedAt: "08:10"
-    },
-    {
-      id: "TK-2037",
-      priorityLabel: "대기",
-      priorityTone: "pending",
-      level: "MID",
-      channel: "이메일",
-      channelIcon: "mail",
-      category: "환불 요청",
-      status: "pending",
-      title: "환불 처리가 5일째 지연되고 있어요",
-      assignee: "미할당",
-      statusText: "대기 중인 문의입니다",
-      timeAgo: "2시간 전",
-      nickname: "MintRun",
-      accountId: "user_114",
-      createdAt: "05-28 07:46",
-      body: "환불 신청 후 진행 상황이 보이지 않습니다.",
-      aiSummary: "환불 처리 지연 문의입니다.",
-      route: "refund_delay",
-      direction: "billing_team",
-      risk: "MID",
-      draft: "안녕하세요. 환불 진행 상태를 확인 중입니다.",
-      draftStatus: "draft",
-      isDraftEditing: false,
-      regenCount: 2,
-      regenLimit: 3,
-      lastGeneratedAt: "09:12"
-    },
-    {
-      id: "TK-2036",
-      priorityLabel: "검토 중",
-      priorityTone: "review",
-      level: "MID",
-      channel: "이메일",
-      channelIcon: "mail",
-      category: "계정 문의",
-      status: "review",
-      title: "이중 인증 해제 요청",
-      assignee: "reviewer_02",
-      statusText: "reviewer_02 검토 중...",
-      timeAgo: "4시간 전",
-      nickname: "VoltMage",
-      accountId: "user_612",
-      createdAt: "05-28 05:30",
-      body: "휴대폰을 바꿔서 이중 인증을 해제하고 싶습니다.",
-      aiSummary: "본인 확인이 필요한 계정 보안 문의입니다.",
-      route: "two_factor_reset",
-      direction: "account_team",
-      risk: "MID",
-      draft: "안녕하세요. 본인 확인 절차 후 해제 가능 여부를 안내드리겠습니다.",
-      draftStatus: "draft",
-      isDraftEditing: false,
-      regenCount: 0,
-      regenLimit: 3,
-      lastGeneratedAt: "-"
-    },
-    {
-      id: "TK-2035",
-      priorityLabel: "대기",
-      priorityTone: "pending",
-      level: "LOW",
-      channel: "카페",
-      channelIcon: "brand-blogger",
-      category: "버그",
-      status: "pending",
-      title: "출석 보상 수령 버튼 비활성화",
-      assignee: "미할당",
-      statusText: "대기 중인 문의입니다",
-      timeAgo: "4시간 전",
-      nickname: "LumaFox",
-      accountId: "user_406",
-      createdAt: "05-28 05:12",
-      body: "출석 보상을 받을 수 없다는 문의입니다.",
-      aiSummary: "저위험 UI 버그 문의입니다.",
-      route: "attendance_bug",
-      direction: "qa_team",
-      risk: "LOW",
-      draft: "안녕하세요. 현상 재현 여부를 확인 후 답변드리겠습니다.",
-      draftStatus: "draft",
-      isDraftEditing: false,
-      regenCount: 0,
-      regenLimit: 3,
-      lastGeneratedAt: "-"
-    },
-    {
-      id: "TK-2034",
-      priorityLabel: "검토 중",
-      priorityTone: "review",
-      level: "HIGH",
-      channel: "이메일",
-      channelIcon: "mail",
-      category: "결제 오류",
-      status: "review",
-      title: "중복 결제 환불 요청",
-      assignee: "reviewer_03",
-      statusText: "reviewer_03 검토 중...",
-      timeAgo: "5시간 전",
-      nickname: "IronPeak",
-      accountId: "user_225",
-      createdAt: "05-28 04:35",
-      body: "같은 상품이 두 번 결제되었다는 문의입니다.",
-      aiSummary: "중복 결제 여부 확인이 필요한 고위험 결제 문의입니다.",
-      route: "duplicate_payment",
-      direction: "payment_team",
-      risk: "HIGH",
-      draft: "안녕하세요. 결제 로그를 확인해 중복 결제 여부를 검토 중입니다.",
-      draftStatus: "draft",
-      isDraftEditing: false,
-      regenCount: 1,
-      regenLimit: 3,
-      lastGeneratedAt: "08:42"
-    },
-    {
-      id: "TK-2033",
-      priorityLabel: "완료",
-      priorityTone: "done",
-      level: "LOW",
-      channel: "카페",
-      channelIcon: "brand-blogger",
-      category: "환불 요청",
-      status: "done",
-      title: "환불 처리 완료 확인 요청",
-      assignee: "reviewer_01",
-      statusText: "종료 처리되었습니다",
-      timeAgo: "5시간 전",
-      nickname: "MeloDay",
-      accountId: "user_517",
-      createdAt: "05-28 04:11",
-      body: "환불 처리 완료 여부를 다시 확인해 달라는 문의입니다.",
-      aiSummary: "환불 완료 안내가 가능한 종료 문의입니다.",
-      route: "refund_complete",
-      direction: "billing_team",
-      risk: "LOW",
-      draft: "안녕하세요. 요청하신 환불은 정상 완료된 것으로 확인됩니다.",
-      draftStatus: "approved",
-      isDraftEditing: false,
-      regenCount: 0,
-      regenLimit: 3,
-      lastGeneratedAt: "07:58"
-    },
-    {
-      id: "TK-2032",
-      priorityLabel: "대기",
-      priorityTone: "pending",
-      level: "MID",
-      channel: "이메일",
-      channelIcon: "mail",
-      category: "계정 문의",
-      status: "pending",
-      title: "닉네임 변경권 미지급 문의",
-      assignee: "미할당",
-      statusText: "대기 중인 문의입니다",
-      timeAgo: "6시간 전",
-      nickname: "RavenQ",
-      accountId: "user_118",
-      createdAt: "05-28 03:45",
-      body: "닉네임 변경권이 우편함에 보이지 않는다는 문의입니다.",
-      aiSummary: "지급 여부 확인이 필요한 중위험 계정 문의입니다.",
-      route: "item_missing",
-      direction: "account_team",
-      risk: "MID",
-      draft: "안녕하세요. 보상 지급 이력을 확인 후 안내드리겠습니다.",
-      draftStatus: "draft",
-      isDraftEditing: false,
-      regenCount: 0,
-      regenLimit: 3,
-      lastGeneratedAt: "-"
-    },
-    {
-      id: "TK-2031",
-      priorityLabel: "검토 중",
-      priorityTone: "review",
-      level: "MID",
-      channel: "이메일",
-      channelIcon: "mail",
-      category: "버그",
-      status: "review",
-      title: "길드 채팅 지연 발생",
-      assignee: "reviewer_02",
-      statusText: "reviewer_02 검토 중...",
-      timeAgo: "6시간 전",
-      nickname: "KiteRun",
-      accountId: "user_349",
-      createdAt: "05-28 03:20",
-      body: "길드 채팅이 늦게 올라온다는 문의입니다.",
-      aiSummary: "서버 상태 확인이 필요한 버그 문의입니다.",
-      route: "chat_delay",
-      direction: "qa_team",
-      risk: "MID",
-      draft: "안녕하세요. 서버 로그를 포함해 현상을 확인 중입니다.",
-      draftStatus: "confirmed",
-      isDraftEditing: false,
-      regenCount: 1,
-      regenLimit: 3,
-      lastGeneratedAt: "07:10"
-    },
-    {
-      id: "TK-2030",
-      priorityLabel: "긴급",
-      priorityTone: "urgent",
-      level: "HIGH",
-      channel: "카페",
-      channelIcon: "brand-blogger",
-      category: "결제 오류",
-      status: "review",
-      title: "패키지 구매 후 접속 불가",
-      assignee: "reviewer_03",
-      statusText: "reviewer_03 검토 중...",
-      timeAgo: "7시간 전",
-      nickname: "NovaBlade",
-      accountId: "user_875",
-      createdAt: "05-28 02:38",
-      body: "상품 구매 직후 접속이 불가능해졌다는 문의입니다.",
-      aiSummary: "결제 및 접속 장애가 결합된 긴급 문의입니다.",
-      route: "payment_login_issue",
-      direction: "payment_team",
-      risk: "HIGH",
-      draft: "안녕하세요. 결제 이력과 서버 접속 로그를 우선 확인 중입니다.",
-      draftStatus: "draft",
-      isDraftEditing: false,
-      regenCount: 0,
-      regenLimit: 3,
-      lastGeneratedAt: "-"
-    },
-    {
-      id: "TK-2029",
-      priorityLabel: "대기",
-      priorityTone: "pending",
-      level: "LOW",
-      channel: "이메일",
-      channelIcon: "mail",
-      category: "환불 요청",
-      status: "pending",
-      title: "패스 자동 갱신 해지 요청",
-      assignee: "미할당",
-      statusText: "대기 중인 문의입니다",
-      timeAgo: "7시간 전",
-      nickname: "SoriN",
-      accountId: "user_451",
-      createdAt: "05-28 02:15",
-      body: "자동 결제 해지 방법을 문의했습니다.",
-      aiSummary: "안내형 환불/구독 문의입니다.",
-      route: "subscription_cancel",
-      direction: "billing_team",
-      risk: "LOW",
-      draft: "안녕하세요. 자동 갱신 해지 경로를 안내드리겠습니다.",
-      draftStatus: "draft",
-      isDraftEditing: false,
-      regenCount: 0,
-      regenLimit: 3,
-      lastGeneratedAt: "-"
-    },
-    {
-      id: "TK-2028",
-      priorityLabel: "검토 중",
-      priorityTone: "review",
-      level: "MID",
-      channel: "카페",
-      channelIcon: "brand-blogger",
-      category: "계정 문의",
-      status: "review",
-      title: "연동 계정 변경 가능 여부 문의",
-      assignee: "reviewer_01",
-      statusText: "reviewer_01 검토 중...",
-      timeAgo: "8시간 전",
-      nickname: "PikaMint",
-      accountId: "user_903",
-      createdAt: "05-28 01:40",
-      body: "기존 연동 계정을 다른 계정으로 바꾸고 싶다는 문의입니다.",
-      aiSummary: "운영 정책 검토가 필요한 계정 연동 문의입니다.",
-      route: "account_link_change",
-      direction: "account_team",
-      risk: "MID",
-      draft: "안녕하세요. 계정 연동 변경 가능 범위를 정책 기준으로 확인 중입니다.",
-      draftStatus: "draft",
-      isDraftEditing: false,
-      regenCount: 0,
-      regenLimit: 3,
-      lastGeneratedAt: "-"
-    },
-    {
-      id: "TK-2027",
-      priorityLabel: "완료",
-      priorityTone: "done",
-      level: "LOW",
-      channel: "이메일",
-      channelIcon: "mail",
-      category: "버그",
-      status: "done",
-      title: "설정 저장이 초기화되는 문제",
-      assignee: "reviewer_02",
-      statusText: "종료 처리되었습니다",
-      timeAgo: "8시간 전",
-      nickname: "BlueComet",
-      accountId: "user_774",
-      createdAt: "05-28 01:18",
-      body: "재접속 시 설정이 초기화된다는 문의입니다.",
-      aiSummary: "패치 안내가 가능한 종료 버그 문의입니다.",
-      route: "settings_reset",
-      direction: "qa_team",
-      risk: "LOW",
-      draft: "안녕하세요. 최신 패치 이후 동일 현상이 개선된 것으로 확인됩니다.",
-      draftStatus: "approved",
-      isDraftEditing: false,
-      regenCount: 0,
-      regenLimit: 3,
-      lastGeneratedAt: "06:33"
-    },
-    {
-      id: "TK-2026",
-      priorityLabel: "대기",
-      priorityTone: "pending",
-      level: "MID",
-      channel: "카페",
-      channelIcon: "brand-blogger",
-      category: "결제 오류",
-      status: "pending",
-      title: "쿠폰 사용 후 재화 차감 오류",
-      assignee: "미할당",
-      statusText: "대기 중인 문의입니다",
-      timeAgo: "9시간 전",
-      nickname: "TerraOne",
-      accountId: "user_250",
-      createdAt: "05-28 00:57",
-      body: "쿠폰 적용 후 재화가 이중 차감됐다는 문의입니다.",
-      aiSummary: "중위험 결제 오류 문의입니다.",
-      route: "coupon_charge_issue",
-      direction: "payment_team",
-      risk: "MID",
-      draft: "안녕하세요. 사용 내역과 재화 변동 로그를 확인 중입니다.",
-      draftStatus: "draft",
-      isDraftEditing: false,
-      regenCount: 0,
-      regenLimit: 3,
-      lastGeneratedAt: "-"
-    }
-  ],
-  evidence: [
-    {
-      rank: 1,
-      source: "환불 정책 / FAQ_payment_v3.md",
-      body: "결제 완료 후 48시간 이내 미지급이 확인되면 즉시 수동 지급 또는 환불 처리 가능 대상입니다.",
-      open: true
-    },
-    {
-      rank: 2,
-      source: "결제 오류 처리 매뉴얼 / ops_manual_ch4.pdf",
-      body: "결제 오류 발생 후 24시간 이내 처리 원칙, 관련 부서 에스컬레이션 규정을 안내합니다.",
-      open: false
-    },
-    {
-      rank: 3,
-      source: "다이아 패키지 지급 기준 / item_guide.md",
-      body: "다이아 패키지는 결제 확인 후 5분 이내 자동 지급되며, 서버 로그를 통해 수동 지급 처리합니다.",
-      open: false
-    }
-  ],
-  history: [
-    { decision: "반려", tone: "urgent", reviewer: "reviewer_02", reason: "환불 금액 표기 누락", time: "09:51" },
-    { decision: "수정", tone: "pending", reviewer: "reviewer_01", reason: "수동 지급 문구 추가", time: "10:02" }
-  ],
-  alerts: [
-    { title: "[긴급] #TK-2041 | 결제 미지급 HIGH 위험도 감지", target: "payment_team@company.com, ops_lead@company.com", time: "2026-05-28 09:43:12 | 이메일 발송 완료", faded: false },
-    { title: "[긴급] #TK-2038 | 계정 이상 접속 경고", target: "security_team@company.com", time: "2026-05-28 07:15:04 | 이메일 발송 완료", faded: true }
-  ]
+  tickets: [],
+  evidence: [],
+  history: [],
+  alerts: []
 };
 
 let reviewCalendarInstance = null;
@@ -792,11 +320,11 @@ const topTabs = [
 ];
 
 const sideTabs = [
-  { label: "오늘 확인할 문의", icon: "calendar-today", count: "15" },
-  { label: "대기 중", icon: "clock", count: "12" },
-  { label: "할당된 검토", icon: "user-check", count: "4" },
-  { label: "긴급", icon: "flame", count: "3", red: true },
-  { label: "종료", icon: "check", count: "33", green: true },
+  { label: "오늘 확인할 문의", icon: "calendar-today" },
+  { label: "대기 중", icon: "clock" },
+  { label: "할당된 검토", icon: "user-check" },
+  { label: "긴급", icon: "flame", red: true },
+  { label: "종료", icon: "check", green: true },
   { label: "전체", icon: "list" }
 ];
 
@@ -810,16 +338,130 @@ const workflowSteps = [
   { label: "초안 생성 완료", progress: 100 }
 ];
 
-const DEMO_ACCOUNTS = {
-  reviewer_01: "cs1234",
-  reviewer_02: "cs1234",
-  reviewer_03: "cs1234",
-  admin: "admin00"
-};
 let operatorMenuListenerBound = false;
+const API_BASE_URL = window.CS_AUTO_API_BASE_URL || "/api/cs-auto";
+
+async function apiRequest(path, options = {}) {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {})
+    },
+    ...options
+  });
+  if (!response.ok) {
+    return { ok: false, status: response.status };
+  }
+  return response.json();
+}
+
+async function loadTicketsFromApi() {
+  const data = await apiRequest("/tickets?limit=50");
+  if (Array.isArray(data.tickets) && data.tickets.length > 0) {
+    appState.tickets = data.tickets;
+    appState.selectedTicketId = data.tickets[0].id;
+    appState.ticketListPage = 1;
+    render();
+  }
+}
+
+function mergeTicketFromApi(apiTicket) {
+  if (!apiTicket || !apiTicket.id) return;
+  const index = appState.tickets.findIndex((item) => item.id === apiTicket.id);
+  if (index >= 0) {
+    appState.tickets[index] = { ...appState.tickets[index], ...apiTicket };
+  }
+}
 
 function getSelectedTicket() {
-  return appState.tickets.find((ticket) => ticket.id === appState.selectedTicketId) || appState.tickets[0];
+  return appState.tickets.find((ticket) => ticket.id === appState.selectedTicketId) || appState.tickets[0] || getEmptyTicket();
+}
+
+function getEmptyTicket() {
+  return {
+    id: "",
+    ticketId: null,
+    draftId: null,
+    responseId: null,
+    priorityLabel: "대기",
+    priorityTone: "pending",
+    level: "LOW",
+    channel: "-",
+    channelIcon: "mail",
+    category: "미분류",
+    status: "pending",
+    title: "문의 데이터가 없습니다",
+    assignee: "미할당",
+    statusText: "백엔드 API에서 문의를 불러오면 표시됩니다.",
+    timeAgo: "-",
+    nickname: "-",
+    accountId: "-",
+    createdAt: "-",
+    body: "",
+    aiSummary: "",
+    route: "-",
+    direction: "-",
+    risk: "LOW",
+    draft: "",
+    draftStatus: "draft",
+    isDraftEditing: false,
+    regenCount: 0,
+    regenLimit: 0,
+    lastGeneratedAt: "-"
+  };
+}
+
+function getTicketDisplayMeta(ticket) {
+  const currentReviewerId = Number(appState.currentReviewerId || 0);
+  const assigneeAdminId = Number(ticket.assigneeAdminId || 0);
+  const isDone = Boolean(ticket.responseId) || ticket.status === "done";
+  const hasDraft = Boolean(ticket.draftId);
+  const assignedToOther = assigneeAdminId > 0 && currentReviewerId > 0 && assigneeAdminId !== currentReviewerId;
+  const assignedToMe = assigneeAdminId > 0 && currentReviewerId > 0 && assigneeAdminId === currentReviewerId;
+  const isUrgent = String(ticket.level || ticket.risk || "").toUpperCase() === "HIGH" || ticket.priorityTone === "urgent";
+
+  if (isDone) {
+    return { label: "종료", tone: "done", status: "done", statusText: "종료 처리되었습니다.", assignedToMe, assignedToOther, hasDraft, isUrgent };
+  }
+  if (assignedToOther) {
+    return { label: "검토 중", tone: "review", status: "review", statusText: `${ticket.assignee || "다른 담당자"} 검토 중...`, assignedToMe, assignedToOther, hasDraft, isUrgent };
+  }
+  if (isUrgent) {
+    return { label: "긴급", tone: "urgent", status: "pending", statusText: hasDraft ? "답변 초안 긴급 검토 대기" : "긴급 문의 분석 대기", assignedToMe, assignedToOther, hasDraft, isUrgent };
+  }
+  if (hasDraft) {
+    return { label: "대기", tone: "pending", status: "pending", statusText: "답변 초안 검토 대기", assignedToMe, assignedToOther, hasDraft, isUrgent };
+  }
+  return { label: "초안 없음", tone: "none", status: "waiting_draft", statusText: "답변 초안 생성 대기", assignedToMe, assignedToOther, hasDraft, isUrgent };
+}
+
+function getVisibleTicketsForSideTab() {
+  return appState.tickets.filter((ticket) => {
+    const meta = getTicketDisplayMeta(ticket);
+    if (appState.activeSideTab === "대기 중") return meta.hasDraft && !meta.assignedToOther && meta.status !== "done";
+    if (appState.activeSideTab === "할당된 검토") return meta.assignedToMe && meta.status !== "done";
+    if (appState.activeSideTab === "긴급") return meta.isUrgent && meta.status !== "done";
+    if (appState.activeSideTab === "종료") return meta.status === "done";
+    return true;
+  });
+}
+
+function getSideTabs() {
+  const displayStates = appState.tickets.map(getTicketDisplayMeta);
+  const total = displayStates.length;
+  const pending = displayStates.filter((meta) => meta.hasDraft && !meta.assignedToOther && meta.status !== "done").length;
+  const assigned = displayStates.filter((meta) => meta.assignedToMe && meta.status !== "done").length;
+  const urgent = displayStates.filter((meta) => meta.isUrgent && meta.status !== "done").length;
+  const done = displayStates.filter((meta) => meta.status === "done").length;
+  const counts = {
+    "오늘 확인할 문의": total,
+    "대기 중": pending,
+    "할당된 검토": assigned,
+    "긴급": urgent,
+    "종료": done,
+    "전체": total
+  };
+  return sideTabs.map((tab) => ({ ...tab, count: counts[tab.label] }));
 }
 
 function getReviewerInitials(id) {
@@ -836,7 +478,7 @@ function showLoginError(message) {
   err.innerHTML = `<i class="ti ti-alert-circle" aria-hidden="true"></i> ${escapeHtml(message)}`;
 }
 
-function doLogin() {
+async function doLogin() {
   const idInput = document.getElementById("li-id");
   const pwInput = document.getElementById("li-pw");
   const roleInput = document.getElementById("li-role");
@@ -852,21 +494,43 @@ function doLogin() {
     return;
   }
 
-  if (DEMO_ACCOUNTS[id] === undefined || DEMO_ACCOUNTS[id] !== pw) {
-    showLoginError("ID 또는 비밀번호가 올바르지 않습니다.");
+  const data = await apiRequest("/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ login_id: id, password: pw })
+  });
+  if (data.ok === false) {
+    showLoginError(data.message || "ID 또는 비밀번호가 올바르지 않습니다.");
     return;
   }
 
   if (err) {
     err.classList.remove("show");
   }
-  appState.currentReviewer = id;
-  appState.currentReviewerRole = role;
+  appState.currentReviewer = data.currentReviewer || data.display_name || data.login_id || id;
+  appState.currentReviewerId = data.admin_id || null;
+  appState.currentSessionId = data.session ? data.session.session_id : null;
+  appState.currentReviewerRole = data.role === "admin" ? "관리자" : role;
+  const overlay = document.getElementById("login-overlay");
+  if (overlay) {
+    overlay.classList.add("hidden");
+  }
+  await loadTicketsFromApi();
   render();
 }
 
-function doLogout() {
+async function doLogout() {
+  if (appState.currentReviewerId || appState.currentSessionId) {
+    await apiRequest("/auth/logout", {
+      method: "POST",
+      body: JSON.stringify({
+        admin_id: appState.currentReviewerId,
+        session_id: appState.currentSessionId
+      })
+    });
+  }
   appState.currentReviewer = null;
+  appState.currentReviewerId = null;
+  appState.currentSessionId = null;
   appState.currentReviewerRole = "일반 운영자";
   render();
 }
@@ -934,7 +598,7 @@ function renderLoginOverlayHtml() {
           <div class="lf-row">
             <div>
               <label class="lf-label">운영자 ID</label>
-              <input id="li-id" class="lf-input" type="text" placeholder="reviewer_01" autocomplete="off">
+              <input id="li-id" class="lf-input" type="text" placeholder="운영자 ID" autocomplete="off">
             </div>
             <div>
               <label class="lf-label">권한 등급</label>
@@ -1072,40 +736,55 @@ function updateTicketHistory(ticket, decision, tone, reason) {
   ticket.lastAction = reason;
 }
 
-function confirmDraft() {
+async function confirmDraft() {
   const ticket = getSelectedTicket();
+  if (!ticket.ticketId || !ticket.draftId || !appState.currentReviewerId) {
+    return;
+  }
   if (!ticket.isDraftEditing) {
     ticket.isDraftEditing = true;
     render();
     return;
   }
 
-  ticket.isDraftEditing = false;
-  ticket.draftStatus = "confirmed";
-  ticket.confirmedDraft = ticket.draft;
-  ticket.status = "review";
-  ticket.priorityTone = "review";
-  ticket.priorityLabel = "검토 중";
-  ticket.statusText = `${appState.currentReviewer || "reviewer"} 검토 확정`;
-  updateTicketHistory(ticket, "확정", "review", "AI 답변 초안 수정 후 확정");
+  const result = await apiRequest(`/tickets/${ticket.ticketId}/draft`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      draft_id: ticket.draftId,
+      edited_text: ticket.draft,
+      admin_id: appState.currentReviewerId,
+      edit_reason: "프론트엔드 수정 완료"
+    })
+  });
+  if (result.ok === false) return;
+  mergeTicketFromApi(result.ticket);
   render();
 }
 
-function approveDraft() {
+async function approveDraft() {
   const ticket = getSelectedTicket();
-  ticket.isDraftEditing = false;
-  ticket.draftStatus = "approved";
-  ticket.approvedDraft = ticket.draft;
-  ticket.status = "done";
-  ticket.priorityTone = "done";
-  ticket.priorityLabel = "완료";
-  ticket.statusText = `${appState.currentReviewer || "reviewer"} 승인 완료`;
-  updateTicketHistory(ticket, "승인", "done", "AI 답변 초안 바로 승인");
+  if (!ticket.ticketId || !ticket.draftId || !appState.currentReviewerId) {
+    return;
+  }
+  const result = await apiRequest(`/tickets/${ticket.ticketId}/draft/approve`, {
+    method: "POST",
+    body: JSON.stringify({
+      draft_id: ticket.draftId,
+      final_text: ticket.draft,
+      admin_id: appState.currentReviewerId,
+      edit_reason: "프론트엔드 답변 완료"
+    })
+  });
+  if (result.ok === false) return;
+  mergeTicketFromApi(result.ticket);
   render();
 }
 
 function requestRegenerateDraft() {
   const ticket = getSelectedTicket();
+  if (!ticket.ticketId || !ticket.draftId || !appState.currentReviewerId) {
+    return;
+  }
   if ((ticket.regenCount || 0) >= (ticket.regenLimit || 3)) {
     return;
   }
@@ -1117,28 +796,29 @@ function requestRegenerateDraft() {
   render();
 }
 
-function regenerateDraft() {
+async function regenerateDraft() {
   const ticket = getSelectedTicket();
   const reason = appState.regenReason.trim();
+  if (!ticket.ticketId || !ticket.draftId || !appState.currentReviewerId) {
+    return;
+  }
   if ((ticket.regenCount || 0) >= (ticket.regenLimit || 3) || !reason) {
     return;
   }
 
-  ticket.regenCount = (ticket.regenCount || 0) + 1;
-  ticket.isDraftEditing = false;
-  ticket.draftStatus = "draft";
-  ticket.status = "review";
-  ticket.priorityTone = "review";
-  ticket.priorityLabel = "검토 중";
-  ticket.statusText = `${appState.currentReviewer || "reviewer"} 재생성 검토 중`;
-  updateTicketHistory(ticket, "재생성", "pending", `재생성 ${ticket.regenCount}회 · 사유: ${reason}`);
+  const result = await apiRequest(`/tickets/${ticket.ticketId}/draft/regenerate`, {
+    method: "POST",
+    body: JSON.stringify({
+      draft_id: ticket.draftId,
+      regeneration_reason: reason,
+      admin_id: appState.currentReviewerId
+    })
+  });
+  if (result.ok === false) return;
+  mergeTicketFromApi(result.ticket);
   appState.showRegenBox = false;
   appState.regenReason = "";
-  startWorkflow(() => {
-    ticket.draft = getDraftRegenerationText(ticket, reason);
-    ticket.lastGeneratedAt = timeStampLabel();
-    render();
-  });
+  render();
 }
 
 function getReviewedTickets() {
@@ -1150,13 +830,14 @@ function getReviewedTickets() {
 
 function getTicketListPagination() {
   const pageSize = 4;
-  const totalPages = Math.max(Math.ceil(appState.tickets.length / pageSize), 1);
+  const visibleTickets = getVisibleTicketsForSideTab();
+  const totalPages = Math.max(Math.ceil(visibleTickets.length / pageSize), 1);
   const currentPage = Math.min(Math.max(appState.ticketListPage, 1), totalPages);
   const startIndex = (currentPage - 1) * pageSize;
   return {
     currentPage,
     totalPages,
-    tickets: appState.tickets.slice(startIndex, startIndex + pageSize)
+    tickets: visibleTickets.slice(startIndex, startIndex + pageSize)
   };
 }
 
@@ -1399,7 +1080,7 @@ function renderReviewHistoryContent() {
 
 function render() {
   syncReviewCalendarState();
-  const ticket = getSelectedTicket();
+  const ticket = getSelectedTicket() || getEmptyTicket();
   const draftMeta = draftStatusMeta(ticket.draftStatus);
   const remainingRegens = Math.max((ticket.regenLimit || 3) - (ticket.regenCount || 0), 0);
   const ticketListPagination = getTicketListPagination();
@@ -1478,7 +1159,7 @@ function render() {
         </div>
       ` : `
         <div class="px-4 pb-1 pt-1 text-[10px] uppercase tracking-[0.1em] text-ink-500">문의 관리</div>
-        ${sideTabs.map((tab) => `
+        ${getSideTabs().map((tab) => `
           <button class="side-item ${appState.activeSideTab === tab.label ? "active" : ""}" data-side-tab="${tab.label}">
             <i class="ti ti-${tab.icon}" aria-hidden="true"></i>
             ${tab.label}
@@ -1492,14 +1173,17 @@ function render() {
         <div class="mt-2 border-t border-sand-300 px-3 pt-2.5">
           <div class="mb-1 px-1 text-[10px] uppercase tracking-[0.08em] text-ink-500">문의 목록</div>
           <div class="flex flex-col gap-1">
-            ${ticketListPagination.tickets.map((item) => `
-              <button class="ticket-card mb-0 w-full text-left ${appState.selectedTicketId === item.id ? "selected" : ""} ${item.priorityTone === "urgent" ? "border-l-[3px] border-l-alert-red" : ""} ${item.status === "done" ? "opacity-50" : ""}" data-ticket-id="${item.id}">
+            ${ticketListPagination.tickets.map((item) => {
+              const itemMeta = getTicketDisplayMeta(item);
+              return `
+              <button class="ticket-card mb-0 w-full text-left ${appState.selectedTicketId === item.id ? "selected" : ""} ${itemMeta.tone === "urgent" ? "border-l-[3px] border-l-alert-red" : ""} ${itemMeta.status === "done" ? "opacity-50" : ""}" data-ticket-id="${item.id}">
                 <div class="mb-1 flex items-center gap-1.5">
-                  <span class="badge ${badgeClassByTone(item.priorityTone)}">${item.priorityLabel}</span>
+                  <span class="badge ${badgeClassByTone(itemMeta.tone)}">${itemMeta.label}</span>
                 </div>
-                <div class="mb-1 text-xs font-medium leading-[1.4] text-ink-900">${item.title}</div>
+                <div class="mb-1 text-xs font-medium leading-[1.4] text-ink-900">${escapeHtml(item.title)}</div>
               </button>
-            `).join("")}
+              `;
+            }).join("")}
           </div>
           <div class="mt-2 flex items-center justify-center gap-1">
             <button id="ticket-page-prev-btn" class="btn btn-ghost btn-sm px-2 py-0.5" ${ticketListPagination.currentPage === 1 ? "disabled" : ""}><i class="ti ti-chevron-left"></i></button>
@@ -1653,23 +1337,26 @@ function render() {
               </div>
             </div>
             <div class="flex-1 overflow-y-auto p-2">
-              ${appState.tickets.map((item) => `
-                <button class="ticket-card w-full text-left ${appState.selectedTicketId === item.id ? "selected" : ""} ${item.priorityTone === "urgent" ? "border-l-[3px] border-l-alert-red" : ""} ${item.status === "done" ? "opacity-50" : ""}" data-ticket-id="${item.id}">
+              ${appState.tickets.map((item) => {
+                const itemMeta = getTicketDisplayMeta(item);
+                return `
+                <button class="ticket-card w-full text-left ${appState.selectedTicketId === item.id ? "selected" : ""} ${itemMeta.tone === "urgent" ? "border-l-[3px] border-l-alert-red" : ""} ${itemMeta.status === "done" ? "opacity-50" : ""}" data-ticket-id="${item.id}">
                   <div class="mb-1 flex items-center gap-1.5">
                     <span class="font-mono text-[10px] text-ink-500">#${item.id}</span>
-                    <span class="badge ${badgeClassByTone(item.priorityTone)}">${item.priorityLabel}</span>
+                    <span class="badge ${badgeClassByTone(itemMeta.tone)}">${itemMeta.label}</span>
                     <span class="ml-auto flex items-center gap-1.5 text-[10px]">
-                      <span class="${item.status === "done" ? "font-medium text-alert-green" : item.assignee === "미할당" ? "font-normal text-ink-500" : "font-semibold text-alert-amber"}">${item.statusText}</span>
+                      <span class="${itemMeta.status === "done" ? "font-medium text-alert-green" : itemMeta.assignedToOther ? "font-semibold text-alert-amber" : "font-normal text-ink-500"}">${itemMeta.statusText}</span>
                       <span class="text-ink-500">${item.timeAgo}</span>
                     </span>
                   </div>
-                  <div class="mb-1 text-xs font-medium leading-[1.4] text-ink-900">${item.title}</div>
+                  <div class="mb-1 text-xs font-medium leading-[1.4] text-ink-900">${escapeHtml(item.title)}</div>
                   <div class="flex flex-wrap items-center gap-1">
                     <span class="badge border border-sand-300 bg-sand-100 text-ink-700">${item.channel}</span>
                     <span class="badge ${draftStatusMeta(item.draftStatus).chipClass}">${draftStatusMeta(item.draftStatus).label}</span>
                   </div>
                 </button>
-              `).join("")}
+                `;
+              }).join("")}
             </div>
           </div>
         </aside>
@@ -1707,6 +1394,7 @@ function bindEvents() {
   document.querySelectorAll("[data-side-tab]").forEach((button) => {
     button.addEventListener("click", () => {
       appState.activeSideTab = button.dataset.sideTab;
+      appState.ticketListPage = 1;
       render();
     });
   });
@@ -1854,20 +1542,16 @@ function bindEvents() {
   const loginBtn = document.getElementById("login-btn");
   if (loginBtn) {
     loginBtn.addEventListener("click", () => {
-      const username = prompt("리뷰어 ID를 입력하세요", "reviewer_01");
-      if (username && username.trim()) {
-        appState.currentReviewer = username.trim();
-        render();
+      const overlay = document.getElementById("login-overlay");
+      if (overlay) {
+        overlay.classList.remove("hidden");
       }
     });
   }
 
   const logoutBtn = document.getElementById("logout-btn");
   if (logoutBtn) {
-    logoutBtn.addEventListener("click", () => {
-      appState.currentReviewer = null;
-      render();
-    });
+    logoutBtn.addEventListener("click", doLogout);
   }
 
   ensureOperatorMenuListener();
@@ -1958,6 +1642,8 @@ function startWorkflow(onComplete) {
 }
 
 render();
+loadTicketsFromApi();
 </script>
 </body>
 </html>
+
