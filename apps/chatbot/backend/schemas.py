@@ -57,6 +57,7 @@ class ChatbotState(AgentState):
     retrieval_query: NotRequired[str | None]
     retrieval_enrichment: NotRequired[dict[str, Any] | None]
     retrieved_documents: NotRequired[list[dict[str, Any]]]
+    multihop_result: NotRequired[dict[str, Any] | None]
     payment_context: NotRequired[dict[str, Any] | None]
     faq_failure_reason: NotRequired[str | None]
     safety_passed: NotRequired[bool | None]

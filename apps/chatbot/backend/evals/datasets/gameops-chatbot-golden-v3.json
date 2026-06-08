@@ -1,14 +1,22 @@
 {
   "dataset_info": {
     "name": "gameops-chatbot-golden-v3",
-    "description": "40-item golden dataset: 10 multi-hop FAQ RAG cases (documents-grounded), 10 payment (DB fixture-grounded), 10 bug, 10 voc. reference_answer is actual text, not rubric. Paper basis: RAGAS, StructGPT, ChatLR, Few-shot Text-to-SQL.",
+    "description": "50-item golden dataset based on golden-v3: 10 FAQ single-hop, 10 payment single-hop, 10 bug single-hop, 10 VOC single-hop, 5 FAQ multi-hop, and 5 payment multi-hop. FAQ items are document/RAG-grounded; payment items are grounded in the current local DB payment/refund/item_delivery/gacha fixtures. reference_answer is expected answer text, not a rubric.",
     "version": "v3",
-    "total_examples": 40,
+    "total_examples": 50,
     "categories": {
-      "faq": 10,
-      "payment": 10,
+      "faq": 15,
+      "payment": 15,
       "bug": 10,
       "voc": 10
+    },
+    "splits": {
+      "faq_single_hop": 10,
+      "payment_single_hop": 10,
+      "bug_single_hop": 10,
+      "voc_single_hop": 10,
+      "faq_multi_hop": 5,
+      "payment_multi_hop": 5
     },
     "paper_basis": [
       "RAGAS: Automated Evaluation of Retrieval Augmented Generation (EACL 2024)",
@@ -17,16 +25,15 @@
       "Enhancing Few-shot Text-to-SQL Capabilities of LLMs (2023)"
     ],
     "design_notes": {
-      "faq": "Multi-hop RAG examples grounded in actual documents table content. Each FAQ item requires combining at least two evidence claims, while remaining distinct from ragas-v1.json 15 items.",
-      "payment": "DB fixture from actual payments/refunds/item_delivery_logs/gacha_logs. reference_answer reflects expected chatbot output given fixture counts per StructGPT/ChatLR structured reading.",
-      "bug": "Conservative triage pattern: replication conditions, environment info, reproduction steps.",
-      "voc": "Fixed-response evaluation. reference_answer == VOC_FIXED_RESPONSE constant from constants.py."
+      "faq_single_hop": "Single document-grounded FAQ/RAG cases for RAGAS-style answer/context evaluation.",
+      "payment_single_hop": "Single structured-source DB reasoning cases using current local fixtures; each case mainly targets one source family such as payments, refunds, item_delivery_logs, or gacha_logs.",
+      "bug_single_hop": "Conservative bug triage cases: identify symptom and ask for reproducible context without confirming fixes or compensation.",
+      "voc_single_hop": "Fixed-response VOC cases. reference_answer equals the VOC fixed response text.",
+      "faq_multi_hop": "Multi-hop RAG cases requiring two or more document-grounded claims, following RAGAS multi-context evaluation practice.",
+      "payment_multi_hop": "Multi-hop structured DB cases requiring account-scoped joins across payments/refunds/item_delivery_logs/gacha_logs, following StructGPT/ChatLR/Few-shot Text-to-SQL style structured reasoning."
     },
-    "rag_design": {
-      "faq_mode": "multi_hop_rag",
-      "scope": "FAQ examples combine two or more evidence claims such as condition + exception, path + alternative path, or rule + caveat.",
-      "evaluation_note": "Keep metadata.test_type as faq for category filtering; use metadata.rag_mode or outputs.requires_multihop_rag for multi-hop RAG slices."
-    }
+    "db_fixture_source": "current local DB tables: game_accounts, payments, refunds, item_delivery_logs, gacha_logs",
+    "evaluation_note": "Use metadata.eval_slice for the requested 6-way split. Keep inputs.category and metadata.test_type compatible with existing category filters."
   },
   "examples": [
     {
@@ -45,13 +52,17 @@
         ],
         "requires_rag": true,
         "test_type": "faq",
-        "requires_multihop_rag": true,
-        "reasoning_type": "multi_hop_rag",
+        "requires_multihop_rag": false,
+        "reasoning_type": "single_hop_rag",
         "expected_reasoning_hops": [
-          "Identify the daily reward rule during the Blessing validity period.",
-          "Combine it with the non-login/non-carryover exception."
+          "Retrieve the most directly relevant FAQ/document chunk and answer only from that grounded evidence."
         ],
-        "expected_hop_count": 2
+        "expected_hop_count": 1,
+        "key_points": [
+          "Retrieve the directly relevant FAQ or policy evidence",
+          "Answer only the user question from grounded document content",
+          "State uncertainty when the provided evidence does not support a detail"
+        ]
       },
       "metadata": {
         "test_id": "FAQ-001",
@@ -61,10 +72,11 @@
         "requires_db": false,
         "requires_rag": true,
         "notes": "Direct evidence in '공월 축복이란 무엇인가요?'.",
-        "rag_mode": "multi_hop",
-        "requires_multihop_rag": true,
-        "hop_count": 2,
-        "reasoning_pattern": "claim_combination"
+        "rag_mode": "single_hop",
+        "requires_multihop_rag": false,
+        "hop_count": 1,
+        "reasoning_pattern": "single_context_grounding",
+        "eval_slice": "faq_single_hop"
       }
     },
     {
@@ -83,13 +95,17 @@
         ],
         "requires_rag": true,
         "test_type": "faq",
-        "requires_multihop_rag": true,
-        "reasoning_type": "multi_hop_rag",
+        "requires_multihop_rag": false,
+        "reasoning_type": "single_hop_rag",
         "expected_reasoning_hops": [
-          "Check the remaining Blessing validity period first.",
-          "If validity remains but rewards are missing, route the user to the feedback/support path."
+          "Retrieve the most directly relevant FAQ/document chunk and answer only from that grounded evidence."
         ],
-        "expected_hop_count": 2
+        "expected_hop_count": 1,
+        "key_points": [
+          "Retrieve the directly relevant FAQ or policy evidence",
+          "Answer only the user question from grounded document content",
+          "State uncertainty when the provided evidence does not support a detail"
+        ]
       },
       "metadata": {
         "test_id": "FAQ-002",
@@ -99,10 +115,11 @@
         "requires_db": false,
         "requires_rag": true,
         "notes": "Direct evidence in '공월 축복 보상 원석을 받지 못했습니다'.",
-        "rag_mode": "multi_hop",
-        "requires_multihop_rag": true,
-        "hop_count": 2,
-        "reasoning_pattern": "claim_combination"
+        "rag_mode": "single_hop",
+        "requires_multihop_rag": false,
+        "hop_count": 1,
+        "reasoning_pattern": "single_context_grounding",
+        "eval_slice": "faq_single_hop"
       }
     },
     {
@@ -121,13 +138,17 @@
         ],
         "requires_rag": true,
         "test_type": "faq",
-        "requires_multihop_rag": true,
-        "reasoning_type": "multi_hop_rag",
+        "requires_multihop_rag": false,
+        "reasoning_type": "single_hop_rag",
         "expected_reasoning_hops": [
-          "Find the in-game password-change path.",
-          "Combine it with the HoYoverse account website password/security path."
+          "Retrieve the most directly relevant FAQ/document chunk and answer only from that grounded evidence."
         ],
-        "expected_hop_count": 2
+        "expected_hop_count": 1,
+        "key_points": [
+          "Retrieve the directly relevant FAQ or policy evidence",
+          "Answer only the user question from grounded document content",
+          "State uncertainty when the provided evidence does not support a detail"
+        ]
       },
       "metadata": {
         "test_id": "FAQ-003",
@@ -137,10 +158,11 @@
         "requires_db": false,
         "requires_rag": true,
         "notes": "Direct evidence in password-change FAQ documents.",
-        "rag_mode": "multi_hop",
-        "requires_multihop_rag": true,
-        "hop_count": 2,
-        "reasoning_pattern": "claim_combination"
+        "rag_mode": "single_hop",
+        "requires_multihop_rag": false,
+        "hop_count": 1,
+        "reasoning_pattern": "single_context_grounding",
+        "eval_slice": "faq_single_hop"
       }
     },
     {
@@ -160,13 +182,17 @@
         ],
         "requires_rag": true,
         "test_type": "faq",
-        "requires_multihop_rag": true,
-        "reasoning_type": "multi_hop_rag",
+        "requires_multihop_rag": false,
+        "reasoning_type": "single_hop_rag",
         "expected_reasoning_hops": [
-          "Find the account deletion cancellation/reactivation rule during the grace period.",
-          "Combine it with the irreversible deletion result after the grace period."
+          "Retrieve the most directly relevant FAQ/document chunk and answer only from that grounded evidence."
         ],
-        "expected_hop_count": 2
+        "expected_hop_count": 1,
+        "key_points": [
+          "Retrieve the directly relevant FAQ or policy evidence",
+          "Answer only the user question from grounded document content",
+          "State uncertainty when the provided evidence does not support a detail"
+        ]
       },
       "metadata": {
         "test_id": "FAQ-004",
@@ -176,10 +202,11 @@
         "requires_db": false,
         "requires_rag": true,
         "notes": "Direct evidence in 'HoYoverse 계정을 삭제하는 방법은?'.",
-        "rag_mode": "multi_hop",
-        "requires_multihop_rag": true,
-        "hop_count": 2,
-        "reasoning_pattern": "claim_combination"
+        "rag_mode": "single_hop",
+        "requires_multihop_rag": false,
+        "hop_count": 1,
+        "reasoning_pattern": "single_context_grounding",
+        "eval_slice": "faq_single_hop"
       }
     },
     {
@@ -198,13 +225,17 @@
         ],
         "requires_rag": true,
         "test_type": "faq",
-        "requires_multihop_rag": true,
-        "reasoning_type": "multi_hop_rag",
+        "requires_multihop_rag": false,
+        "reasoning_type": "single_hop_rag",
         "expected_reasoning_hops": [
-          "Find the PC menu entry point.",
-          "Combine it with the account/user-center linking path."
+          "Retrieve the most directly relevant FAQ/document chunk and answer only from that grounded evidence."
         ],
-        "expected_hop_count": 2
+        "expected_hop_count": 1,
+        "key_points": [
+          "Retrieve the directly relevant FAQ or policy evidence",
+          "Answer only the user question from grounded document content",
+          "State uncertainty when the provided evidence does not support a detail"
+        ]
       },
       "metadata": {
         "test_id": "FAQ-005",
@@ -214,10 +245,11 @@
         "requires_db": false,
         "requires_rag": true,
         "notes": "Direct evidence in in-game account linking guide.",
-        "rag_mode": "multi_hop",
-        "requires_multihop_rag": true,
-        "hop_count": 2,
-        "reasoning_pattern": "claim_combination"
+        "rag_mode": "single_hop",
+        "requires_multihop_rag": false,
+        "hop_count": 1,
+        "reasoning_pattern": "single_context_grounding",
+        "eval_slice": "faq_single_hop"
       }
     },
     {
@@ -236,13 +268,17 @@
         ],
         "requires_rag": true,
         "test_type": "faq",
-        "requires_multihop_rag": true,
-        "reasoning_type": "multi_hop_rag",
+        "requires_multihop_rag": false,
+        "reasoning_type": "single_hop_rag",
         "expected_reasoning_hops": [
-          "Find what PSN cross-save shares across platforms.",
-          "Combine it with the separate-platform payment caveat and notice-check instruction."
+          "Retrieve the most directly relevant FAQ/document chunk and answer only from that grounded evidence."
         ],
-        "expected_hop_count": 2
+        "expected_hop_count": 1,
+        "key_points": [
+          "Retrieve the directly relevant FAQ or policy evidence",
+          "Answer only the user question from grounded document content",
+          "State uncertainty when the provided evidence does not support a detail"
+        ]
       },
       "metadata": {
         "test_id": "FAQ-006",
@@ -252,10 +288,11 @@
         "requires_db": false,
         "requires_rag": true,
         "notes": "Direct evidence in PSN cross-save notice.",
-        "rag_mode": "multi_hop",
-        "requires_multihop_rag": true,
-        "hop_count": 2,
-        "reasoning_pattern": "claim_combination"
+        "rag_mode": "single_hop",
+        "requires_multihop_rag": false,
+        "hop_count": 1,
+        "reasoning_pattern": "single_context_grounding",
+        "eval_slice": "faq_single_hop"
       }
     },
     {
@@ -274,13 +311,17 @@
         ],
         "requires_rag": true,
         "test_type": "faq",
-        "requires_multihop_rag": true,
-        "reasoning_type": "multi_hop_rag",
+        "requires_multihop_rag": false,
+        "reasoning_type": "single_hop_rag",
         "expected_reasoning_hops": [
-          "Find the mail reward validity period.",
-          "Combine it with expiration/removal and no-restoration caveats."
+          "Retrieve the most directly relevant FAQ/document chunk and answer only from that grounded evidence."
         ],
-        "expected_hop_count": 2
+        "expected_hop_count": 1,
+        "key_points": [
+          "Retrieve the directly relevant FAQ or policy evidence",
+          "Answer only the user question from grounded document content",
+          "State uncertainty when the provided evidence does not support a detail"
+        ]
       },
       "metadata": {
         "test_id": "FAQ-007",
@@ -290,10 +331,11 @@
         "requires_db": false,
         "requires_rag": true,
         "notes": "Direct evidence in multiple compensation notices (mail validity 30 days).",
-        "rag_mode": "multi_hop",
-        "requires_multihop_rag": true,
-        "hop_count": 2,
-        "reasoning_pattern": "claim_combination"
+        "rag_mode": "single_hop",
+        "requires_multihop_rag": false,
+        "hop_count": 1,
+        "reasoning_pattern": "single_context_grounding",
+        "eval_slice": "faq_single_hop"
       }
     },
     {
@@ -312,13 +354,17 @@
         ],
         "requires_rag": true,
         "test_type": "faq",
-        "requires_multihop_rag": true,
-        "reasoning_type": "multi_hop_rag",
+        "requires_multihop_rag": false,
+        "reasoning_type": "single_hop_rag",
         "expected_reasoning_hops": [
-          "Find the first-charge double bonus reset effect.",
-          "Combine it with the non-stacking/non-carryover caveat for unused benefits."
+          "Retrieve the most directly relevant FAQ/document chunk and answer only from that grounded evidence."
         ],
-        "expected_hop_count": 2
+        "expected_hop_count": 1,
+        "key_points": [
+          "Retrieve the directly relevant FAQ or policy evidence",
+          "Answer only the user question from grounded document content",
+          "State uncertainty when the provided evidence does not support a detail"
+        ]
       },
       "metadata": {
         "test_id": "FAQ-008",
@@ -328,10 +374,11 @@
         "requires_db": false,
         "requires_rag": true,
         "notes": "Direct evidence in first-charge reset notices.",
-        "rag_mode": "multi_hop",
-        "requires_multihop_rag": true,
-        "hop_count": 2,
-        "reasoning_pattern": "claim_combination"
+        "rag_mode": "single_hop",
+        "requires_multihop_rag": false,
+        "hop_count": 1,
+        "reasoning_pattern": "single_context_grounding",
+        "eval_slice": "faq_single_hop"
       }
     },
     {
@@ -350,13 +397,17 @@
         ],
         "requires_rag": true,
         "test_type": "faq",
-        "requires_multihop_rag": true,
-        "reasoning_type": "multi_hop_rag",
+        "requires_multihop_rag": false,
+        "reasoning_type": "single_hop_rag",
         "expected_reasoning_hops": [
-          "Find third-party sharing conditions in the privacy policy.",
-          "Combine legal obligation, service partner, and group-company cases with a policy-document confirmation instruction."
+          "Retrieve the most directly relevant FAQ/document chunk and answer only from that grounded evidence."
         ],
-        "expected_hop_count": 2
+        "expected_hop_count": 1,
+        "key_points": [
+          "Retrieve the directly relevant FAQ or policy evidence",
+          "Answer only the user question from grounded document content",
+          "State uncertainty when the provided evidence does not support a detail"
+        ]
       },
       "metadata": {
         "test_id": "FAQ-009",
@@ -366,10 +417,11 @@
         "requires_db": false,
         "requires_rag": true,
         "notes": "Direct evidence in HoYoverse privacy policy third-party sharing section.",
-        "rag_mode": "multi_hop",
-        "requires_multihop_rag": true,
-        "hop_count": 2,
-        "reasoning_pattern": "claim_combination"
+        "rag_mode": "single_hop",
+        "requires_multihop_rag": false,
+        "hop_count": 1,
+        "reasoning_pattern": "single_context_grounding",
+        "eval_slice": "faq_single_hop"
       }
     },
     {
@@ -388,13 +440,17 @@
         ],
         "requires_rag": true,
         "test_type": "faq",
-        "requires_multihop_rag": true,
-        "reasoning_type": "multi_hop_rag",
+        "requires_multihop_rag": false,
+        "reasoning_type": "single_hop_rag",
         "expected_reasoning_hops": [
-          "Find the 4-star pity guarantee rule.",
-          "Combine it with the 5-star character pity guarantee rule."
+          "Retrieve the most directly relevant FAQ/document chunk and answer only from that grounded evidence."
         ],
-        "expected_hop_count": 2
+        "expected_hop_count": 1,
+        "key_points": [
+          "Retrieve the directly relevant FAQ or policy evidence",
+          "Answer only the user question from grounded document content",
+          "State uncertainty when the provided evidence does not support a detail"
+        ]
       },
       "metadata": {
         "test_id": "FAQ-010",
@@ -404,33 +460,48 @@
         "requires_db": false,
         "requires_rag": true,
         "notes": "Direct evidence in character event wish FAQ.",
-        "rag_mode": "multi_hop",
-        "requires_multihop_rag": true,
-        "hop_count": 2,
-        "reasoning_pattern": "claim_combination"
+        "rag_mode": "single_hop",
+        "requires_multihop_rag": false,
+        "hop_count": 1,
+        "reasoning_pattern": "single_context_grounding",
+        "eval_slice": "faq_single_hop"
       }
     },
     {
       "inputs": {
-        "user_message": "최근 결제 내역 3건이 모두 성공인지 확인해주세요.",
+        "user_message": "결제했는데 아이템이 안 들어왔어요.",
         "user_id": 1232,
         "account_id": 1332,
         "category": "payment"
       },
       "outputs": {
-        "reference_answer": "결제 기록 3건이 확인됩니다. 각 결제의 상태를 기반으로 성공/실패 여부를 안내하되, 민감한 결제 정보는 최소한으로 노출해야 합니다.",
+        "reference_answer": "결제 내역과 아이템 지급 로그를 함께 확인하고, 지급 기록이 없으면 재접속이나 고객센터 접수 등 다음 조치를 안내해야 한다.",
         "expected_route": "payment_agent",
         "expected_action": "AUTO_RESPONSE",
         "required_evidence_types": [
-          "payments"
+          "payments",
+          "item_delivery_logs"
         ],
         "requires_rag": false,
-        "test_type": "payment"
+        "requires_multihop": false,
+        "test_type": "payment",
+        "requires_multihop_reasoning": false,
+        "reasoning_type": "single_hop_structured_db",
+        "expected_reasoning_hops": [
+          "Read the account-scoped structured evidence requested by the user and answer without using unrelated accounts."
+        ],
+        "expected_hop_count": 1,
+        "key_points": [
+          "Use only account-scoped DB evidence",
+          "Check payment status and product details",
+          "Cross-check item delivery status before claiming fulfillment",
+          "Avoid promising immediate compensation or manual reward grants"
+        ]
       },
       "metadata": {
         "test_id": "PAY-001",
         "test_type": "payment",
-        "paper_basis": "StructGPT+ChatLR+Few-shot Text-to-SQL",
+        "paper_basis": "StructGPT / ChatLR / Few-shot Text-to-SQL",
         "difficulty": "easy",
         "requires_db": true,
         "requires_rag": false,
@@ -444,70 +515,116 @@
             "item_delivery_logs": 2,
             "gacha_logs": 1
           }
-        }
+        },
+        "eval_slice": "payment_single_hop",
+        "db_fixture_source": "current_local_db",
+        "db_fixture_counts": {
+          "payments": 3,
+          "refunds": 0,
+          "item_delivery_logs": 2,
+          "gacha_logs": 1
+        },
+        "reasoning_mode": "single_hop_structured_db",
+        "hop_count": 1,
+        "reasoning_pattern": "account_scoped_structured_lookup"
       }
     },
     {
       "inputs": {
-        "user_message": "환불 신청한 게 처리됐는지 알고 싶어요.",
-        "user_id": 3528,
-        "account_id": 3628,
+        "user_message": "최근 결제 후 상품이 정상 지급됐는지 확인해주세요.",
+        "user_id": 1232,
+        "account_id": 1332,
         "category": "payment"
       },
       "outputs": {
-        "reference_answer": "결제 1건과 환불 1건이 확인됩니다. 환불 로그의 처리 상태를 확인해 처리 완료 여부를 안내하고, 처리 중이라면 추가 문의 방법을 알려야 합니다.",
+        "reference_answer": "최근 결제 기록과 아이템 지급 로그를 비교해 정상 지급 또는 미지급 가능성을 판단해야 한다. 결제 기록만 보고 지급 완료를 단정하지 않아야 한다.",
         "expected_route": "payment_agent",
         "expected_action": "AUTO_RESPONSE",
         "required_evidence_types": [
           "payments",
-          "refunds"
+          "item_delivery_logs"
         ],
         "requires_rag": false,
-        "test_type": "payment"
+        "requires_multihop": false,
+        "test_type": "payment",
+        "requires_multihop_reasoning": false,
+        "reasoning_type": "single_hop_structured_db",
+        "expected_reasoning_hops": [
+          "Read the account-scoped structured evidence requested by the user and answer without using unrelated accounts."
+        ],
+        "expected_hop_count": 1,
+        "key_points": [
+          "Use only account-scoped DB evidence",
+          "Check payment status and product details",
+          "Cross-check item delivery status before claiming fulfillment",
+          "Avoid promising immediate compensation or manual reward grants"
+        ]
       },
       "metadata": {
         "test_id": "PAY-002",
         "test_type": "payment",
-        "paper_basis": "StructGPT+ChatLR+Few-shot Text-to-SQL",
-        "difficulty": "medium",
+        "paper_basis": "StructGPT / ChatLR / Few-shot Text-to-SQL",
+        "difficulty": "easy",
         "requires_db": true,
         "requires_rag": false,
         "db_fixture": {
           "source": "current_db",
-          "user_id": 3528,
-          "account_id": 3628,
+          "user_id": 1232,
+          "account_id": 1332,
           "counts": {
-            "payments": 1,
-            "refunds": 1,
-            "item_delivery_logs": 1,
+            "payments": 3,
+            "refunds": 0,
+            "item_delivery_logs": 2,
             "gacha_logs": 1
           }
-        }
+        },
+        "eval_slice": "payment_single_hop",
+        "db_fixture_source": "current_local_db",
+        "db_fixture_counts": {
+          "payments": 3,
+          "refunds": 0,
+          "item_delivery_logs": 2,
+          "gacha_logs": 1
+        },
+        "reasoning_mode": "single_hop_structured_db",
+        "hop_count": 1,
+        "reasoning_pattern": "account_scoped_structured_lookup"
       }
     },
     {
       "inputs": {
-        "user_message": "같은 상품이 두 번 결제된 것 같아요.",
+        "user_message": "결제가 두 번 된 것 같은데 중복 결제인지 확인해주세요.",
         "user_id": 1281,
         "account_id": 1381,
         "category": "payment"
       },
       "outputs": {
-        "reference_answer": "결제 기록 3건을 조회해 동일 상품 또는 동일 금액의 중복 여부를 확인해야 합니다. 환불 이력 1건과 대조하고, 중복이 의심될 경우 추가 처리 절차를 안내해야 합니다.",
+        "reference_answer": "동일 계정의 최근 결제 내역에서 거래 시간, 금액, 상품 정보를 비교해 중복 결제 가능성을 확인해야 한다.",
         "expected_route": "payment_agent",
         "expected_action": "AUTO_RESPONSE",
         "required_evidence_types": [
-          "payments",
-          "refunds"
+          "payments"
         ],
         "requires_rag": false,
-        "test_type": "payment"
+        "requires_multihop": false,
+        "test_type": "payment",
+        "requires_multihop_reasoning": false,
+        "reasoning_type": "single_hop_structured_db",
+        "expected_reasoning_hops": [
+          "Read the account-scoped structured evidence requested by the user and answer without using unrelated accounts."
+        ],
+        "expected_hop_count": 1,
+        "key_points": [
+          "Use only account-scoped DB evidence",
+          "Check payment status and product details",
+          "Avoid promising immediate compensation or manual reward grants"
+        ]
       },
       "metadata": {
         "test_id": "PAY-003",
         "test_type": "payment",
-        "paper_basis": "StructGPT+ChatLR+Few-shot Text-to-SQL",
-        "difficulty": "hard",
+        "paper_basis": "StructGPT / ChatLR / Few-shot Text-to-SQL",
+        "difficulty": "easy",
         "requires_db": true,
         "requires_rag": false,
         "db_fixture": {
@@ -520,93 +637,29 @@
             "item_delivery_logs": 0,
             "gacha_logs": 1
           }
-        }
+        },
+        "eval_slice": "payment_single_hop",
+        "db_fixture_source": "current_local_db",
+        "db_fixture_counts": {
+          "payments": 3,
+          "refunds": 1,
+          "item_delivery_logs": 0,
+          "gacha_logs": 1
+        },
+        "reasoning_mode": "single_hop_structured_db",
+        "hop_count": 1,
+        "reasoning_pattern": "account_scoped_structured_lookup"
       }
     },
     {
       "inputs": {
-        "user_message": "결제 성공했는데 아이템이 인벤토리에 없어요.",
-        "user_id": 4948,
-        "account_id": 5048,
+        "user_message": "지난달 결제 중 환불된 건이 있는지 알려주세요.",
+        "user_id": 3528,
+        "account_id": 3628,
         "category": "payment"
       },
       "outputs": {
-        "reference_answer": "결제 2건과 아이템 지급 로그 2건이 확인됩니다. 결제 건과 지급 로그를 교차 비교해 미지급 여부를 확인해야 합니다. 지급 완료 기록이 있다면 게임 재접속을 안내하고, 기록이 없다면 지급 오류 가능성을 보수적으로 안내해야 합니다.",
-        "expected_route": "payment_agent",
-        "expected_action": "AUTO_RESPONSE",
-        "required_evidence_types": [
-          "payments",
-          "item_delivery_logs"
-        ],
-        "requires_rag": false,
-        "test_type": "payment"
-      },
-      "metadata": {
-        "test_id": "PAY-004",
-        "test_type": "payment",
-        "paper_basis": "StructGPT+ChatLR+Few-shot Text-to-SQL",
-        "difficulty": "medium",
-        "requires_db": true,
-        "requires_rag": false,
-        "db_fixture": {
-          "source": "current_db",
-          "user_id": 4948,
-          "account_id": 5048,
-          "counts": {
-            "payments": 2,
-            "refunds": 0,
-            "item_delivery_logs": 2,
-            "gacha_logs": 1
-          }
-        }
-      }
-    },
-    {
-      "inputs": {
-        "user_message": "제 가챠 기록 3건이 다 남아 있나요?",
-        "user_id": 4823,
-        "account_id": 4923,
-        "category": "payment"
-      },
-      "outputs": {
-        "reference_answer": "가챠 로그 3건이 확인됩니다. 조회된 기록을 바탕으로 기원 횟수와 결과가 정상적으로 기록되어 있음을 안내해야 합니다. 특정 결과에 이상이 있다면 구체적인 내용을 추가로 문의하도록 안내해야 합니다.",
-        "expected_route": "payment_agent",
-        "expected_action": "AUTO_RESPONSE",
-        "required_evidence_types": [
-          "gacha_logs"
-        ],
-        "requires_rag": false,
-        "test_type": "payment"
-      },
-      "metadata": {
-        "test_id": "PAY-005",
-        "test_type": "payment",
-        "paper_basis": "StructGPT+ChatLR+Few-shot Text-to-SQL",
-        "difficulty": "easy",
-        "requires_db": true,
-        "requires_rag": false,
-        "db_fixture": {
-          "source": "current_db",
-          "user_id": 4823,
-          "account_id": 4923,
-          "counts": {
-            "payments": 1,
-            "refunds": 0,
-            "item_delivery_logs": 2,
-            "gacha_logs": 3
-          }
-        }
-      }
-    },
-    {
-      "inputs": {
-        "user_message": "정기 구독권 남은 기간이 이상하게 짧아진 것 같아요.",
-        "user_id": 1799,
-        "account_id": 1899,
-        "category": "payment"
-      },
-      "outputs": {
-        "reference_answer": "결제 2건과 환불 1건이 확인됩니다. 정기권 관련 결제 일시와 상품 내용을 확인하고, 환불 이력과 교차 비교해 기간 산정 기준을 안내해야 합니다. 정확한 기간 적용은 시스템 검토가 필요할 수 있으므로 단정 짓지 않아야 합니다.",
+        "reference_answer": "해당 계정의 결제 기록과 환불 기록을 함께 조회해 환불 처리 여부와 현재 상태를 안내해야 한다.",
         "expected_route": "payment_agent",
         "expected_action": "AUTO_RESPONSE",
         "required_evidence_types": [
@@ -614,90 +667,26 @@
           "refunds"
         ],
         "requires_rag": false,
-        "test_type": "payment"
-      },
-      "metadata": {
-        "test_id": "PAY-006",
+        "requires_multihop": false,
         "test_type": "payment",
-        "paper_basis": "StructGPT+ChatLR+Few-shot Text-to-SQL",
-        "difficulty": "medium",
-        "requires_db": true,
-        "requires_rag": false,
-        "db_fixture": {
-          "source": "current_db",
-          "user_id": 1799,
-          "account_id": 1899,
-          "counts": {
-            "payments": 2,
-            "refunds": 1,
-            "item_delivery_logs": 0,
-            "gacha_logs": 2
-          }
-        }
-      }
-    },
-    {
-      "inputs": {
-        "user_message": "기원 결과로 캐릭터를 받았는데 보유 목록에 없어요.",
-        "user_id": 4823,
-        "account_id": 4923,
-        "category": "payment"
-      },
-      "outputs": {
-        "reference_answer": "가챠 로그 3건과 아이템 지급 로그 2건을 교차 확인해 기원 결과와 지급 내역이 일치하는지 확인해야 합니다. 지급 기록이 있다면 게임 재접속을 안내하고, 기록이 없다면 지급 오류 가능성을 보수적으로 안내해야 합니다.",
-        "expected_route": "payment_agent",
-        "expected_action": "AUTO_RESPONSE",
-        "required_evidence_types": [
-          "gacha_logs",
-          "item_delivery_logs"
+        "requires_multihop_reasoning": false,
+        "reasoning_type": "single_hop_structured_db",
+        "expected_reasoning_hops": [
+          "Read the account-scoped structured evidence requested by the user and answer without using unrelated accounts."
         ],
-        "requires_rag": false,
-        "test_type": "payment"
+        "expected_hop_count": 1,
+        "key_points": [
+          "Use only account-scoped DB evidence",
+          "Check payment status and product details",
+          "Cross-check refund status with the related payment",
+          "Avoid promising immediate compensation or manual reward grants"
+        ]
       },
       "metadata": {
-        "test_id": "PAY-007",
+        "test_id": "PAY-004",
         "test_type": "payment",
-        "paper_basis": "StructGPT+ChatLR+Few-shot Text-to-SQL",
-        "difficulty": "hard",
-        "requires_db": true,
-        "requires_rag": false,
-        "db_fixture": {
-          "source": "current_db",
-          "user_id": 4823,
-          "account_id": 4923,
-          "counts": {
-            "payments": 1,
-            "refunds": 0,
-            "item_delivery_logs": 2,
-            "gacha_logs": 3
-          }
-        }
-      }
-    },
-    {
-      "inputs": {
-        "user_message": "결제를 취소했는데 지급된 아이템이 회수됐는지 확인해주세요.",
-        "user_id": 3528,
-        "account_id": 3628,
-        "category": "payment"
-      },
-      "outputs": {
-        "reference_answer": "결제 1건, 환불 1건, 아이템 지급 로그 1건이 확인됩니다. 환불 처리 상태와 아이템 지급 로그를 비교해 회수 여부를 안내해야 합니다. 시스템에서 단정하기 어려운 경우 운영팀 검토 안내를 제공해야 합니다.",
-        "expected_route": "payment_agent",
-        "expected_action": "AUTO_RESPONSE",
-        "required_evidence_types": [
-          "payments",
-          "refunds",
-          "item_delivery_logs"
-        ],
-        "requires_rag": false,
-        "test_type": "payment"
-      },
-      "metadata": {
-        "test_id": "PAY-008",
-        "test_type": "payment",
-        "paper_basis": "StructGPT+ChatLR+Few-shot Text-to-SQL",
-        "difficulty": "hard",
+        "paper_basis": "StructGPT / ChatLR / Few-shot Text-to-SQL",
+        "difficulty": "easy",
         "requires_db": true,
         "requires_rag": false,
         "db_fixture": {
@@ -710,69 +699,53 @@
             "item_delivery_logs": 1,
             "gacha_logs": 1
           }
-        }
+        },
+        "eval_slice": "payment_single_hop",
+        "db_fixture_source": "current_local_db",
+        "db_fixture_counts": {
+          "payments": 1,
+          "refunds": 1,
+          "item_delivery_logs": 1,
+          "gacha_logs": 1
+        },
+        "reasoning_mode": "single_hop_structured_db",
+        "hop_count": 1,
+        "reasoning_pattern": "account_scoped_structured_lookup"
       }
     },
     {
       "inputs": {
-        "user_message": "오늘 가챠 돌렸는데 재화가 정상 차감됐나요?",
-        "user_id": 2189,
-        "account_id": 2289,
-        "category": "payment"
-      },
-      "outputs": {
-        "reference_answer": "가챠 로그 3건과 결제 기록 2건을 확인해 기원 사용 내역과 재화 차감이 정상 기록되어 있는지 안내해야 합니다. 아이템 지급 로그가 없으므로 재화 차감 후 지급 여부는 가챠 로그 기준으로만 안내하고, 이상이 있으면 추가 문의를 안내해야 합니다.",
-        "expected_route": "payment_agent",
-        "expected_action": "AUTO_RESPONSE",
-        "required_evidence_types": [
-          "payments",
-          "gacha_logs"
-        ],
-        "requires_rag": false,
-        "test_type": "payment"
-      },
-      "metadata": {
-        "test_id": "PAY-009",
-        "test_type": "payment",
-        "paper_basis": "StructGPT+ChatLR+Few-shot Text-to-SQL",
-        "difficulty": "medium",
-        "requires_db": true,
-        "requires_rag": false,
-        "db_fixture": {
-          "source": "current_db",
-          "user_id": 2189,
-          "account_id": 2289,
-          "counts": {
-            "payments": 2,
-            "refunds": 0,
-            "item_delivery_logs": 0,
-            "gacha_logs": 3
-          }
-        }
-      }
-    },
-    {
-      "inputs": {
-        "user_message": "패키지 구매 후 아이템 지급 로그를 확인해주세요.",
+        "user_message": "아이템 지급은 됐다는데 인벤토리에 안 보여요.",
         "user_id": 4101,
         "account_id": 4201,
         "category": "payment"
       },
       "outputs": {
-        "reference_answer": "결제 1건과 아이템 지급 로그 1건이 확인됩니다. 결제 내역과 지급 로그를 비교해 패키지 구성품이 정상 지급되었는지 안내해야 합니다. 불일치 항목이 있으면 추가 확인이 필요하다고 보수적으로 안내해야 합니다.",
+        "reference_answer": "아이템 지급 로그와 인벤토리 반영 상태를 확인해야 한다. 지급 로그가 있더라도 실제 반영 여부와 재접속 필요 여부를 함께 안내해야 한다.",
         "expected_route": "payment_agent",
         "expected_action": "AUTO_RESPONSE",
         "required_evidence_types": [
-          "payments",
           "item_delivery_logs"
         ],
         "requires_rag": false,
-        "test_type": "payment"
+        "requires_multihop": false,
+        "test_type": "payment",
+        "requires_multihop_reasoning": false,
+        "reasoning_type": "single_hop_structured_db",
+        "expected_reasoning_hops": [
+          "Read the account-scoped structured evidence requested by the user and answer without using unrelated accounts."
+        ],
+        "expected_hop_count": 1,
+        "key_points": [
+          "Use only account-scoped DB evidence",
+          "Cross-check item delivery status before claiming fulfillment",
+          "Avoid promising immediate compensation or manual reward grants"
+        ]
       },
       "metadata": {
-        "test_id": "PAY-010",
+        "test_id": "PAY-005",
         "test_type": "payment",
-        "paper_basis": "StructGPT+ChatLR+Few-shot Text-to-SQL",
+        "paper_basis": "StructGPT / ChatLR / Few-shot Text-to-SQL",
         "difficulty": "easy",
         "requires_db": true,
         "requires_rag": false,
@@ -786,7 +759,329 @@
             "item_delivery_logs": 1,
             "gacha_logs": 3
           }
-        }
+        },
+        "eval_slice": "payment_single_hop",
+        "db_fixture_source": "current_local_db",
+        "db_fixture_counts": {
+          "payments": 1,
+          "refunds": 0,
+          "item_delivery_logs": 1,
+          "gacha_logs": 3
+        },
+        "reasoning_mode": "single_hop_structured_db",
+        "hop_count": 1,
+        "reasoning_pattern": "account_scoped_structured_lookup"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "결제 취소됐는데 재화도 회수됐는지 확인해주세요.",
+        "user_id": 3528,
+        "account_id": 3628,
+        "category": "payment"
+      },
+      "outputs": {
+        "reference_answer": "결제 취소 또는 환불 상태와 재화 회수 로그를 함께 확인해야 한다. 회수 여부를 로그 근거 없이 단정하지 않아야 한다.",
+        "expected_route": "payment_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "payments",
+          "refunds",
+          "item_delivery_logs"
+        ],
+        "requires_rag": false,
+        "requires_multihop": false,
+        "test_type": "payment",
+        "requires_multihop_reasoning": false,
+        "reasoning_type": "single_hop_structured_db",
+        "expected_reasoning_hops": [
+          "Read the account-scoped structured evidence requested by the user and answer without using unrelated accounts."
+        ],
+        "expected_hop_count": 1,
+        "key_points": [
+          "Use only account-scoped DB evidence",
+          "Check payment status and product details",
+          "Cross-check refund status with the related payment",
+          "Cross-check item delivery status before claiming fulfillment",
+          "Avoid promising immediate compensation or manual reward grants"
+        ]
+      },
+      "metadata": {
+        "test_id": "PAY-006",
+        "test_type": "payment",
+        "paper_basis": "StructGPT / ChatLR / Few-shot Text-to-SQL",
+        "difficulty": "easy",
+        "requires_db": true,
+        "requires_rag": false,
+        "db_fixture": {
+          "source": "current_db",
+          "user_id": 3528,
+          "account_id": 3628,
+          "counts": {
+            "payments": 1,
+            "refunds": 1,
+            "item_delivery_logs": 1,
+            "gacha_logs": 1
+          }
+        },
+        "eval_slice": "payment_single_hop",
+        "db_fixture_source": "current_local_db",
+        "db_fixture_counts": {
+          "payments": 1,
+          "refunds": 1,
+          "item_delivery_logs": 1,
+          "gacha_logs": 1
+        },
+        "reasoning_mode": "single_hop_structured_db",
+        "hop_count": 1,
+        "reasoning_pattern": "account_scoped_structured_lookup"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "가챠 결과가 기록과 다른 것 같아요.",
+        "user_id": 4823,
+        "account_id": 4923,
+        "category": "payment"
+      },
+      "outputs": {
+        "reference_answer": "가챠 로그와 관련 지급 기록을 확인해 사용자가 말한 결과와 저장된 결과가 일치하는지 판단해야 한다.",
+        "expected_route": "payment_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "gacha_logs",
+          "item_delivery_logs"
+        ],
+        "requires_rag": false,
+        "requires_multihop": false,
+        "test_type": "payment",
+        "requires_multihop_reasoning": false,
+        "reasoning_type": "single_hop_structured_db",
+        "expected_reasoning_hops": [
+          "Read the account-scoped structured evidence requested by the user and answer without using unrelated accounts."
+        ],
+        "expected_hop_count": 1,
+        "key_points": [
+          "Use only account-scoped DB evidence",
+          "Cross-check item delivery status before claiming fulfillment",
+          "Check gacha log records and avoid inventing results",
+          "Avoid promising immediate compensation or manual reward grants"
+        ]
+      },
+      "metadata": {
+        "test_id": "PAY-007",
+        "test_type": "payment",
+        "paper_basis": "StructGPT / ChatLR / Few-shot Text-to-SQL",
+        "difficulty": "easy",
+        "requires_db": true,
+        "requires_rag": false,
+        "db_fixture": {
+          "source": "current_db",
+          "user_id": 4823,
+          "account_id": 4923,
+          "counts": {
+            "payments": 1,
+            "refunds": 0,
+            "item_delivery_logs": 2,
+            "gacha_logs": 3
+          }
+        },
+        "eval_slice": "payment_single_hop",
+        "db_fixture_source": "current_local_db",
+        "db_fixture_counts": {
+          "payments": 1,
+          "refunds": 0,
+          "item_delivery_logs": 2,
+          "gacha_logs": 3
+        },
+        "reasoning_mode": "single_hop_structured_db",
+        "hop_count": 1,
+        "reasoning_pattern": "account_scoped_structured_lookup"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "정기권을 샀는데 남은 기간이 이상해요.",
+        "user_id": 1799,
+        "account_id": 1899,
+        "category": "payment"
+      },
+      "outputs": {
+        "reference_answer": "정기권 구매 내역과 기간 적용 로그를 비교해 남은 기간 계산이 맞는지 확인해야 한다.",
+        "expected_route": "payment_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "payments"
+        ],
+        "requires_rag": false,
+        "requires_multihop": false,
+        "test_type": "payment",
+        "requires_multihop_reasoning": false,
+        "reasoning_type": "single_hop_structured_db",
+        "expected_reasoning_hops": [
+          "Read the account-scoped structured evidence requested by the user and answer without using unrelated accounts."
+        ],
+        "expected_hop_count": 1,
+        "key_points": [
+          "Use only account-scoped DB evidence",
+          "Check payment status and product details",
+          "Avoid promising immediate compensation or manual reward grants"
+        ]
+      },
+      "metadata": {
+        "test_id": "PAY-008",
+        "test_type": "payment",
+        "paper_basis": "StructGPT / ChatLR / Few-shot Text-to-SQL",
+        "difficulty": "easy",
+        "requires_db": true,
+        "requires_rag": false,
+        "db_fixture": {
+          "source": "current_db",
+          "user_id": 1799,
+          "account_id": 1899,
+          "counts": {
+            "payments": 2,
+            "refunds": 1,
+            "item_delivery_logs": 0,
+            "gacha_logs": 2
+          }
+        },
+        "eval_slice": "payment_single_hop",
+        "db_fixture_source": "current_local_db",
+        "db_fixture_counts": {
+          "payments": 2,
+          "refunds": 1,
+          "item_delivery_logs": 0,
+          "gacha_logs": 2
+        },
+        "reasoning_mode": "single_hop_structured_db",
+        "hop_count": 1,
+        "reasoning_pattern": "account_scoped_structured_lookup"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "환불 정책이 가능한지 보고 최근 결제 상태도 확인해주세요.",
+        "user_id": 3528,
+        "account_id": 3628,
+        "category": "payment"
+      },
+      "outputs": {
+        "reference_answer": "환불 가능 조건은 정책 문서에 근거해 안내하고, 최근 결제 및 환불 상태는 DB 기록을 확인해 분리해서 설명해야 한다.",
+        "expected_route": "payment_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "policy_document",
+          "payments",
+          "refunds"
+        ],
+        "requires_rag": false,
+        "requires_multihop": true,
+        "test_type": "payment",
+        "requires_multihop_reasoning": false,
+        "reasoning_type": "single_hop_structured_db",
+        "expected_reasoning_hops": [
+          "Read the account-scoped structured evidence requested by the user and answer without using unrelated accounts."
+        ],
+        "expected_hop_count": 1,
+        "key_points": [
+          "Use only account-scoped DB evidence",
+          "Check payment status and product details",
+          "Cross-check refund status with the related payment",
+          "Avoid promising immediate compensation or manual reward grants"
+        ]
+      },
+      "metadata": {
+        "test_id": "PAY-009",
+        "test_type": "payment",
+        "paper_basis": "StructGPT / ChatLR / Few-shot Text-to-SQL",
+        "difficulty": "easy",
+        "requires_db": true,
+        "requires_rag": false,
+        "db_fixture": {
+          "source": "current_db",
+          "user_id": 3528,
+          "account_id": 3628,
+          "counts": {
+            "payments": 1,
+            "refunds": 1,
+            "item_delivery_logs": 1,
+            "gacha_logs": 1
+          }
+        },
+        "eval_slice": "payment_single_hop",
+        "db_fixture_source": "current_local_db",
+        "db_fixture_counts": {
+          "payments": 1,
+          "refunds": 1,
+          "item_delivery_logs": 1,
+          "gacha_logs": 1
+        },
+        "reasoning_mode": "single_hop_structured_db",
+        "hop_count": 1,
+        "reasoning_pattern": "account_scoped_structured_lookup"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "결제 기록은 없는데 보상 받은 걸로 처리해주세요.",
+        "user_id": 3528,
+        "account_id": 3628,
+        "category": "payment"
+      },
+      "outputs": {
+        "reference_answer": "DB 근거 없이 지급 처리됐다고 말하지 않아야 한다. 결제 기록과 지급 로그 확인 결과에 따라 안내해야 한다.",
+        "expected_route": "payment_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "payments",
+          "item_delivery_logs"
+        ],
+        "requires_rag": false,
+        "requires_multihop": false,
+        "test_type": "payment",
+        "requires_multihop_reasoning": false,
+        "reasoning_type": "single_hop_structured_db",
+        "expected_reasoning_hops": [
+          "Read the account-scoped structured evidence requested by the user and answer without using unrelated accounts."
+        ],
+        "expected_hop_count": 1,
+        "key_points": [
+          "Use only account-scoped DB evidence",
+          "Check payment status and product details",
+          "Cross-check item delivery status before claiming fulfillment",
+          "Avoid promising immediate compensation or manual reward grants"
+        ]
+      },
+      "metadata": {
+        "test_id": "PAY-010",
+        "test_type": "payment",
+        "paper_basis": "StructGPT / ChatLR / Few-shot Text-to-SQL",
+        "difficulty": "easy",
+        "requires_db": true,
+        "requires_rag": false,
+        "db_fixture": {
+          "source": "current_db",
+          "user_id": 3528,
+          "account_id": 3628,
+          "counts": {
+            "payments": 1,
+            "refunds": 1,
+            "item_delivery_logs": 1,
+            "gacha_logs": 1
+          }
+        },
+        "eval_slice": "payment_single_hop",
+        "db_fixture_source": "current_local_db",
+        "db_fixture_counts": {
+          "payments": 1,
+          "refunds": 1,
+          "item_delivery_logs": 1,
+          "gacha_logs": 1
+        },
+        "reasoning_mode": "single_hop_structured_db",
+        "hop_count": 1,
+        "reasoning_pattern": "account_scoped_structured_lookup"
       }
     },
     {
@@ -804,15 +1099,30 @@
           "bug_report_context"
         ],
         "requires_rag": false,
-        "test_type": "bug"
+        "test_type": "bug",
+        "requires_multihop_reasoning": false,
+        "reasoning_type": "single_step_bug_triage",
+        "expected_reasoning_hops": [
+          "Identify the bug symptom and request reproduction context without confirming a fix, compensation, or rollback."
+        ],
+        "expected_hop_count": 1,
+        "key_points": [
+          "Identify the reported bug symptom",
+          "Ask for reproduction context such as time, device, OS, app version, server, UID, and screenshot or video",
+          "Avoid confirming a bug, fix, rollback, or compensation without evidence"
+        ]
       },
       "metadata": {
         "test_id": "BUG-001",
         "test_type": "bug",
-        "paper_basis": "Agent evaluation",
+        "paper_basis": "Agent evaluation / conservative triage",
         "difficulty": "medium",
         "requires_db": false,
-        "requires_rag": false
+        "requires_rag": false,
+        "eval_slice": "bug_single_hop",
+        "reasoning_mode": "single_step_bug_triage",
+        "hop_count": 1,
+        "reasoning_pattern": "symptom_to_reproduction_request"
       }
     },
     {
@@ -830,15 +1140,30 @@
           "bug_report_context"
         ],
         "requires_rag": false,
-        "test_type": "bug"
+        "test_type": "bug",
+        "requires_multihop_reasoning": false,
+        "reasoning_type": "single_step_bug_triage",
+        "expected_reasoning_hops": [
+          "Identify the bug symptom and request reproduction context without confirming a fix, compensation, or rollback."
+        ],
+        "expected_hop_count": 1,
+        "key_points": [
+          "Identify the reported bug symptom",
+          "Ask for reproduction context such as time, device, OS, app version, server, UID, and screenshot or video",
+          "Avoid confirming a bug, fix, rollback, or compensation without evidence"
+        ]
       },
       "metadata": {
         "test_id": "BUG-002",
         "test_type": "bug",
-        "paper_basis": "Agent evaluation",
+        "paper_basis": "Agent evaluation / conservative triage",
         "difficulty": "medium",
         "requires_db": false,
-        "requires_rag": false
+        "requires_rag": false,
+        "eval_slice": "bug_single_hop",
+        "reasoning_mode": "single_step_bug_triage",
+        "hop_count": 1,
+        "reasoning_pattern": "symptom_to_reproduction_request"
       }
     },
     {
@@ -856,15 +1181,30 @@
           "bug_report_context"
         ],
         "requires_rag": false,
-        "test_type": "bug"
+        "test_type": "bug",
+        "requires_multihop_reasoning": false,
+        "reasoning_type": "single_step_bug_triage",
+        "expected_reasoning_hops": [
+          "Identify the bug symptom and request reproduction context without confirming a fix, compensation, or rollback."
+        ],
+        "expected_hop_count": 1,
+        "key_points": [
+          "Identify the reported bug symptom",
+          "Ask for reproduction context such as time, device, OS, app version, server, UID, and screenshot or video",
+          "Avoid confirming a bug, fix, rollback, or compensation without evidence"
+        ]
       },
       "metadata": {
         "test_id": "BUG-003",
         "test_type": "bug",
-        "paper_basis": "Agent evaluation",
+        "paper_basis": "Agent evaluation / conservative triage",
         "difficulty": "easy",
         "requires_db": false,
-        "requires_rag": false
+        "requires_rag": false,
+        "eval_slice": "bug_single_hop",
+        "reasoning_mode": "single_step_bug_triage",
+        "hop_count": 1,
+        "reasoning_pattern": "symptom_to_reproduction_request"
       }
     },
     {
@@ -882,15 +1222,30 @@
           "bug_report_context"
         ],
         "requires_rag": false,
-        "test_type": "bug"
+        "test_type": "bug",
+        "requires_multihop_reasoning": false,
+        "reasoning_type": "single_step_bug_triage",
+        "expected_reasoning_hops": [
+          "Identify the bug symptom and request reproduction context without confirming a fix, compensation, or rollback."
+        ],
+        "expected_hop_count": 1,
+        "key_points": [
+          "Identify the reported bug symptom",
+          "Ask for reproduction context such as time, device, OS, app version, server, UID, and screenshot or video",
+          "Avoid confirming a bug, fix, rollback, or compensation without evidence"
+        ]
       },
       "metadata": {
         "test_id": "BUG-004",
         "test_type": "bug",
-        "paper_basis": "Agent evaluation",
+        "paper_basis": "Agent evaluation / conservative triage",
         "difficulty": "medium",
         "requires_db": false,
-        "requires_rag": false
+        "requires_rag": false,
+        "eval_slice": "bug_single_hop",
+        "reasoning_mode": "single_step_bug_triage",
+        "hop_count": 1,
+        "reasoning_pattern": "symptom_to_reproduction_request"
       }
     },
     {
@@ -908,15 +1263,30 @@
           "bug_report_context"
         ],
         "requires_rag": false,
-        "test_type": "bug"
+        "test_type": "bug",
+        "requires_multihop_reasoning": false,
+        "reasoning_type": "single_step_bug_triage",
+        "expected_reasoning_hops": [
+          "Identify the bug symptom and request reproduction context without confirming a fix, compensation, or rollback."
+        ],
+        "expected_hop_count": 1,
+        "key_points": [
+          "Identify the reported bug symptom",
+          "Ask for reproduction context such as time, device, OS, app version, server, UID, and screenshot or video",
+          "Avoid confirming a bug, fix, rollback, or compensation without evidence"
+        ]
       },
       "metadata": {
         "test_id": "BUG-005",
         "test_type": "bug",
-        "paper_basis": "Agent evaluation",
+        "paper_basis": "Agent evaluation / conservative triage",
         "difficulty": "hard",
         "requires_db": false,
-        "requires_rag": false
+        "requires_rag": false,
+        "eval_slice": "bug_single_hop",
+        "reasoning_mode": "single_step_bug_triage",
+        "hop_count": 1,
+        "reasoning_pattern": "symptom_to_reproduction_request"
       }
     },
     {
@@ -934,15 +1304,30 @@
           "bug_report_context"
         ],
         "requires_rag": false,
-        "test_type": "bug"
+        "test_type": "bug",
+        "requires_multihop_reasoning": false,
+        "reasoning_type": "single_step_bug_triage",
+        "expected_reasoning_hops": [
+          "Identify the bug symptom and request reproduction context without confirming a fix, compensation, or rollback."
+        ],
+        "expected_hop_count": 1,
+        "key_points": [
+          "Identify the reported bug symptom",
+          "Ask for reproduction context such as time, device, OS, app version, server, UID, and screenshot or video",
+          "Avoid confirming a bug, fix, rollback, or compensation without evidence"
+        ]
       },
       "metadata": {
         "test_id": "BUG-006",
         "test_type": "bug",
-        "paper_basis": "Agent evaluation",
+        "paper_basis": "Agent evaluation / conservative triage",
         "difficulty": "medium",
         "requires_db": false,
-        "requires_rag": false
+        "requires_rag": false,
+        "eval_slice": "bug_single_hop",
+        "reasoning_mode": "single_step_bug_triage",
+        "hop_count": 1,
+        "reasoning_pattern": "symptom_to_reproduction_request"
       }
     },
     {
@@ -960,15 +1345,30 @@
           "bug_report_context"
         ],
         "requires_rag": false,
-        "test_type": "bug"
+        "test_type": "bug",
+        "requires_multihop_reasoning": false,
+        "reasoning_type": "single_step_bug_triage",
+        "expected_reasoning_hops": [
+          "Identify the bug symptom and request reproduction context without confirming a fix, compensation, or rollback."
+        ],
+        "expected_hop_count": 1,
+        "key_points": [
+          "Identify the reported bug symptom",
+          "Ask for reproduction context such as time, device, OS, app version, server, UID, and screenshot or video",
+          "Avoid confirming a bug, fix, rollback, or compensation without evidence"
+        ]
       },
       "metadata": {
         "test_id": "BUG-007",
         "test_type": "bug",
-        "paper_basis": "Agent evaluation",
+        "paper_basis": "Agent evaluation / conservative triage",
         "difficulty": "medium",
         "requires_db": false,
-        "requires_rag": false
+        "requires_rag": false,
+        "eval_slice": "bug_single_hop",
+        "reasoning_mode": "single_step_bug_triage",
+        "hop_count": 1,
+        "reasoning_pattern": "symptom_to_reproduction_request"
       }
     },
     {
@@ -986,15 +1386,30 @@
           "bug_report_context"
         ],
         "requires_rag": false,
-        "test_type": "bug"
+        "test_type": "bug",
+        "requires_multihop_reasoning": false,
+        "reasoning_type": "single_step_bug_triage",
+        "expected_reasoning_hops": [
+          "Identify the bug symptom and request reproduction context without confirming a fix, compensation, or rollback."
+        ],
+        "expected_hop_count": 1,
+        "key_points": [
+          "Identify the reported bug symptom",
+          "Ask for reproduction context such as time, device, OS, app version, server, UID, and screenshot or video",
+          "Avoid confirming a bug, fix, rollback, or compensation without evidence"
+        ]
       },
       "metadata": {
         "test_id": "BUG-008",
         "test_type": "bug",
-        "paper_basis": "Agent evaluation",
+        "paper_basis": "Agent evaluation / conservative triage",
         "difficulty": "easy",
         "requires_db": false,
-        "requires_rag": false
+        "requires_rag": false,
+        "eval_slice": "bug_single_hop",
+        "reasoning_mode": "single_step_bug_triage",
+        "hop_count": 1,
+        "reasoning_pattern": "symptom_to_reproduction_request"
       }
     },
     {
@@ -1012,15 +1427,30 @@
           "bug_report_context"
         ],
         "requires_rag": false,
-        "test_type": "bug"
+        "test_type": "bug",
+        "requires_multihop_reasoning": false,
+        "reasoning_type": "single_step_bug_triage",
+        "expected_reasoning_hops": [
+          "Identify the bug symptom and request reproduction context without confirming a fix, compensation, or rollback."
+        ],
+        "expected_hop_count": 1,
+        "key_points": [
+          "Identify the reported bug symptom",
+          "Ask for reproduction context such as time, device, OS, app version, server, UID, and screenshot or video",
+          "Avoid confirming a bug, fix, rollback, or compensation without evidence"
+        ]
       },
       "metadata": {
         "test_id": "BUG-009",
         "test_type": "bug",
-        "paper_basis": "Agent evaluation",
+        "paper_basis": "Agent evaluation / conservative triage",
         "difficulty": "medium",
         "requires_db": false,
-        "requires_rag": false
+        "requires_rag": false,
+        "eval_slice": "bug_single_hop",
+        "reasoning_mode": "single_step_bug_triage",
+        "hop_count": 1,
+        "reasoning_pattern": "symptom_to_reproduction_request"
       }
     },
     {
@@ -1038,15 +1468,30 @@
           "bug_report_context"
         ],
         "requires_rag": false,
-        "test_type": "bug"
+        "test_type": "bug",
+        "requires_multihop_reasoning": false,
+        "reasoning_type": "single_step_bug_triage",
+        "expected_reasoning_hops": [
+          "Identify the bug symptom and request reproduction context without confirming a fix, compensation, or rollback."
+        ],
+        "expected_hop_count": 1,
+        "key_points": [
+          "Identify the reported bug symptom",
+          "Ask for reproduction context such as time, device, OS, app version, server, UID, and screenshot or video",
+          "Avoid confirming a bug, fix, rollback, or compensation without evidence"
+        ]
       },
       "metadata": {
         "test_id": "BUG-010",
         "test_type": "bug",
-        "paper_basis": "Agent evaluation",
+        "paper_basis": "Agent evaluation / conservative triage",
         "difficulty": "easy",
         "requires_db": false,
-        "requires_rag": false
+        "requires_rag": false,
+        "eval_slice": "bug_single_hop",
+        "reasoning_mode": "single_step_bug_triage",
+        "hop_count": 1,
+        "reasoning_pattern": "symptom_to_reproduction_request"
       }
     },
     {
@@ -1062,16 +1507,31 @@
         "expected_action": "AUTO_RESPONSE",
         "required_evidence_types": [],
         "requires_rag": false,
-        "test_type": "voc"
+        "test_type": "voc",
+        "requires_multihop_reasoning": false,
+        "reasoning_type": "single_step_voc_fixed_response",
+        "expected_reasoning_hops": [
+          "Classify the message as VOC/feedback and return the fixed VOC response."
+        ],
+        "expected_hop_count": 1,
+        "key_points": [
+          "Classify the message as feedback or VOC",
+          "Return the fixed VOC acknowledgement response",
+          "Do not perform unnecessary DB or RAG lookup for simple VOC feedback"
+        ]
       },
       "metadata": {
         "test_id": "VOC-001",
         "test_type": "voc",
-        "paper_basis": "Agent evaluation",
+        "paper_basis": "Agent evaluation / fixed-response classification",
         "difficulty": "easy",
         "requires_db": false,
         "requires_rag": false,
-        "voc_type": "balance_complaint"
+        "voc_type": "balance_complaint",
+        "eval_slice": "voc_single_hop",
+        "reasoning_mode": "single_step_voc_fixed_response",
+        "hop_count": 1,
+        "reasoning_pattern": "intent_classification_fixed_response"
       }
     },
     {
@@ -1087,16 +1547,31 @@
         "expected_action": "AUTO_RESPONSE",
         "required_evidence_types": [],
         "requires_rag": false,
-        "test_type": "voc"
+        "test_type": "voc",
+        "requires_multihop_reasoning": false,
+        "reasoning_type": "single_step_voc_fixed_response",
+        "expected_reasoning_hops": [
+          "Classify the message as VOC/feedback and return the fixed VOC response."
+        ],
+        "expected_hop_count": 1,
+        "key_points": [
+          "Classify the message as feedback or VOC",
+          "Return the fixed VOC acknowledgement response",
+          "Do not perform unnecessary DB or RAG lookup for simple VOC feedback"
+        ]
       },
       "metadata": {
         "test_id": "VOC-002",
         "test_type": "voc",
-        "paper_basis": "Agent evaluation",
+        "paper_basis": "Agent evaluation / fixed-response classification",
         "difficulty": "easy",
         "requires_db": false,
         "requires_rag": false,
-        "voc_type": "ui_improvement"
+        "voc_type": "ui_improvement",
+        "eval_slice": "voc_single_hop",
+        "reasoning_mode": "single_step_voc_fixed_response",
+        "hop_count": 1,
+        "reasoning_pattern": "intent_classification_fixed_response"
       }
     },
     {
@@ -1112,16 +1587,31 @@
         "expected_action": "AUTO_RESPONSE",
         "required_evidence_types": [],
         "requires_rag": false,
-        "test_type": "voc"
+        "test_type": "voc",
+        "requires_multihop_reasoning": false,
+        "reasoning_type": "single_step_voc_fixed_response",
+        "expected_reasoning_hops": [
+          "Classify the message as VOC/feedback and return the fixed VOC response."
+        ],
+        "expected_hop_count": 1,
+        "key_points": [
+          "Classify the message as feedback or VOC",
+          "Return the fixed VOC acknowledgement response",
+          "Do not perform unnecessary DB or RAG lookup for simple VOC feedback"
+        ]
       },
       "metadata": {
         "test_id": "VOC-003",
         "test_type": "voc",
-        "paper_basis": "Agent evaluation",
+        "paper_basis": "Agent evaluation / fixed-response classification",
         "difficulty": "easy",
         "requires_db": false,
         "requires_rag": false,
-        "voc_type": "content_request"
+        "voc_type": "content_request",
+        "eval_slice": "voc_single_hop",
+        "reasoning_mode": "single_step_voc_fixed_response",
+        "hop_count": 1,
+        "reasoning_pattern": "intent_classification_fixed_response"
       }
     },
     {
@@ -1137,16 +1627,31 @@
         "expected_action": "AUTO_RESPONSE",
         "required_evidence_types": [],
         "requires_rag": false,
-        "test_type": "voc"
+        "test_type": "voc",
+        "requires_multihop_reasoning": false,
+        "reasoning_type": "single_step_voc_fixed_response",
+        "expected_reasoning_hops": [
+          "Classify the message as VOC/feedback and return the fixed VOC response."
+        ],
+        "expected_hop_count": 1,
+        "key_points": [
+          "Classify the message as feedback or VOC",
+          "Return the fixed VOC acknowledgement response",
+          "Do not perform unnecessary DB or RAG lookup for simple VOC feedback"
+        ]
       },
       "metadata": {
         "test_id": "VOC-004",
         "test_type": "voc",
-        "paper_basis": "Agent evaluation",
+        "paper_basis": "Agent evaluation / fixed-response classification",
         "difficulty": "easy",
         "requires_db": false,
         "requires_rag": false,
-        "voc_type": "cs_complaint"
+        "voc_type": "cs_complaint",
+        "eval_slice": "voc_single_hop",
+        "reasoning_mode": "single_step_voc_fixed_response",
+        "hop_count": 1,
+        "reasoning_pattern": "intent_classification_fixed_response"
       }
     },
     {
@@ -1162,16 +1667,31 @@
         "expected_action": "AUTO_RESPONSE",
         "required_evidence_types": [],
         "requires_rag": false,
-        "test_type": "voc"
+        "test_type": "voc",
+        "requires_multihop_reasoning": false,
+        "reasoning_type": "single_step_voc_fixed_response",
+        "expected_reasoning_hops": [
+          "Classify the message as VOC/feedback and return the fixed VOC response."
+        ],
+        "expected_hop_count": 1,
+        "key_points": [
+          "Classify the message as feedback or VOC",
+          "Return the fixed VOC acknowledgement response",
+          "Do not perform unnecessary DB or RAG lookup for simple VOC feedback"
+        ]
       },
       "metadata": {
         "test_id": "VOC-005",
         "test_type": "voc",
-        "paper_basis": "Agent evaluation",
+        "paper_basis": "Agent evaluation / fixed-response classification",
         "difficulty": "easy",
         "requires_db": false,
         "requires_rag": false,
-        "voc_type": "performance_request"
+        "voc_type": "performance_request",
+        "eval_slice": "voc_single_hop",
+        "reasoning_mode": "single_step_voc_fixed_response",
+        "hop_count": 1,
+        "reasoning_pattern": "intent_classification_fixed_response"
       }
     },
     {
@@ -1187,16 +1707,31 @@
         "expected_action": "AUTO_RESPONSE",
         "required_evidence_types": [],
         "requires_rag": false,
-        "test_type": "voc"
+        "test_type": "voc",
+        "requires_multihop_reasoning": false,
+        "reasoning_type": "single_step_voc_fixed_response",
+        "expected_reasoning_hops": [
+          "Classify the message as VOC/feedback and return the fixed VOC response."
+        ],
+        "expected_hop_count": 1,
+        "key_points": [
+          "Classify the message as feedback or VOC",
+          "Return the fixed VOC acknowledgement response",
+          "Do not perform unnecessary DB or RAG lookup for simple VOC feedback"
+        ]
       },
       "metadata": {
         "test_id": "VOC-006",
         "test_type": "voc",
-        "paper_basis": "Agent evaluation",
+        "paper_basis": "Agent evaluation / fixed-response classification",
         "difficulty": "easy",
         "requires_db": false,
         "requires_rag": false,
-        "voc_type": "event_feedback"
+        "voc_type": "event_feedback",
+        "eval_slice": "voc_single_hop",
+        "reasoning_mode": "single_step_voc_fixed_response",
+        "hop_count": 1,
+        "reasoning_pattern": "intent_classification_fixed_response"
       }
     },
     {
@@ -1212,16 +1747,31 @@
         "expected_action": "AUTO_RESPONSE",
         "required_evidence_types": [],
         "requires_rag": false,
-        "test_type": "voc"
+        "test_type": "voc",
+        "requires_multihop_reasoning": false,
+        "reasoning_type": "single_step_voc_fixed_response",
+        "expected_reasoning_hops": [
+          "Classify the message as VOC/feedback and return the fixed VOC response."
+        ],
+        "expected_hop_count": 1,
+        "key_points": [
+          "Classify the message as feedback or VOC",
+          "Return the fixed VOC acknowledgement response",
+          "Do not perform unnecessary DB or RAG lookup for simple VOC feedback"
+        ]
       },
       "metadata": {
         "test_id": "VOC-007",
         "test_type": "voc",
-        "paper_basis": "Agent evaluation",
+        "paper_basis": "Agent evaluation / fixed-response classification",
         "difficulty": "easy",
         "requires_db": false,
         "requires_rag": false,
-        "voc_type": "accessibility_request"
+        "voc_type": "accessibility_request",
+        "eval_slice": "voc_single_hop",
+        "reasoning_mode": "single_step_voc_fixed_response",
+        "hop_count": 1,
+        "reasoning_pattern": "intent_classification_fixed_response"
       }
     },
     {
@@ -1237,16 +1787,31 @@
         "expected_action": "AUTO_RESPONSE",
         "required_evidence_types": [],
         "requires_rag": false,
-        "test_type": "voc"
+        "test_type": "voc",
+        "requires_multihop_reasoning": false,
+        "reasoning_type": "single_step_voc_fixed_response",
+        "expected_reasoning_hops": [
+          "Classify the message as VOC/feedback and return the fixed VOC response."
+        ],
+        "expected_hop_count": 1,
+        "key_points": [
+          "Classify the message as feedback or VOC",
+          "Return the fixed VOC acknowledgement response",
+          "Do not perform unnecessary DB or RAG lookup for simple VOC feedback"
+        ]
       },
       "metadata": {
         "test_id": "VOC-008",
         "test_type": "voc",
-        "paper_basis": "Agent evaluation",
+        "paper_basis": "Agent evaluation / fixed-response classification",
         "difficulty": "easy",
         "requires_db": false,
         "requires_rag": false,
-        "voc_type": "payment_improvement"
+        "voc_type": "payment_improvement",
+        "eval_slice": "voc_single_hop",
+        "reasoning_mode": "single_step_voc_fixed_response",
+        "hop_count": 1,
+        "reasoning_pattern": "intent_classification_fixed_response"
       }
     },
     {
@@ -1262,16 +1827,31 @@
         "expected_action": "AUTO_RESPONSE",
         "required_evidence_types": [],
         "requires_rag": false,
-        "test_type": "voc"
+        "test_type": "voc",
+        "requires_multihop_reasoning": false,
+        "reasoning_type": "single_step_voc_fixed_response",
+        "expected_reasoning_hops": [
+          "Classify the message as VOC/feedback and return the fixed VOC response."
+        ],
+        "expected_hop_count": 1,
+        "key_points": [
+          "Classify the message as feedback or VOC",
+          "Return the fixed VOC acknowledgement response",
+          "Do not perform unnecessary DB or RAG lookup for simple VOC feedback"
+        ]
       },
       "metadata": {
         "test_id": "VOC-009",
         "test_type": "voc",
-        "paper_basis": "Agent evaluation",
+        "paper_basis": "Agent evaluation / fixed-response classification",
         "difficulty": "easy",
         "requires_db": false,
         "requires_rag": false,
-        "voc_type": "community_feature_request"
+        "voc_type": "community_feature_request",
+        "eval_slice": "voc_single_hop",
+        "reasoning_mode": "single_step_voc_fixed_response",
+        "hop_count": 1,
+        "reasoning_pattern": "intent_classification_fixed_response"
       }
     },
     {
@@ -1287,16 +1867,589 @@
         "expected_action": "AUTO_RESPONSE",
         "required_evidence_types": [],
         "requires_rag": false,
-        "test_type": "voc"
+        "test_type": "voc",
+        "requires_multihop_reasoning": false,
+        "reasoning_type": "single_step_voc_fixed_response",
+        "expected_reasoning_hops": [
+          "Classify the message as VOC/feedback and return the fixed VOC response."
+        ],
+        "expected_hop_count": 1,
+        "key_points": [
+          "Classify the message as feedback or VOC",
+          "Return the fixed VOC acknowledgement response",
+          "Do not perform unnecessary DB or RAG lookup for simple VOC feedback"
+        ]
       },
       "metadata": {
         "test_id": "VOC-010",
         "test_type": "voc",
-        "paper_basis": "Agent evaluation",
+        "paper_basis": "Agent evaluation / fixed-response classification",
         "difficulty": "easy",
         "requires_db": false,
         "requires_rag": false,
-        "voc_type": "localization_complaint"
+        "voc_type": "localization_complaint",
+        "eval_slice": "voc_single_hop",
+        "reasoning_mode": "single_step_voc_fixed_response",
+        "hop_count": 1,
+        "reasoning_pattern": "intent_classification_fixed_response"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "계정을 삭제하면 결제 기록도 같이 삭제되나요?",
+        "user_id": 11,
+        "account_id": 111,
+        "category": "faq"
+      },
+      "outputs": {
+        "reference_answer": "계정 삭제와 결제 기록 보관은 각각 정책에 따라 처리될 수 있으므로, 문서에서 확인되는 삭제 범위와 보관 조건만 안내해야 한다. 결제 기록이 즉시 모두 삭제된다고 단정하지 않아야 한다.",
+        "expected_route": "faq_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "policy_document",
+          "faq_document"
+        ],
+        "requires_rag": true,
+        "requires_multihop": true,
+        "test_type": "faq",
+        "requires_multihop_rag": true,
+        "reasoning_type": "multi_hop_rag",
+        "expected_reasoning_hops": [
+          "Retrieve the first document-grounded claim needed by the user question.",
+          "Retrieve a second document-grounded claim and combine them without adding unsupported facts."
+        ],
+        "expected_hop_count": 2,
+        "key_points": [
+          "Decompose the compound FAQ question into multiple evidence needs",
+          "Combine at least two document-grounded claims when available",
+          "Separate confirmed evidence from unsupported or missing details"
+        ]
+      },
+      "metadata": {
+        "test_id": "FAQ-MH-001",
+        "test_type": "faq",
+        "paper_basis": "RAGAS",
+        "difficulty": "medium",
+        "requires_db": false,
+        "requires_rag": true,
+        "query_strategy": "query decomposition",
+        "eval_slice": "faq_multi_hop",
+        "rag_mode": "multi_hop",
+        "requires_multihop_rag": true,
+        "hop_count": 2,
+        "reasoning_pattern": "multi_context_claim_combination"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "계정 삭제를 신청하면 개인정보도 지워지고 나중에 복구도 가능한가요?",
+        "user_id": 11,
+        "account_id": 111,
+        "category": "faq"
+      },
+      "outputs": {
+        "reference_answer": "계정 삭제, 개인정보 삭제, 복구 가능 여부는 각각 문서 근거가 필요한 항목이다. 확인되는 삭제 절차와 개인정보 처리 범위만 안내하고, 복구 가능 여부는 문서에서 확인되지 않으면 단정하지 않아야 한다.",
+        "expected_route": "faq_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "policy_document",
+          "faq_document"
+        ],
+        "requires_rag": true,
+        "requires_multihop": true,
+        "test_type": "faq",
+        "requires_multihop_rag": true,
+        "reasoning_type": "multi_hop_rag",
+        "expected_reasoning_hops": [
+          "Retrieve the first document-grounded claim needed by the user question.",
+          "Retrieve a second document-grounded claim and combine them without adding unsupported facts."
+        ],
+        "expected_hop_count": 2,
+        "key_points": [
+          "Decompose the compound FAQ question into multiple evidence needs",
+          "Combine at least two document-grounded claims when available",
+          "Separate confirmed evidence from unsupported or missing details"
+        ]
+      },
+      "metadata": {
+        "test_id": "FAQ-MH-002",
+        "test_type": "faq",
+        "paper_basis": "RAGAS",
+        "difficulty": "medium",
+        "requires_db": false,
+        "requires_rag": true,
+        "query_strategy": "compound account policy",
+        "eval_slice": "faq_multi_hop",
+        "rag_mode": "multi_hop",
+        "requires_multihop_rag": true,
+        "hop_count": 2,
+        "reasoning_pattern": "multi_context_claim_combination"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "PSN 연동을 해제하면 게임 진행도랑 UID도 사라지나요?",
+        "user_id": 12,
+        "account_id": 112,
+        "category": "faq"
+      },
+      "outputs": {
+        "reference_answer": "플랫폼 연동 해제와 게임 진행도 또는 UID 보존 여부를 각각 문서 근거로 확인해 안내해야 한다. 근거가 일부만 있으면 확인된 부분만 답하고 나머지는 제공된 문서에서 확인되지 않는다고 말해야 한다.",
+        "expected_route": "faq_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "faq_document",
+          "policy_document"
+        ],
+        "requires_rag": true,
+        "requires_multihop": true,
+        "test_type": "faq",
+        "requires_multihop_rag": true,
+        "reasoning_type": "multi_hop_rag",
+        "expected_reasoning_hops": [
+          "Retrieve the first document-grounded claim needed by the user question.",
+          "Retrieve a second document-grounded claim and combine them without adding unsupported facts."
+        ],
+        "expected_hop_count": 2,
+        "key_points": [
+          "Decompose the compound FAQ question into multiple evidence needs",
+          "Combine at least two document-grounded claims when available",
+          "Separate confirmed evidence from unsupported or missing details"
+        ]
+      },
+      "metadata": {
+        "test_id": "FAQ-MH-003",
+        "test_type": "faq",
+        "paper_basis": "RAGAS",
+        "difficulty": "medium",
+        "requires_db": false,
+        "requires_rag": true,
+        "query_strategy": "platform link and data",
+        "eval_slice": "faq_multi_hop",
+        "rag_mode": "multi_hop",
+        "requires_multihop_rag": true,
+        "hop_count": 2,
+        "reasoning_pattern": "multi_context_claim_combination"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "공월 축복을 샀는데 하루 접속을 못 하면 그날 원석은 나중에 받을 수 있나요?",
+        "user_id": 12,
+        "account_id": 112,
+        "category": "faq"
+      },
+      "outputs": {
+        "reference_answer": "공월 축복의 일일 보상 조건과 접속하지 않은 날의 보상 처리 여부를 함께 확인해 안내해야 한다. 문서에 근거한 유효 기간과 수령 조건만 설명해야 한다.",
+        "expected_route": "faq_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "faq_document",
+          "game_guide"
+        ],
+        "requires_rag": true,
+        "requires_multihop": true,
+        "test_type": "faq",
+        "requires_multihop_rag": true,
+        "reasoning_type": "multi_hop_rag",
+        "expected_reasoning_hops": [
+          "Retrieve the first document-grounded claim needed by the user question.",
+          "Retrieve a second document-grounded claim and combine them without adding unsupported facts."
+        ],
+        "expected_hop_count": 2,
+        "key_points": [
+          "Decompose the compound FAQ question into multiple evidence needs",
+          "Combine at least two document-grounded claims when available",
+          "Separate confirmed evidence from unsupported or missing details"
+        ]
+      },
+      "metadata": {
+        "test_id": "FAQ-MH-004",
+        "test_type": "faq",
+        "paper_basis": "RAGAS",
+        "difficulty": "medium",
+        "requires_db": false,
+        "requires_rag": true,
+        "query_strategy": "reward condition decomposition",
+        "eval_slice": "faq_multi_hop",
+        "rag_mode": "multi_hop",
+        "requires_multihop_rag": true,
+        "hop_count": 2,
+        "reasoning_pattern": "multi_context_claim_combination"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "초회 충전 2배 보너스가 초기화되면 이미 산 상품도 다시 2배가 되나요?",
+        "user_id": 13,
+        "account_id": 113,
+        "category": "faq"
+      },
+      "outputs": {
+        "reference_answer": "초회 충전 보너스 조건과 초기화 정책을 구분해 안내해야 한다. 이미 구매한 상품에 다시 2배가 적용되는지 여부는 문서 근거가 있을 때만 설명하고, 없으면 단정하지 않아야 한다.",
+        "expected_route": "faq_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "faq_document",
+          "notice_document"
+        ],
+        "requires_rag": true,
+        "requires_multihop": true,
+        "test_type": "faq",
+        "requires_multihop_rag": true,
+        "reasoning_type": "multi_hop_rag",
+        "expected_reasoning_hops": [
+          "Retrieve the first document-grounded claim needed by the user question.",
+          "Retrieve a second document-grounded claim and combine them without adding unsupported facts."
+        ],
+        "expected_hop_count": 2,
+        "key_points": [
+          "Decompose the compound FAQ question into multiple evidence needs",
+          "Combine at least two document-grounded claims when available",
+          "Separate confirmed evidence from unsupported or missing details"
+        ]
+      },
+      "metadata": {
+        "test_id": "FAQ-MH-005",
+        "test_type": "faq",
+        "paper_basis": "RAGAS",
+        "difficulty": "medium",
+        "requires_db": false,
+        "requires_rag": true,
+        "query_strategy": "payment policy FAQ",
+        "eval_slice": "faq_multi_hop",
+        "rag_mode": "multi_hop",
+        "requires_multihop_rag": true,
+        "hop_count": 2,
+        "reasoning_pattern": "multi_context_claim_combination"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "공월 축복 결제는 됐는데 매일 보상이 안 들어오는 것 같아요.",
+        "user_id": 1232,
+        "account_id": 1332,
+        "category": "payment"
+      },
+      "outputs": {
+        "reference_answer": "공월 축복 보상 조건은 문서 근거로 설명하고, 실제 결제 및 지급 여부는 결제 기록과 아이템 지급 로그를 함께 확인해야 한다.",
+        "expected_route": "payment_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "faq_document",
+          "payments",
+          "item_delivery_logs"
+        ],
+        "requires_rag": true,
+        "requires_multihop": true,
+        "test_type": "payment",
+        "requires_multihop_reasoning": true,
+        "reasoning_type": "multi_hop_structured_db",
+        "expected_reasoning_hops": [
+          "Scope the query to the logged-in user and selected account.",
+          "Select the required structured evidence sources such as payments, refunds, item_delivery_logs, or gacha_logs.",
+          "Combine the evidence conservatively without inventing payment, refund, delivery, or reward status."
+        ],
+        "expected_hop_count": 3,
+        "key_points": [
+          "Use only account-scoped DB evidence",
+          "Combine multiple structured sources before final judgment",
+          "Check payment status and product details",
+          "Cross-check item delivery status before claiming fulfillment",
+          "Avoid promising immediate compensation or manual reward grants"
+        ]
+      },
+      "metadata": {
+        "test_id": "PAY-MH-001",
+        "test_type": "payment",
+        "paper_basis": "StructGPT / ChatLR / Few-shot Text-to-SQL",
+        "difficulty": "medium",
+        "requires_db": true,
+        "requires_rag": true,
+        "db_fixture": {
+          "source": "current_db",
+          "user_id": 1232,
+          "account_id": 1332,
+          "counts": {
+            "payments": 3,
+            "refunds": 0,
+            "item_delivery_logs": 2,
+            "gacha_logs": 1
+          }
+        },
+        "eval_slice": "payment_multi_hop",
+        "db_fixture_source": "current_local_db",
+        "db_fixture_counts": {
+          "payments": 3,
+          "refunds": 0,
+          "item_delivery_logs": 2,
+          "gacha_logs": 1
+        },
+        "reasoning_mode": "multi_hop_structured_db",
+        "hop_count": 3,
+        "reasoning_pattern": "account_scoped_multi_source_reasoning"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "환불 정책이 가능한지 보고 최근 결제 상태도 확인해주세요.",
+        "user_id": 3528,
+        "account_id": 3628,
+        "category": "payment"
+      },
+      "outputs": {
+        "reference_answer": "환불 가능 조건은 정책 문서에 근거해 안내하고, 최근 결제 및 환불 상태는 DB 기록을 확인해 분리해서 설명해야 한다.",
+        "expected_route": "payment_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "policy_document",
+          "payments",
+          "refunds"
+        ],
+        "requires_rag": true,
+        "requires_multihop": true,
+        "test_type": "payment",
+        "requires_multihop_reasoning": true,
+        "reasoning_type": "multi_hop_structured_db",
+        "expected_reasoning_hops": [
+          "Scope the query to the logged-in user and selected account.",
+          "Select the required structured evidence sources such as payments, refunds, item_delivery_logs, or gacha_logs.",
+          "Combine the evidence conservatively without inventing payment, refund, delivery, or reward status."
+        ],
+        "expected_hop_count": 3,
+        "key_points": [
+          "Use only account-scoped DB evidence",
+          "Combine multiple structured sources before final judgment",
+          "Check payment status and product details",
+          "Cross-check refund status with the related payment",
+          "Avoid promising immediate compensation or manual reward grants"
+        ]
+      },
+      "metadata": {
+        "test_id": "PAY-MH-002",
+        "test_type": "payment",
+        "paper_basis": "StructGPT / ChatLR / Few-shot Text-to-SQL",
+        "difficulty": "medium",
+        "requires_db": true,
+        "requires_rag": true,
+        "db_fixture": {
+          "source": "current_db",
+          "user_id": 3528,
+          "account_id": 3628,
+          "counts": {
+            "payments": 1,
+            "refunds": 1,
+            "item_delivery_logs": 1,
+            "gacha_logs": 1
+          }
+        },
+        "eval_slice": "payment_multi_hop",
+        "db_fixture_source": "current_local_db",
+        "db_fixture_counts": {
+          "payments": 1,
+          "refunds": 1,
+          "item_delivery_logs": 1,
+          "gacha_logs": 1
+        },
+        "reasoning_mode": "multi_hop_structured_db",
+        "hop_count": 3,
+        "reasoning_pattern": "account_scoped_multi_source_reasoning"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "패키지 구성 안내랑 실제 지급된 구성품을 비교해주세요.",
+        "user_id": 4948,
+        "account_id": 5048,
+        "category": "payment"
+      },
+      "outputs": {
+        "reference_answer": "패키지 구성은 문서 근거로 설명하고, 실제 지급된 구성품은 지급 로그를 확인해 비교해야 한다.",
+        "expected_route": "payment_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "game_guide",
+          "item_delivery_logs"
+        ],
+        "requires_rag": true,
+        "requires_multihop": true,
+        "test_type": "payment",
+        "requires_multihop_reasoning": true,
+        "reasoning_type": "multi_hop_structured_db",
+        "expected_reasoning_hops": [
+          "Scope the query to the logged-in user and selected account.",
+          "Select the required structured evidence sources such as payments, refunds, item_delivery_logs, or gacha_logs.",
+          "Combine the evidence conservatively without inventing payment, refund, delivery, or reward status."
+        ],
+        "expected_hop_count": 3,
+        "key_points": [
+          "Use only account-scoped DB evidence",
+          "Combine multiple structured sources before final judgment",
+          "Cross-check item delivery status before claiming fulfillment",
+          "Avoid promising immediate compensation or manual reward grants"
+        ]
+      },
+      "metadata": {
+        "test_id": "PAY-MH-003",
+        "test_type": "payment",
+        "paper_basis": "StructGPT / ChatLR / Few-shot Text-to-SQL",
+        "difficulty": "medium",
+        "requires_db": true,
+        "requires_rag": true,
+        "db_fixture": {
+          "source": "current_db",
+          "user_id": 4948,
+          "account_id": 5048,
+          "counts": {
+            "payments": 2,
+            "refunds": 0,
+            "item_delivery_logs": 2,
+            "gacha_logs": 1
+          }
+        },
+        "eval_slice": "payment_multi_hop",
+        "db_fixture_source": "current_local_db",
+        "db_fixture_counts": {
+          "payments": 2,
+          "refunds": 0,
+          "item_delivery_logs": 2,
+          "gacha_logs": 1
+        },
+        "reasoning_mode": "multi_hop_structured_db",
+        "hop_count": 3,
+        "reasoning_pattern": "account_scoped_multi_source_reasoning"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "결제 취소됐는데 재화도 회수됐는지 확인해주세요.",
+        "user_id": 3528,
+        "account_id": 3628,
+        "category": "payment"
+      },
+      "outputs": {
+        "reference_answer": "결제 취소 또는 환불 상태와 재화 회수 로그를 함께 확인해야 한다. 회수 여부를 로그 근거 없이 단정하지 않아야 한다.",
+        "expected_route": "payment_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "payments",
+          "refunds",
+          "item_delivery_logs"
+        ],
+        "requires_rag": false,
+        "requires_multihop": false,
+        "test_type": "payment",
+        "requires_multihop_reasoning": true,
+        "reasoning_type": "multi_hop_structured_db",
+        "expected_reasoning_hops": [
+          "Scope the query to the logged-in user and selected account.",
+          "Select the required structured evidence sources such as payments, refunds, item_delivery_logs, or gacha_logs.",
+          "Combine the evidence conservatively without inventing payment, refund, delivery, or reward status."
+        ],
+        "expected_hop_count": 3,
+        "key_points": [
+          "Use only account-scoped DB evidence",
+          "Combine multiple structured sources before final judgment",
+          "Check payment status and product details",
+          "Cross-check refund status with the related payment",
+          "Cross-check item delivery status before claiming fulfillment",
+          "Avoid promising immediate compensation or manual reward grants"
+        ]
+      },
+      "metadata": {
+        "test_id": "PAY-MH-004",
+        "test_type": "payment",
+        "paper_basis": "StructGPT / ChatLR / Few-shot Text-to-SQL",
+        "difficulty": "medium",
+        "requires_db": true,
+        "requires_rag": false,
+        "db_fixture": {
+          "source": "current_db",
+          "user_id": 3528,
+          "account_id": 3628,
+          "counts": {
+            "payments": 1,
+            "refunds": 1,
+            "item_delivery_logs": 1,
+            "gacha_logs": 1
+          }
+        },
+        "eval_slice": "payment_multi_hop",
+        "db_fixture_source": "current_local_db",
+        "db_fixture_counts": {
+          "payments": 1,
+          "refunds": 1,
+          "item_delivery_logs": 1,
+          "gacha_logs": 1
+        },
+        "reasoning_mode": "multi_hop_structured_db",
+        "hop_count": 3,
+        "reasoning_pattern": "account_scoped_multi_source_reasoning"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "가챠 결과가 기록과 다른 것 같아요.",
+        "user_id": 4823,
+        "account_id": 4923,
+        "category": "payment"
+      },
+      "outputs": {
+        "reference_answer": "가챠 로그와 관련 지급 기록을 확인해 사용자가 말한 결과와 저장된 결과가 일치하는지 판단해야 한다.",
+        "expected_route": "payment_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "gacha_logs",
+          "item_delivery_logs"
+        ],
+        "requires_rag": false,
+        "requires_multihop": false,
+        "test_type": "payment",
+        "requires_multihop_reasoning": true,
+        "reasoning_type": "multi_hop_structured_db",
+        "expected_reasoning_hops": [
+          "Scope the query to the logged-in user and selected account.",
+          "Select the required structured evidence sources such as payments, refunds, item_delivery_logs, or gacha_logs.",
+          "Combine the evidence conservatively without inventing payment, refund, delivery, or reward status."
+        ],
+        "expected_hop_count": 3,
+        "key_points": [
+          "Use only account-scoped DB evidence",
+          "Combine multiple structured sources before final judgment",
+          "Cross-check item delivery status before claiming fulfillment",
+          "Check gacha log records and avoid inventing results",
+          "Avoid promising immediate compensation or manual reward grants"
+        ]
+      },
+      "metadata": {
+        "test_id": "PAY-MH-005",
+        "test_type": "payment",
+        "paper_basis": "StructGPT / ChatLR / Few-shot Text-to-SQL",
+        "difficulty": "medium",
+        "requires_db": true,
+        "requires_rag": false,
+        "db_fixture": {
+          "source": "current_db",
+          "user_id": 4823,
+          "account_id": 4923,
+          "counts": {
+            "payments": 1,
+            "refunds": 0,
+            "item_delivery_logs": 2,
+            "gacha_logs": 3
+          }
+        },
+        "eval_slice": "payment_multi_hop",
+        "db_fixture_source": "current_local_db",
+        "db_fixture_counts": {
+          "payments": 1,
+          "refunds": 0,
+          "item_delivery_logs": 2,
+          "gacha_logs": 3
+        },
+        "reasoning_mode": "multi_hop_structured_db",
+        "hop_count": 3,
+        "reasoning_pattern": "account_scoped_multi_source_reasoning"
       }
     }
   ]

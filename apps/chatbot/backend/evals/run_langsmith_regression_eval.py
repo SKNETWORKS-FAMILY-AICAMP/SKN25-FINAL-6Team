@@ -67,6 +67,9 @@ def chatbot_target(inputs: dict[str, Any]) -> dict[str, Any]:
             "redis_cache_store_backend": None,
             "latency_ms": 0.0,
             "retrieved_document_count": 0,
+            "multihop_accepted": False,
+            "multihop_followup_query": None,
+            "multihop_second_document_count": 0,
             "payment_context_count": 0,
             "payment_context_counts": {},
             "faq_failure_reason": None,
@@ -104,6 +107,7 @@ def chatbot_target(inputs: dict[str, Any]) -> dict[str, Any]:
 
     state = result.get("state") or {}
     retrieved_documents = state.get("retrieved_documents") or []
+    multihop_result = state.get("multihop_result") or {}
     payment_context = state.get("payment_context") or {}
     payment_counts = payment_context.get("counts") or {}
     observed_evidence_types = _observed_evidence_types(
@@ -128,6 +132,9 @@ def chatbot_target(inputs: dict[str, Any]) -> dict[str, Any]:
         "latency_ms": latency_ms,
         "retrieved_document_count": len(retrieved_documents),
         "retrieved_contexts": _retrieved_contexts(retrieved_documents),
+        "multihop_accepted": bool(multihop_result.get("accepted")),
+        "multihop_followup_query": multihop_result.get("followup_query"),
+        "multihop_second_document_count": len(multihop_result.get("second_documents") or []),
         "payment_context_count": payment_context.get("count", 0),
         "payment_context_counts": payment_counts,
         "faq_failure_reason": state.get("faq_failure_reason"),
@@ -412,6 +419,7 @@ def main() -> None:
     parser.add_argument("--max-concurrency", type=int, default=1)
     parser.add_argument("--limit", type=int, help="Evaluate only the first N examples after slicing locally.")
     parser.add_argument("--test-type", help="Evaluate only examples whose metadata.test_type matches this value.")
+    parser.add_argument("--eval-slice", help="Evaluate only examples whose metadata.eval_slice matches this value.")
     parser.add_argument("--enable-ragas", action="store_true", help="Run RAGAS judge metrics for RAG examples.")
     args = parser.parse_args()
 
@@ -419,13 +427,15 @@ def main() -> None:
     os.environ.setdefault("CHATBOT_DEBUG_ROUTING", "false")
 
     data: Any = args.dataset_name
-    if args.limit is not None or args.test_type:
+    if args.limit is not None or args.test_type or args.eval_slice:
         from langsmith import Client
 
         client = Client()
         examples = list(client.list_examples(dataset_name=args.dataset_name))
         if args.test_type:
             examples = [example for example in examples if (example.metadata or {}).get("test_type") == args.test_type]
+        if args.eval_slice:
+            examples = [example for example in examples if (example.metadata or {}).get("eval_slice") == args.eval_slice]
         if args.limit is not None:
             examples = examples[: args.limit]
         data = examples
