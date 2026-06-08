@@ -40,7 +40,7 @@ services:
       AIRFLOW__CORE__LOAD_EXAMPLES: "False"
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/cs_auto_backend/airflow
       AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "True"
-      PYTHONPATH: /opt/airflow/packages/common-python/src:/opt/airflow/cs_auto_backend
+      PYTHONPATH: /opt/airflow/packages/common-python/src
     command: standalone
     ports:
       - "${CS_AUTO_AIRFLOW_PORT:-18080}:8080"
