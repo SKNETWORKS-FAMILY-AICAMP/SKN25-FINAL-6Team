@@ -116,7 +116,7 @@ POSITIVE_KEYWORDS = _load_keyword_list("sentiment/positive.yaml")
 HIGH_RISK_KEYWORDS = _load_keyword_list("risk/high.yaml")
 
 
-## 카테고리 분류! 
+## 카테고리 분류!  - YAML 유지보수?
 
 CATEGORY_DECISION_PARSER = PydanticOutputParser(pydantic_object=CategoryDecision)
 CATEGORY_PROMPT = PromptTemplate(
@@ -208,6 +208,15 @@ def _score_risk(enriched: EnrichedTicket, category: Category) -> RiskLevel:
     return "LOW"
 
 
+"""
+항상 확장성을 고려하여 하드코딩할 것. 구현되지 않더라도 발표나, 그걸 고려했다는 흔적을 남길 필요가 있음
+이전버전으로 언제든지 ROLLBACK 할 수 있어야하며, 변경 history도 필요하다.
+
+운영자들이 업로드하면 자동으로 코드에 적용되게 자동화를 적용할 수 있는걸 적용할 수 있는지?에 대해서 고려해보았는가???
+
+"""
+
+
 # LLM 응답을 RoutingDecision 모델로 강제 파싱해 허용된 routing_target만 저장한다.
 ROUTING_DECISION_PARSER = PydanticOutputParser(pydantic_object=RoutingDecision)
 
@@ -219,7 +228,7 @@ ROUTING_PROMPT = PromptTemplate(
 
 허용값:
 - "DB_only": 계정, 결제, 지급, 가챠 등 운영 DB 확인이 주 근거인 경우
-- "doc_only": 공지, 정책, 약관, 일반 장애 안내 등 문서 근거가 주 근거인 경우
+- "doc_only": 공지, 정책, 약관, 일반 장애 안내 등 문서 근거가 주 근거인 경우 
 - "DB&DOC": 운영 DB와 문서 근거가 모두 필요한 경우
 - "fixed_answer": 답변할 근거가 없거나 짧은 잡담/테스트/아무말인 경우
 - null: source_type이 chatbot인 경우에만 사용
@@ -250,7 +259,7 @@ def _build_routing_prompt_input(parts: dict[str, object]) -> dict[str, str]:
 
 def _build_category_prompt_input(enriched: EnrichedTicket) -> dict[str, str]:
     keyword_hits = {
-        category: [keyword for keyword in keywords if keyword and keyword in enriched.normalized_query][:10]
+        category: [keyword for keyword in keywords if keyword and keyword in enriched.normalized_query][:10] #enriched/normalized.축소
         for category, keywords in CATEGORY_KEYWORDS.items()
         if category != "general"
     }
@@ -263,6 +272,13 @@ def _build_category_prompt_input(enriched: EnrichedTicket) -> dict[str, str]:
     }
     return {"context_json": json.dumps(context, ensure_ascii=False)}
 
+"""
+최종 구현 때에는 llm api가 동났을 때를 고려하여 exception도 작성하거나, 고려한 흔적이 필요하다.
+"""
+
+"""
+LLM이 두 모델이 같다면, 파라미터만 다르게 사용한다면, 하나의 함수만 선언하기!
+"""
 
 def _routing_llm() -> ChatOpenAI:
     # 라우팅 판단 전용 LLM 설정이다. 별도 모델이 없으면 공통 LLM_MODEL을 사용한다.
