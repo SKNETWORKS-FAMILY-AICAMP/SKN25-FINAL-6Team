@@ -161,6 +161,31 @@ def test_operation_log_gap_plan_execute_and_format(monkeypatch) -> None:
     assert formatted[0]["source_type"] == "payments"
 
 
+def test_format_db_evidence_excludes_sensitive_payment_and_refund_fields() -> None:
+    retriever = retrieval.OperationLogRetriever()
+
+    formatted = retriever.format_db_evidence(
+        {"source_type": "operation_db"},
+        [
+            {
+                "_source_type": "refunds",
+                "refund_id": 7,
+                "payment_id": 1,
+                "refund_status": "requested",
+                "refund_reason": "개인정보가 포함된 환불 사유",
+                "transaction_id": "TXN-SECRET-123456",
+            }
+        ],
+    )
+
+    evidence_text = formatted[0]["evidence_text"]
+    assert "refund_status=requested" in evidence_text
+    assert "refund_reason" not in evidence_text
+    assert "개인정보가 포함된 환불 사유" not in evidence_text
+    assert "transaction_id" not in evidence_text
+    assert "TXN-SECRET-123456" not in evidence_text
+
+
 def test_retrieval_router_routes_to_expected_method(monkeypatch) -> None:
     router = retrieval.RetrievalRouter()
     monkeypatch.setattr(router, "retrieve_db_only", lambda ticket, analysis: [{"source_type": "db"}])
@@ -173,3 +198,27 @@ def test_retrieval_router_routes_to_expected_method(monkeypatch) -> None:
     assert router.retrieve_by_routing_target(ticket, {"routing_target": "DB_only"}) == [{"source_type": "db"}]
     assert router.retrieve_by_routing_target(ticket, {"routing_target": "doc_only"}) == [{"source_type": "doc"}]
     assert router.retrieve_by_routing_target(ticket, {"routing_target": "fixed_answer"}) == [{"source_type": "fixed"}]
+
+
+def test_db_and_doc_evidence_merges_operation_context_before_documents(monkeypatch) -> None:
+    router = retrieval.RetrievalRouter()
+    monkeypatch.setattr(
+        router,
+        "retrieve_db_only",
+        lambda ticket, analysis: [
+            {"source_type": "payments", "source_id": "p1", "evidence_text": "payment_status=paid", "relevance_score": 0.6, "retrieval_rank": 2},
+            {"source_type": "operation_gap", "source_id": "p1", "evidence_text": "paid payment has no delivery", "relevance_score": 0.5, "retrieval_rank": 1},
+        ],
+    )
+    monkeypatch.setattr(
+        router,
+        "retrieve_doc_only",
+        lambda ticket, analysis: [
+            {"source_type": "faq", "source_id": "doc1", "evidence_text": "policy document", "relevance_score": 0.99, "retrieval_rank": 1}
+        ],
+    )
+
+    evidence = router.retrieve_by_routing_target({"ticket_id": 1}, {"routing_target": "DB&DOC"})
+
+    assert [row["source_type"] for row in evidence] == ["operation_gap", "payments", "faq"]
+    assert [row["retrieval_rank"] for row in evidence] == [1, 2, 3]

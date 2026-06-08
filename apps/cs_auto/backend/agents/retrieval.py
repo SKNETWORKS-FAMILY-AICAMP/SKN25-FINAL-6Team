@@ -72,6 +72,50 @@ class EvidenceItem(BaseModel):
     retrieval_rank: int = 1
 
 
+OPERATION_EVIDENCE_SOURCE_TYPES = {
+    "operation_gap",
+    "operation_db",
+    "payments",
+    "refunds",
+    "item_delivery_logs",
+    "gacha_logs",
+}
+
+
+def _evidence_group_priority(item: dict[str, object]) -> int:
+    """DB&DOC 병합 시 적용할 근거 그룹 우선순위.
+
+    CS 답변 초안에서는 실제 결제/지급/환불/가챠 로그가 "무슨 일이 있었는가"를
+    설명하고, 문서 근거는 "어떤 기준으로 안내해야 하는가"를 설명한다.
+    따라서 운영 DB 근거를 문서 근거보다 앞에 둔다. operation_gap은 지급 불일치
+    같은 즉시 검토 신호라서 DB 근거 중에서도 최우선으로 둔다.
+    """
+
+    source_type = str(item.get("source_type") or "")
+    if source_type == "operation_gap":
+        return 0
+    if source_type in OPERATION_EVIDENCE_SOURCE_TYPES:
+        return 1
+    return 2
+
+
+def _merge_db_and_doc_evidence(db_evidence: list[dict[str, object]], doc_evidence: list[dict[str, object]]) -> list[dict[str, object]]:
+    """DB 근거와 문서 근거를 하나의 evidence ranking으로 표준 병합한다."""
+
+    merged = [*db_evidence, *doc_evidence]
+    ranked = sorted(
+        merged,
+        key=lambda item: (
+            _evidence_group_priority(item),
+            -float(item.get("relevance_score") or 0.0),
+            int(item.get("retrieval_rank") or 9999),
+        ),
+    )
+    for index, row in enumerate(ranked, start=1):
+        row["retrieval_rank"] = index
+    return ranked
+
+
 def _fetch_all(cur: Any, sql: str, params: tuple[Any, ...] = ()) -> list[dict[str, Any]]:
     cur.execute(sql, params)
     return [dict(row) for row in cur.fetchall()]
@@ -795,7 +839,10 @@ class OperationLogRetriever:
             source_type = str(row.get("_source_type") or query_plan.get("source_type") or "operation_db")
             visible_pairs = []
             for key, value in row.items():
-                if key in {"transaction_id", "_source_type"}:
+                # transaction_id는 결제 식별자, refund_reason은 사용자가 남긴 환불 사유라
+                # 개인정보/민감정보가 섞일 수 있다. 답변 생성에는 상태값 중심 근거만 필요하므로
+                # EvidenceItem.evidence_text에는 두 값을 넣지 않는다.
+                if key in {"transaction_id", "refund_reason", "_source_type"}:
                     continue
                 visible_pairs.append(f"{key}={_safe_text(value, 80)}")
             items.append(
@@ -870,10 +917,10 @@ class RetrievalRouter:
     def retrieve_db_and_doc(self, ticket: dict[str, object], analysis: dict[str, object]) -> list[dict[str, object]]:
         """운영 DB 근거와 문서 근거를 모두 수집해 한 ranking으로 합친다."""
 
-        merged = [*self.retrieve_db_only(ticket, analysis), *self.retrieve_doc_only(ticket, analysis)]
-        for index, row in enumerate(merged):
-            row["retrieval_rank"] = index + 1
-        return merged
+        return _merge_db_and_doc_evidence(
+            self.retrieve_db_only(ticket, analysis),
+            self.retrieve_doc_only(ticket, analysis),
+        )
 
     def retrieve_fixed_answer_context(self, ticket: dict[str, object], analysis: dict[str, object]) -> list[dict[str, object]]:
         """검색 없이 운영자 확인 안내에 필요한 최소 맥락을 만든다."""
