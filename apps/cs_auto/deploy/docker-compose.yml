@@ -33,13 +33,17 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_NAME}
       DB_CONNECT_TIMEOUT: ${DB_CONNECT_TIMEOUT:-15}
+      LLM_API_KEY: ${LLM_API_KEY}
+      LLM_MODEL: ${LLM_MODEL}
+      CS_AUTO_ROUTING_MODEL: ${CS_AUTO_ROUTING_MODEL:-}
+      LLM_TIMEOUT_SECONDS: ${LLM_TIMEOUT_SECONDS:-60}
       AIRFLOW__CORE__LOAD_EXAMPLES: "False"
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/cs_auto_backend/airflow
       AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "True"
       PYTHONPATH: /opt/airflow/packages/common-python/src:/opt/airflow/cs_auto_backend
     command: standalone
     ports:
-      - "${CS_AUTO_AIRFLOW_PORT:-18080}:18080"
+      - "${CS_AUTO_AIRFLOW_PORT:-18080}:8080"
     volumes:
       - cs_auto_airflow_logs:/opt/airflow/logs
 
