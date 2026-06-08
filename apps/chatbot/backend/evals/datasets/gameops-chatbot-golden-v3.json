@@ -1,0 +1,1303 @@
+{
+  "dataset_info": {
+    "name": "gameops-chatbot-golden-v3",
+    "description": "40-item golden dataset: 10 multi-hop FAQ RAG cases (documents-grounded), 10 payment (DB fixture-grounded), 10 bug, 10 voc. reference_answer is actual text, not rubric. Paper basis: RAGAS, StructGPT, ChatLR, Few-shot Text-to-SQL.",
+    "version": "v3",
+    "total_examples": 40,
+    "categories": {
+      "faq": 10,
+      "payment": 10,
+      "bug": 10,
+      "voc": 10
+    },
+    "paper_basis": [
+      "RAGAS: Automated Evaluation of Retrieval Augmented Generation (EACL 2024)",
+      "StructGPT: A General Framework for LLM to Reason over Structured Data (2023)",
+      "ChatLR: Redefining Information Retrieval of Structured Database via LLMs (2025)",
+      "Enhancing Few-shot Text-to-SQL Capabilities of LLMs (2023)"
+    ],
+    "design_notes": {
+      "faq": "Multi-hop RAG examples grounded in actual documents table content. Each FAQ item requires combining at least two evidence claims, while remaining distinct from ragas-v1.json 15 items.",
+      "payment": "DB fixture from actual payments/refunds/item_delivery_logs/gacha_logs. reference_answer reflects expected chatbot output given fixture counts per StructGPT/ChatLR structured reading.",
+      "bug": "Conservative triage pattern: replication conditions, environment info, reproduction steps.",
+      "voc": "Fixed-response evaluation. reference_answer == VOC_FIXED_RESPONSE constant from constants.py."
+    },
+    "rag_design": {
+      "faq_mode": "multi_hop_rag",
+      "scope": "FAQ examples combine two or more evidence claims such as condition + exception, path + alternative path, or rule + caveat.",
+      "evaluation_note": "Keep metadata.test_type as faq for category filtering; use metadata.rag_mode or outputs.requires_multihop_rag for multi-hop RAG slices."
+    }
+  },
+  "examples": [
+    {
+      "inputs": {
+        "user_message": "공월 축복 기간 중 하루 빠지면 원석 못 받나요?",
+        "user_id": 1,
+        "account_id": 101,
+        "category": "faq"
+      },
+      "outputs": {
+        "reference_answer": "공월 축복 유효 기간 중 로그인하지 않은 날의 원석 보상은 수령할 수 없으며 다음 날로 적립되지 않습니다. 유효 기간이 남아 있는 날 로그인해야만 90원석을 받을 수 있다고 안내해야 합니다.",
+        "expected_route": "faq_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "faq_document"
+        ],
+        "requires_rag": true,
+        "test_type": "faq",
+        "requires_multihop_rag": true,
+        "reasoning_type": "multi_hop_rag",
+        "expected_reasoning_hops": [
+          "Identify the daily reward rule during the Blessing validity period.",
+          "Combine it with the non-login/non-carryover exception."
+        ],
+        "expected_hop_count": 2
+      },
+      "metadata": {
+        "test_id": "FAQ-001",
+        "test_type": "faq",
+        "paper_basis": "RAGAS",
+        "difficulty": "easy",
+        "requires_db": false,
+        "requires_rag": true,
+        "notes": "Direct evidence in '공월 축복이란 무엇인가요?'.",
+        "rag_mode": "multi_hop",
+        "requires_multihop_rag": true,
+        "hop_count": 2,
+        "reasoning_pattern": "claim_combination"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "공월 축복 원석이 이틀 연속으로 안 들어왔어요.",
+        "user_id": 1,
+        "account_id": 101,
+        "category": "faq"
+      },
+      "outputs": {
+        "reference_answer": "먼저 게임 내에서 공월 축복의 남은 유효 일수를 확인하도록 안내해야 합니다. 유효 기간이 충분히 남아 있음에도 원석이 지급되지 않는다면, 고객센터의 문제 피드백 경로로 문의하도록 안내해야 합니다.",
+        "expected_route": "faq_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "faq_document"
+        ],
+        "requires_rag": true,
+        "test_type": "faq",
+        "requires_multihop_rag": true,
+        "reasoning_type": "multi_hop_rag",
+        "expected_reasoning_hops": [
+          "Check the remaining Blessing validity period first.",
+          "If validity remains but rewards are missing, route the user to the feedback/support path."
+        ],
+        "expected_hop_count": 2
+      },
+      "metadata": {
+        "test_id": "FAQ-002",
+        "test_type": "faq",
+        "paper_basis": "RAGAS",
+        "difficulty": "medium",
+        "requires_db": false,
+        "requires_rag": true,
+        "notes": "Direct evidence in '공월 축복 보상 원석을 받지 못했습니다'.",
+        "rag_mode": "multi_hop",
+        "requires_multihop_rag": true,
+        "hop_count": 2,
+        "reasoning_pattern": "claim_combination"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "게임 설정 메뉴에서 비밀번호를 바꿀 수 있나요?",
+        "user_id": 1,
+        "account_id": 101,
+        "category": "faq"
+      },
+      "outputs": {
+        "reference_answer": "게임 안에서는 페이몬 메뉴의 설정 > 계정 > 사용자 센터로 이동해 비밀번호 변경 페이지에 접근할 수 있습니다. HoYoverse 통행증 공식 홈페이지에서도 비밀번호/보안 메뉴를 통해 변경할 수 있다고 안내해야 합니다.",
+        "expected_route": "faq_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "faq_document"
+        ],
+        "requires_rag": true,
+        "test_type": "faq",
+        "requires_multihop_rag": true,
+        "reasoning_type": "multi_hop_rag",
+        "expected_reasoning_hops": [
+          "Find the in-game password-change path.",
+          "Combine it with the HoYoverse account website password/security path."
+        ],
+        "expected_hop_count": 2
+      },
+      "metadata": {
+        "test_id": "FAQ-003",
+        "test_type": "faq",
+        "paper_basis": "RAGAS",
+        "difficulty": "easy",
+        "requires_db": false,
+        "requires_rag": true,
+        "notes": "Direct evidence in password-change FAQ documents.",
+        "rag_mode": "multi_hop",
+        "requires_multihop_rag": true,
+        "hop_count": 2,
+        "reasoning_pattern": "claim_combination"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "계정 삭제 신청 후 마음이 바뀌었는데 취소가 되나요?",
+        "user_id": 1,
+        "account_id": 101,
+        "category": "faq"
+      },
+      "outputs": {
+        "reference_answer": "계정 삭제 신청 후에도 유예 기간 안에 다시 로그인하면 삭제를 취소하고 계정을 재활성화할 수 있습니다. 유예 기간이 종료된 이후에는 계정과 게임 데이터가 영구 삭제되어 복구할 수 없다고 안내해야 합니다.",
+        "expected_route": "faq_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "faq_document",
+          "policy_document"
+        ],
+        "requires_rag": true,
+        "test_type": "faq",
+        "requires_multihop_rag": true,
+        "reasoning_type": "multi_hop_rag",
+        "expected_reasoning_hops": [
+          "Find the account deletion cancellation/reactivation rule during the grace period.",
+          "Combine it with the irreversible deletion result after the grace period."
+        ],
+        "expected_hop_count": 2
+      },
+      "metadata": {
+        "test_id": "FAQ-004",
+        "test_type": "faq",
+        "paper_basis": "RAGAS",
+        "difficulty": "medium",
+        "requires_db": false,
+        "requires_rag": true,
+        "notes": "Direct evidence in 'HoYoverse 계정을 삭제하는 방법은?'.",
+        "rag_mode": "multi_hop",
+        "requires_multihop_rag": true,
+        "hop_count": 2,
+        "reasoning_pattern": "claim_combination"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "PC 버전에서도 계정 연동이 페이몬 메뉴에 있나요?",
+        "user_id": 1,
+        "account_id": 101,
+        "category": "faq"
+      },
+      "outputs": {
+        "reference_answer": "PC 버전에서도 왼쪽 상단 페이몬 아이콘을 눌러 설정 > 계정 > 유저 센터로 이동하면 계정 연동 메뉴에 접근할 수 있다고 안내해야 합니다.",
+        "expected_route": "faq_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "game_guide"
+        ],
+        "requires_rag": true,
+        "test_type": "faq",
+        "requires_multihop_rag": true,
+        "reasoning_type": "multi_hop_rag",
+        "expected_reasoning_hops": [
+          "Find the PC menu entry point.",
+          "Combine it with the account/user-center linking path."
+        ],
+        "expected_hop_count": 2
+      },
+      "metadata": {
+        "test_id": "FAQ-005",
+        "test_type": "faq",
+        "paper_basis": "RAGAS",
+        "difficulty": "easy",
+        "requires_db": false,
+        "requires_rag": true,
+        "notes": "Direct evidence in in-game account linking guide.",
+        "rag_mode": "multi_hop",
+        "requires_multihop_rag": true,
+        "hop_count": 2,
+        "reasoning_pattern": "claim_combination"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "PSN 크로스 세이브를 하면 PC에서 산 결정이 PS에서도 보이나요?",
+        "user_id": 1,
+        "account_id": 101,
+        "category": "faq"
+      },
+      "outputs": {
+        "reference_answer": "PSN 크로스 세이브로 게임 진행도는 플랫폼 간에 공유되지만, 결제는 각 플랫폼 계정에서 독립적으로 이루어집니다. 정확한 결제 및 보상 관련 주의사항은 크로스 세이브 공지를 반드시 확인하라고 안내해야 합니다.",
+        "expected_route": "faq_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "notice_document"
+        ],
+        "requires_rag": true,
+        "test_type": "faq",
+        "requires_multihop_rag": true,
+        "reasoning_type": "multi_hop_rag",
+        "expected_reasoning_hops": [
+          "Find what PSN cross-save shares across platforms.",
+          "Combine it with the separate-platform payment caveat and notice-check instruction."
+        ],
+        "expected_hop_count": 2
+      },
+      "metadata": {
+        "test_id": "FAQ-006",
+        "test_type": "faq",
+        "paper_basis": "RAGAS",
+        "difficulty": "medium",
+        "requires_db": false,
+        "requires_rag": true,
+        "notes": "Direct evidence in PSN cross-save notice.",
+        "rag_mode": "multi_hop",
+        "requires_multihop_rag": true,
+        "hop_count": 2,
+        "reasoning_pattern": "claim_combination"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "우편함 보상을 30일이 지나도록 못 받았으면 복구가 되나요?",
+        "user_id": 1,
+        "account_id": 101,
+        "category": "faq"
+      },
+      "outputs": {
+        "reference_answer": "우편 유효 기간(30일)이 만료된 보상은 자동으로 소멸되며, 만료 후에는 복구가 불가능하다고 안내해야 합니다. 이벤트나 보상 공지에서 명시된 수령 기한 안에 반드시 받도록 안내해야 합니다.",
+        "expected_route": "faq_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "notice_document"
+        ],
+        "requires_rag": true,
+        "test_type": "faq",
+        "requires_multihop_rag": true,
+        "reasoning_type": "multi_hop_rag",
+        "expected_reasoning_hops": [
+          "Find the mail reward validity period.",
+          "Combine it with expiration/removal and no-restoration caveats."
+        ],
+        "expected_hop_count": 2
+      },
+      "metadata": {
+        "test_id": "FAQ-007",
+        "test_type": "faq",
+        "paper_basis": "RAGAS",
+        "difficulty": "medium",
+        "requires_db": false,
+        "requires_rag": true,
+        "notes": "Direct evidence in multiple compensation notices (mail validity 30 days).",
+        "rag_mode": "multi_hop",
+        "requires_multihop_rag": true,
+        "hop_count": 2,
+        "reasoning_pattern": "claim_combination"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "첫 충전 2배 혜택은 초기화되면 다시 쓸 수 있나요?",
+        "user_id": 1,
+        "account_id": 101,
+        "category": "faq"
+      },
+      "outputs": {
+        "reference_answer": "첫 충전 2배 보너스가 초기화되면 결정 구매 화면의 모든 상품에 다시 2배 혜택이 적용됩니다. 초기화 전에 사용하지 않은 혜택은 누적되지 않는다고 안내해야 합니다.",
+        "expected_route": "faq_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "notice_document"
+        ],
+        "requires_rag": true,
+        "test_type": "faq",
+        "requires_multihop_rag": true,
+        "reasoning_type": "multi_hop_rag",
+        "expected_reasoning_hops": [
+          "Find the first-charge double bonus reset effect.",
+          "Combine it with the non-stacking/non-carryover caveat for unused benefits."
+        ],
+        "expected_hop_count": 2
+      },
+      "metadata": {
+        "test_id": "FAQ-008",
+        "test_type": "faq",
+        "paper_basis": "RAGAS",
+        "difficulty": "easy",
+        "requires_db": false,
+        "requires_rag": true,
+        "notes": "Direct evidence in first-charge reset notices.",
+        "rag_mode": "multi_hop",
+        "requires_multihop_rag": true,
+        "hop_count": 2,
+        "reasoning_pattern": "claim_combination"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "HoYoverse가 제 개인정보를 제3자에게 넘길 수 있나요?",
+        "user_id": 1,
+        "account_id": 101,
+        "category": "faq"
+      },
+      "outputs": {
+        "reference_answer": "HoYoverse 개인정보처리방침에 따르면 법적 의무 이행, 서비스 파트너, 그룹사 등 일부 경우에 개인정보가 제3자와 공유될 수 있습니다. 정확한 제공 범위와 조건은 공식 개인정보처리방침 문서에서 확인하도록 안내해야 합니다.",
+        "expected_route": "faq_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "policy_document"
+        ],
+        "requires_rag": true,
+        "test_type": "faq",
+        "requires_multihop_rag": true,
+        "reasoning_type": "multi_hop_rag",
+        "expected_reasoning_hops": [
+          "Find third-party sharing conditions in the privacy policy.",
+          "Combine legal obligation, service partner, and group-company cases with a policy-document confirmation instruction."
+        ],
+        "expected_hop_count": 2
+      },
+      "metadata": {
+        "test_id": "FAQ-009",
+        "test_type": "faq",
+        "paper_basis": "RAGAS",
+        "difficulty": "medium",
+        "requires_db": false,
+        "requires_rag": true,
+        "notes": "Direct evidence in HoYoverse privacy policy third-party sharing section.",
+        "rag_mode": "multi_hop",
+        "requires_multihop_rag": true,
+        "hop_count": 2,
+        "reasoning_pattern": "claim_combination"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "4성 캐릭터 기원 천장은 몇 회인가요?",
+        "user_id": 1,
+        "account_id": 101,
+        "category": "faq"
+      },
+      "outputs": {
+        "reference_answer": "캐릭터 이벤트 기원에서 4성 이상 아이템은 최대 10회 안에 반드시 획득할 수 있습니다. 5성 캐릭터는 최대 90회 안에 획득이 보장된다고 안내해야 합니다.",
+        "expected_route": "faq_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "faq_document"
+        ],
+        "requires_rag": true,
+        "test_type": "faq",
+        "requires_multihop_rag": true,
+        "reasoning_type": "multi_hop_rag",
+        "expected_reasoning_hops": [
+          "Find the 4-star pity guarantee rule.",
+          "Combine it with the 5-star character pity guarantee rule."
+        ],
+        "expected_hop_count": 2
+      },
+      "metadata": {
+        "test_id": "FAQ-010",
+        "test_type": "faq",
+        "paper_basis": "RAGAS",
+        "difficulty": "easy",
+        "requires_db": false,
+        "requires_rag": true,
+        "notes": "Direct evidence in character event wish FAQ.",
+        "rag_mode": "multi_hop",
+        "requires_multihop_rag": true,
+        "hop_count": 2,
+        "reasoning_pattern": "claim_combination"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "최근 결제 내역 3건이 모두 성공인지 확인해주세요.",
+        "user_id": 1232,
+        "account_id": 1332,
+        "category": "payment"
+      },
+      "outputs": {
+        "reference_answer": "결제 기록 3건이 확인됩니다. 각 결제의 상태를 기반으로 성공/실패 여부를 안내하되, 민감한 결제 정보는 최소한으로 노출해야 합니다.",
+        "expected_route": "payment_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "payments"
+        ],
+        "requires_rag": false,
+        "test_type": "payment"
+      },
+      "metadata": {
+        "test_id": "PAY-001",
+        "test_type": "payment",
+        "paper_basis": "StructGPT+ChatLR+Few-shot Text-to-SQL",
+        "difficulty": "easy",
+        "requires_db": true,
+        "requires_rag": false,
+        "db_fixture": {
+          "source": "current_db",
+          "user_id": 1232,
+          "account_id": 1332,
+          "counts": {
+            "payments": 3,
+            "refunds": 0,
+            "item_delivery_logs": 2,
+            "gacha_logs": 1
+          }
+        }
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "환불 신청한 게 처리됐는지 알고 싶어요.",
+        "user_id": 3528,
+        "account_id": 3628,
+        "category": "payment"
+      },
+      "outputs": {
+        "reference_answer": "결제 1건과 환불 1건이 확인됩니다. 환불 로그의 처리 상태를 확인해 처리 완료 여부를 안내하고, 처리 중이라면 추가 문의 방법을 알려야 합니다.",
+        "expected_route": "payment_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "payments",
+          "refunds"
+        ],
+        "requires_rag": false,
+        "test_type": "payment"
+      },
+      "metadata": {
+        "test_id": "PAY-002",
+        "test_type": "payment",
+        "paper_basis": "StructGPT+ChatLR+Few-shot Text-to-SQL",
+        "difficulty": "medium",
+        "requires_db": true,
+        "requires_rag": false,
+        "db_fixture": {
+          "source": "current_db",
+          "user_id": 3528,
+          "account_id": 3628,
+          "counts": {
+            "payments": 1,
+            "refunds": 1,
+            "item_delivery_logs": 1,
+            "gacha_logs": 1
+          }
+        }
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "같은 상품이 두 번 결제된 것 같아요.",
+        "user_id": 1281,
+        "account_id": 1381,
+        "category": "payment"
+      },
+      "outputs": {
+        "reference_answer": "결제 기록 3건을 조회해 동일 상품 또는 동일 금액의 중복 여부를 확인해야 합니다. 환불 이력 1건과 대조하고, 중복이 의심될 경우 추가 처리 절차를 안내해야 합니다.",
+        "expected_route": "payment_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "payments",
+          "refunds"
+        ],
+        "requires_rag": false,
+        "test_type": "payment"
+      },
+      "metadata": {
+        "test_id": "PAY-003",
+        "test_type": "payment",
+        "paper_basis": "StructGPT+ChatLR+Few-shot Text-to-SQL",
+        "difficulty": "hard",
+        "requires_db": true,
+        "requires_rag": false,
+        "db_fixture": {
+          "source": "current_db",
+          "user_id": 1281,
+          "account_id": 1381,
+          "counts": {
+            "payments": 3,
+            "refunds": 1,
+            "item_delivery_logs": 0,
+            "gacha_logs": 1
+          }
+        }
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "결제 성공했는데 아이템이 인벤토리에 없어요.",
+        "user_id": 4948,
+        "account_id": 5048,
+        "category": "payment"
+      },
+      "outputs": {
+        "reference_answer": "결제 2건과 아이템 지급 로그 2건이 확인됩니다. 결제 건과 지급 로그를 교차 비교해 미지급 여부를 확인해야 합니다. 지급 완료 기록이 있다면 게임 재접속을 안내하고, 기록이 없다면 지급 오류 가능성을 보수적으로 안내해야 합니다.",
+        "expected_route": "payment_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "payments",
+          "item_delivery_logs"
+        ],
+        "requires_rag": false,
+        "test_type": "payment"
+      },
+      "metadata": {
+        "test_id": "PAY-004",
+        "test_type": "payment",
+        "paper_basis": "StructGPT+ChatLR+Few-shot Text-to-SQL",
+        "difficulty": "medium",
+        "requires_db": true,
+        "requires_rag": false,
+        "db_fixture": {
+          "source": "current_db",
+          "user_id": 4948,
+          "account_id": 5048,
+          "counts": {
+            "payments": 2,
+            "refunds": 0,
+            "item_delivery_logs": 2,
+            "gacha_logs": 1
+          }
+        }
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "제 가챠 기록 3건이 다 남아 있나요?",
+        "user_id": 4823,
+        "account_id": 4923,
+        "category": "payment"
+      },
+      "outputs": {
+        "reference_answer": "가챠 로그 3건이 확인됩니다. 조회된 기록을 바탕으로 기원 횟수와 결과가 정상적으로 기록되어 있음을 안내해야 합니다. 특정 결과에 이상이 있다면 구체적인 내용을 추가로 문의하도록 안내해야 합니다.",
+        "expected_route": "payment_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "gacha_logs"
+        ],
+        "requires_rag": false,
+        "test_type": "payment"
+      },
+      "metadata": {
+        "test_id": "PAY-005",
+        "test_type": "payment",
+        "paper_basis": "StructGPT+ChatLR+Few-shot Text-to-SQL",
+        "difficulty": "easy",
+        "requires_db": true,
+        "requires_rag": false,
+        "db_fixture": {
+          "source": "current_db",
+          "user_id": 4823,
+          "account_id": 4923,
+          "counts": {
+            "payments": 1,
+            "refunds": 0,
+            "item_delivery_logs": 2,
+            "gacha_logs": 3
+          }
+        }
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "정기 구독권 남은 기간이 이상하게 짧아진 것 같아요.",
+        "user_id": 1799,
+        "account_id": 1899,
+        "category": "payment"
+      },
+      "outputs": {
+        "reference_answer": "결제 2건과 환불 1건이 확인됩니다. 정기권 관련 결제 일시와 상품 내용을 확인하고, 환불 이력과 교차 비교해 기간 산정 기준을 안내해야 합니다. 정확한 기간 적용은 시스템 검토가 필요할 수 있으므로 단정 짓지 않아야 합니다.",
+        "expected_route": "payment_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "payments",
+          "refunds"
+        ],
+        "requires_rag": false,
+        "test_type": "payment"
+      },
+      "metadata": {
+        "test_id": "PAY-006",
+        "test_type": "payment",
+        "paper_basis": "StructGPT+ChatLR+Few-shot Text-to-SQL",
+        "difficulty": "medium",
+        "requires_db": true,
+        "requires_rag": false,
+        "db_fixture": {
+          "source": "current_db",
+          "user_id": 1799,
+          "account_id": 1899,
+          "counts": {
+            "payments": 2,
+            "refunds": 1,
+            "item_delivery_logs": 0,
+            "gacha_logs": 2
+          }
+        }
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "기원 결과로 캐릭터를 받았는데 보유 목록에 없어요.",
+        "user_id": 4823,
+        "account_id": 4923,
+        "category": "payment"
+      },
+      "outputs": {
+        "reference_answer": "가챠 로그 3건과 아이템 지급 로그 2건을 교차 확인해 기원 결과와 지급 내역이 일치하는지 확인해야 합니다. 지급 기록이 있다면 게임 재접속을 안내하고, 기록이 없다면 지급 오류 가능성을 보수적으로 안내해야 합니다.",
+        "expected_route": "payment_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "gacha_logs",
+          "item_delivery_logs"
+        ],
+        "requires_rag": false,
+        "test_type": "payment"
+      },
+      "metadata": {
+        "test_id": "PAY-007",
+        "test_type": "payment",
+        "paper_basis": "StructGPT+ChatLR+Few-shot Text-to-SQL",
+        "difficulty": "hard",
+        "requires_db": true,
+        "requires_rag": false,
+        "db_fixture": {
+          "source": "current_db",
+          "user_id": 4823,
+          "account_id": 4923,
+          "counts": {
+            "payments": 1,
+            "refunds": 0,
+            "item_delivery_logs": 2,
+            "gacha_logs": 3
+          }
+        }
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "결제를 취소했는데 지급된 아이템이 회수됐는지 확인해주세요.",
+        "user_id": 3528,
+        "account_id": 3628,
+        "category": "payment"
+      },
+      "outputs": {
+        "reference_answer": "결제 1건, 환불 1건, 아이템 지급 로그 1건이 확인됩니다. 환불 처리 상태와 아이템 지급 로그를 비교해 회수 여부를 안내해야 합니다. 시스템에서 단정하기 어려운 경우 운영팀 검토 안내를 제공해야 합니다.",
+        "expected_route": "payment_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "payments",
+          "refunds",
+          "item_delivery_logs"
+        ],
+        "requires_rag": false,
+        "test_type": "payment"
+      },
+      "metadata": {
+        "test_id": "PAY-008",
+        "test_type": "payment",
+        "paper_basis": "StructGPT+ChatLR+Few-shot Text-to-SQL",
+        "difficulty": "hard",
+        "requires_db": true,
+        "requires_rag": false,
+        "db_fixture": {
+          "source": "current_db",
+          "user_id": 3528,
+          "account_id": 3628,
+          "counts": {
+            "payments": 1,
+            "refunds": 1,
+            "item_delivery_logs": 1,
+            "gacha_logs": 1
+          }
+        }
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "오늘 가챠 돌렸는데 재화가 정상 차감됐나요?",
+        "user_id": 2189,
+        "account_id": 2289,
+        "category": "payment"
+      },
+      "outputs": {
+        "reference_answer": "가챠 로그 3건과 결제 기록 2건을 확인해 기원 사용 내역과 재화 차감이 정상 기록되어 있는지 안내해야 합니다. 아이템 지급 로그가 없으므로 재화 차감 후 지급 여부는 가챠 로그 기준으로만 안내하고, 이상이 있으면 추가 문의를 안내해야 합니다.",
+        "expected_route": "payment_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "payments",
+          "gacha_logs"
+        ],
+        "requires_rag": false,
+        "test_type": "payment"
+      },
+      "metadata": {
+        "test_id": "PAY-009",
+        "test_type": "payment",
+        "paper_basis": "StructGPT+ChatLR+Few-shot Text-to-SQL",
+        "difficulty": "medium",
+        "requires_db": true,
+        "requires_rag": false,
+        "db_fixture": {
+          "source": "current_db",
+          "user_id": 2189,
+          "account_id": 2289,
+          "counts": {
+            "payments": 2,
+            "refunds": 0,
+            "item_delivery_logs": 0,
+            "gacha_logs": 3
+          }
+        }
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "패키지 구매 후 아이템 지급 로그를 확인해주세요.",
+        "user_id": 4101,
+        "account_id": 4201,
+        "category": "payment"
+      },
+      "outputs": {
+        "reference_answer": "결제 1건과 아이템 지급 로그 1건이 확인됩니다. 결제 내역과 지급 로그를 비교해 패키지 구성품이 정상 지급되었는지 안내해야 합니다. 불일치 항목이 있으면 추가 확인이 필요하다고 보수적으로 안내해야 합니다.",
+        "expected_route": "payment_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "payments",
+          "item_delivery_logs"
+        ],
+        "requires_rag": false,
+        "test_type": "payment"
+      },
+      "metadata": {
+        "test_id": "PAY-010",
+        "test_type": "payment",
+        "paper_basis": "StructGPT+ChatLR+Few-shot Text-to-SQL",
+        "difficulty": "easy",
+        "requires_db": true,
+        "requires_rag": false,
+        "db_fixture": {
+          "source": "current_db",
+          "user_id": 4101,
+          "account_id": 4201,
+          "counts": {
+            "payments": 1,
+            "refunds": 0,
+            "item_delivery_logs": 1,
+            "gacha_logs": 3
+          }
+        }
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "비밀번호가 맞는데 로그인 오류가 계속 납니다.",
+        "user_id": 1,
+        "account_id": 101,
+        "category": "bug"
+      },
+      "outputs": {
+        "reference_answer": "비밀번호가 정확함에도 로그인 오류가 반복되는 경우, 발생 시점, 오류 코드 또는 메시지, 사용 플랫폼(Android/iOS/PC), 네트워크 환경 정보를 수집하고 앱 캐시 삭제 후 재시도를 안내해야 합니다.",
+        "expected_route": "bug_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "bug_report_context"
+        ],
+        "requires_rag": false,
+        "test_type": "bug"
+      },
+      "metadata": {
+        "test_id": "BUG-001",
+        "test_type": "bug",
+        "paper_basis": "Agent evaluation",
+        "difficulty": "medium",
+        "requires_db": false,
+        "requires_rag": false
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "결제 화면에서 뒤로 가기를 누르면 앱이 꺼집니다.",
+        "user_id": 1,
+        "account_id": 101,
+        "category": "bug"
+      },
+      "outputs": {
+        "reference_answer": "결제 화면에서 특정 동작 시 앱이 종료되는 경우, 발생 기기 모델, OS 버전, 앱 버전, 재현 빈도 정보를 수집하고 해당 경로에서의 재현 여부를 확인해야 합니다.",
+        "expected_route": "bug_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "bug_report_context"
+        ],
+        "requires_rag": false,
+        "test_type": "bug"
+      },
+      "metadata": {
+        "test_id": "BUG-002",
+        "test_type": "bug",
+        "paper_basis": "Agent evaluation",
+        "difficulty": "medium",
+        "requires_db": false,
+        "requires_rag": false
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "가챠 화면 진입 시 배너 이미지가 깨져서 나옵니다.",
+        "user_id": 1,
+        "account_id": 101,
+        "category": "bug"
+      },
+      "outputs": {
+        "reference_answer": "가챠 배너 이미지가 정상 로드되지 않는 경우, 기기 정보, 네트워크 상태, 캐시 삭제 후 재현 여부를 확인하고, 최신 버전 업데이트 후에도 지속되면 추가 신고를 안내해야 합니다.",
+        "expected_route": "bug_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "bug_report_context"
+        ],
+        "requires_rag": false,
+        "test_type": "bug"
+      },
+      "metadata": {
+        "test_id": "BUG-003",
+        "test_type": "bug",
+        "paper_basis": "Agent evaluation",
+        "difficulty": "easy",
+        "requires_db": false,
+        "requires_rag": false
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "특정 구역 진입 후 화면이 검게 되고 게임이 멈춥니다.",
+        "user_id": 1,
+        "account_id": 101,
+        "category": "bug"
+      },
+      "outputs": {
+        "reference_answer": "특정 맵 또는 구역 진입 시 블랙 스크린 및 프리즈 현상이 발생하는 경우, 해당 구역 이름, 캐릭터 구성, 발생 시점, OS 및 기기 정보를 수집해 재현 환경을 파악해야 합니다.",
+        "expected_route": "bug_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "bug_report_context"
+        ],
+        "requires_rag": false,
+        "test_type": "bug"
+      },
+      "metadata": {
+        "test_id": "BUG-004",
+        "test_type": "bug",
+        "paper_basis": "Agent evaluation",
+        "difficulty": "medium",
+        "requires_db": false,
+        "requires_rag": false
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "캐릭터 스킬 쿨다운 타이머가 음수로 표시됩니다.",
+        "user_id": 1,
+        "account_id": 101,
+        "category": "bug"
+      },
+      "outputs": {
+        "reference_answer": "스킬 쿨다운 UI가 비정상 값으로 표시되는 경우, 해당 캐릭터 이름, 스킬 종류, 발생 조건(파티 구성, 특정 적과 전투 여부), 재현 빈도를 수집해야 합니다.",
+        "expected_route": "bug_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "bug_report_context"
+        ],
+        "requires_rag": false,
+        "test_type": "bug"
+      },
+      "metadata": {
+        "test_id": "BUG-005",
+        "test_type": "bug",
+        "paper_basis": "Agent evaluation",
+        "difficulty": "hard",
+        "requires_db": false,
+        "requires_rag": false
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "코op 매칭은 됐는데 상대방 캐릭터가 안 보여요.",
+        "user_id": 1,
+        "account_id": 101,
+        "category": "bug"
+      },
+      "outputs": {
+        "reference_answer": "멀티플레이 Co-op 진입 후 다른 플레이어 캐릭터가 표시되지 않는 경우, 네트워크 상태, 발생 지역 또는 맵, 핑 정보를 수집하고 게임 재실행 후 재현 여부를 확인해야 합니다.",
+        "expected_route": "bug_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "bug_report_context"
+        ],
+        "requires_rag": false,
+        "test_type": "bug"
+      },
+      "metadata": {
+        "test_id": "BUG-006",
+        "test_type": "bug",
+        "paper_basis": "Agent evaluation",
+        "difficulty": "medium",
+        "requires_db": false,
+        "requires_rag": false
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "인벤토리에서 아이템 수량이 실제와 다르게 표시됩니다.",
+        "user_id": 1,
+        "account_id": 101,
+        "category": "bug"
+      },
+      "outputs": {
+        "reference_answer": "인벤토리 수량 표시 오류의 경우, 해당 아이템 이름, 표시된 수량과 예상 수량, 발생 시점, 최근 수량 변동 이벤트(아이템 사용, 합성 등)를 수집하고 게임 재실행 후 변경 여부를 확인해야 합니다.",
+        "expected_route": "bug_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "bug_report_context"
+        ],
+        "requires_rag": false,
+        "test_type": "bug"
+      },
+      "metadata": {
+        "test_id": "BUG-007",
+        "test_type": "bug",
+        "paper_basis": "Agent evaluation",
+        "difficulty": "medium",
+        "requires_db": false,
+        "requires_rag": false
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "게임 중 BGM이 갑자기 끊기고 무음이 됩니다.",
+        "user_id": 1,
+        "account_id": 101,
+        "category": "bug"
+      },
+      "outputs": {
+        "reference_answer": "게임 내 BGM이 갑자기 중단되는 경우, 발생 맵 또는 상황, 기기 사운드 설정, 다른 앱과의 충돌 여부, 재현 조건(특정 액션 후, 특정 맵 진입 후 등)을 확인해야 합니다.",
+        "expected_route": "bug_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "bug_report_context"
+        ],
+        "requires_rag": false,
+        "test_type": "bug"
+      },
+      "metadata": {
+        "test_id": "BUG-008",
+        "test_type": "bug",
+        "paper_basis": "Agent evaluation",
+        "difficulty": "easy",
+        "requires_db": false,
+        "requires_rag": false
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "게임 설정을 저장했는데 재실행하면 초기화됩니다.",
+        "user_id": 1,
+        "account_id": 101,
+        "category": "bug"
+      },
+      "outputs": {
+        "reference_answer": "게임 설정이 재실행 후 저장되지 않는 경우, 저장이 안 되는 설정 항목, 플랫폼, 앱 버전, 기기 저장 공간 여유, 로컬 파일 쓰기 권한 여부를 확인해야 합니다.",
+        "expected_route": "bug_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "bug_report_context"
+        ],
+        "requires_rag": false,
+        "test_type": "bug"
+      },
+      "metadata": {
+        "test_id": "BUG-009",
+        "test_type": "bug",
+        "paper_basis": "Agent evaluation",
+        "difficulty": "medium",
+        "requires_db": false,
+        "requires_rag": false
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "일일 보상 수령 버튼이 눌리지 않아요.",
+        "user_id": 1,
+        "account_id": 101,
+        "category": "bug"
+      },
+      "outputs": {
+        "reference_answer": "일일 보상 수령 버튼이 비활성화된 경우, 이미 당일 수령한 상태인지 먼저 확인하고, 수령하지 않았음에도 비활성화되면 발생 날짜, 서버 시간, 기기 시간 설정을 수집해야 합니다.",
+        "expected_route": "bug_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "bug_report_context"
+        ],
+        "requires_rag": false,
+        "test_type": "bug"
+      },
+      "metadata": {
+        "test_id": "BUG-010",
+        "test_type": "bug",
+        "paper_basis": "Agent evaluation",
+        "difficulty": "easy",
+        "requires_db": false,
+        "requires_rag": false
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "최근 업데이트 이후 특정 캐릭터가 너무 약해졌어요. 밸런스 패치 좀 해주세요.",
+        "user_id": 1,
+        "account_id": 101,
+        "category": "voc"
+      },
+      "outputs": {
+        "reference_answer": "소중한 의견 감사합니다. 의견 반영하여 더 나은 서비스를 제공하도록 하겠습니다.",
+        "expected_route": "voc_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [],
+        "requires_rag": false,
+        "test_type": "voc"
+      },
+      "metadata": {
+        "test_id": "VOC-001",
+        "test_type": "voc",
+        "paper_basis": "Agent evaluation",
+        "difficulty": "easy",
+        "requires_db": false,
+        "requires_rag": false,
+        "voc_type": "balance_complaint"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "UI가 복잡해서 초보자는 어디서 뭘 해야 할지 모르겠어요. 메인 메뉴를 단순하게 바꿔주세요.",
+        "user_id": 1,
+        "account_id": 101,
+        "category": "voc"
+      },
+      "outputs": {
+        "reference_answer": "소중한 의견 감사합니다. 의견 반영하여 더 나은 서비스를 제공하도록 하겠습니다.",
+        "expected_route": "voc_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [],
+        "requires_rag": false,
+        "test_type": "voc"
+      },
+      "metadata": {
+        "test_id": "VOC-002",
+        "test_type": "voc",
+        "paper_basis": "Agent evaluation",
+        "difficulty": "easy",
+        "requires_db": false,
+        "requires_rag": false,
+        "voc_type": "ui_improvement"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "신규 던전 콘텐츠를 추가해주세요. 기존 던전이 너무 반복적이에요.",
+        "user_id": 1,
+        "account_id": 101,
+        "category": "voc"
+      },
+      "outputs": {
+        "reference_answer": "소중한 의견 감사합니다. 의견 반영하여 더 나은 서비스를 제공하도록 하겠습니다.",
+        "expected_route": "voc_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [],
+        "requires_rag": false,
+        "test_type": "voc"
+      },
+      "metadata": {
+        "test_id": "VOC-003",
+        "test_type": "voc",
+        "paper_basis": "Agent evaluation",
+        "difficulty": "easy",
+        "requires_db": false,
+        "requires_rag": false,
+        "voc_type": "content_request"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "문의를 여러 번 했는데 제대로 된 답변을 못 받았어요. 고객센터 응대 개선이 필요합니다.",
+        "user_id": 1,
+        "account_id": 101,
+        "category": "voc"
+      },
+      "outputs": {
+        "reference_answer": "소중한 의견 감사합니다. 의견 반영하여 더 나은 서비스를 제공하도록 하겠습니다.",
+        "expected_route": "voc_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [],
+        "requires_rag": false,
+        "test_type": "voc"
+      },
+      "metadata": {
+        "test_id": "VOC-004",
+        "test_type": "voc",
+        "paper_basis": "Agent evaluation",
+        "difficulty": "easy",
+        "requires_db": false,
+        "requires_rag": false,
+        "voc_type": "cs_complaint"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "저사양 기기에서 게임 프레임이 너무 낮아요. 퍼포먼스 최적화 업데이트를 기대합니다.",
+        "user_id": 1,
+        "account_id": 101,
+        "category": "voc"
+      },
+      "outputs": {
+        "reference_answer": "소중한 의견 감사합니다. 의견 반영하여 더 나은 서비스를 제공하도록 하겠습니다.",
+        "expected_route": "voc_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [],
+        "requires_rag": false,
+        "test_type": "voc"
+      },
+      "metadata": {
+        "test_id": "VOC-005",
+        "test_type": "voc",
+        "paper_basis": "Agent evaluation",
+        "difficulty": "easy",
+        "requires_db": false,
+        "requires_rag": false,
+        "voc_type": "performance_request"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "이벤트 기간이 너무 짧아서 직장인은 참여하기 힘들어요. 기간 연장을 고려해주세요.",
+        "user_id": 1,
+        "account_id": 101,
+        "category": "voc"
+      },
+      "outputs": {
+        "reference_answer": "소중한 의견 감사합니다. 의견 반영하여 더 나은 서비스를 제공하도록 하겠습니다.",
+        "expected_route": "voc_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [],
+        "requires_rag": false,
+        "test_type": "voc"
+      },
+      "metadata": {
+        "test_id": "VOC-006",
+        "test_type": "voc",
+        "paper_basis": "Agent evaluation",
+        "difficulty": "easy",
+        "requires_db": false,
+        "requires_rag": false,
+        "voc_type": "event_feedback"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "색맹 유저를 위한 색상 구분 기능이 없어요. 접근성 설정을 추가해주세요.",
+        "user_id": 1,
+        "account_id": 101,
+        "category": "voc"
+      },
+      "outputs": {
+        "reference_answer": "소중한 의견 감사합니다. 의견 반영하여 더 나은 서비스를 제공하도록 하겠습니다.",
+        "expected_route": "voc_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [],
+        "requires_rag": false,
+        "test_type": "voc"
+      },
+      "metadata": {
+        "test_id": "VOC-007",
+        "test_type": "voc",
+        "paper_basis": "Agent evaluation",
+        "difficulty": "easy",
+        "requires_db": false,
+        "requires_rag": false,
+        "voc_type": "accessibility_request"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "결제할 때 카카오페이나 네이버페이도 지원해주면 좋겠어요.",
+        "user_id": 1,
+        "account_id": 101,
+        "category": "voc"
+      },
+      "outputs": {
+        "reference_answer": "소중한 의견 감사합니다. 의견 반영하여 더 나은 서비스를 제공하도록 하겠습니다.",
+        "expected_route": "voc_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [],
+        "requires_rag": false,
+        "test_type": "voc"
+      },
+      "metadata": {
+        "test_id": "VOC-008",
+        "test_type": "voc",
+        "paper_basis": "Agent evaluation",
+        "difficulty": "easy",
+        "requires_db": false,
+        "requires_rag": false,
+        "voc_type": "payment_improvement"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "게임 내 길드/클랜 시스템이 있으면 더 재밌을 것 같아요.",
+        "user_id": 1,
+        "account_id": 101,
+        "category": "voc"
+      },
+      "outputs": {
+        "reference_answer": "소중한 의견 감사합니다. 의견 반영하여 더 나은 서비스를 제공하도록 하겠습니다.",
+        "expected_route": "voc_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [],
+        "requires_rag": false,
+        "test_type": "voc"
+      },
+      "metadata": {
+        "test_id": "VOC-009",
+        "test_type": "voc",
+        "paper_basis": "Agent evaluation",
+        "difficulty": "easy",
+        "requires_db": false,
+        "requires_rag": false,
+        "voc_type": "community_feature_request"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "한국어 번역이 어색한 부분이 있어요. 특히 스킬 설명이 원본과 의미가 달라요.",
+        "user_id": 1,
+        "account_id": 101,
+        "category": "voc"
+      },
+      "outputs": {
+        "reference_answer": "소중한 의견 감사합니다. 의견 반영하여 더 나은 서비스를 제공하도록 하겠습니다.",
+        "expected_route": "voc_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [],
+        "requires_rag": false,
+        "test_type": "voc"
+      },
+      "metadata": {
+        "test_id": "VOC-010",
+        "test_type": "voc",
+        "paper_basis": "Agent evaluation",
+        "difficulty": "easy",
+        "requires_db": false,
+        "requires_rag": false,
+        "voc_type": "localization_complaint"
+      }
+    }
+  ]
+}
