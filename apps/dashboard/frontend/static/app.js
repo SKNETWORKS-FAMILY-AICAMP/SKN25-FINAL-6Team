@@ -94,32 +94,6 @@ function hbar(id, labels, data, colors) {
   });
 }
 
-window.addEventListener("load", () => {
-  donut("c1", ["?대찓??", "移댄럹"], [68, 32], [C1, C2]);
-  donut("c2", ["寃곗젣", "怨꾩젙", "踰꾧렇", "?섎텋", "湲고?"], [35, 22, 18, 15, 10], [C1, C2, C3, AMBC, `${C4}99`]);
-  donut("c3", ["?꾨즺", "?湲?", "寃??", "湲닿툒"], [85, 12, 4, 3], [GRN, AMBC, PUR, RED]);
-  donut("c4", ["?먮룞泥섎━", "?대떦??", "?먯뒪而?", "?щ텇??"], [45, 30, 15, 10], [C1, C2, AMB, C3]);
-  donut("c5", ["AI", "?대떦??", "?쇳빀"], [55, 32, 13], [C1, C2, C3]);
-  line("c6", ["5/22", "5/23", "5/24", "5/25", "5/26", "5/27", "5/28"], [18, 22, 25, 20, 28, 24, 25]);
-  donut("r1", ["??쓬", "以묎컙", "?믪쓬", "移섎챸"], [45, 28, 19, 8], [GRN, AMBC, RED, PUR]);
-  donut("r2", ["湲띿젙", "以묐┰", "遺??"], [52, 25, 23], [GRN, C3, RED]);
-  hbar("r3", ["寃곗젣", "怨꾩젙", "踰꾧렇", "?섎텋"], [4, 2, 1, 2], [RED, AMB, C1, RED]);
-  donut("r4", ["??쓬", "以묎컙", "?믪쓬"], [50, 30, 20], [C2, AMBC, RED]);
-  bar("r5", ["諛섎났A", "諛섎났B", "諛섎났C", "諛섎났D"], [8, 5, 3, 2], RED);
-  donut("r6", ["?대찓??", "移댄럹"], [75, 25], [RED, AMB]);
-  donut("q1", ["?깃났", "?ㅽ뙣", "?湲?"], [88, 5, 7], [GRN, RED, AMBC]);
-  donut("q2", ["?대찓??", "移댄럹"], [80, 20], [RED, AMB]);
-  bar("q3", ["0媛?", "1媛?", "2媛?", "3媛?"], [8, 45, 35, 12], C1);
-  donut("q4", ["SMTP", "二쇱냼?ㅻ쪟", "?쒓컙珥덇낵"], [60, 30, 10], [RED, AMB, C2]);
-  hbar("q5", ["洹쇨굅?쇱튂", "?섍컖", "?뺤콉?꾨컲", "?ъ떎??"], [0.89, 0.23, 0.41, 0.87], [GRN, AMBC, RED, C1]);
-  donut("w1", ["寃곗젣", "怨꾩젙", "踰꾧렇", "?섎텋"], [38, 24, 20, 18], [C1, C2, C3, AMBC]);
-  donut("w2", ["??쓬", "以묎컙", "?믪쓬"], [55, 33, 12], [GRN, AMBC, RED]);
-  donut("w3", ["AI", "?대떦??"], [60, 40], [C1, C2]);
-  donut("w4", ["湲띿젙", "以묈┰", "遺??"], [55, 22, 23], [GRN, C3, RED]);
-  donut("w5", ["?먮룞", "?섎룞", "?먯뒪而?"], [50, 35, 15], [C1, C2, AMB]);
-  donut("w6", ["?꾨즺", "寃??", "?湲?"], [82, 10, 8], [GRN, AMBC, RED]);
-});
-
 loadDashboardLiveData();
 
 function switchPage(id, el) {
@@ -167,23 +141,23 @@ function doLogin() {
 
   if (!id) {
     err.classList.add("show");
-    err.innerHTML = '<i class="ti ti-alert-circle"></i> ?댁쁺??ID瑜??낅젰?섏꽭??';
+    err.innerHTML = '<i class="ti ti-alert-circle"></i> ID를 입력해주세요.';
     return;
   }
 
   if (DEMO_ACCOUNTS[id] === undefined || DEMO_ACCOUNTS[id] !== pw) {
     err.classList.add("show");
-    err.innerHTML = '<i class="ti ti-alert-circle"></i> ID ?먮뒗 鍮꾨?踰덊샇媛 ?щ컮瑜댁? ?딆뒿?덈떎.';
+    err.innerHTML = '<i class="ti ti-alert-circle"></i> ID 또는 비밀번호가 올바르지 않습니다.';
     return;
   }
 
   err.classList.remove("show");
-  const initials = id.replace(/[^a-zA-Z媛-??-9]/g, "").slice(0, 2).toUpperCase();
+  const initials = id.replace(/[^a-zA-Z0-9]/g, "").slice(0, 2).toUpperCase();
   document.getElementById("op-avatar").textContent = initials || "OP";
   document.getElementById("op-name-display").textContent = id;
   document.getElementById("op-role-display").textContent = role;
   document.getElementById("op-dd-name").textContent = id;
-  document.getElementById("op-dd-role").textContent = role + " 쨌 ?묒냽以?";
+  document.getElementById("op-dd-role").textContent = role + " · 접속중";
   document.getElementById("login-overlay").classList.add("hidden");
 }
 
@@ -205,7 +179,46 @@ document.addEventListener("click", () => {
   if (dd) dd.classList.remove("open");
 });
 
-const LIVE_MSGS = ["?묐?以?", "?뺤씤以?", "寃?좎쨷"];
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeDetail();
+});
+
+function showLoading(on) {
+  document.getElementById("loading-overlay")?.classList.toggle("show", on);
+}
+
+function showToast(msg, type = "error") {
+  const container = document.getElementById("toast");
+  if (!container) return;
+  const icon = type === "success" ? "ti-circle-check" : "ti-alert-circle";
+  const item = document.createElement("div");
+  item.className = `toast-item ${type}`;
+  item.innerHTML = `<i class="ti ${icon}" aria-hidden="true"></i><span>${msg}</span>`;
+  container.appendChild(item);
+  setTimeout(() => item.remove(), 3000);
+}
+
+function downloadWeeklyPdf() {
+  window.open("/dashboard/api/reports/weekly/pdf");
+}
+
+async function sendWeeklySlack() {
+  const btn = document.getElementById("btn-slack-send");
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2" aria-hidden="true"></i> 전송 중…'; }
+  try {
+    await dashboardApi("/reports/weekly/slack/now", {
+      method: "POST",
+      body: JSON.stringify({ days: 7 }),
+    });
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-send" aria-hidden="true"></i> 즉시 전송'; }
+    showToast("Slack 전송이 완료되었습니다.", "success");
+  } catch (err) {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-send" aria-hidden="true"></i> 즉시 전송'; }
+    showToast(`Slack 전송 실패: ${err.message}`, "error");
+  }
+}
+
+const LIVE_MSGS = ["응대중", "확인중", "검토중"];
 const LIVE_OPS = ["reviewer_01", "reviewer_02", "reviewer_03"];
 
 function refreshLiveStatus() {

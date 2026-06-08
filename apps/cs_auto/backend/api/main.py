@@ -23,6 +23,17 @@ from utils.login.admin_login import create_admin_session, revoke_admin_session, 
 
 app = FastAPI(title="CS Auto API")
 
+# 프론트와 API 사이의 핵심 연동 정책이다. 실제 라우트는 아래 함수들이 담당하지만,
+# 테스트에서는 이 계약을 먼저 확인해 "초안까지만", "승인 시 resolved" 같은
+# 운영 정책이 의도치 않게 바뀌지 않았는지 검증한다.
+API_INTEGRATION_CONTRACT = {
+    "regeneration_flow": "request_draft_regeneration -> regenerate_agent(ticket_id, regeneration_reason)",
+    "draft_update_policy": "overwrite_answer_draft_text",
+    "approval_policy": "insert_final_response_then_resolve_ticket",
+    "detail_payload_sections": ["ticket", "evidence", "safety", "history", "operationLogs"],
+    "latest_draft_order": "answer_draft.created_at DESC NULLS LAST, answer_draft.draft_id DESC",
+}
+
 _cors_origins = [
     origin.strip()
     for origin in os.environ.get("CS_AUTO_CORS_ORIGINS", "*").split(",")
@@ -246,7 +257,46 @@ def _write_admin_event_log(
     )
 
 
+def get_cs_auto_api_contract() -> dict[str, object]:
+    """CS 자동화 API와 답변생성 agent의 연동 계약을 반환한다.
+
+    프론트엔드와 운영 API는 현재 별도 서비스 계층 없이 이 파일의 함수들을 직접
+    사용한다. 그래서 재생성/수정/승인/상세 조회 정책이 코드 변경 중 흐려지지
+    않도록 읽기 전용 계약으로 고정한다.
+    """
+
+    return {
+        **API_INTEGRATION_CONTRACT,
+        "regeneration_agent_function": "agents.answer_agent.regenerate_agent",
+        "draft_update_side_effects": [
+            "answer_draft.draft_text overwrite",
+            "qa_ticket.status = human_review",
+            "admin_event_logs event_type = draft_updated",
+        ],
+        "approval_side_effects": [
+            "final_response insert",
+            "qa_ticket.status = resolved",
+            "admin_event_logs event_type = draft_approved",
+        ],
+        "frontend_detail_visibility": {
+            "batch_draft_visible": True,
+            "evidence_docs_visible": True,
+            "safety_results_visible": True,
+            "admin_history_visible": True,
+            "operation_logs_visible": True,
+        },
+    }
+
+
 def _ticket_list_sql(where_sql: str) -> str:
+    """티켓 목록/상세가 공유하는 기본 조회 SQL을 만든다.
+
+    최신 분석, 최신 초안, 최신 최종응답, 최신 safety를 모두 LATERAL로 붙여
+    프론트가 ticket_id 하나만으로 현재 처리 맥락을 볼 수 있게 한다.
+    chatbot pending 문의도 화면에 보여야 하므로 qa_ticket.source_type은 여기서
+    제한하지 않고 호출부 필터가 필요한 경우에만 where_sql에 넣는다.
+    """
+
     return f"""
         SELECT
             t.ticket_id,
@@ -261,6 +311,9 @@ def _ticket_list_sql(where_sql: str) -> str:
             t.session_id,
             t.responder_type,
             u.nickname,
+            -- chatbot pending 문의는 상담원 화면에서 사용자 식별이 필요하므로
+            -- email을 payload에 포함한다. 다만 로그 metadata에는 저장하지 않는다.
+            u.email,
             ga.uid,
             au.login_id AS assignee_login_id,
             au.display_name AS assignee_display_name,
@@ -703,7 +756,7 @@ def fetch_ticket_detail_for_frontend(ticket_id: int) -> dict[str, object]:
                     cur,
                     """
                     SELECT p.payment_id, p.product_name, p.product_type, p.amount, p.currency,
-                           p.payment_method, p.payment_status, p.transaction_id, p.paid_at
+                           p.payment_method, p.payment_status, p.paid_at
                     FROM payments p
                     WHERE p.account_id = %s
                     ORDER BY p.paid_at DESC NULLS LAST, p.payment_id DESC
@@ -714,7 +767,7 @@ def fetch_ticket_detail_for_frontend(ticket_id: int) -> dict[str, object]:
                 "refunds": _fetch_all(
                     cur,
                     """
-                    SELECT r.refund_id, r.payment_id, r.refund_status, r.refund_reason, r.requested_at, r.processed_at
+                    SELECT r.refund_id, r.payment_id, r.refund_status, r.requested_at, r.processed_at
                     FROM refunds r
                     JOIN payments p ON p.payment_id = r.payment_id
                     WHERE p.account_id = %s
@@ -887,7 +940,7 @@ def request_draft_regeneration(
                 metadata={
                     "previous_draft_id": draft_id,
                     "new_draft_id": new_draft["draft_id"],
-                    "regeneration_reason": regeneration_reason,
+                    "regeneration_reason_length": len(regeneration_reason),
                     "retry_count": retry_count,
                 },
             )
@@ -1042,6 +1095,10 @@ def build_frontend_ticket_payload(ticket_row: dict[str, object]) -> dict[str, ob
         "statusText": _status_text(ticket_row),
         "timeAgo": _time_ago(ticket_row.get("inquiry_created_at")),
         "nickname": ticket_row.get("nickname") or "-",
+        # 프론트는 chatbot + pending 문의에서 이메일을 보여줘야 한다.
+        # answer_agent 로그에는 email을 남기지 않지만, 상담원 화면 payload에는 포함한다.
+        "userEmail": ticket_row.get("email") or "-",
+        "email": ticket_row.get("email") or "-",
         "accountId": ticket_row.get("uid") or ticket_row.get("account_id"),
         "createdAt": _format_datetime(ticket_row.get("inquiry_created_at")),
         "body": ticket_row.get("raw_query") or "",
@@ -1059,6 +1116,9 @@ def build_frontend_ticket_payload(ticket_row: dict[str, object]) -> dict[str, ob
         "regenLimit": regen_limit,
         "lastGeneratedAt": _format_datetime(ticket_row.get("draft_created_at")),
         "sourceType": ticket_row.get("source_type"),
+        # build_frontend_ticket_payload의 status는 화면 표시용 review status로 변환된다.
+        # 원본 qa_ticket.status가 필요한 chatbot pending 분기를 위해 별도 필드로 보존한다.
+        "rawStatus": ticket_row.get("status"),
         "safetyAction": ticket_row.get("safety_action"),
     }
 
@@ -1070,7 +1130,7 @@ def build_frontend_history_payload(event_rows: list[dict[str, object]]) -> list[
     예상 내용:
     - event_type과 status를 decision, tone으로 매핑한다.
     - actor_admin_id 또는 display_name을 reviewer로 매핑한다.
-    - metadata에 있는 edit_reason, regeneration_reason, response_id를 reason 문구로 정리한다.
+    - metadata에 있는 edit_reason, regeneration_reason_length, response_id를 reason 문구로 정리한다.
     - created_at은 프론트엔드 표시용 시간 문자열로 변환한다.
     """
 
@@ -1090,7 +1150,7 @@ def build_frontend_history_payload(event_rows: list[dict[str, object]]) -> list[
         tone = "done" if status == "success" else "pending"
         reason = (
             metadata.get("edit_reason")
-            or metadata.get("regeneration_reason")
+            or (f"재생성 요청 길이 {metadata.get('regeneration_reason_length')}자" if metadata.get("regeneration_reason_length") is not None else None)
             or metadata.get("reason")
             or f"{decision} 처리"
         )
