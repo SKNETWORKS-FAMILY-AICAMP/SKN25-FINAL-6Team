@@ -152,17 +152,13 @@ def _passes_relevance_gate(documents: list[dict[str, Any]]) -> tuple[bool, str |
         return False, "no_retrieved_documents"
 
     min_field_match = float(os.environ.get("FAQ_MIN_FIELD_MATCH_SCORE", "0"))
-    min_bm25 = float(os.environ.get("FAQ_MIN_BM25_SCORE", "0"))
-    min_cosine = float(os.environ.get("FAQ_MIN_COSINE_SCORE", "0"))
 
-    if min_field_match <= 0 and min_bm25 <= 0 and min_cosine <= 0:
+    if min_field_match <= 0:
         return True, None
 
     for document in documents:
         field_match = float(document.get("field_match_score") or 0)
-        bm25 = float(document.get("bm25_score") or 0)
-        cosine = float(document.get("cosine_score") or 0)
-        if field_match >= min_field_match and bm25 >= min_bm25 and cosine >= min_cosine:
+        if field_match >= min_field_match:
             return True, None
 
     return False, "retrieval_relevance_gate_failed"

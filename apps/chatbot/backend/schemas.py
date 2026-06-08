@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from typing_extensions import NotRequired
 
 
-Category = Literal["payment", "bug", "faq", "voc", "결제", "인게임/버그", "FAQ", "VOC"]
+Category = Literal["payment", "bug", "faq", "voc"]
 RoutingTarget = Literal["rag_reply", "urgent_alert"]
 SafetyAction = Literal[
     "AUTO_RESPONSE",

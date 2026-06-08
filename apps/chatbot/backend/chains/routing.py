@@ -9,10 +9,6 @@ CATEGORY_NODE_BY_NAME = {
     "bug": "bug_agent",
     "faq": "faq_agent",
     "voc": "voc_agent",
-    "결제": "payment_agent",
-    "인게임/버그": "bug_agent",
-    "FAQ": "faq_agent",
-    "VOC": "voc_agent",
 }
 
 
