@@ -6,7 +6,7 @@ EC2에서는 이 디렉터리의 Compose 파일로 `cs-auto`와 `cs-auto-airflow
 
 - UI: `http://<EC2_HOST>/cs-auto/`
 - API health: `http://<EC2_HOST>/health`
-- Airflow: `http://<EC2_HOST>:8080`
+- Airflow: `http://<EC2_HOST>:18080` (`CS_AUTO_AIRFLOW_PORT`로 변경 가능)
 
 ## Required `.env`
 
@@ -19,6 +19,10 @@ DB_PORT=5432
 DB_USER=game_cs_user
 DB_PASSWORD=
 DB_NAME=game_cs
+LLM_API_KEY=
+LLM_MODEL=
+CS_AUTO_ROUTING_MODEL=
+LLM_TIMEOUT_SECONDS=60
 CS_AUTO_HTTP_PORT=80
 CS_AUTO_AIRFLOW_PORT=18080
 CS_AUTO_REGENERATION_LIMIT=3
@@ -33,7 +37,32 @@ docker-compose --env-file .\.env up -d --build
 docker compose --env-file .\.env ps
 ```
 
-Airflow 컨테이너는 `apps/cs_auto/backend/airflow`의 DAG를 읽고, `cs-auto` 컨테이너는 nginx가 정적 HTML을 제공하면서 FastAPI/Uvicorn으로 `/api/cs-auto/*`를 프록시한다.
+Airflow 컨테이너는 `apps/cs_auto/backend/airflow`의 DAG를 읽고, 이미지에 포함된 `data/keywords`와 LLM 환경변수로 분석 agent를 실행한다. `cs-auto` 컨테이너는 nginx가 정적 HTML을 제공하면서 FastAPI/Uvicorn으로 `/api/cs-auto/*`를 프록시한다.
+
+## Airflow DAG Deploy
+
+`apps/cs_auto/backend/airflow/analysis_agent_dag.py`와 `apps/cs_auto/backend/airflow/answer_agent_dag.py`는 현재 Docker 배포 경로에 포함된다.
+
+- `apps/cs_auto/deploy/docker/airflow.Dockerfile`이 `apps/cs_auto/backend` 전체를 `/opt/airflow/cs_auto_backend`로 복사한다.
+- `AIRFLOW__CORE__DAGS_FOLDER=/opt/airflow/cs_auto_backend/airflow` 로 설정되어 있어 Airflow가 위 디렉터리의 DAG 파일을 자동으로 읽는다.
+- 따라서 `analysis_agent_dag.py`를 수정한 뒤 `docker-compose --env-file .\.env up -d --build`로 이미지를 다시 빌드하면 변경 사항이 배포된다.
+
+배포 후 Airflow UI에서 확인할 DAG:
+
+- `cs_auto_analysis_agent_daily`
+- `cs_auto_answer_agent_daily`
+
+실행에 필요한 조건:
+
+- 루트 `.env`에 `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`이 있어야 한다.
+- `analysis_agent_dag.py`는 내부에서 `agents.analysis_agent.run_analysis_agent()`를 호출하므로 `LLM_API_KEY`, `LLM_MODEL`도 필요하다.
+- 키워드 파일은 이미지 빌드 시 `data/keywords`가 `/opt/airflow/data/keywords`로 복사되고, `CS_AUTO_KEYWORD_DIR` 환경변수로 연결된다.
+
+배포 후 점검 순서:
+
+1. `docker-compose --env-file .\.env up -d --build`
+2. Airflow UI(`http://<EC2_HOST>:18080`)에서 `cs_auto_analysis_agent_daily`가 보이는지 확인
+3. DAG를 수동 실행하거나 스케줄 시각 이후 run log에서 `run_analysis_agent` task 성공 여부 확인
 
 
 http://localhost/cs-auto/cs_automation.html

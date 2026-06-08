@@ -1,15 +1,20 @@
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
 
 ROOT_DIR = Path(__file__).resolve().parents[3]
-for path in (
-    ROOT_DIR / "apps" / "cs_auto" / "backend",
-    ROOT_DIR / "packages" / "common-python" / "src",
+os.environ.setdefault("CS_AUTO_KEYWORD_DIR", str(ROOT_DIR / "data" / "keywords"))
+
+for path in reversed(
+    [
+        ROOT_DIR / "apps" / "cs_auto" / "backend",
+        ROOT_DIR / "packages" / "common-python" / "src",
+    ]
 ):
-    path_str = str(path)
-    if path_str not in sys.path:
-        sys.path.insert(0, path_str)
+    path_text = str(path)
+    if path_text not in sys.path:
+        sys.path.insert(0, path_text)
 

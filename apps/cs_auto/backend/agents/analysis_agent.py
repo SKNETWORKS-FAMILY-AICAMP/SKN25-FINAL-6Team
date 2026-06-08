@@ -7,20 +7,25 @@ Airflow 배치가 호출하는 1단계 agent이다. 아직 분석되지 않은
 
 from __future__ import annotations
 
+import json
 import os
 import re
+from pathlib import Path
 from typing import Any, Literal
 
-from langchain_core.runnables import RunnableLambda, RunnableParallel, RunnablePassthrough
+from langchain_core.output_parsers import PydanticOutputParser
+from langchain_core.prompts import PromptTemplate
+from langchain_openai import ChatOpenAI
 from psycopg.rows import dict_row
-from psycopg.types.json import Json
 from pydantic import BaseModel, ConfigDict
+import yaml
 
 from common.db.connection import db_connection
 
 
 Category = Literal["payment", "refund", "account", "bug", "gacha", "policy", "general"]
-RoutingTarget = Literal["DB_only", "doc_only", "DB&DOC", "fixed_answer", "human_review"]
+# routing_target은 답변 생성 단계에서 어떤 근거를 조회할지 결정하는 값이다.
+RoutingTarget = Literal["DB_only", "doc_only", "DB&DOC", "fixed_answer"]
 Sentiment = Literal["positive", "neutral", "negative"]
 RiskLevel = Literal["LOW", "MID", "HIGH"]
 
@@ -38,7 +43,6 @@ class TicketPayload(BaseModel):
     source_type: str | None = ""
     status: str | None = ""
     session_id: str | None = None
-    responder_type: str | None = "agent"
 
 
 class EnrichedTicket(BaseModel):
@@ -54,27 +58,90 @@ class AnalysisResult(BaseModel):
 
     ticket_id: int
     category: Category
-    responder_type: str = "agent"
     enriched_query: str
     risk_level: RiskLevel
     sentiment: Sentiment
-    routing_target: RoutingTarget
+    # chatbot처럼 별도 답변 근거 경로가 필요 없는 경우에는 None을 저장한다.
+    routing_target: RoutingTarget | None = None
     summary: str
 
 
-CATEGORY_KEYWORDS: dict[Category, tuple[str, ...]] = {
-    "payment": ("결제", "구매", "충전", "미지급", "상품", "패키지", "쿠폰", "영수증", "다이아"),
-    "refund": ("환불", "취소", "청약철회", "반품", "결제 취소"),
-    "account": ("계정", "로그인", "연동", "복구", "인증", "정지", "탈퇴", "비밀번호"),
-    "bug": ("버그", "오류", "렉", "튕김", "접속", "강제 종료", "채팅", "서버"),
-    "gacha": ("가챠", "뽑기", "확률", "천장", "소환", "픽업"),
-    "policy": ("정책", "제재", "운영", "공지", "약관", "신고"),
-    "general": (),
-}
+class RoutingDecision(BaseModel):
+    """Pydantic parser가 검증하는 라우팅 결정 결과."""
 
-NEGATIVE_KEYWORDS = ("화남", "짜증", "불만", "최악", "고소", "신고", "빨리", "장난", "문제")
-POSITIVE_KEYWORDS = ("감사", "고맙", "좋아요", "확인 부탁", "문의드립니다")
-HIGH_RISK_KEYWORDS = ("고소", "신고", "환불 거부", "계정 정지", "중복 결제", "미지급", "개인정보", "약관 위반")
+    routing_target: RoutingTarget | None = None
+    reason: str = ""
+
+
+class CategoryDecision(BaseModel):
+    category: Category
+    reason: str = ""
+
+
+KEYWORD_ROOT = Path(os.environ.get("CS_AUTO_KEYWORD_DIR", Path(__file__).resolve().parents[4] / "data" / "keywords"))
+
+
+def _load_keyword_yaml(relative_path: str) -> dict[str, Any]:
+    path = KEYWORD_ROOT / relative_path
+    raw_data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    if not isinstance(raw_data, dict):
+        raise ValueError(f"Keyword YAML must be a mapping: {path}")
+    return raw_data
+
+
+def _load_keyword_list(relative_path: str) -> tuple[str, ...]:
+    data = _load_keyword_yaml(relative_path)
+    keywords = data.get("keywords", [])
+    if not isinstance(keywords, list):
+        raise ValueError(f"Keyword YAML value must be a list: {relative_path}.keywords")
+    return tuple(
+        keyword.strip()
+        for keyword in (str(item) for item in keywords)
+        if keyword.strip()
+    )
+
+
+# CATEGORY_KEYWORDS: dict[Category, tuple[str, ...]] = {
+#     "payment": _load_keyword_list("category/payment.yaml"),
+#     "refund": _load_keyword_list("category/refund.yaml"),
+#     "account": _load_keyword_list("category/account.yaml"),
+#     "bug": _load_keyword_list("category/bug.yaml"),
+#     "gacha": _load_keyword_list("category/gacha.yaml"),
+#     "policy": _load_keyword_list("category/policy.yaml"),
+#     "general": (),
+# }
+
+NEGATIVE_KEYWORDS = _load_keyword_list("sentiment/negative.yaml")
+POSITIVE_KEYWORDS = _load_keyword_list("sentiment/positive.yaml")
+HIGH_RISK_KEYWORDS = _load_keyword_list("risk/high.yaml")
+
+
+## 카테고리 분류! 
+
+CATEGORY_DECISION_PARSER = PydanticOutputParser(pydantic_object=CategoryDecision)
+CATEGORY_PROMPT = PromptTemplate(
+    input_variables=["context_json"],
+    partial_variables={"format_instructions": CATEGORY_DECISION_PARSER.get_format_instructions()},
+    template="""다음 CS 문의를 하나의 category로 분류하세요.
+
+허용 category:
+- payment: 결제, 충전, 영수증, 카드 승인, 결제 실패
+- refund: 환불, 취소, 환불 지연, 결제 취소
+- account: 로그인, 비밀번호, 계정 잠김, 인증, 회원정보
+- bug: 오류, 버그, 기능 미동작, 접속 이상, UI/게임 실행 문제
+- gacha: 가챠, 뽑기, 배너, 확률, 보상 지급 관련 문의
+- policy: 운영 정책, 이용 제한, 제재 기준, 약관, 공지/규정 문의
+- general: 위 항목으로 보기 어려운 일반 문의
+
+분류 입력:
+<category_context>
+{context_json}
+</category_context>
+
+반드시 아래 JSON 형식 지시를 따르세요.
+{format_instructions}
+""",
+)
 
 
 def _fetch_all(cur: Any, sql: str, params: tuple[Any, ...] = ()) -> list[dict[str, Any]]:
@@ -113,7 +180,7 @@ def _build_enriched_ticket(ticket: TicketPayload) -> EnrichedTicket:
     return EnrichedTicket(ticket=ticket, enriched_query=combined, normalized_query=combined.lower())
 
 
-def _classify_category(enriched: EnrichedTicket) -> Category:
+def _classify_category_by_keywords(enriched: EnrichedTicket) -> Category:
     scores = {
         category: _keyword_score(enriched.normalized_query, keywords)
         for category, keywords in CATEGORY_KEYWORDS.items()
@@ -141,37 +208,145 @@ def _score_risk(enriched: EnrichedTicket, category: Category) -> RiskLevel:
     return "LOW"
 
 
-def _decide_routing(enriched: EnrichedTicket, category: Category, risk_level: RiskLevel) -> RoutingTarget:
-    # 카페 외 채널은 자동 게시 대상이 아니므로 운영자 검토로 보낸다.
-    if enriched.ticket.source_type != "naver_cafe":
-        return "human_review"
-    if risk_level == "HIGH":
-        return "DB&DOC"
-    if category in {"payment", "refund", "account", "gacha"}:
-        return "DB&DOC"
-    if category in {"bug", "policy"}:
-        return "doc_only"
-    return "fixed_answer"
+# LLM 응답을 RoutingDecision 모델로 강제 파싱해 허용된 routing_target만 저장한다.
+ROUTING_DECISION_PARSER = PydanticOutputParser(pydantic_object=RoutingDecision)
+
+# 분석 결과를 LLM에 넘겨 DB, 문서, 복합 근거, 고정 답변 중 사용할 경로를 고르게 한다.
+ROUTING_PROMPT = PromptTemplate(
+    input_variables=["context_json"],
+    partial_variables={"format_instructions": ROUTING_DECISION_PARSER.get_format_instructions()},
+    template="""CS 문의 분석 결과를 보고 다음 응답 근거 경로를 결정하세요.
+
+허용값:
+- "DB_only": 계정, 결제, 지급, 가챠 등 운영 DB 확인이 주 근거인 경우
+- "doc_only": 공지, 정책, 약관, 일반 장애 안내 등 문서 근거가 주 근거인 경우
+- "DB&DOC": 운영 DB와 문서 근거가 모두 필요한 경우
+- "fixed_answer": 답변할 근거가 없거나 짧은 잡담/테스트/아무말인 경우
+- null: source_type이 chatbot인 경우에만 사용
+
+판단 입력:
+<routing_context>
+{context_json}
+</routing_context>
+
+반드시 아래 형식 지침을 따르세요.
+{format_instructions}
+""",
+)
 
 
-def _summarize(enriched: EnrichedTicket, category: Category, routing_target: RoutingTarget, sentiment: Sentiment, risk_level: RiskLevel) -> str:
+def _build_routing_prompt_input(parts: dict[str, object]) -> dict[str, str]:
+    # 앞 단계에서 계산한 분석값만 추려 LLM 라우팅 판단 입력으로 만든다.
+    enriched = EnrichedTicket.model_validate(parts["enriched"])
+    context = {
+        "source_type": enriched.ticket.source_type,
+        "category": parts["category"],
+        "sentiment": parts["sentiment"],
+        "risk_level": parts["risk_level"],
+        "enriched_query": enriched.enriched_query,
+    }
+    return {"context_json": json.dumps(context, ensure_ascii=False)}
+
+
+def _build_category_prompt_input(enriched: EnrichedTicket) -> dict[str, str]:
+    keyword_hits = {
+        category: [keyword for keyword in keywords if keyword and keyword in enriched.normalized_query][:10]
+        for category, keywords in CATEGORY_KEYWORDS.items()
+        if category != "general"
+    }
+    context = {
+        "source_type": enriched.ticket.source_type,
+        "title": enriched.ticket.title,
+        "raw_query": enriched.ticket.raw_query,
+        "enriched_query": enriched.enriched_query,
+        "keyword_hits": keyword_hits,
+    }
+    return {"context_json": json.dumps(context, ensure_ascii=False)}
+
+
+def _routing_llm() -> ChatOpenAI:
+    # 라우팅 판단 전용 LLM 설정이다. 별도 모델이 없으면 공통 LLM_MODEL을 사용한다.
+    model = os.environ.get("CS_AUTO_ROUTING_MODEL") or os.environ["LLM_MODEL"]
+    return ChatOpenAI(
+        model=model,
+        api_key=os.environ["LLM_API_KEY"],
+        temperature=0,
+        timeout=float(os.environ.get("LLM_TIMEOUT_SECONDS", "60")),
+    )
+
+
+def _category_llm() -> ChatOpenAI:
+    model = os.environ.get("CS_AUTO_CATEGORY_MODEL") or os.environ.get("CS_AUTO_ROUTING_MODEL") or os.environ["LLM_MODEL"]
+    return ChatOpenAI(
+        model=model,
+        api_key=os.environ["LLM_API_KEY"],
+        temperature=0,
+        timeout=float(os.environ.get("LLM_TIMEOUT_SECONDS", "60")),
+    )
+
+
+def _classify_category(enriched: EnrichedTicket) -> Category:
+    chain = CATEGORY_PROMPT | _category_llm() | CATEGORY_DECISION_PARSER
+    try:
+        decision = chain.invoke(_build_category_prompt_input(enriched))
+        return decision.category
+    except Exception:
+        return _classify_category_by_keywords(enriched)
+
+
+def _add_routing_target(parts: dict[str, object]) -> dict[str, object]:
+    # LCEL 체인으로 응답 근거 경로를 결정하고 기존 분석 중간값에 routing_target을 추가한다.
+    chain = ROUTING_PROMPT | _routing_llm() | ROUTING_DECISION_PARSER
+    decision = chain.invoke(_build_routing_prompt_input(parts))
+    return {**parts, "routing_target": decision.routing_target}
+
+
+def _summarize(
+    enriched: EnrichedTicket,
+    category: Category,
+    routing_target: RoutingTarget | None,
+    sentiment: Sentiment,
+    risk_level: RiskLevel,
+) -> str:
+    if routing_target is None:
+        return (
+            f"문의는 {category} 유형으로 분류됩니다. "
+            f"감성은 {sentiment}, 위험도는 {risk_level}로 판단됩니다. "
+            "chatbot 문의는 분석 단계에서 별도 응답 근거 경로를 생성하지 않습니다."
+        )
     return (
-        f"문의는 {category} 유형으로 분류되며 응답 근거 경로는 {routing_target}입니다. "
+        f"문의는 {category} 유형으로 분류되며 응답 근거는 {routing_target}입니다. "
         f"감성은 {sentiment}, 위험도는 {risk_level}로 판단됩니다. "
         "운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다."
     )
 
 
-def _build_analysis_result(parts: dict[str, object]) -> AnalysisResult:
-    enriched = EnrichedTicket.model_validate(parts["enriched"])
-    category = parts["category"]
-    sentiment = parts["sentiment"]
-    risk_level = parts["risk_level"]
-    routing_target = parts["routing_target"]
+def build_analysis_result(ticket: dict[str, object] | TicketPayload) -> AnalysisResult:
+    """문의 1건을 AnalysisResult로 변환한다."""
+
+    # 1. 원본 티켓을 검증하고 제목+본문을 분석 가능한 텍스트로 정규화한다.
+    enriched = _build_enriched_ticket(_to_ticket_payload(ticket))
+
+    # 2. 키워드 기반으로 카테고리, 감성, 위험도를 먼저 계산한다.
+    category = _classify_category(enriched)
+    sentiment = _score_sentiment(enriched)
+    risk_level = _score_risk(enriched, category)
+
+    # 3. 계산된 분석값을 바탕으로 답변 생성에 필요한 근거 경로를 LLM이 결정한다.
+    routed = _add_routing_target(
+        {
+            "enriched": enriched,
+            "category": category,
+            "sentiment": sentiment,
+            "risk_level": risk_level,
+        }
+    )
+    routing_target = routed["routing_target"]
+
+    # 4. ticket_analysis 테이블에 저장할 최종 분석 모델을 만든다.
     return AnalysisResult(
         ticket_id=enriched.ticket.ticket_id,
         category=category,
-        responder_type=enriched.ticket.responder_type or "agent",
         enriched_query=enriched.enriched_query,
         risk_level=risk_level,
         sentiment=sentiment,
@@ -180,41 +355,15 @@ def _build_analysis_result(parts: dict[str, object]) -> AnalysisResult:
     )
 
 
-def build_analysis_chain():
-    """문의 1건을 AnalysisResult로 변환하는 LCEL 체인."""
-
-    enrich_chain = RunnableLambda(_to_ticket_payload) | RunnableLambda(_build_enriched_ticket)
-    parallel_chain = RunnableParallel(
-        enriched=RunnablePassthrough(),
-        category=RunnableLambda(_classify_category),
-        sentiment=RunnableLambda(_score_sentiment),
-        risk_level=RunnableLambda(lambda enriched: _score_risk(enriched, _classify_category(enriched))),
-        routing_target=RunnableLambda(
-            lambda enriched: _decide_routing(
-                enriched,
-                _classify_category(enriched),
-                _score_risk(enriched, _classify_category(enriched)),
-            )
-        ),
-    )
-    return enrich_chain | parallel_chain | RunnableLambda(_build_analysis_result)
-
-
-ANALYSIS_CHAIN = build_analysis_chain()
-
-
 def run_analysis_agent() -> None:
-    """분석되지 않은 문의를 순차 처리하고 배치 결과를 운영 로그에 남긴다."""
+    """분석되지 않은 문의를 순차 처리한다."""
 
     targets = fetch_unanalyzed_tickets()
-    processed = 0
     for ticket in targets:
         analysis = analyze_ticket(ticket)
         saved = save_ticket_analysis(analysis)
-        mark_ticket_analysis_completed(int(saved["ticket_id"]), int(saved["analysis_id"]))
-        processed += 1
-
-    log_analysis_batch_event({"target_count": len(targets), "processed_count": processed})
+        # 분석 저장이 끝난 티켓은 재처리되지 않도록 qa_ticket 상태를 완료 처리한다.
+        mark_ticket_analysis_completed(int(saved["ticket_id"]))
 
 
 def fetch_unanalyzed_tickets() -> list[dict[str, object]]:
@@ -235,8 +384,7 @@ def fetch_unanalyzed_tickets() -> list[dict[str, object]]:
                     t.source_type,
                     t.status,
                     t.inquiry_created_at,
-                    t.session_id,
-                    t.responder_type
+                    t.session_id
                 FROM qa_ticket t
                 LEFT JOIN ticket_analysis a ON a.ticket_id = t.ticket_id
                 WHERE a.analysis_id IS NULL
@@ -248,82 +396,9 @@ def fetch_unanalyzed_tickets() -> list[dict[str, object]]:
 
 
 def analyze_ticket(ticket: dict[str, object]) -> dict[str, object]:
-    """LCEL 분석 체인을 실행해 저장 가능한 dict payload를 만든다."""
+    """분석 파이프라인을 실행해 저장 가능한 dict payload를 만든다."""
 
-    return ANALYSIS_CHAIN.invoke(ticket).model_dump()
-
-
-def build_enriched_query(ticket: dict[str, object]) -> str:
-    """기존 호출부 호환용 helper."""
-
-    return _build_enriched_ticket(TicketPayload.model_validate(ticket)).enriched_query
-
-
-def classify_ticket_category(ticket: dict[str, object], enriched_query: str) -> str:
-    """기존 호출부 호환용 category 분류 helper."""
-
-    payload = TicketPayload.model_validate({**ticket, "raw_query": enriched_query})
-    return _classify_category(_build_enriched_ticket(payload))
-
-
-def decide_routing_target(ticket: dict[str, object], category: str, enriched_query: str) -> str:
-    """기존 호출부 호환용 routing helper."""
-
-    enriched = _build_enriched_ticket(TicketPayload.model_validate({**ticket, "raw_query": enriched_query}))
-    risk = _score_risk(enriched, category)
-    return _decide_routing(enriched, category, risk)
-
-
-def score_sentiment(ticket: dict[str, object], enriched_query: str) -> str:
-    """기존 호출부 호환용 sentiment helper."""
-
-    payload = TicketPayload.model_validate({**ticket, "raw_query": enriched_query})
-    return _score_sentiment(_build_enriched_ticket(payload))
-
-
-def score_risk_level(ticket: dict[str, object], enriched_query: str, category: str) -> str:
-    """기존 호출부 호환용 risk helper."""
-
-    payload = TicketPayload.model_validate({**ticket, "raw_query": enriched_query})
-    return _score_risk(_build_enriched_ticket(payload), category)
-
-
-def summarize_ticket_analysis(
-    ticket: dict[str, object],
-    enriched_query: str,
-    category: str,
-    routing_target: str,
-    sentiment: str,
-    risk_level: str,
-) -> str:
-    """기존 호출부 호환용 summary helper."""
-
-    payload = TicketPayload.model_validate({**ticket, "raw_query": enriched_query})
-    return _summarize(_build_enriched_ticket(payload), category, routing_target, sentiment, risk_level)
-
-
-def build_ticket_analysis_payload(
-    ticket: dict[str, object],
-    enriched_query: str,
-    category: str,
-    routing_target: str,
-    sentiment: str,
-    risk_level: str,
-    summary: str,
-) -> dict[str, object]:
-    """ticket_analysis 저장 payload를 명시 모델로 검증한다."""
-
-    payload = AnalysisResult(
-        ticket_id=int(ticket["ticket_id"]),
-        category=category,
-        responder_type=str(ticket.get("responder_type") or "agent"),
-        enriched_query=enriched_query,
-        risk_level=risk_level,
-        sentiment=sentiment,
-        routing_target=routing_target,
-        summary=summary,
-    )
-    return payload.model_dump()
+    return build_analysis_result(ticket).model_dump()
 
 
 def save_ticket_analysis(payload: dict[str, object]) -> dict[str, object]:
@@ -354,7 +429,7 @@ def save_ticket_analysis(payload: dict[str, object]) -> dict[str, object]:
                     analysis_id,
                     analysis.ticket_id,
                     analysis.category,
-                    analysis.responder_type,
+                    "AI",
                     analysis.enriched_query,
                     analysis.risk_level,
                     analysis.sentiment,
@@ -366,8 +441,8 @@ def save_ticket_analysis(payload: dict[str, object]) -> dict[str, object]:
     return dict(row)
 
 
-def mark_ticket_analysis_completed(ticket_id: int, analysis_id: int) -> None:
-    """분석 완료 상태와 이벤트 로그를 기록한다."""
+def mark_ticket_analysis_completed(ticket_id: int) -> None:
+    """분석 완료 상태를 기록한다."""
 
     with db_connection() as conn:
         with conn.cursor() as cur:
@@ -376,50 +451,6 @@ def mark_ticket_analysis_completed(ticket_id: int, analysis_id: int) -> None:
                 UPDATE qa_ticket
                 SET status = %s
                 WHERE ticket_id = %s
-                  AND COALESCE(status, '') <> %s
                 """,
-                ("analyzed", ticket_id, "resolved"),
-            )
-            cur.execute(
-                """
-                INSERT INTO admin_event_logs (
-                    ticket_id,
-                    node_name,
-                    event_type,
-                    status,
-                    metadata
-                )
-                VALUES (%s, %s, %s, %s, %s)
-                """,
-                (
-                    ticket_id,
-                    "cs_auto_analysis_agent",
-                    "ticket_analyzed",
-                    "success",
-                    Json({"analysis_id": analysis_id}),
-                ),
-            )
-
-
-def log_analysis_batch_event(batch_result: dict[str, object]) -> None:
-    """배치 처리 건수만 기록하고 원문 문의 전문은 로그에 남기지 않는다."""
-
-    with db_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                INSERT INTO admin_event_logs (
-                    node_name,
-                    event_type,
-                    status,
-                    metadata
-                )
-                VALUES (%s, %s, %s, %s)
-                """,
-                (
-                    "cs_auto_analysis_agent",
-                    "analysis_batch_completed",
-                    "success",
-                    Json(batch_result),
-                ),
+                ("resolved", ticket_id),
             )
