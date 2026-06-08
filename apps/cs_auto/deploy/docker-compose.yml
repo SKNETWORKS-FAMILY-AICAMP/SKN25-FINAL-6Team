@@ -1,0 +1,47 @@
+services:
+  cs-auto:
+    build:
+      context: ../../..
+      dockerfile: apps/cs_auto/deploy/docker/cs-auto.Dockerfile
+    image: skn25-cs-auto:latest
+    container_name: cs-auto
+    restart: unless-stopped
+    environment:
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      DB_CONNECT_TIMEOUT: ${DB_CONNECT_TIMEOUT:-15}
+      CS_AUTO_REGENERATION_LIMIT: ${CS_AUTO_REGENERATION_LIMIT:-3}
+      CS_AUTO_CORS_ORIGINS: ${CS_AUTO_CORS_ORIGINS:-*}
+      NAVER_CAFE_COMMENT_ENDPOINT: ${NAVER_CAFE_COMMENT_ENDPOINT:-}
+    ports:
+      - "${CS_AUTO_HTTP_PORT:-80}:80"
+
+  cs-auto-airflow:
+    build:
+      context: ../../..
+      dockerfile: apps/cs_auto/deploy/docker/airflow.Dockerfile
+    image: skn25-cs-auto-airflow:latest
+    container_name: cs-auto-airflow
+    restart: unless-stopped
+    environment:
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      DB_CONNECT_TIMEOUT: ${DB_CONNECT_TIMEOUT:-15}
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/cs_auto_backend/airflow
+      AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "True"
+      PYTHONPATH: /opt/airflow/packages/common-python/src:/opt/airflow/cs_auto_backend
+    command: standalone
+    ports:
+      - "${CS_AUTO_AIRFLOW_PORT:-18080}:18080"
+    volumes:
+      - cs_auto_airflow_logs:/opt/airflow/logs
+
+volumes:
+  cs_auto_airflow_logs:

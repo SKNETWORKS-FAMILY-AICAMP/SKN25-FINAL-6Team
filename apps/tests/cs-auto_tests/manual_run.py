@@ -47,7 +47,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Run cs_auto Airflow batch jobs manually.")
     parser.add_argument(
         "job",
-        choices=("analysis", "naver-cafe-draft", "all"),
+        choices=("analysis", "naver-cafe-draft", "visible-drafts", "all"),
         help="Batch job to run.",
     )
     parser.add_argument("--target-date", default=None, help="Target date in YYYY-MM-DD format.")
@@ -63,7 +63,7 @@ def main() -> int:
     jobs: list[tuple[str, BatchFn]] = []
     if args.job in ("analysis", "all"):
         jobs.append(("analysis", run_ticket_analysis_batch))
-    if args.job in ("naver-cafe-draft", "all"):
+    if args.job in ("naver-cafe-draft", "visible-drafts", "all"):
         jobs.append(("naver-cafe-draft", run_naver_cafe_draft_batch))
 
     ok = True

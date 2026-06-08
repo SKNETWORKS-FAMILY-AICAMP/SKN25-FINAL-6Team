@@ -1,47 +1,39 @@
-# Deploy Guide
+# CS Auto Deploy
 
-현재 배포 기준점은 루트 [docker-compose.yml](/abs/path/C:/SKN25-FINAL-6Team/docker-compose.yml) 입니다.
+EC2에서는 이 디렉터리의 Compose 파일로 `cs-auto`와 `cs-auto-airflow` 두 컨테이너를 실행한다.
 
-이 앱은 다음 구성으로 올라갑니다.
+## Runtime
 
-- `cs-auto-backend`: FastAPI / Uvicorn
-- `cs-auto-frontend`: React / Vite dev server
-- `nginx`: `/cs-auto` 및 `/cs-auto/api` 프록시
-
-## Runtime Paths
-
-- UI: `http://localhost/cs-auto/`
-- API health: `http://localhost/cs-auto/api/health`
-
-## Compose Notes
-
-- compose는 각 앱 디렉터리를 그대로 마운트하는 개발형 구성입니다.
-- 백엔드는 `/app/apps/cs_auto/backend`를 working directory로 사용합니다.
-- Python import를 위해 `PYTHONPATH=/app/packages/common-python/src:/app/apps/cs_auto/backend`를 사용합니다.
-- 프런트는 `VITE_OPERATION_API_BASE_URL=http://cs-auto-backend:8000`로 API를 바라봅니다.
+- UI: `http://<EC2_HOST>/cs-auto/`
+- API health: `http://<EC2_HOST>/health`
+- Airflow: `http://<EC2_HOST>:8080`
 
 ## Required `.env`
 
-루트 `.env`에 최소한 아래 값이 필요합니다.
+루트 `.env`에 DB 접속 값을 둔다. 비밀번호와 외부 연동 URL은 이미지에 넣지 않는다.
+`apps/cs_auto/deploy/.env.example`을 기준으로 루트 `.env`를 채운다.
 
 ```env
 DB_HOST=
 DB_PORT=5432
-DB_USER=
+DB_USER=game_cs_user
 DB_PASSWORD=
-DB_NAME=
+DB_NAME=game_cs
+CS_AUTO_HTTP_PORT=80
+CS_AUTO_AIRFLOW_PORT=18080
+CS_AUTO_REGENERATION_LIMIT=3
+NAVER_CAFE_COMMENT_ENDPOINT=
 ```
 
 ## Run
 
 ```bash
-docker compose up -d
-docker compose ps
+cd apps/cs_auto/deploy
+docker-compose --env-file .\.env up -d --build
+docker compose --env-file .\.env ps
 ```
 
-## Important
+Airflow 컨테이너는 `apps/cs_auto/backend/airflow`의 DAG를 읽고, `cs-auto` 컨테이너는 nginx가 정적 HTML을 제공하면서 FastAPI/Uvicorn으로 `/api/cs-auto/*`를 프록시한다.
 
-- Docker Desktop daemon이 실행 중이어야 합니다.
-- 컨테이너 내부에서 `pip install -r requirements.txt`와 `npm ci`가 실행됩니다.
-- `DB_HOST=localhost`는 컨테이너 환경에서 사용하면 안 됩니다.
-- 현재 공용 nginx 설정은 `apps/chatbot/deploy/nginx/default.conf`를 사용합니다.
+
+http://localhost/cs-auto/cs_automation.html
