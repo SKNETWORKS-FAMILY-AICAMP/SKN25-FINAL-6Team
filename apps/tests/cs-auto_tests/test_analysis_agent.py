@@ -34,7 +34,6 @@ def _ticket(**overrides: object) -> dict[str, object]:
         "source_type": "naver_cafe",
         "status": "open",
         "session_id": None,
-        "responder_type": "agent",
     }
     payload.update(overrides)
     return payload
@@ -179,7 +178,6 @@ def _analyze_ticket_step_by_step(ticket: dict[str, object]) -> dict[str, object]
     result = agent.AnalysisResult(
         ticket_id=enriched.ticket.ticket_id,
         category=category,
-        responder_type=enriched.ticket.responder_type or "agent",
         enriched_query=enriched.enriched_query,
         risk_level=risk_level,
         sentiment=sentiment,

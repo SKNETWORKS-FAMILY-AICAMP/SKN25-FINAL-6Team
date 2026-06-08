@@ -43,7 +43,6 @@ class TicketPayload(BaseModel):
     source_type: str | None = ""
     status: str | None = ""
     session_id: str | None = None
-    responder_type: str | None = "agent"
 
 
 class EnrichedTicket(BaseModel):
@@ -59,7 +58,6 @@ class AnalysisResult(BaseModel):
 
     ticket_id: int
     category: Category
-    responder_type: str = "agent"
     enriched_query: str
     risk_level: RiskLevel
     sentiment: Sentiment
@@ -72,6 +70,11 @@ class RoutingDecision(BaseModel):
     """Pydantic parser가 검증하는 라우팅 결정 결과."""
 
     routing_target: RoutingTarget | None = None
+    reason: str = ""
+
+
+class CategoryDecision(BaseModel):
+    category: Category
     reason: str = ""
 
 
@@ -98,19 +101,47 @@ def _load_keyword_list(relative_path: str) -> tuple[str, ...]:
     )
 
 
-CATEGORY_KEYWORDS: dict[Category, tuple[str, ...]] = {
-    "payment": _load_keyword_list("category/payment.yaml"),
-    "refund": _load_keyword_list("category/refund.yaml"),
-    "account": _load_keyword_list("category/account.yaml"),
-    "bug": _load_keyword_list("category/bug.yaml"),
-    "gacha": _load_keyword_list("category/gacha.yaml"),
-    "policy": _load_keyword_list("category/policy.yaml"),
-    "general": (),
-}
+# CATEGORY_KEYWORDS: dict[Category, tuple[str, ...]] = {
+#     "payment": _load_keyword_list("category/payment.yaml"),
+#     "refund": _load_keyword_list("category/refund.yaml"),
+#     "account": _load_keyword_list("category/account.yaml"),
+#     "bug": _load_keyword_list("category/bug.yaml"),
+#     "gacha": _load_keyword_list("category/gacha.yaml"),
+#     "policy": _load_keyword_list("category/policy.yaml"),
+#     "general": (),
+# }
 
 NEGATIVE_KEYWORDS = _load_keyword_list("sentiment/negative.yaml")
 POSITIVE_KEYWORDS = _load_keyword_list("sentiment/positive.yaml")
 HIGH_RISK_KEYWORDS = _load_keyword_list("risk/high.yaml")
+
+
+## 카테고리 분류! 
+
+CATEGORY_DECISION_PARSER = PydanticOutputParser(pydantic_object=CategoryDecision)
+CATEGORY_PROMPT = PromptTemplate(
+    input_variables=["context_json"],
+    partial_variables={"format_instructions": CATEGORY_DECISION_PARSER.get_format_instructions()},
+    template="""다음 CS 문의를 하나의 category로 분류하세요.
+
+허용 category:
+- payment: 결제, 충전, 영수증, 카드 승인, 결제 실패
+- refund: 환불, 취소, 환불 지연, 결제 취소
+- account: 로그인, 비밀번호, 계정 잠김, 인증, 회원정보
+- bug: 오류, 버그, 기능 미동작, 접속 이상, UI/게임 실행 문제
+- gacha: 가챠, 뽑기, 배너, 확률, 보상 지급 관련 문의
+- policy: 운영 정책, 이용 제한, 제재 기준, 약관, 공지/규정 문의
+- general: 위 항목으로 보기 어려운 일반 문의
+
+분류 입력:
+<category_context>
+{context_json}
+</category_context>
+
+반드시 아래 JSON 형식 지시를 따르세요.
+{format_instructions}
+""",
+)
 
 
 def _fetch_all(cur: Any, sql: str, params: tuple[Any, ...] = ()) -> list[dict[str, Any]]:
@@ -149,7 +180,7 @@ def _build_enriched_ticket(ticket: TicketPayload) -> EnrichedTicket:
     return EnrichedTicket(ticket=ticket, enriched_query=combined, normalized_query=combined.lower())
 
 
-def _classify_category(enriched: EnrichedTicket) -> Category:
+def _classify_category_by_keywords(enriched: EnrichedTicket) -> Category:
     scores = {
         category: _keyword_score(enriched.normalized_query, keywords)
         for category, keywords in CATEGORY_KEYWORDS.items()
@@ -217,6 +248,22 @@ def _build_routing_prompt_input(parts: dict[str, object]) -> dict[str, str]:
     return {"context_json": json.dumps(context, ensure_ascii=False)}
 
 
+def _build_category_prompt_input(enriched: EnrichedTicket) -> dict[str, str]:
+    keyword_hits = {
+        category: [keyword for keyword in keywords if keyword and keyword in enriched.normalized_query][:10]
+        for category, keywords in CATEGORY_KEYWORDS.items()
+        if category != "general"
+    }
+    context = {
+        "source_type": enriched.ticket.source_type,
+        "title": enriched.ticket.title,
+        "raw_query": enriched.ticket.raw_query,
+        "enriched_query": enriched.enriched_query,
+        "keyword_hits": keyword_hits,
+    }
+    return {"context_json": json.dumps(context, ensure_ascii=False)}
+
+
 def _routing_llm() -> ChatOpenAI:
     # 라우팅 판단 전용 LLM 설정이다. 별도 모델이 없으면 공통 LLM_MODEL을 사용한다.
     model = os.environ.get("CS_AUTO_ROUTING_MODEL") or os.environ["LLM_MODEL"]
@@ -226,6 +273,25 @@ def _routing_llm() -> ChatOpenAI:
         temperature=0,
         timeout=float(os.environ.get("LLM_TIMEOUT_SECONDS", "60")),
     )
+
+
+def _category_llm() -> ChatOpenAI:
+    model = os.environ.get("CS_AUTO_CATEGORY_MODEL") or os.environ.get("CS_AUTO_ROUTING_MODEL") or os.environ["LLM_MODEL"]
+    return ChatOpenAI(
+        model=model,
+        api_key=os.environ["LLM_API_KEY"],
+        temperature=0,
+        timeout=float(os.environ.get("LLM_TIMEOUT_SECONDS", "60")),
+    )
+
+
+def _classify_category(enriched: EnrichedTicket) -> Category:
+    chain = CATEGORY_PROMPT | _category_llm() | CATEGORY_DECISION_PARSER
+    try:
+        decision = chain.invoke(_build_category_prompt_input(enriched))
+        return decision.category
+    except Exception:
+        return _classify_category_by_keywords(enriched)
 
 
 def _add_routing_target(parts: dict[str, object]) -> dict[str, object]:
@@ -281,7 +347,6 @@ def build_analysis_result(ticket: dict[str, object] | TicketPayload) -> Analysis
     return AnalysisResult(
         ticket_id=enriched.ticket.ticket_id,
         category=category,
-        responder_type=enriched.ticket.responder_type or "agent",
         enriched_query=enriched.enriched_query,
         risk_level=risk_level,
         sentiment=sentiment,
@@ -319,8 +384,7 @@ def fetch_unanalyzed_tickets() -> list[dict[str, object]]:
                     t.source_type,
                     t.status,
                     t.inquiry_created_at,
-                    t.session_id,
-                    t.responder_type
+                    t.session_id
                 FROM qa_ticket t
                 LEFT JOIN ticket_analysis a ON a.ticket_id = t.ticket_id
                 WHERE a.analysis_id IS NULL
@@ -365,7 +429,7 @@ def save_ticket_analysis(payload: dict[str, object]) -> dict[str, object]:
                     analysis_id,
                     analysis.ticket_id,
                     analysis.category,
-                    analysis.responder_type,
+                    "AI",
                     analysis.enriched_query,
                     analysis.risk_level,
                     analysis.sentiment,
