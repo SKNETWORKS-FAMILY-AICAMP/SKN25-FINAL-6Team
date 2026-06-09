@@ -1,0 +1,1138 @@
+{
+  "dataset_info": {
+    "name": "gameops-chatbot-paper-grounded-15-v1",
+    "description": "15-item focused evaluation dataset: 5 document-grounded RAG questions, 5 structured DB log questions, and 5 multi-hop RAG questions. Cases are grounded in current DB documents and operation log fixtures.",
+    "version": "v1",
+    "total_examples": 15,
+    "categories": {
+      "faq": 10,
+      "payment": 5
+    },
+    "splits": {
+      "document_rag": 5,
+      "structured_db_reasoning": 5,
+      "multihop_rag": 5
+    },
+    "paper_basis": [
+      "RAGAS: Automated Evaluation of Retrieval Augmented Generation (EACL 2024)",
+      "StructGPT: A General Framework for LLM to Reason over Structured Data (2023)",
+      "ChatLR: Redefining Information Retrieval of Structured Database via LLMs (2025)",
+      "Enhancing Few-shot Text-to-SQL Capabilities of LLMs (2023)"
+    ],
+    "db_fixture_source": {
+      "documents": [
+        "QNA-COM-4",
+        "QNA-COM-6",
+        "QNA-COM-14",
+        "QNA-COM-26",
+        "QNA-GSN-17",
+        "HYV-PRI-1",
+        "QNA-COM-12",
+        "QNA-COM-3",
+        "QNA-COM-17",
+        "QNA-COM-29",
+        "QNA-COM-2",
+        "QNA-GSN-1",
+        "QNA-GSN-13"
+      ],
+      "operation_tables": [
+        "game_accounts",
+        "payments",
+        "refunds",
+        "item_delivery_logs",
+        "gacha_logs"
+      ]
+    },
+    "evaluation_note": "Run RAGAS only for metadata.requires_rag=true. Structured DB cases should be evaluated with route/action/tool/evidence accuracy rather than RAGAS document metrics.",
+    "rubric_note": "outputs.rubrics contains per-instance criteria for custom LangSmith evaluators such as answer_relevancy and instance_rubrics. RAGAS metrics still use reference_answer and retrieved_contexts.",
+    "reference_answer_note": "reference_answer is intentionally concise for RAGAS factual correctness; detailed grading criteria live in outputs.key_points and outputs.rubrics."
+  },
+  "examples": [
+    {
+      "inputs": {
+        "user_message": "비밀번호를 잃어버렸는데 어떻게 다시 설정하나요?",
+        "user_id": 1,
+        "account_id": 101,
+        "category": "faq"
+      },
+      "outputs": {
+        "reference_answer": "비밀번호를 잊어버린 경우 HoYoverse 계정의 비밀번호 재설정 절차를 진행해야 합니다. 재설정에는 계정에 연결된 이메일이나 휴대폰 인증이 필요할 수 있습니다.",
+        "expected_route": "faq_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "faq_document"
+        ],
+        "requires_rag": true,
+        "test_type": "rag",
+        "reasoning_type": "single_hop_rag",
+        "source_documents": [
+          "QNA-COM-4"
+        ],
+        "key_points": [
+          "비밀번호 재설정 절차 안내",
+          "연동 이메일 또는 휴대폰 인증 가능성 안내",
+          "인증이 어려우면 계정 복구/고객센터 절차 안내"
+        ],
+        "must_include": [
+          "비밀번호",
+          "재설정",
+          "인증"
+        ],
+        "must_not_include": [
+          "비밀번호를 직접 알려준다",
+          "인증 없이 변경 가능하다고 단정한다"
+        ],
+        "rubrics": {
+          "answer_relevancy": "Directly answer the FAQ question. Do not include unrelated notices or operational guidance.",
+          "evidence_grounding": "Use only retrieved FAQ evidence and avoid unsupported account, payment, or reward claims.",
+          "instance_rubric": "Required checks: 비밀번호 재설정 절차 안내; 연동 이메일 또는 휴대폰 인증 가능성 안내; 인증이 어려우면 계정 복구/고객센터 절차 안내",
+          "must_include": [
+            "비밀번호",
+            "재설정",
+            "인증"
+          ],
+          "must_not_include": [
+            "비밀번호를 직접 알려준다",
+            "인증 없이 변경 가능하다고 단정한다"
+          ],
+          "required_evidence_types": [
+            "faq_document"
+          ],
+          "scoring_guide": {
+            "1.0": "The answer directly addresses the question and includes all required points.",
+            "0.5": "The answer is mostly correct but misses some key condition or caution.",
+            "0.0": "The answer is off-topic, falls back unnecessarily, or contains unsupported claims."
+          }
+        }
+      },
+      "metadata": {
+        "test_id": "PAPER15-RAG-001",
+        "eval_slice": "document_rag",
+        "test_type": "rag",
+        "paper_basis": "RAGAS",
+        "difficulty": "easy",
+        "requires_db": false,
+        "requires_rag": true,
+        "requires_multihop_rag": false,
+        "notes": "Grounded in QNA-COM-4."
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "계정 비밀번호를 바꾸고 싶은데 어디서 변경하나요?",
+        "user_id": 1,
+        "account_id": 101,
+        "category": "faq"
+      },
+      "outputs": {
+        "reference_answer": "계정 비밀번호는 HoYoverse 계정 관리 또는 보안 설정에서 변경할 수 있습니다. 변경 과정에서 본인 확인이 필요할 수 있습니다.",
+        "expected_route": "faq_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "faq_document"
+        ],
+        "requires_rag": true,
+        "test_type": "rag",
+        "reasoning_type": "single_hop_rag",
+        "source_documents": [
+          "QNA-COM-6"
+        ],
+        "key_points": [
+          "계정 관리/보안 설정에서 비밀번호 변경",
+          "본인 확인 필요 가능성",
+          "연동 이메일 또는 휴대폰 확인"
+        ],
+        "must_include": [
+          "계정",
+          "비밀번호",
+          "변경"
+        ],
+        "must_not_include": [
+          "운영자가 대신 비밀번호를 바꿔준다고 단정한다"
+        ],
+        "rubrics": {
+          "answer_relevancy": "Directly answer the FAQ question. Do not include unrelated notices or operational guidance.",
+          "evidence_grounding": "Use only retrieved FAQ evidence and avoid unsupported account, payment, or reward claims.",
+          "instance_rubric": "Required checks: 계정 관리/보안 설정에서 비밀번호 변경; 본인 확인 필요 가능성; 연동 이메일 또는 휴대폰 확인",
+          "must_include": [
+            "계정",
+            "비밀번호",
+            "변경"
+          ],
+          "must_not_include": [
+            "운영자가 대신 비밀번호를 바꿔준다고 단정한다"
+          ],
+          "required_evidence_types": [
+            "faq_document"
+          ],
+          "scoring_guide": {
+            "1.0": "The answer directly addresses the question and includes all required points.",
+            "0.5": "The answer is mostly correct but misses some key condition or caution.",
+            "0.0": "The answer is off-topic, falls back unnecessarily, or contains unsupported claims."
+          }
+        }
+      },
+      "metadata": {
+        "test_id": "PAPER15-RAG-002",
+        "eval_slice": "document_rag",
+        "test_type": "rag",
+        "paper_basis": "RAGAS",
+        "difficulty": "easy",
+        "requires_db": false,
+        "requires_rag": true,
+        "requires_multihop_rag": false,
+        "notes": "Grounded in QNA-COM-6."
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "HoYoverse 계정을 삭제하려면 어떻게 해야 하나요?",
+        "user_id": 1,
+        "account_id": 101,
+        "category": "faq"
+      },
+      "outputs": {
+        "reference_answer": "HoYoverse 계정 삭제는 계정 삭제 신청 절차를 통해 진행합니다. 삭제 전 계정과 연결된 게임 데이터 및 복구 가능 여부를 확인해야 합니다.",
+        "expected_route": "faq_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "faq_document"
+        ],
+        "requires_rag": true,
+        "test_type": "rag",
+        "reasoning_type": "single_hop_rag",
+        "source_documents": [
+          "QNA-COM-14"
+        ],
+        "key_points": [
+          "HoYoverse 계정 삭제 신청 절차",
+          "게임 데이터와 결제 내역 영향 확인",
+          "삭제 완료 후 복구 제한 가능성"
+        ],
+        "must_include": [
+          "계정 삭제",
+          "신청",
+          "복구"
+        ],
+        "must_not_include": [
+          "즉시 삭제된다고 단정한다",
+          "삭제 후 항상 복구 가능하다고 말한다"
+        ],
+        "rubrics": {
+          "answer_relevancy": "Directly answer the FAQ question. Do not include unrelated notices or operational guidance.",
+          "evidence_grounding": "Use only retrieved FAQ evidence and avoid unsupported account, payment, or reward claims.",
+          "instance_rubric": "Required checks: HoYoverse 계정 삭제 신청 절차; 게임 데이터와 결제 내역 영향 확인; 삭제 완료 후 복구 제한 가능성",
+          "must_include": [
+            "계정 삭제",
+            "신청",
+            "복구"
+          ],
+          "must_not_include": [
+            "즉시 삭제된다고 단정한다",
+            "삭제 후 항상 복구 가능하다고 말한다"
+          ],
+          "required_evidence_types": [
+            "faq_document"
+          ],
+          "scoring_guide": {
+            "1.0": "The answer directly addresses the question and includes all required points.",
+            "0.5": "The answer is mostly correct but misses some key condition or caution.",
+            "0.0": "The answer is off-topic, falls back unnecessarily, or contains unsupported claims."
+          }
+        }
+      },
+      "metadata": {
+        "test_id": "PAPER15-RAG-003",
+        "eval_slice": "document_rag",
+        "test_type": "rag",
+        "paper_basis": "RAGAS",
+        "difficulty": "medium",
+        "requires_db": false,
+        "requires_rag": true,
+        "requires_multihop_rag": false,
+        "notes": "Grounded in QNA-COM-14."
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "결제했는데 상품이 계정에 반영되지 않았어요. 어떻게 해야 하나요?",
+        "user_id": 1,
+        "account_id": 101,
+        "category": "faq"
+      },
+      "outputs": {
+        "reference_answer": "결제 후 상품이 반영되지 않았다면 결제에 사용한 디바이스로 로그인해 지급되지 않은 상품의 주문 활성화를 시도해야 합니다. 이때 다시 결제하지 않도록 주의해야 합니다.",
+        "expected_route": "faq_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "faq_document"
+        ],
+        "requires_rag": true,
+        "test_type": "rag",
+        "reasoning_type": "single_hop_rag",
+        "source_documents": [
+          "QNA-COM-26"
+        ],
+        "key_points": [
+          "결제한 디바이스로 로그인",
+          "미지급 상품을 선택해 주문 활성화",
+          "다시 결제하지 않도록 주의",
+          "계속되면 주문 정보로 문의"
+        ],
+        "must_include": [
+          "결제한 디바이스",
+          "주문",
+          "다시 결제하지"
+        ],
+        "must_not_include": [
+          "무조건 환불된다고 답한다",
+          "지급 완료라고 단정한다"
+        ],
+        "rubrics": {
+          "answer_relevancy": "Directly answer the FAQ question. Do not include unrelated notices or operational guidance.",
+          "evidence_grounding": "Use only retrieved FAQ evidence and avoid unsupported account, payment, or reward claims.",
+          "instance_rubric": "Required checks: 결제한 디바이스로 로그인; 미지급 상품을 선택해 주문 활성화; 다시 결제하지 않도록 주의; 계속되면 주문 정보로 문의",
+          "must_include": [
+            "결제한 디바이스",
+            "주문",
+            "다시 결제하지"
+          ],
+          "must_not_include": [
+            "무조건 환불된다고 답한다",
+            "지급 완료라고 단정한다"
+          ],
+          "required_evidence_types": [
+            "faq_document"
+          ],
+          "scoring_guide": {
+            "1.0": "The answer directly addresses the question and includes all required points.",
+            "0.5": "The answer is mostly correct but misses some key condition or caution.",
+            "0.0": "The answer is off-topic, falls back unnecessarily, or contains unsupported claims."
+          }
+        }
+      },
+      "metadata": {
+        "test_id": "PAPER15-RAG-004",
+        "eval_slice": "document_rag",
+        "test_type": "rag",
+        "paper_basis": "RAGAS",
+        "difficulty": "medium",
+        "requires_db": false,
+        "requires_rag": true,
+        "requires_multihop_rag": false,
+        "notes": "Grounded in QNA-COM-26."
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "기원 뽑기 기록은 어디서 확인할 수 있나요?",
+        "user_id": 1,
+        "account_id": 101,
+        "category": "faq"
+      },
+      "outputs": {
+        "reference_answer": "기원 뽑기 기록은 게임 내 기원 화면의 기록 메뉴에서 확인할 수 있습니다. 최근 기록은 반영까지 시간이 걸릴 수 있습니다.",
+        "expected_route": "faq_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "faq_document"
+        ],
+        "requires_rag": true,
+        "test_type": "rag",
+        "reasoning_type": "single_hop_rag",
+        "source_documents": [
+          "QNA-GSN-17"
+        ],
+        "key_points": [
+          "기원 화면의 기록 메뉴",
+          "최근 기록 반영 지연 가능성",
+          "잠시 후 재확인"
+        ],
+        "must_include": [
+          "기원",
+          "기록"
+        ],
+        "must_not_include": [
+          "가챠 결과를 임의로 생성한다",
+          "천장 보장 여부를 단정한다"
+        ],
+        "rubrics": {
+          "answer_relevancy": "Directly answer the FAQ question. Do not include unrelated notices or operational guidance.",
+          "evidence_grounding": "Use only retrieved FAQ evidence and avoid unsupported account, payment, or reward claims.",
+          "instance_rubric": "Required checks: 기원 화면의 기록 메뉴; 최근 기록 반영 지연 가능성; 잠시 후 재확인",
+          "must_include": [
+            "기원",
+            "기록"
+          ],
+          "must_not_include": [
+            "가챠 결과를 임의로 생성한다",
+            "천장 보장 여부를 단정한다"
+          ],
+          "required_evidence_types": [
+            "faq_document"
+          ],
+          "scoring_guide": {
+            "1.0": "The answer directly addresses the question and includes all required points.",
+            "0.5": "The answer is mostly correct but misses some key condition or caution.",
+            "0.0": "The answer is off-topic, falls back unnecessarily, or contains unsupported claims."
+          }
+        }
+      },
+      "metadata": {
+        "test_id": "PAPER15-RAG-005",
+        "eval_slice": "document_rag",
+        "test_type": "rag",
+        "paper_basis": "RAGAS",
+        "difficulty": "easy",
+        "requires_db": false,
+        "requires_rag": true,
+        "requires_multihop_rag": false,
+        "notes": "Grounded in QNA-GSN-17."
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "2026년 5월 25일에 크리스탈 1200개를 결제했는데 스타터 패키지 상자가 안 들어왔어요.",
+        "user_id": 3402,
+        "account_id": 3502,
+        "category": "payment"
+      },
+      "outputs": {
+        "reference_answer": "계정 3502의 payment_id 910088은 paid 상태입니다. 연결된 스타터 패키지 상자 지급 로그는 fail 상태이고 delivered_at이 없어 지급 실패 가능성이 있습니다.",
+        "expected_route": "payment_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "payments",
+          "item_delivery_logs"
+        ],
+        "requires_rag": false,
+        "test_type": "structured_db_reasoning",
+        "reasoning_type": "structured_db_reasoning",
+        "source_records": [
+          "payments.payment_id=910088",
+          "item_delivery_logs.delivery_id=910014"
+        ],
+        "key_points": [
+          "payment_status paid 확인",
+          "스타터 패키지 상자 delivery_status fail 확인",
+          "delivered_at 없음",
+          "지급 실패 가능성 안내"
+        ],
+        "must_include": [
+          "paid",
+          "fail",
+          "스타터 패키지 상자"
+        ],
+        "must_not_include": [
+          "정상 지급 완료라고 답한다",
+          "환불 완료라고 답한다"
+        ],
+        "rubrics": {
+          "answer_relevancy": "Directly answer the user request about payment, refund, item delivery, or gacha logs. Do not fall back to a generic FAQ answer.",
+          "evidence_grounding": "Use only account-scoped evidence from payments, refunds, item_delivery_logs, and gacha_logs.",
+          "instance_rubric": "Required checks: payment_status paid 확인; 스타터 패키지 상자 delivery_status fail 확인; delivered_at 없음; 지급 실패 가능성 안내",
+          "must_include": [
+            "paid",
+            "fail",
+            "스타터 패키지 상자"
+          ],
+          "must_not_include": [
+            "정상 지급 완료라고 답한다",
+            "환불 완료라고 답한다"
+          ],
+          "required_evidence_types": [
+            "payments",
+            "item_delivery_logs"
+          ],
+          "scoring_guide": {
+            "1.0": "The answer correctly determines the requested status and includes all required evidence points.",
+            "0.5": "The answer is directionally correct but misses some log status or key condition.",
+            "0.0": "The answer uses the wrong account/evidence or reverses the status."
+          }
+        }
+      },
+      "metadata": {
+        "test_id": "PAPER15-DB-001",
+        "eval_slice": "structured_db_reasoning",
+        "test_type": "structured_db_reasoning",
+        "paper_basis": "StructGPT + ChatLR",
+        "difficulty": "medium",
+        "requires_db": true,
+        "requires_rag": false,
+        "requires_multihop_rag": false,
+        "notes": "Grounded in account_id=3502 payment_id=910088 and delivery_id=910014."
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "크리스탈 1200개 환불 신청했는데 지금 처리 상태가 어떻게 되나요?",
+        "user_id": 1696,
+        "account_id": 1796,
+        "category": "payment"
+      },
+      "outputs": {
+        "reference_answer": "계정 1796의 payment_id 910237 환불 기록은 refund_status가 reviewing이며 processed_at이 없습니다. 따라서 환불은 아직 검토 중입니다.",
+        "expected_route": "payment_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "payments",
+          "refunds"
+        ],
+        "requires_rag": false,
+        "test_type": "structured_db_reasoning",
+        "reasoning_type": "structured_db_reasoning",
+        "source_records": [
+          "payments.payment_id=910237",
+          "refunds.payment_id=910237"
+        ],
+        "key_points": [
+          "payment_status paid",
+          "refund_status reviewing",
+          "processed_at 없음",
+          "환불 검토 중 안내"
+        ],
+        "must_include": [
+          "reviewing",
+          "검토",
+          "완료되지"
+        ],
+        "must_not_include": [
+          "환불 승인 완료라고 답한다",
+          "아이템 지급 문제로만 답한다"
+        ],
+        "rubrics": {
+          "answer_relevancy": "Directly answer the user request about payment, refund, item delivery, or gacha logs. Do not fall back to a generic FAQ answer.",
+          "evidence_grounding": "Use only account-scoped evidence from payments, refunds, item_delivery_logs, and gacha_logs.",
+          "instance_rubric": "Required checks: payment_status paid; refund_status reviewing; processed_at 없음; 환불 검토 중 안내",
+          "must_include": [
+            "reviewing",
+            "검토",
+            "완료되지"
+          ],
+          "must_not_include": [
+            "환불 승인 완료라고 답한다",
+            "아이템 지급 문제로만 답한다"
+          ],
+          "required_evidence_types": [
+            "payments",
+            "refunds"
+          ],
+          "scoring_guide": {
+            "1.0": "The answer correctly determines the requested status and includes all required evidence points.",
+            "0.5": "The answer is directionally correct but misses some log status or key condition.",
+            "0.0": "The answer uses the wrong account/evidence or reverses the status."
+          }
+        }
+      },
+      "metadata": {
+        "test_id": "PAPER15-DB-002",
+        "eval_slice": "structured_db_reasoning",
+        "test_type": "structured_db_reasoning",
+        "paper_basis": "StructGPT + Few-shot Text-to-SQL",
+        "difficulty": "medium",
+        "requires_db": true,
+        "requires_rag": false,
+        "requires_multihop_rag": false,
+        "notes": "Grounded in account_id=1796 payment_id=910237 refund_status=reviewing."
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "크리스탈 1200개 결제 건 환불이 완료된 건가요?",
+        "user_id": 86,
+        "account_id": 186,
+        "category": "payment"
+      },
+      "outputs": {
+        "reference_answer": "계정 186의 payment_id 910146 환불 기록은 refund_status가 approved이고 processed_at이 존재합니다. 따라서 환불 승인 및 처리 완료 기록으로 볼 수 있습니다.",
+        "expected_route": "payment_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "payments",
+          "refunds"
+        ],
+        "requires_rag": false,
+        "test_type": "structured_db_reasoning",
+        "reasoning_type": "structured_db_reasoning",
+        "source_records": [
+          "payments.payment_id=910146",
+          "refunds.payment_id=910146"
+        ],
+        "key_points": [
+          "payment_id 910146",
+          "refund_status approved",
+          "processed_at 존재",
+          "환불 승인/처리 완료 안내"
+        ],
+        "must_include": [
+          "approved",
+          "processed_at",
+          "완료"
+        ],
+        "must_not_include": [
+          "검토 중이라고 답한다",
+          "환불 기록이 없다고 답한다"
+        ],
+        "rubrics": {
+          "answer_relevancy": "Directly answer the user request about payment, refund, item delivery, or gacha logs. Do not fall back to a generic FAQ answer.",
+          "evidence_grounding": "Use only account-scoped evidence from payments, refunds, item_delivery_logs, and gacha_logs.",
+          "instance_rubric": "Required checks: payment_id 910146; refund_status approved; processed_at 존재; 환불 승인/처리 완료 안내",
+          "must_include": [
+            "approved",
+            "processed_at",
+            "완료"
+          ],
+          "must_not_include": [
+            "검토 중이라고 답한다",
+            "환불 기록이 없다고 답한다"
+          ],
+          "required_evidence_types": [
+            "payments",
+            "refunds"
+          ],
+          "scoring_guide": {
+            "1.0": "The answer correctly determines the requested status and includes all required evidence points.",
+            "0.5": "The answer is directionally correct but misses some log status or key condition.",
+            "0.0": "The answer uses the wrong account/evidence or reverses the status."
+          }
+        }
+      },
+      "metadata": {
+        "test_id": "PAPER15-DB-003",
+        "eval_slice": "structured_db_reasoning",
+        "test_type": "structured_db_reasoning",
+        "paper_basis": "StructGPT + Few-shot Text-to-SQL",
+        "difficulty": "medium",
+        "requires_db": true,
+        "requires_rag": false,
+        "requires_multihop_rag": false,
+        "notes": "Grounded in account_id=186 payment_id=910146 refund_status=approved."
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "최근 가챠에서 천공검이 나온 기록이 있는지 확인해주세요.",
+        "user_id": 2189,
+        "account_id": 2289,
+        "category": "payment"
+      },
+      "outputs": {
+        "reference_answer": "계정 2289의 가챠 로그에는 별빛 픽업 배너에서 천공검을 획득한 기록이 있습니다. 해당 기록의 pity_count는 68입니다.",
+        "expected_route": "payment_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "gacha_logs"
+        ],
+        "requires_rag": false,
+        "test_type": "structured_db_reasoning",
+        "reasoning_type": "structured_db_reasoning",
+        "source_records": [
+          "gacha_logs.gacha_id=910099"
+        ],
+        "key_points": [
+          "천공검 획득 기록 있음",
+          "별빛 픽업 배너",
+          "rarity SR",
+          "pity_count 68"
+        ],
+        "must_include": [
+          "천공검",
+          "별빛 픽업 배너",
+          "68"
+        ],
+        "must_not_include": [
+          "기록이 없다고 답한다",
+          "5성 확정이라고 단정한다"
+        ],
+        "rubrics": {
+          "answer_relevancy": "Directly answer the user request about payment, refund, item delivery, or gacha logs. Do not fall back to a generic FAQ answer.",
+          "evidence_grounding": "Use only account-scoped evidence from payments, refunds, item_delivery_logs, and gacha_logs.",
+          "instance_rubric": "Required checks: 천공검 획득 기록 있음; 별빛 픽업 배너; rarity SR; pity_count 68",
+          "must_include": [
+            "천공검",
+            "별빛 픽업 배너",
+            "68"
+          ],
+          "must_not_include": [
+            "기록이 없다고 답한다",
+            "5성 확정이라고 단정한다"
+          ],
+          "required_evidence_types": [
+            "gacha_logs"
+          ],
+          "scoring_guide": {
+            "1.0": "The answer correctly determines the requested status and includes all required evidence points.",
+            "0.5": "The answer is directionally correct but misses some log status or key condition.",
+            "0.0": "The answer uses the wrong account/evidence or reverses the status."
+          }
+        }
+      },
+      "metadata": {
+        "test_id": "PAPER15-DB-004",
+        "eval_slice": "structured_db_reasoning",
+        "test_type": "structured_db_reasoning",
+        "paper_basis": "StructGPT + ChatLR",
+        "difficulty": "medium",
+        "requires_db": true,
+        "requires_rag": false,
+        "requires_multihop_rag": false,
+        "notes": "Grounded in account_id=2289 gacha_id=910099."
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "이벤트 보상 SSR 소환권이 지급됐는지 확인해주세요.",
+        "user_id": 2080,
+        "account_id": 2180,
+        "category": "payment"
+      },
+      "outputs": {
+        "reference_answer": "계정 2180의 아이템 지급 로그에는 event_reward 출처의 SSR 소환권 3개가 delivered 상태로 기록되어 있습니다.",
+        "expected_route": "payment_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "item_delivery_logs"
+        ],
+        "requires_rag": false,
+        "test_type": "structured_db_reasoning",
+        "reasoning_type": "structured_db_reasoning",
+        "source_records": [
+          "item_delivery_logs.delivery_id=910096"
+        ],
+        "key_points": [
+          "SSR 소환권 3개",
+          "source_type event_reward",
+          "delivery_status delivered",
+          "delivered_at 존재"
+        ],
+        "must_include": [
+          "SSR 소환권",
+          "delivered",
+          "지급 완료"
+        ],
+        "must_not_include": [
+          "지급 실패라고 답한다",
+          "결제 환불 문제로 답한다"
+        ],
+        "rubrics": {
+          "answer_relevancy": "Directly answer the user request about payment, refund, item delivery, or gacha logs. Do not fall back to a generic FAQ answer.",
+          "evidence_grounding": "Use only account-scoped evidence from payments, refunds, item_delivery_logs, and gacha_logs.",
+          "instance_rubric": "Required checks: SSR 소환권 3개; source_type event_reward; delivery_status delivered; delivered_at 존재",
+          "must_include": [
+            "SSR 소환권",
+            "delivered",
+            "지급 완료"
+          ],
+          "must_not_include": [
+            "지급 실패라고 답한다",
+            "결제 환불 문제로 답한다"
+          ],
+          "required_evidence_types": [
+            "item_delivery_logs"
+          ],
+          "scoring_guide": {
+            "1.0": "The answer correctly determines the requested status and includes all required evidence points.",
+            "0.5": "The answer is directionally correct but misses some log status or key condition.",
+            "0.0": "The answer uses the wrong account/evidence or reverses the status."
+          }
+        }
+      },
+      "metadata": {
+        "test_id": "PAPER15-DB-005",
+        "eval_slice": "structured_db_reasoning",
+        "test_type": "structured_db_reasoning",
+        "paper_basis": "StructGPT + ChatLR",
+        "difficulty": "easy",
+        "requires_db": true,
+        "requires_rag": false,
+        "requires_multihop_rag": false,
+        "notes": "Grounded in account_id=2180 delivery_id=910096."
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "계정 비밀번호는 어떻게 변경하나요? 원신에서도 비밀번호를 변경하는 방법이 같은지 알려주세요.",
+        "user_id": 1,
+        "account_id": 101,
+        "category": "faq"
+      },
+      "outputs": {
+        "reference_answer": "HoYoverse 계정 비밀번호는 계정 관리 또는 보안 설정에서 변경할 수 있습니다. 원신 문서의 비밀번호 변경 안내도 계정 설정과 본인 확인 절차를 기준으로 확인해야 합니다.",
+        "expected_route": "faq_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "faq_document"
+        ],
+        "requires_rag": true,
+        "test_type": "multihop_rag",
+        "reasoning_type": "multihop_rag",
+        "source_documents": [
+          "QNA-COM-6",
+          "QNA-GSN-3"
+        ],
+        "expected_reasoning_hops": [
+          "Retrieve HoYoverse account password change guidance from QNA-COM-6",
+          "Retrieve Genshin password change guidance from QNA-GSN-3",
+          "Explain the shared account/security setting flow"
+        ],
+        "key_points": [
+          "HoYoverse 계정 비밀번호 변경",
+          "원신 비밀번호 변경 안내",
+          "계정 설정 또는 보안 설정",
+          "본인 확인 절차"
+        ],
+        "must_include": [
+          "비밀번호",
+          "변경",
+          "계정"
+        ],
+        "must_not_include": [
+          "비밀번호를 직접 알려준다",
+          "인증 없이 변경 가능하다고 단정한다"
+        ],
+        "rubrics": {
+          "answer_relevancy": "Answer every sub-question in the compound user request. Do not answer only one part.",
+          "evidence_grounding": "Use only retrieved FAQ evidence. Do not invent unsupported conditions.",
+          "instance_rubric": "Required multi-hop checks: HoYoverse 계정 비밀번호 변경; 원신 비밀번호 변경 안내; 계정 설정 또는 보안 설정; 본인 확인 절차",
+          "must_include": [
+            "비밀번호",
+            "변경",
+            "계정"
+          ],
+          "must_not_include": [
+            "비밀번호를 직접 알려준다",
+            "인증 없이 변경 가능하다고 단정한다"
+          ],
+          "required_evidence_types": [
+            "faq_document"
+          ],
+          "scoring_guide": {
+            "1.0": "The answer combines all required evidence sources and addresses the whole question.",
+            "0.5": "The answer uses one relevant source but misses another sub-question or condition.",
+            "0.0": "The answer uses unrelated evidence, falls back, or hallucinates unsupported details."
+          }
+        }
+      },
+      "metadata": {
+        "test_id": "PAPER15-MH-001",
+        "eval_slice": "multihop_rag",
+        "test_type": "multihop_rag",
+        "paper_basis": "RAGAS",
+        "difficulty": "hard",
+        "requires_db": false,
+        "requires_rag": true,
+        "requires_multihop_rag": true,
+        "expected_hop_count": 2,
+        "notes": "Requires QNA-COM-6 plus QNA-GSN-3; both appear in current retrieval candidates."
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "SNS 계정을 연동하려면 어떻게 해야 하나요? 그리고 SNS 계정 연동을 해제하려면 어떻게 해야 하나요?",
+        "user_id": 1,
+        "account_id": 101,
+        "category": "faq"
+      },
+      "outputs": {
+        "reference_answer": "SNS 계정을 연동하려면 HoYoverse 통행증 공식 홈페이지의 계정 연동 페이지나 게임 내 설정-계정-유저 센터를 사용할 수 있습니다. SNS 계정 연동 해제도 공식 홈페이지의 계정 연동 페이지나 유저 센터에서 진행할 수 있으며, SNS만 연동된 상태라면 먼저 아이디/메일을 연동해야 합니다.",
+        "expected_route": "faq_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "faq_document"
+        ],
+        "requires_rag": true,
+        "test_type": "multihop_rag",
+        "reasoning_type": "multihop_rag",
+        "source_documents": [
+          "QNA-COM-20",
+          "QNA-COM-16"
+        ],
+        "expected_reasoning_hops": [
+          "Retrieve SNS linking guidance from QNA-COM-20",
+          "Retrieve SNS unlinking guidance from QNA-COM-16",
+          "Explain link and unlink flows separately"
+        ],
+        "key_points": [
+          "SNS 계정 연동 방법",
+          "SNS 계정 연동 해제 방법",
+          "HoYoverse 통행증 공식 홈페이지",
+          "SNS만 연동된 경우 메일/아이디 연동 필요"
+        ],
+        "must_include": [
+          "SNS",
+          "연동",
+          "해제"
+        ],
+        "must_not_include": [
+          "임의로 연동을 해제했다고 말한다",
+          "계정 보호 조치 없이 해제하라고 안내한다"
+        ],
+        "rubrics": {
+          "answer_relevancy": "Answer every sub-question in the compound user request. Do not answer only one part.",
+          "evidence_grounding": "Use only retrieved FAQ evidence. Do not invent unsupported conditions.",
+          "instance_rubric": "Required multi-hop checks: SNS 계정 연동 방법; SNS 계정 연동 해제 방법; HoYoverse 통행증 공식 홈페이지; SNS만 연동된 경우 메일/아이디 연동 필요",
+          "must_include": [
+            "SNS",
+            "연동",
+            "해제"
+          ],
+          "must_not_include": [
+            "임의로 연동을 해제했다고 말한다",
+            "계정 보호 조치 없이 해제하라고 안내한다"
+          ],
+          "required_evidence_types": [
+            "faq_document"
+          ],
+          "scoring_guide": {
+            "1.0": "The answer combines all required evidence sources and addresses the whole question.",
+            "0.5": "The answer uses one relevant source but misses another sub-question or condition.",
+            "0.0": "The answer uses unrelated evidence, falls back, or hallucinates unsupported details."
+          }
+        }
+      },
+      "metadata": {
+        "test_id": "PAPER15-MH-002",
+        "eval_slice": "multihop_rag",
+        "test_type": "multihop_rag",
+        "paper_basis": "RAGAS",
+        "difficulty": "hard",
+        "requires_db": false,
+        "requires_rag": true,
+        "requires_multihop_rag": true,
+        "expected_hop_count": 2,
+        "notes": "Requires QNA-COM-20 plus QNA-COM-16; both appear in current retrieval candidates."
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "결제를 했는데 계정에 반영이 되지 않아요. 게임 내에서 상품이 로드되지 않는데 어떻게 해야 하나요?",
+        "user_id": 1,
+        "account_id": 101,
+        "category": "faq"
+      },
+      "outputs": {
+        "reference_answer": "결제한 상품이 계정에 반영되지 않은 경우 결제한 디바이스로 로그인해 지급되지 않은 상품의 주문 활성화를 확인해야 합니다. 게임 내 상품이 로드되지 않는 경우에는 결제 플랫폼이나 스토어 환경에 대한 안내를 함께 확인해야 합니다.",
+        "expected_route": "faq_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "faq_document"
+        ],
+        "requires_rag": true,
+        "test_type": "multihop_rag",
+        "reasoning_type": "multihop_rag",
+        "source_documents": [
+          "QNA-COM-26",
+          "QNA-COM-29"
+        ],
+        "expected_reasoning_hops": [
+          "Retrieve payment not reflected guidance from QNA-COM-26",
+          "Retrieve product loading guidance from QNA-COM-29",
+          "Explain both checks separately"
+        ],
+        "key_points": [
+          "결제 상품 계정 미반영 확인",
+          "결제한 디바이스로 주문 활성화",
+          "다시 결제하지 않도록 주의",
+          "게임 내 상품 로드 문제 확인"
+        ],
+        "must_include": [
+          "결제",
+          "주문 활성화",
+          "상품"
+        ],
+        "must_not_include": [
+          "정상 지급 완료라고 단정한다",
+          "즉시 환불된다고 답한다"
+        ],
+        "rubrics": {
+          "answer_relevancy": "Answer every sub-question in the compound user request. Do not answer only one part.",
+          "evidence_grounding": "Use only retrieved FAQ evidence. Do not invent unsupported conditions.",
+          "instance_rubric": "Required multi-hop checks: 결제 상품 계정 미반영 확인; 결제한 디바이스로 주문 활성화; 다시 결제하지 않도록 주의; 게임 내 상품 로드 문제 확인",
+          "must_include": [
+            "결제",
+            "주문 활성화",
+            "상품"
+          ],
+          "must_not_include": [
+            "정상 지급 완료라고 단정한다",
+            "즉시 환불된다고 답한다"
+          ],
+          "required_evidence_types": [
+            "faq_document"
+          ],
+          "scoring_guide": {
+            "1.0": "The answer combines all required evidence sources and addresses the whole question.",
+            "0.5": "The answer uses one relevant source but misses another sub-question or condition.",
+            "0.0": "The answer uses unrelated evidence, falls back, or hallucinates unsupported details."
+          }
+        }
+      },
+      "metadata": {
+        "test_id": "PAPER15-MH-003",
+        "eval_slice": "multihop_rag",
+        "test_type": "multihop_rag",
+        "paper_basis": "RAGAS",
+        "difficulty": "hard",
+        "requires_db": false,
+        "requires_rag": true,
+        "requires_multihop_rag": true,
+        "expected_hop_count": 2,
+        "notes": "Requires QNA-COM-26 plus QNA-COM-29; both appear in current retrieval candidates."
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "Microsoft 계정을 어떻게 연결 해제해야 하나요? 원신 HoYoverse 통행증과 Microsoft 계정 크로스 세이브 FAQ도 알려주세요.",
+        "user_id": 1,
+        "account_id": 101,
+        "category": "faq"
+      },
+      "outputs": {
+        "reference_answer": "Microsoft 계정 연결 해제는 Microsoft 계정 연결 해제 문서의 안내를 따라야 합니다. 원신의 Microsoft 크로스 세이브는 HoYoverse 통행증과 Microsoft 계정 연결 상태를 기준으로 확인해야 합니다.",
+        "expected_route": "faq_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "faq_document"
+        ],
+        "requires_rag": true,
+        "test_type": "multihop_rag",
+        "reasoning_type": "multihop_rag",
+        "source_documents": [
+          "QNA-COM-2",
+          "QNA-GSN-1"
+        ],
+        "expected_reasoning_hops": [
+          "Retrieve Microsoft unlink guidance from QNA-COM-2",
+          "Retrieve Genshin Microsoft cross-save FAQ from QNA-GSN-1",
+          "Explain unlink and cross-save relationship"
+        ],
+        "key_points": [
+          "Microsoft 계정 연결 해제",
+          "HoYoverse 통행증 연결 상태",
+          "원신 Microsoft 크로스 세이브",
+          "연결 해제와 크로스 세이브를 구분"
+        ],
+        "must_include": [
+          "Microsoft",
+          "연결 해제",
+          "크로스 세이브"
+        ],
+        "must_not_include": [
+          "임의로 연결을 해제했다고 말한다",
+          "게임 진행도 영향이 전혀 없다고 단정한다"
+        ],
+        "rubrics": {
+          "answer_relevancy": "Answer every sub-question in the compound user request. Do not answer only one part.",
+          "evidence_grounding": "Use only retrieved FAQ evidence. Do not invent unsupported conditions.",
+          "instance_rubric": "Required multi-hop checks: Microsoft 계정 연결 해제; HoYoverse 통행증 연결 상태; 원신 Microsoft 크로스 세이브; 연결 해제와 크로스 세이브를 구분",
+          "must_include": [
+            "Microsoft",
+            "연결 해제",
+            "크로스 세이브"
+          ],
+          "must_not_include": [
+            "임의로 연결을 해제했다고 말한다",
+            "게임 진행도 영향이 전혀 없다고 단정한다"
+          ],
+          "required_evidence_types": [
+            "faq_document"
+          ],
+          "scoring_guide": {
+            "1.0": "The answer combines all required evidence sources and addresses the whole question.",
+            "0.5": "The answer uses one relevant source but misses another sub-question or condition.",
+            "0.0": "The answer uses unrelated evidence, falls back, or hallucinates unsupported details."
+          }
+        }
+      },
+      "metadata": {
+        "test_id": "PAPER15-MH-004",
+        "eval_slice": "multihop_rag",
+        "test_type": "multihop_rag",
+        "paper_basis": "RAGAS",
+        "difficulty": "hard",
+        "requires_db": false,
+        "requires_rag": true,
+        "requires_multihop_rag": true,
+        "expected_hop_count": 2,
+        "notes": "Requires QNA-COM-2 plus QNA-GSN-1; both appear in current retrieval candidates."
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "기원 뽑기 기록은 어떻게 확인하나요? 기원 이벤트 공용 FAQ 규칙도 알려주세요.",
+        "user_id": 1,
+        "account_id": 101,
+        "category": "faq"
+      },
+      "outputs": {
+        "reference_answer": "기원 뽑기 기록은 게임 내 기원 화면의 기록 메뉴에서 확인할 수 있습니다. 기원 이벤트 공용 FAQ의 규칙은 해당 FAQ 문서의 안내를 기준으로 확인해야 합니다.",
+        "expected_route": "faq_agent",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "faq_document"
+        ],
+        "requires_rag": true,
+        "test_type": "multihop_rag",
+        "reasoning_type": "multihop_rag",
+        "source_documents": [
+          "QNA-GSN-17",
+          "QNA-GSN-27"
+        ],
+        "expected_reasoning_hops": [
+          "Retrieve wish history guidance from QNA-GSN-17",
+          "Retrieve general wish event FAQ from QNA-GSN-27",
+          "Answer history checking and event rules separately"
+        ],
+        "key_points": [
+          "기원 뽑기 기록 확인",
+          "게임 내 기원 화면 기록 메뉴",
+          "기원 이벤트 공용 FAQ 규칙",
+          "두 문서의 안내를 구분"
+        ],
+        "must_include": [
+          "기원",
+          "기록",
+          "FAQ"
+        ],
+        "must_not_include": [
+          "현재 사용자의 천장 수치를 임의로 계산한다",
+          "뽑기 결과를 보장한다고 말한다"
+        ],
+        "rubrics": {
+          "answer_relevancy": "Answer every sub-question in the compound user request. Do not answer only one part.",
+          "evidence_grounding": "Use only retrieved FAQ evidence. Do not invent unsupported conditions.",
+          "instance_rubric": "Required multi-hop checks: 기원 뽑기 기록 확인; 게임 내 기원 화면 기록 메뉴; 기원 이벤트 공용 FAQ 규칙; 두 문서의 안내를 구분",
+          "must_include": [
+            "기원",
+            "기록",
+            "FAQ"
+          ],
+          "must_not_include": [
+            "현재 사용자의 천장 수치를 임의로 계산한다",
+            "뽑기 결과를 보장한다고 말한다"
+          ],
+          "required_evidence_types": [
+            "faq_document"
+          ],
+          "scoring_guide": {
+            "1.0": "The answer combines all required evidence sources and addresses the whole question.",
+            "0.5": "The answer uses one relevant source but misses another sub-question or condition.",
+            "0.0": "The answer uses unrelated evidence, falls back, or hallucinates unsupported details."
+          }
+        }
+      },
+      "metadata": {
+        "test_id": "PAPER15-MH-005",
+        "eval_slice": "multihop_rag",
+        "test_type": "multihop_rag",
+        "paper_basis": "RAGAS",
+        "difficulty": "hard",
+        "requires_db": false,
+        "requires_rag": true,
+        "requires_multihop_rag": true,
+        "expected_hop_count": 2,
+        "notes": "Requires QNA-GSN-17 plus QNA-GSN-27; both appear in current retrieval candidates."
+      }
+    }
+  ]
+}

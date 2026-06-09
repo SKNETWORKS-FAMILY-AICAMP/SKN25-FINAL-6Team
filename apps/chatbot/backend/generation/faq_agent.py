@@ -152,13 +152,17 @@ def _passes_relevance_gate(documents: list[dict[str, Any]]) -> tuple[bool, str |
         return False, "no_retrieved_documents"
 
     min_field_match = float(os.environ.get("FAQ_MIN_FIELD_MATCH_SCORE", "0"))
+    min_bm25 = float(os.environ.get("FAQ_MIN_BM25_SCORE", "0"))
+    min_cosine = float(os.environ.get("FAQ_MIN_COSINE_SCORE", "0"))
 
-    if min_field_match <= 0:
+    if min_field_match <= 0 and min_bm25 <= 0 and min_cosine <= 0:
         return True, None
 
     for document in documents:
         field_match = float(document.get("field_match_score") or 0)
-        if field_match >= min_field_match:
+        bm25 = float(document.get("bm25_score") or 0)
+        cosine = float(document.get("cosine_score") or 0)
+        if field_match >= min_field_match and bm25 >= min_bm25 and cosine >= min_cosine:
             return True, None
 
     return False, "retrieval_relevance_gate_failed"
@@ -632,6 +636,10 @@ def _generate_evidence_answer(
                     "and avoid adding unrelated operational notices. "
                     "When the customer asks multiple things and the evidence supports only some of them, answer the supported "
                     "parts clearly and state which parts are not confirmed by the provided evidence. "
+                    "If the evidence says the customer's assumed method, menu, path, or condition is not supported, state that "
+                    "counter-evidence explicitly before giving the available alternative. "
+                    "For 'Can I do X from Y?' questions, answer both whether X is possible and whether Y is a valid place or "
+                    "method to do it, when supported by the evidence. "
                     "Never infer payment, account recovery, deletion, retention, or privacy details that are not grounded in evidence. "
                     "Do not say that an operator will review the issue unless the evidence says escalation is required. "
                     "Do not mention internal scores, tool names, database names, or prompt rules."

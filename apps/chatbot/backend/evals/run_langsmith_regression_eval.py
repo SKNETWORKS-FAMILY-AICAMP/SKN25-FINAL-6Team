@@ -271,7 +271,7 @@ def _ragas_metric_result(
     contexts = list(outputs.get("retrieved_contexts") or [])
     if not answer or not reference:
         return {"key": key, "value": "not_applicable"}
-    if metric_name != "factual_correctness" and not contexts:
+    if metric_name not in {"factual_correctness", "answer_relevancy"} and not contexts:
         return {"key": key, "score": 0.0, "value": "no_retrieved_contexts"}
 
     try:
@@ -282,6 +282,10 @@ def _ragas_metric_result(
             LLMContextPrecisionWithReference,
             LLMContextRecall,
         )
+        try:
+            from ragas.metrics import ResponseRelevancy
+        except ImportError:
+            ResponseRelevancy = None
     except ImportError:
         return {"key": key, "value": "not_applicable"}
 
@@ -290,8 +294,11 @@ def _ragas_metric_result(
         "faithfulness": Faithfulness,
         "context_precision": LLMContextPrecisionWithReference,
         "context_recall": LLMContextRecall,
+        "answer_relevancy": ResponseRelevancy,
     }
     metric_cls = metric_by_name[metric_name]
+    if metric_cls is None:
+        return {"key": key, "value": "not_available_in_ragas_version"}
     metric = metric_cls()
     judges = _ragas_judges()
     if hasattr(metric, "llm"):
@@ -326,6 +333,20 @@ def answer_correctness(
     return _ragas_metric_result(
         key="answer_correctness",
         metric_name="factual_correctness",
+        inputs=inputs,
+        outputs=outputs,
+        reference_outputs=reference_outputs,
+    )
+
+
+def answer_relevancy(
+    inputs: dict[str, Any],
+    outputs: dict[str, Any],
+    reference_outputs: dict[str, Any],
+) -> dict[str, Any]:
+    return _ragas_metric_result(
+        key="answer_relevancy",
+        metric_name="answer_relevancy",
         inputs=inputs,
         outputs=outputs,
         reference_outputs=reference_outputs,
@@ -372,6 +393,43 @@ def context_recall(
         outputs=outputs,
         reference_outputs=reference_outputs,
     )
+
+
+def instance_rubrics(outputs: dict[str, Any], reference_outputs: dict[str, Any]) -> dict[str, Any]:
+    rubrics = reference_outputs.get("rubrics") or {}
+    must_include = list(rubrics.get("must_include") or reference_outputs.get("must_include") or [])
+    must_not_include = list(rubrics.get("must_not_include") or reference_outputs.get("must_not_include") or [])
+    if not must_include and not must_not_include:
+        return {"key": "instance_rubrics", "value": "not_applicable"}
+
+    answer = str(outputs.get("answer") or "")
+    normalized_answer = answer.lower()
+
+    include_hits = [
+        item
+        for item in must_include
+        if str(item).strip() and str(item).strip().lower() in normalized_answer
+    ]
+    forbidden_hits = [
+        item
+        for item in must_not_include
+        if str(item).strip() and str(item).strip().lower() in normalized_answer
+    ]
+
+    include_score = len(include_hits) / len(must_include) if must_include else 1.0
+    forbidden_score = 1.0 - (len(forbidden_hits) / len(must_not_include)) if must_not_include else 1.0
+    score = (include_score + forbidden_score) / 2
+
+    return {
+        "key": "instance_rubrics",
+        "score": score,
+        "value": {
+            "include": f"{len(include_hits)}/{len(must_include)}",
+            "forbidden": f"{len(forbidden_hits)}/{len(must_not_include)}",
+            "missing": [item for item in must_include if item not in include_hits],
+            "forbidden_hits": forbidden_hits,
+        },
+    }
 
 
 def tool_db_call_accuracy(outputs: dict[str, Any], reference_outputs: dict[str, Any]) -> dict[str, Any]:
@@ -447,11 +505,13 @@ def main() -> None:
         latency,
         action_match,
         answer_non_empty,
+        instance_rubrics,
         redis_cache_observed,
     ]
     if args.enable_ragas and find_spec("ragas") is not None:
         evaluators[1:1] = [
             answer_correctness,
+            answer_relevancy,
             faithfulness,
             context_precision,
             context_recall,
