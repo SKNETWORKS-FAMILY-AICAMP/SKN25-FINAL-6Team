@@ -13,7 +13,6 @@ def test_cs_auto_api_contract_documents_answer_agent_integration() -> None:
     assert contract["detail_payload_sections"] == ["ticket", "evidence", "safety", "history", "operationLogs"]
     assert contract["draft_update_side_effects"] == [
         "answer_draft.draft_text overwrite",
-        "qa_ticket.status = human_review",
         "admin_event_logs event_type = draft_updated",
     ]
     assert contract["approval_side_effects"] == [

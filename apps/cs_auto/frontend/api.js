@@ -22,6 +22,9 @@
     getTickets(limit = 50) {
       return request(`/tickets?limit=${limit}`);
     },
+    getTicketDetail(ticketId) {
+      return request(`/tickets/${ticketId}`);
+    },
     login(loginId, password) {
       return request("/auth/login", {
         method: "POST",
