@@ -252,7 +252,6 @@ tailwind.config = {
   html, body { @apply h-full overflow-hidden bg-sand-50 font-sans text-[13px] leading-[1.5] text-ink-900; }
 }
 @layer components {
-  .badge { @apply inline-flex h-[20px] w-[52px] items-center justify-center gap-1 overflow-hidden whitespace-nowrap rounded-full px-2 py-0 text-[10px] font-medium leading-none; }
   .panel { @apply flex min-h-0 flex-col overflow-hidden rounded-xl border border-sand-300 bg-white shadow-panel; }
   .section-head { @apply flex shrink-0 items-center gap-2 border-b border-sand-300 bg-white px-3.5 py-2.5; }
   .section-head h3 { @apply flex-1 text-[13px] font-bold text-ink-900; }
@@ -289,7 +288,7 @@ const appState = {
   currentSessionId: null,
   currentReviewerRole: "일반 운영자",
   activeTopTab: "답변 생성",
-  activeSideTab: "오늘 확인할 문의",
+  activeSideTab: "전체",
   activeFilter: "전체",
   activeCategory: "전체",
   selectedTicketId: null,
@@ -319,13 +318,11 @@ const topTabs = [
   { label: "검토 이력", icon: "history" }
 ];
 
-const sideTabs = [
-  { label: "오늘 확인할 문의", icon: "calendar-today" },
-  { label: "대기 중", icon: "clock" },
-  { label: "할당된 검토", icon: "user-check" },
+const primarySideTabs = [
+  { label: "전체", icon: "list" },
   { label: "긴급", icon: "flame", red: true },
-  { label: "종료", icon: "check", green: true },
-  { label: "전체", icon: "list" }
+  { label: "네이버 카페 문의", icon: "brand-blogger" },
+  { label: "챗봇 문의", icon: "robot" }
 ];
 
 const filterTabs = ["전체", "대기", "검토 중", "긴급", "종료"];
@@ -451,12 +448,9 @@ function getTicketDisplayMeta(ticket) {
 function getVisibleTicketsForSideTab() {
   return appState.tickets.filter((ticket) => {
     const meta = getTicketDisplayMeta(ticket);
-    // 기존에는 draft가 있는 문의만 대기 목록에 보였지만, chatbot pending 문의는
-    // draftId가 없을 수 있으므로 표시 상태 기준으로 필터링한다.
-    if (appState.activeSideTab === "대기 중") return meta.status === "pending" && !meta.assignedToOther;
-    if (appState.activeSideTab === "할당된 검토") return meta.assignedToMe && meta.status !== "done";
     if (appState.activeSideTab === "긴급") return meta.isUrgent && meta.status !== "done";
-    if (appState.activeSideTab === "종료") return meta.status === "done";
+    if (appState.activeSideTab === "네이버 카페 문의") return ticket.sourceType === "naver_cafe";
+    if (appState.activeSideTab === "챗봇 문의") return ticket.sourceType === "chatbot";
     return true;
   });
 }
@@ -464,20 +458,16 @@ function getVisibleTicketsForSideTab() {
 function getSideTabs() {
   const displayStates = appState.tickets.map(getTicketDisplayMeta);
   const total = displayStates.length;
-  // 대기 카운트도 목록 필터와 같은 기준을 사용해야 탭 숫자와 실제 목록이 맞는다.
-  const pending = displayStates.filter((meta) => meta.status === "pending" && !meta.assignedToOther).length;
-  const assigned = displayStates.filter((meta) => meta.assignedToMe && meta.status !== "done").length;
   const urgent = displayStates.filter((meta) => meta.isUrgent && meta.status !== "done").length;
-  const done = displayStates.filter((meta) => meta.status === "done").length;
+  const naverCafe = appState.tickets.filter((ticket) => ticket.sourceType === "naver_cafe").length;
+  const chatbot = appState.tickets.filter((ticket) => ticket.sourceType === "chatbot").length;
   const counts = {
-    "오늘 확인할 문의": total,
-    "대기 중": pending,
-    "할당된 검토": assigned,
+    "전체": total,
     "긴급": urgent,
-    "종료": done,
-    "전체": total
+    "네이버 카페 문의": naverCafe,
+    "챗봇 문의": chatbot
   };
-  return sideTabs.map((tab) => ({ ...tab, count: counts[tab.label] }));
+  return primarySideTabs.map((tab) => ({ ...tab, count: counts[tab.label] }));
 }
 
 function getReviewerInitials(id) {
@@ -621,26 +611,6 @@ function renderLoginOverlayHtml() {
   `;
 }
 
-function badgeClassByTone(tone) {
-  if (tone === "urgent") return "border border-brand-300 bg-brand-100 text-brand-700";
-  if (tone === "review") return "border border-brand-200 bg-brand-500/10 text-brand-700";
-  if (tone === "pending") return "border border-sand-300 bg-sand-100 text-ink-700";
-  if (tone === "done") return "border border-brand-200 bg-brand-50 text-brand-700";
-  return "bg-brand-500/10 text-brand-500";
-}
-
-function levelClass(level) {
-  if (level === "HIGH") return "bg-alert-redBg text-alert-red";
-  if (level === "MID") return "bg-alert-amberBg text-alert-amber";
-  return "bg-brand-500/10 text-brand-500";
-}
-
-function riskSignalEmoji(level) {
-  if (level === "HIGH") return "🔴";
-  if (level === "MID") return "🟡";
-  return "🟢";
-}
-
 function escapeHtml(value) {
   return String(value)
     .replaceAll("&", "&amp;")
@@ -652,28 +622,6 @@ function escapeHtml(value) {
 
 function nl2br(value) {
   return escapeHtml(value).replaceAll("\n", "<br>");
-}
-
-function draftStatusMeta(status) {
-  if (status === "approved") {
-    return {
-      label: "승인",
-      chipClass: "border border-[#a7dfc3] bg-alert-greenBg text-alert-green",
-      panelClass: "border-sand-300 bg-white"
-    };
-  }
-  if (status === "confirmed") {
-    return {
-      label: "확정",
-      chipClass: "border border-brand-200 bg-brand-500/10 text-brand-500",
-      panelClass: "border-sand-300 bg-white"
-    };
-  }
-  return {
-    label: "초안",
-    chipClass: "border border-alert-redBorder bg-alert-redBg text-alert-red",
-    panelClass: "border-sand-300 bg-white"
-  };
 }
 
 function timeStampLabel() {
@@ -1084,7 +1032,6 @@ function renderReviewHistoryContent() {
 function render() {
   syncReviewCalendarState();
   const ticket = getSelectedTicket() || getEmptyTicket();
-  const draftMeta = draftStatusMeta(ticket.draftStatus);
   const remainingRegens = Math.max((ticket.regenLimit || 3) - (ticket.regenCount || 0), 0);
   const ticketListPagination = getTicketListPagination();
   const reviewHistorySidebarGroups = getReviewHistorySidebarGroups();
@@ -1180,9 +1127,6 @@ function render() {
               const itemMeta = getTicketDisplayMeta(item);
               return `
               <button class="ticket-card mb-0 w-full text-left ${appState.selectedTicketId === item.id ? "selected" : ""} ${itemMeta.tone === "urgent" ? "border-l-[3px] border-l-alert-red" : ""} ${itemMeta.status === "done" ? "opacity-50" : ""}" data-ticket-id="${item.id}">
-                <div class="mb-1 flex items-center gap-1.5">
-                  <span class="badge ${badgeClassByTone(itemMeta.tone)}">${itemMeta.label}</span>
-                </div>
                 <div class="mb-1 text-xs font-medium leading-[1.4] text-ink-900">${escapeHtml(item.title)}</div>
               </button>
               `;
@@ -1192,16 +1136,6 @@ function render() {
             <button id="ticket-page-prev-btn" class="btn btn-ghost btn-sm px-2 py-0.5" ${ticketListPagination.currentPage === 1 ? "disabled" : ""}><i class="ti ti-chevron-left"></i></button>
             <span class="text-[10px] text-ink-500">${ticketListPagination.currentPage}/${ticketListPagination.totalPages}페이지</span>
             <button id="ticket-page-next-btn" class="btn btn-ghost btn-sm px-2 py-0.5" ${ticketListPagination.currentPage === ticketListPagination.totalPages ? "disabled" : ""}><i class="ti ti-chevron-right"></i></button>
-          </div>
-        </div>
-        <div class="mt-auto border-t border-sand-300 px-3 pt-2.5">
-          <div class="mb-1 px-1 text-[10px] uppercase tracking-[0.08em] text-ink-500">외부 채널</div>
-          <div class="mb-1 flex items-center gap-2 rounded-lg border border-sand-300 bg-sand-100 px-2.5 py-1.5 text-xs text-ink-700">
-            <i class="ti ti-mail text-sm text-brand-300" aria-hidden="true"></i> 이메일 확인
-          </div>
-          <div class="mb-1 flex items-center gap-2 rounded-lg border border-sand-300 bg-sand-100 px-2.5 py-1.5 text-xs text-ink-700">
-            <i class="ti ti-brand-blogger text-sm text-brand-300" aria-hidden="true"></i> 네이버 카페
-            <i class="ti ti-external-link ml-auto text-[11px] text-brand-200" aria-hidden="true"></i>
           </div>
         </div>
       `}
@@ -1287,12 +1221,6 @@ function render() {
             <div class="subcard">
               <div class="subcard-head">
                 <div class="flex items-center gap-1.5 text-xs font-bold text-ink-900"><i class="ti ti-stack-2 text-sm text-brand-500"></i> 참고 정보</div>
-                <div class="flex flex-wrap items-center gap-1">
-                  <span class="badge border border-sand-300 bg-white text-ink-700">${ticket.risk} ${riskSignalEmoji(ticket.risk)}</span>
-                  <span class="badge border border-sand-300 bg-white text-ink-700">근거 🟢</span>
-                  <span class="badge border border-sand-300 bg-white text-ink-700">주의 🟡</span>
-                  <span class="badge border border-sand-300 bg-white text-ink-700">정책 🟢</span>
-                </div>
               </div>
               <div class="subcard-body flex flex-col gap-4">
                 <div>
@@ -1348,17 +1276,12 @@ function render() {
                 <button class="ticket-card w-full text-left ${appState.selectedTicketId === item.id ? "selected" : ""} ${itemMeta.tone === "urgent" ? "border-l-[3px] border-l-alert-red" : ""} ${itemMeta.status === "done" ? "opacity-50" : ""}" data-ticket-id="${item.id}">
                   <div class="mb-1 flex items-center gap-1.5">
                     <span class="font-mono text-[10px] text-ink-500">#${item.id}</span>
-                    <span class="badge ${badgeClassByTone(itemMeta.tone)}">${itemMeta.label}</span>
                     <span class="ml-auto flex items-center gap-1.5 text-[10px]">
                       <span class="${itemMeta.status === "done" ? "font-medium text-alert-green" : itemMeta.assignedToOther ? "font-semibold text-alert-amber" : "font-normal text-ink-500"}">${itemMeta.statusText}</span>
                       <span class="text-ink-500">${item.timeAgo}</span>
                     </span>
                   </div>
                   <div class="mb-1 text-xs font-medium leading-[1.4] text-ink-900">${escapeHtml(item.title)}</div>
-                  <div class="flex flex-wrap items-center gap-1">
-                    <span class="badge border border-sand-300 bg-sand-100 text-ink-700">${item.channel}</span>
-                    <span class="badge ${draftStatusMeta(item.draftStatus).chipClass}">${draftStatusMeta(item.draftStatus).label}</span>
-                  </div>
                 </button>
                 `;
               }).join("")}
