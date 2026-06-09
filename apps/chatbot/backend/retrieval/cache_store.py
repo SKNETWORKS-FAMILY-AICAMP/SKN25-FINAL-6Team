@@ -7,13 +7,6 @@ from functools import lru_cache
 from typing import TypedDict
 
 
-class CacheLookupResult(TypedDict, total=False):
-    """Return shape shared by memory and Redis-backed cache lookups."""
-
-    hit: bool
-    answer: str
-
-
 class RetrievalCacheLookupResult(TypedDict, total=False):
     """Return shape for cached FAQ/RAG retrieval documents."""
 
@@ -21,7 +14,6 @@ class RetrievalCacheLookupResult(TypedDict, total=False):
     documents: list[dict]
 
 
-_CACHE: dict[str, tuple[str, float]] = {}
 _RETRIEVAL_CACHE: dict[str, tuple[list[dict], float]] = {}
 
 
@@ -59,25 +51,6 @@ def _redis_client():
         return None
 
 
-def _get_memory_cache(query_hash: str) -> CacheLookupResult:
-    """Read from the local in-process fallback cache and enforce TTL expiry."""
-    entry = _CACHE.get(query_hash)
-    if entry is None:
-        return {"hit": False}
-
-    answer, expires_at = entry
-    if time.time() > expires_at:
-        _CACHE.pop(query_hash, None)
-        return {"hit": False}
-
-    return {"hit": True, "answer": answer}
-
-
-def _set_memory_cache(query_hash: str, answer: str, ttl: int) -> None:
-    """Store an answer in the local fallback cache with an absolute expiry time."""
-    _CACHE[query_hash] = (answer, time.time() + ttl)
-
-
 def _get_memory_retrieval_cache(query_hash: str) -> RetrievalCacheLookupResult:
     """Read cached retrieved documents from local memory and enforce TTL expiry."""
     entry = _RETRIEVAL_CACHE.get(query_hash)
@@ -95,43 +68,6 @@ def _get_memory_retrieval_cache(query_hash: str) -> RetrievalCacheLookupResult:
 def _set_memory_retrieval_cache(query_hash: str, documents: list[dict], ttl: int) -> None:
     """Store retrieved documents in the local fallback cache with TTL."""
     _RETRIEVAL_CACHE[query_hash] = (documents, time.time() + ttl)
-
-
-def get_cached_answer(query_hash: str) -> CacheLookupResult:
-    """Return a cached FAQ answer from Redis first, then memory fallback.
-
-    Redis failures are treated as cache misses so chatbot execution can continue.
-    """
-    client = _redis_client()
-    if client is not None:
-        try:
-            answer = client.get(_cache_key(query_hash, namespace="answer"))
-            if answer is not None:
-                return {"hit": True, "answer": answer}
-        except Exception:
-            pass
-
-    return _get_memory_cache(query_hash)
-
-
-def set_cached_answer(query_hash: str, answer: str, ttl: int = 3600) -> dict[str, object]:
-    """Persist a FAQ answer cache entry using Redis when available.
-
-    If Redis is disabled or unavailable, the entry is stored in the in-memory
-    fallback cache while preserving the public cache_store interface.
-    """
-    client = _redis_client()
-    backend = "memory"
-    if client is not None:
-        try:
-            client.setex(_cache_key(query_hash, namespace="answer"), ttl, answer)
-            backend = "redis"
-        except Exception:
-            _set_memory_cache(query_hash, answer, ttl)
-    else:
-        _set_memory_cache(query_hash, answer, ttl)
-
-    return {"status": "ok", "query_hash": query_hash, "ttl": ttl, "backend": backend}
 
 
 def get_cached_retrieval(query_hash: str) -> RetrievalCacheLookupResult:
@@ -182,10 +118,3 @@ def set_cached_retrieval(query_hash: str, documents: list[dict], ttl: int = 3600
     }
 
 
-def clear_cache_for_tests() -> None:
-    """Reset local cache state and Redis client memoization between tests."""
-    _CACHE.clear()
-    _RETRIEVAL_CACHE.clear()
-    cache_clear = getattr(_redis_client, "cache_clear", None)
-    if cache_clear is not None:
-        cache_clear()

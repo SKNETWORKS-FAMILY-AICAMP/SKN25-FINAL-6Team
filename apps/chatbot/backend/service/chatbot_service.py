@@ -43,7 +43,6 @@ def build_state(
         "input_masked": preprocessing["masked"],
         "input_detected_labels": preprocessing["detected_labels"],
         "normalized_query": None,
-        "enriched_query": None,
         "ticket_id": ticket_id,
         "category": category or "",
         "routing_target": "",
@@ -93,7 +92,6 @@ def _node_summary(node_name: str, node_update: dict[str, Any], state_snapshot: d
         query = (
             merged.get("retrieval_query")
             or merged.get("normalized_query")
-            or merged.get("enriched_query")
             or merged.get("raw_query")
         )
         if failure:

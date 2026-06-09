@@ -87,17 +87,6 @@ def login_with_credentials(email: str, password: str, server_region: str) -> dic
     return response
 
 
-def login_with_game_id(game_id: str) -> dict[str, Any]:
-    """Deprecated compatibility shim for older callers."""
-    return {
-        "login_success": False,
-        "user_id": None,
-        "account_id": None,
-        "game_id": game_id.strip(),
-        "message": "이제 이메일, 비밀번호, 서버 정보로 로그인해 주세요.",
-    }
-
-
 def _log_login_result(login_result: dict[str, Any], **extra_metadata: Any) -> None:
     log_event(
         "game_account_login_completed",

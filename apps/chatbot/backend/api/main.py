@@ -12,7 +12,7 @@ configure_langsmith("chatbot")
 
 from chatbot.service.account_service import get_server_regions, login_with_credentials
 from chatbot.service.chatbot_service import run_chatbot
-from chatbot.service.conversation_context_service import build_session_context
+from chatbot.service.multiturn_service import build_session_context
 
 
 app = FastAPI(title="GameOps Chatbot API")

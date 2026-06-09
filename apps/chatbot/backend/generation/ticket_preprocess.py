@@ -46,9 +46,6 @@ def ticket_preprocess_node(state: ChatbotState) -> dict:
     return {
         "ticket_id": ticket_id,
         "normalized_query": normalized_query,
-        "enriched_query": normalized_query,
-        "query_enrichment_method": "normalize_only",
-        "query_enrichment_terms": [],
         "category": category,
         "routing_target": routing_target,
         "is_actionable": True,

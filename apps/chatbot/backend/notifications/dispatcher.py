@@ -12,7 +12,7 @@ BUG_CATEGORY_VALUES = {"bug", "인게임/버그", "인게임버그"}
 
 
 def _inquiry_content(state: dict[str, Any]) -> str:
-    return str(state.get("normalized_query") or state.get("enriched_query") or state.get("raw_query") or "")
+    return str(state.get("normalized_query") or state.get("raw_query") or "")
 
 
 def _urgent_alert_message(state: dict[str, Any]) -> str:

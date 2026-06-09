@@ -31,7 +31,7 @@ class MultihopQueryPlan(BaseModel):
 
 
 def _active_query(state: ChatbotState) -> str:
-    return str(state.get("normalized_query") or state.get("enriched_query") or state.get("raw_query") or "").strip()
+    return str(state.get("normalized_query") or state.get("raw_query") or "").strip()
 
 
 def _format_evidence(documents: list[dict[str, Any]]) -> str:

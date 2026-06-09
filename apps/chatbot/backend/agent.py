@@ -5,7 +5,7 @@ from typing import Any
 
 from collections.abc import Sequence
 
-from chatbot.generation.policies import BUG_POLICY, FAQ_POLICY, PAYMENT_POLICY
+from chatbot.generation.policies import BUG_POLICY, PAYMENT_POLICY
 from chatbot.schemas import ChatbotState
 
 
@@ -62,20 +62,6 @@ def invoke_payment_agent(
         state,
         system_prompt=PAYMENT_POLICY.system_prompt,
         tools=PAYMENT_POLICY.tools,
-        agent_instance=agent_instance,
-    )
-
-
-def invoke_faq_agent(
-    state: ChatbotState | dict[str, Any],
-    *,
-    agent_instance: Any | None = None,
-) -> dict[str, Any]:
-    """Invoke the FAQ/RAG-specific create_agent instance."""
-    return _build_and_invoke_agent(
-        state,
-        system_prompt=FAQ_POLICY.system_prompt,
-        tools=FAQ_POLICY.tools,
         agent_instance=agent_instance,
     )
 
