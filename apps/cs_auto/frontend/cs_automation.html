@@ -497,12 +497,10 @@ function showLoginError(message) {
 async function doLogin() {
   const idInput = document.getElementById("li-id");
   const pwInput = document.getElementById("li-pw");
-  const roleInput = document.getElementById("li-role");
-  if (!idInput || !pwInput || !roleInput) return;
+  if (!idInput || !pwInput) return;
 
   const id = idInput.value.trim();
   const pw = pwInput.value;
-  const role = roleInput.value;
   const err = document.getElementById("li-err");
 
   if (!id) {
@@ -525,7 +523,7 @@ async function doLogin() {
   appState.currentReviewer = data.currentReviewer || data.display_name || data.login_id || id;
   appState.currentReviewerId = data.admin_id || null;
   appState.currentSessionId = data.session ? data.session.session_id : null;
-  appState.currentReviewerRole = data.role === "admin" ? "관리자" : role;
+  appState.currentReviewerRole = data.role === "admin" ? "관리자" : "일반 운영자";
   const overlay = document.getElementById("login-overlay");
   if (overlay) {
     overlay.classList.add("hidden");
@@ -611,20 +609,8 @@ function renderLoginOverlayHtml() {
           <div class="lh-sub">운영자 계정으로 로그인하세요</div>
         </div>
         <div class="login-body">
-          <div class="lf-row">
-            <div>
-              <label class="lf-label">운영자 ID</label>
-              <input id="li-id" class="lf-input" type="text" placeholder="운영자 ID" autocomplete="off">
-            </div>
-            <div>
-              <label class="lf-label">권한 등급</label>
-              <select id="li-role" class="lf-input">
-                <option value="일반 운영자" ${appState.currentReviewerRole === "일반 운영자" ? "selected" : ""}>일반 운영자</option>
-                <option value="주임 운영자" ${appState.currentReviewerRole === "주임 운영자" ? "selected" : ""}>주임 운영자</option>
-                <option value="관리자" ${appState.currentReviewerRole === "관리자" ? "selected" : ""}>관리자</option>
-              </select>
-            </div>
-          </div>
+          <label class="lf-label">운영자 ID</label>
+          <input id="li-id" class="lf-input" type="text" placeholder="운영자 ID" autocomplete="off">
           <label class="lf-label">비밀번호</label>
           <input id="li-pw" class="lf-input" type="password" placeholder="••••••••">
           <div id="li-err" class="login-err"><i class="ti ti-alert-circle" aria-hidden="true"></i> ID 또는 비밀번호가 올바르지 않습니다.</div>
