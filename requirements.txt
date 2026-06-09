@@ -18,6 +18,7 @@ redis==5.2.1
 APScheduler==3.11.0
 pydantic==2.12.5
 python-dotenv==1.2.2
+korcen==1.0.2
 streamlit
 fastapi
 uvicorn
