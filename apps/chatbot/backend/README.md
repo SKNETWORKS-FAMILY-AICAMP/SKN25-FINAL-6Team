@@ -32,7 +32,7 @@ streamlit run src\chatbot\frontend\app.py
 API만 확인할 때는 다음을 사용합니다.
 
 ```powershell
-uvicorn src.chatbot.api.main:app --reload
+uvicorn chatbot.api.main:app --reload
 ```
 
 ### 계정 로그인
@@ -169,7 +169,6 @@ chatbot/
 | `constants.py` | 카테고리, 라우팅, safety threshold 상수 |
 | `tools/db_tools.py` | DB 조회/저장 tool |
 | `tools/vector_tools.py` | Chroma 기반 문서 embedding/search/rerank tool |
-| `retrieval/cache_tools.py` | FAQ 답변 캐시 tool |
 | `tools/registry.py` | `create_agent`에 주입되는 tool 목록 |
 | `generation/prompts/system_prompt.py` | 챗봇 시스템 프롬프트 |
 | `chains/workflow.py` | LangGraph `StateGraph` 정의 |
@@ -243,11 +242,9 @@ write_qa_ticket
   read_item_delivery_logs
 
 FAQ:
-  get_cache
   embed_query
   search_documents
   rerank_documents
-  set_cache
 
 VOC:
   LLM으로 VOC 유형/감정/요약 분류

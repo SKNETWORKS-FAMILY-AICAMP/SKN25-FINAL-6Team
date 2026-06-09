@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.common.db.connection import db_connection
+from common.db.connection import db_connection
 
 from chatbot.repository.base import safe_read, safe_write
 

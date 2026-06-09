@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from src.common.db.connection import db_connection
+from common.db.connection import db_connection
 
 
 def _optional_int(value: Any) -> int | None:
