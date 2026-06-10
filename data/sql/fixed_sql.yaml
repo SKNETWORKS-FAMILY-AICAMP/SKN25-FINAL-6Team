@@ -1,0 +1,148 @@
+payment:
+  source_type: payments
+  sql: |
+    SELECT
+      payment_id,
+      account_id,
+      product_name,
+      product_type,
+      amount,
+      currency,
+      payment_method,
+      payment_status,
+      transaction_id,
+      paid_at
+    FROM payments
+    WHERE account_id = %s
+    ORDER BY paid_at DESC NULLS LAST, payment_id DESC
+    LIMIT %s
+  params:
+    - ticket.account_id
+    - 20
+
+refund:
+  source_type: refunds
+  sql: |
+    SELECT
+      r.refund_id,
+      r.payment_id,
+      p.account_id,
+      p.product_name,
+      p.payment_status,
+      p.paid_at,
+      r.refund_status,
+      r.refund_reason,
+      r.requested_at,
+      r.processed_at
+    FROM refunds r
+    JOIN payments p ON p.payment_id = r.payment_id
+    WHERE p.account_id = %s
+    ORDER BY r.requested_at DESC NULLS LAST, r.refund_id DESC
+    LIMIT %s
+  params:
+    - ticket.account_id
+    - 20
+
+account:
+  source_type: game_accounts
+  sql: |
+    SELECT
+      account_id,
+      user_id,
+      game_name,
+      uid,
+      server_region,
+      account_status
+    FROM game_accounts
+    WHERE account_id = %s
+    LIMIT %s
+  params:
+    - ticket.account_id
+    - 1
+
+gacha:
+  source_type: gacha_logs
+  sql: |
+    SELECT
+      gacha_id,
+      account_id,
+      banner_name,
+      item_name,
+      item_type,
+      rarity,
+      pity_count,
+      pulled_at
+    FROM gacha_logs
+    WHERE account_id = %s
+    ORDER BY pulled_at DESC NULLS LAST, gacha_id DESC
+    LIMIT %s
+  params:
+    - ticket.account_id
+    - 20
+
+bug:
+  source_type: admin_event_logs
+  sql: |
+    SELECT
+      log_id,
+      ticket_id,
+      session_id,
+      node_name,
+      event_type,
+      category,
+      routing_target,
+      tool_name,
+      status,
+      error_message,
+      error_category,
+      metadata,
+      created_at
+    FROM admin_event_logs
+    WHERE ticket_id = %s
+    ORDER BY created_at DESC NULLS LAST, log_id DESC
+    LIMIT %s
+  params:
+    - ticket.ticket_id
+    - 20
+
+policy:
+  source_type: qa_ticket
+  sql: |
+    SELECT
+      ticket_id,
+      account_id,
+      user_id,
+      title,
+      raw_query,
+      source_type,
+      status,
+      inquiry_created_at,
+      session_id,
+      responder_type
+    FROM qa_ticket
+    WHERE ticket_id = %s
+    LIMIT %s
+  params:
+    - ticket.ticket_id
+    - 1
+
+general:
+  source_type: qa_ticket
+  sql: |
+    SELECT
+      ticket_id,
+      account_id,
+      user_id,
+      title,
+      raw_query,
+      source_type,
+      status,
+      inquiry_created_at,
+      session_id,
+      responder_type
+    FROM qa_ticket
+    WHERE ticket_id = %s
+    LIMIT %s
+  params:
+    - ticket.ticket_id
+    - 1

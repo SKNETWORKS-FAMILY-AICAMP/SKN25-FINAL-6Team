@@ -42,6 +42,17 @@ def get_query_embedding(query: str) -> list[float] | None:
         return None
 
 
+def get_chat_llm(*, model: str | None = None) -> ChatOpenAI:
+    """Build the shared ChatOpenAI client with common timeout and tracing config."""
+
+    return ChatOpenAI(
+        model=model or os.environ["LLM_MODEL"],
+        api_key=os.environ["LLM_API_KEY"],
+        temperature=0,
+        timeout=float(os.environ.get("LLM_TIMEOUT_SECONDS", "60")),
+    )
+
+
 def invoke_structured_llm(
     *,
     system_prompt: str,
@@ -55,12 +66,7 @@ def invoke_structured_llm(
     LLM_TIMEOUT_SECONDS 기본값 60: LLM 단일 호출 최대 허용 시간 —
     워크플로우 전체(다단계)는 frontend에서 120초를 별도로 적용합니다.
     """
-    llm = ChatOpenAI(
-        model=os.environ["LLM_MODEL"],
-        api_key=os.environ["LLM_API_KEY"],
-        temperature=0,
-        timeout=float(os.environ.get("LLM_TIMEOUT_SECONDS", "60")),
-    )
+    llm = get_chat_llm()
     structured_llm = llm.with_structured_output(response_model)
     response = structured_llm.invoke(
         [

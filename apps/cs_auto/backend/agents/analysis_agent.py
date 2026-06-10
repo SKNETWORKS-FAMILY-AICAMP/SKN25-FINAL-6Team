@@ -78,6 +78,11 @@ class CategoryDecision(BaseModel):
     reason: str = ""
 
 
+AnalysisResult.model_rebuild()
+RoutingDecision.model_rebuild()
+CategoryDecision.model_rebuild()
+
+
 KEYWORD_ROOT = Path(os.environ.get("CS_AUTO_KEYWORD_DIR", Path(__file__).resolve().parents[4] / "data" / "keywords"))
 
 
@@ -100,16 +105,15 @@ def _load_keyword_list(relative_path: str) -> tuple[str, ...]:
         if keyword.strip()
     )
 
-
-# CATEGORY_KEYWORDS: dict[Category, tuple[str, ...]] = {
-#     "payment": _load_keyword_list("category/payment.yaml"),
-#     "refund": _load_keyword_list("category/refund.yaml"),
-#     "account": _load_keyword_list("category/account.yaml"),
-#     "bug": _load_keyword_list("category/bug.yaml"),
-#     "gacha": _load_keyword_list("category/gacha.yaml"),
-#     "policy": _load_keyword_list("category/policy.yaml"),
-#     "general": (),
-# }
+CATEGORY_KEYWORDS: dict[Category, tuple[str, ...]] = {
+    "payment": _load_keyword_list("category/payment.yaml"),
+    "refund": _load_keyword_list("category/refund.yaml"),
+    "account": _load_keyword_list("category/account.yaml"),
+    "bug": _load_keyword_list("category/bug.yaml"),
+    "gacha": _load_keyword_list("category/gacha.yaml"),
+    "policy": _load_keyword_list("category/policy.yaml"),
+    "general": (),
+}
 
 NEGATIVE_KEYWORDS = _load_keyword_list("sentiment/negative.yaml")
 POSITIVE_KEYWORDS = _load_keyword_list("sentiment/positive.yaml")

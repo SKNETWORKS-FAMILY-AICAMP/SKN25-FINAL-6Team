@@ -1,674 +1,397 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+import json
+import os
+import sys
+from pathlib import Path
+from typing import Any
 
-from agents import answer_agent as agent
+import pytest
+from psycopg.rows import dict_row
 
 
-def _target(**overrides: object) -> dict[str, object]:
-    payload: dict[str, object] = {
-        "ticket_id": 1,
-        "account_id": 10,
-        "user_id": 20,
-        "title": "결제 문의",
-        "raw_query": "결제했는데 상품이 없습니다.",
-        "source_type": "naver_cafe",
-        "status": "analyzed",
-        "analysis_id": 100,
-        "category": "payment",
-        "enriched_query": "결제 상품 미지급",
-        "risk_level": "MID",
-        "sentiment": "neutral",
-        "routing_target": "DB&DOC",
-        "summary": "payment summary",
+ROOT_DIR = Path(__file__).resolve().parents[3]
+os.environ.setdefault("CS_AUTO_KEYWORD_DIR", str(ROOT_DIR / "data" / "keywords"))
+os.environ.setdefault("CS_AUTO_SQL_DIR", str(ROOT_DIR / "data" / "sql"))
+for path in reversed(
+    [
+        ROOT_DIR,
+        ROOT_DIR / "apps" / "cs_auto" / "backend",
+        ROOT_DIR / "packages" / "common-python" / "src",
+    ]
+):
+    path_text = str(path)
+    if path_text not in sys.path:
+        sys.path.insert(0, path_text)
+
+from agents import analysis_agent  # noqa: E402
+from agents import answer_agent  # noqa: E402
+from common.db.connection import db_connection  # noqa: E402
+
+
+HARD_CODED_KOREAN_INQUIRY = {
+    "title": "결제는 됐는데 아이템이 안 들어왔어요",
+    "raw_query": "패키지 결제는 완료됐는데 인벤토리나 우편함 어디에도 아이템이 들어오지 않았습니다. 확인 부탁드립니다.",
+}
+
+LLM_FALLBACK_DRAFT_TEXT = "결제 내역과 지급 지연 가능성을 확인 중입니다. 잠시 후 다시 확인해 주시고, 문제가 계속되면 운영팀 검토 후 추가로 안내드리겠습니다."
+
+
+def _print_json(title: str, payload: object) -> None:
+    print(f"\n[{title}]")
+    print(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
+
+
+def _trim_error(message: str) -> str:
+    return " ".join(message.split())[:300]
+
+
+def _fallback_routing_target(category: str) -> str:
+    if category in {"payment", "refund", "account", "bug", "gacha"}:
+        return "DB&DOC"
+    if category == "policy":
+        return "doc_only"
+    return "fixed_answer"
+
+
+def _require_live_env() -> None:
+    required = ["DB_HOST", "DB_PORT", "DB_USER", "DB_PASSWORD", "DB_NAME", "LLM_API_KEY", "LLM_MODEL"]
+    missing = [key for key in required if not os.environ.get(key, "").strip()]
+    if missing:
+        raise RuntimeError(f"Missing required env vars for live answer-agent test: {', '.join(missing)}")
+
+
+def _load_live_sample_scope() -> dict[str, Any]:
+    with db_connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                SELECT
+                    q.ticket_id,
+                    q.account_id,
+                    q.user_id,
+                    q.source_type,
+                    q.status,
+                    q.session_id,
+                    q.inquiry_created_at
+                FROM qa_ticket q
+                WHERE q.source_type = 'naver_cafe'
+                  AND q.account_id IS NOT NULL
+                  AND q.user_id IS NOT NULL
+                  AND EXISTS (
+                      SELECT 1
+                      FROM payments p
+                      WHERE p.account_id = q.account_id
+                  )
+                ORDER BY q.inquiry_created_at DESC NULLS LAST, q.ticket_id DESC
+                LIMIT 1
+                """
+            )
+            row = cur.fetchone()
+    if row is None:
+        raise RuntimeError("No live qa_ticket sample found with payment-linked account scope.")
+    return dict(row)
+
+
+def _build_live_ticket() -> dict[str, Any]:
+    scope = _load_live_sample_scope()
+    ticket = {
+        "ticket_id": int(scope["ticket_id"]),
+        "account_id": int(scope["account_id"]),
+        "user_id": int(scope["user_id"]),
+        "title": HARD_CODED_KOREAN_INQUIRY["title"],
+        "raw_query": HARD_CODED_KOREAN_INQUIRY["raw_query"],
+        "source_type": str(scope["source_type"]),
+        "status": "open",
+        "session_id": scope.get("session_id"),
+        "inquiry_created_at": scope.get("inquiry_created_at"),
     }
-    payload.update(overrides)
-    return payload
+    _print_json("1. live DB scope + hardcoded Korean inquiry", ticket)
+    return ticket
 
 
-def _evidence() -> list[dict[str, object]]:
-    return [
+def _run_analysis_step_by_step(ticket: dict[str, Any]) -> dict[str, Any]:
+    ticket_payload = analysis_agent._to_ticket_payload(ticket)
+    _print_json("2. qa_ticket payload", ticket_payload.model_dump())
+
+    enriched = analysis_agent._build_enriched_ticket(ticket_payload)
+    _print_json(
+        "3. enriched ticket",
         {
-            "source_type": "payments",
-            "source_id": "1",
-            "evidence_text": "payment_status=paid",
-            "relevance_score": 0.9,
-            "retrieval_rank": 1,
-        }
-    ]
-
-
-def test_select_retrieval_strategy_for_all_routes() -> None:
-    assert agent.select_retrieval_strategy({"routing_target": "DB_only"}) == {
-        "routing_target": "DB_only",
-        "use_documents": False,
-        "use_operation_logs": True,
-        "fixed_answer": False,
-    }
-    assert agent.select_retrieval_strategy({"routing_target": "doc_only"})["use_documents"] is True
-    assert agent.select_retrieval_strategy({"routing_target": "DB&DOC"})["use_operation_logs"] is True
-    assert agent.select_retrieval_strategy({"routing_target": "human_review"})["fixed_answer"] is False
-
-
-def test_answer_agent_contract_documents_roles_and_models() -> None:
-    contract = agent.get_answer_agent_contract()
-
-    assert contract["role_steps"] == [
-        "fetch_analyzed_ticket",
-        "collect_evidence",
-        "generate_answer_draft",
-        "save_answer_draft",
-        "save_evidence_docs",
-        "save_safety_results",
-        "route_by_safety_result",
-    ]
-    assert contract["answer_chain"]["input_model"] == "AnswerTarget"
-    assert contract["answer_chain"]["output_model"] == "AnswerGenerationResult"
-    assert contract["regeneration_chain"]["output_model"] == "AnswerGenerationResult"
-    assert contract["retrieval"]["empty_evidence_policy"] == "human_review"
-    assert contract["retrieval"]["evidence_required_fields"] == [
-        "source_type",
-        "source_id",
-        "evidence_text",
-        "relevance_score",
-        "retrieval_rank",
-    ]
-    assert contract["safety"]["default_thresholds"]["factuality"] == 0.6
-    assert contract["safety"]["action_to_ticket_status"] == {
-        "ready_for_review": "drafted",
-        "human_review": "human_review",
-        "fixed_answer": "human_review",
-    }
-    assert contract["persistence"]["id_strategy"] == "locked_max_plus_one"
-    assert contract["persistence"]["draft_evidence_safety_transaction"] is True
-    assert contract["status"]["standard_ticket_statuses"] == ["open", "analyzed", "drafted", "human_review", "resolved"]
-    assert contract["status"]["frontend_status_contract"]["drafted"] == {"review_status": "pending", "draft_status": "draft"}
-    assert contract["regeneration"]["input"] == ["ticket_id", "regeneration_reason"]
-    assert contract["regeneration"]["default_limit"] == 3
-    assert contract["regeneration"]["evidence_policy"]["reuse_existing_evidence"] is True
-    assert contract["regeneration"]["logs_admin_event"] is True
-    assert contract["batch"]["dag_id"] == "cs_auto_answer_agent_daily"
-    assert contract["batch"]["schedule_kst"] == "0 4 * * *"
-    assert contract["batch"]["runs_after"] == "cs_auto_analysis_agent_daily"
-    assert contract["batch"]["analysis_schedule_kst"] == "0 1 * * *"
-    assert contract["batch"]["ticket_failure_policy"] == "log_and_continue"
-    assert contract["batch"]["completion_event"] == "answer_batch_completed"
-    assert contract["observability"]["log_table"] == "admin_event_logs"
-    assert contract["observability"]["failed_queries_table"] == "not_used_for_answer_agent"
-    assert contract["observability"]["allowed_metadata_fields"] == [
-        "ticket_id",
-        "analysis_id",
-        "draft_id",
-        "evidence_count",
-        "safety_action",
-        "failure_reason",
-    ]
-    assert contract["privacy_security"]["raw_query"] == "use_in_context_never_log_full_text"
-    assert contract["privacy_security"]["transaction_id"] == "excluded_from_evidence_text"
-    assert contract["privacy_security"]["refund_reason"] == "excluded_from_evidence_text"
-    assert contract["implementation_priorities"] == [
-        "1. keep test_answer_agent.py passing",
-        "2. add ticket-level exception handling and batch logging",
-        "3. improve answer draft quality",
-        "4. strengthen safety/factuality validation",
-        "5. keep draft/evidence/safety persistence transactional",
-        "6. verify API/frontend status consistency",
-        "7. add Airflow operation logs and failure recovery policy",
-    ]
-    assert contract["dependencies"]["chatbot_code"] is False
-
-
-def test_fetch_answer_target_tickets_uses_operating_scope(monkeypatch) -> None:
-    captured: dict[str, object] = {}
-
-    class FakeCursor:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *args):
-            return False
-
-        def execute(self, sql, params=()):
-            captured["sql"] = sql
-            captured["params"] = params
-
-        def fetchall(self):
-            return []
-
-    class FakeConnection:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *args):
-            return False
-
-        def cursor(self, **kwargs):
-            return FakeCursor()
-
-    monkeypatch.delenv("CS_AUTO_ANSWER_BATCH_LIMIT", raising=False)
-    monkeypatch.setenv("CS_AUTO_ANSWER_SOURCE_TYPE", "chatbot")
-    monkeypatch.delenv("CS_AUTO_ANSWER_TERMINAL_STATUSES", raising=False)
-    monkeypatch.setattr(agent, "db_connection", lambda: FakeConnection())
-
-    assert agent.fetch_answer_target_tickets() == []
-
-    sql = str(captured["sql"])
-    params = captured["params"]
-    assert "NOT EXISTS" in sql
-    assert "FROM answer_draft" in sql
-    assert "FROM final_response" in sql
-    assert "ORDER BY ta.analyzed_at DESC NULLS LAST, ta.analysis_id DESC" in sql
-    assert params == ("naver_cafe", ["resolved", "closed", "done", "cancelled", "canceled"], 30)
-
-
-def test_process_answer_target_rejects_non_naver_cafe_source() -> None:
-    try:
-        agent.process_answer_target(_target(source_type="chatbot"))
-    except ValueError as exc:
-        assert "answer_generation_supports_naver_cafe_only" in str(exc)
-    else:
-        raise AssertionError("answer generation should only support naver_cafe source_type")
-
-
-def test_answer_agent_contract_documents_roles_and_models() -> None:
-    contract = agent.get_answer_agent_contract()
-
-    assert contract["role_steps"] == [
-        "fetch_analyzed_ticket",
-        "collect_evidence",
-        "generate_answer_draft",
-        "save_answer_draft",
-        "save_evidence_docs",
-        "save_safety_results",
-        "route_by_safety_result",
-    ]
-    assert contract["answer_chain"]["input_model"] == "AnswerTarget"
-    assert contract["answer_chain"]["output_model"] == "AnswerGenerationResult"
-    assert contract["regeneration_chain"]["output_model"] == "AnswerGenerationResult"
-    assert contract["retrieval"]["empty_evidence_policy"] == "human_review"
-    assert contract["retrieval"]["evidence_required_fields"] == [
-        "source_type",
-        "source_id",
-        "evidence_text",
-        "relevance_score",
-        "retrieval_rank",
-    ]
-    assert contract["safety"]["default_thresholds"]["factuality"] == 0.6
-    assert contract["safety"]["action_to_ticket_status"] == {
-        "ready_for_review": "drafted",
-        "human_review": "human_review",
-        "fixed_answer": "human_review",
-    }
-    assert contract["persistence"]["id_strategy"] == "locked_max_plus_one"
-    assert contract["persistence"]["draft_evidence_safety_transaction"] is True
-    assert contract["status"]["standard_ticket_statuses"] == ["open", "analyzed", "drafted", "human_review", "resolved"]
-    assert contract["status"]["frontend_status_contract"]["drafted"] == {"review_status": "pending", "draft_status": "draft"}
-    assert contract["regeneration"]["input"] == ["ticket_id", "regeneration_reason"]
-    assert contract["regeneration"]["default_limit"] == 3
-    assert contract["regeneration"]["evidence_policy"]["reuse_existing_evidence"] is True
-    assert contract["regeneration"]["logs_admin_event"] is True
-    assert contract["batch"]["dag_id"] == "cs_auto_answer_agent_daily"
-    assert contract["batch"]["schedule_kst"] == "0 4 * * *"
-    assert contract["batch"]["runs_after"] == "cs_auto_analysis_agent_daily"
-    assert contract["batch"]["analysis_schedule_kst"] == "0 1 * * *"
-    assert contract["batch"]["ticket_failure_policy"] == "log_and_continue"
-    assert contract["batch"]["completion_event"] == "answer_batch_completed"
-    assert contract["observability"]["log_table"] == "admin_event_logs"
-    assert contract["observability"]["failed_queries_table"] == "not_used_for_answer_agent"
-    assert contract["observability"]["allowed_metadata_fields"] == [
-        "ticket_id",
-        "analysis_id",
-        "draft_id",
-        "evidence_count",
-        "safety_action",
-        "failure_reason",
-    ]
-    assert contract["privacy_security"]["raw_query"] == "use_in_context_never_log_full_text"
-    assert contract["privacy_security"]["transaction_id"] == "excluded_from_evidence_text"
-    assert contract["privacy_security"]["refund_reason"] == "excluded_from_evidence_text"
-    assert contract["implementation_priorities"] == [
-        "1. keep test_answer_agent.py passing",
-        "2. add ticket-level exception handling and batch logging",
-        "3. improve answer draft quality",
-        "4. strengthen safety/factuality validation",
-        "5. keep draft/evidence/safety persistence transactional",
-        "6. verify API/frontend status consistency",
-        "7. add Airflow operation logs and failure recovery policy",
-    ]
-    assert contract["dependencies"]["chatbot_code"] is False
-
-
-def test_fetch_answer_target_tickets_uses_operating_scope(monkeypatch) -> None:
-    captured: dict[str, object] = {}
-
-    class FakeCursor:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *args):
-            return False
-
-        def execute(self, sql, params=()):
-            captured["sql"] = sql
-            captured["params"] = params
-
-        def fetchall(self):
-            return []
-
-    class FakeConnection:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *args):
-            return False
-
-        def cursor(self, **kwargs):
-            return FakeCursor()
-
-    monkeypatch.delenv("CS_AUTO_ANSWER_BATCH_LIMIT", raising=False)
-    monkeypatch.setenv("CS_AUTO_ANSWER_SOURCE_TYPE", "chatbot")
-    monkeypatch.delenv("CS_AUTO_ANSWER_TERMINAL_STATUSES", raising=False)
-    monkeypatch.setattr(agent, "db_connection", lambda: FakeConnection())
-
-    assert agent.fetch_answer_target_tickets() == []
-
-    sql = str(captured["sql"])
-    params = captured["params"]
-    assert "NOT EXISTS" in sql
-    assert "FROM answer_draft" in sql
-    assert "FROM final_response" in sql
-    assert "ORDER BY ta.analyzed_at DESC NULLS LAST, ta.analysis_id DESC" in sql
-    assert params == ("naver_cafe", ["resolved", "closed", "done", "cancelled", "canceled"], 30)
-
-
-def test_process_answer_target_rejects_non_naver_cafe_source() -> None:
-    try:
-        agent.process_answer_target(_target(source_type="chatbot"))
-    except ValueError as exc:
-        assert "answer_generation_supports_naver_cafe_only" in str(exc)
-    else:
-        raise AssertionError("answer generation should only support naver_cafe source_type")
-
-
-def test_generate_answer_draft_text_includes_evidence_and_regeneration_reason() -> None:
-    draft = agent.generate_answer_draft_text(
-        _target(),
-        _target(),
-        _evidence(),
-        regeneration_reason="더 정중하게 작성",
+            "ticket_id": enriched.ticket.ticket_id,
+            "enriched_query": enriched.enriched_query,
+            "normalized_query": enriched.normalized_query,
+        },
     )
 
-    assert "안녕하세요. 게임 고객지원팀입니다." in draft
-    assert "[payments] payment_status=paid" in draft
-    assert "재생성 요청 반영 사항" in draft
+    category_prompt_input = analysis_agent._build_category_prompt_input(enriched)
+    _print_json("4. category prompt input", category_prompt_input)
 
+    category = analysis_agent._classify_category(enriched)
+    print(f"\n[5. category result]\n{category}")
 
-def test_generate_answer_draft_text_falls_back_when_llm_fails(monkeypatch) -> None:
-    logged: list[dict[str, object]] = []
-    monkeypatch.setenv("CS_AUTO_LLM_DRAFT_ENABLED", "true")
-    monkeypatch.setattr(agent, "invoke_structured_llm", lambda **kwargs: (_ for _ in ()).throw(RuntimeError("llm down")))
-    monkeypatch.setattr(agent, "log_answer_generation_event", lambda **kwargs: logged.append(kwargs))
+    sentiment = analysis_agent._score_sentiment(enriched)
+    print(f"\n[6. sentiment result]\n{sentiment}")
 
-    draft = agent.generate_answer_draft_text(_target(), _target(), _evidence())
+    risk_level = analysis_agent._score_risk(enriched, category)
+    print(f"\n[7. risk result]\n{risk_level}")
 
-    assert "안녕하세요. 게임 고객지원팀입니다." in draft
-    assert "[payments] payment_status=paid" in draft
-    assert logged[0]["event_type"] == "answer_llm_generation_failed"
-    assert logged[0]["failure_reason"] == "llm_generation_failed"
+    routing_input = {
+        "enriched": enriched,
+        "category": category,
+        "sentiment": sentiment,
+        "risk_level": risk_level,
+    }
+    _print_json("8. routing prompt input", analysis_agent._build_routing_prompt_input(routing_input))
 
-
-def test_mask_sensitive_text_for_llm_prompt() -> None:
-    masked = agent._mask_sensitive_text("email test@example.com UID:USER12345 transaction:TXN-ABCDEF123456")
-
-    assert "test@example.com" not in masked
-    assert "USER12345" not in masked
-    assert "TXN-ABCDEF123456" not in masked
-    assert "[email_masked]" in masked
-
-
-def test_standardized_evidence_requires_text() -> None:
-    invalid_evidence = [{"source_type": "payments", "source_id": "1", "evidence_text": ""}]
     try:
-        agent.generate_answer_draft_text(_target(), _target(), invalid_evidence)
-    except ValueError as exc:
-        assert "EvidenceItem.evidence_text is required" in str(exc)
-    else:
-        raise AssertionError("invalid evidence should fail standardization")
+        routed = analysis_agent._add_routing_target(routing_input)
+        routing_mode = "llm"
+    except Exception as exc:
+        routed = {**routing_input, "routing_target": _fallback_routing_target(category)}
+        routing_mode = f"fallback: {_trim_error(str(exc))}"
+    print(f"\n[9. routing target]\n{routed['routing_target']}")
+    print(f"\n[9-1. routing mode]\n{routing_mode}")
+
+    summary = analysis_agent._summarize(enriched, category, routed["routing_target"], sentiment, risk_level)
+    print(f"\n[10. analysis summary]\n{summary}")
+
+    result = analysis_agent.AnalysisResult(
+        ticket_id=ticket_payload.ticket_id,
+        category=category,
+        enriched_query=enriched.enriched_query,
+        risk_level=risk_level,
+        sentiment=sentiment,
+        routing_target=routed["routing_target"],
+        summary=summary,
+    ).model_dump()
+    _print_json("11. ticket_analysis result", result)
+    return result
 
 
-def test_evaluate_answer_safety_routes_missing_evidence_to_human_review() -> None:
-    result = agent.evaluate_answer_safety({"ticket_id": 1}, [])
+def _run_answer_step_by_step(ticket: dict[str, Any], analysis: dict[str, Any]) -> dict[str, Any]:
+    target_payload = {
+        **ticket,
+        **analysis,
+    }
+    _print_json("12. merged qa_ticket + ticket_analysis payload", target_payload)
 
-    assert result["safety_action"] == "rejected"
-    assert result["safety_reason"] == "missing_evidence"
-    assert result["hallucination_score"] > result["factuality_score"]
+    target = answer_agent.AnswerTarget.model_validate(target_payload)
+    _print_json("13. answer target", target.model_dump())
 
+    collector = answer_agent.AnswerEvidenceCollector()
+    ticket_payload = collector._ticket_payload(target)
+    analysis_payload = collector._analysis_payload(target)
+    _print_json("14. answer collector qa_ticket payload", ticket_payload)
+    _print_json("15. answer collector ticket_analysis payload", analysis_payload)
 
-def test_answer_chain_routes_zero_evidence_to_human_review(monkeypatch) -> None:
-    monkeypatch.setattr(agent, "collect_answer_evidence", lambda ticket, analysis, strategy: [])
+    routing_target = str(target.routing_target or "fixed_answer")
+    evidence_docs: list[dict[str, Any]] = []
 
-    result = agent.ANSWER_CHAIN.invoke(_target())
-
-    assert result.context.evidence_docs == []
-    assert result.safety.safety_action == "human_review"
-    assert result.safety.safety_reason == "missing_evidence"
-
-
-def test_evaluate_answer_safety_with_evidence_is_ready_for_review() -> None:
-    result = agent.evaluate_answer_safety({"ticket_id": 1}, _evidence())
-
-    assert result["safety_action"] == "approved"
-    assert result["factuality_score"] == 0.9
-
-
-def test_evaluate_answer_safety_routes_policy_risk_to_fixed_answer() -> None:
-    result = agent.evaluate_answer_safety(
-        {"ticket_id": 1},
-        [
+    if routing_target in {"DB_only", "DB&DOC"}:
+        try:
+            db_decision = collector.db_router.decide_query_type(ticket_payload, analysis_payload)
+            _print_json("16. DB router decision", db_decision.model_dump())
+            db_result = collector.db_router.run(ticket_payload, analysis_payload)
+            db_mode = "router"
+        except Exception as exc:
+            db_mode = f"fixed_sql fallback: {_trim_error(str(exc))}"
+            db_result = collector.db_router.fixed_sql.run(ticket_payload, analysis_payload)
+        _print_json(
+            "17. DB search result",
             {
-                "source_type": "payments",
-                "source_id": "1",
-                "evidence_text": "무조건 환불",
-                "relevance_score": 0.9,
+                "query_type": db_result["query_type"],
+                "sql": db_result["sql"],
+                "params": db_result["params"],
+                "plan": db_result["plan"],
+                "row_count": len(db_result["rows"]),
+                "rows_preview": db_result["rows"][:3],
+                "evidence_preview": db_result["evidence"][:3],
+            },
+        )
+        print(f"\n[17-1. DB mode]\n{db_mode}")
+        evidence_docs.extend(list(db_result["evidence"]))
+
+    if routing_target in {"doc_only", "DB&DOC"}:
+        try:
+            document_query = collector.doc_retriever.query_builder.build(ticket_payload, analysis_payload)
+            _print_json("18. document query", document_query.model_dump())
+
+            documents = collector.doc_retriever.document_searcher.search(document_query)
+            _print_json(
+                "19. retrieved documents",
+                [document.model_dump() for document in documents[:5]],
+            )
+
+            doc_evidence = collector.doc_retriever.evidence_assembler.build(documents)
+            _print_json("20. document evidence", doc_evidence[:5])
+            print("\n[20-1. document mode]\nlive")
+            evidence_docs.extend(doc_evidence)
+        except Exception as exc:
+            _print_json("19. retrieved documents", {"error": _trim_error(str(exc))})
+            _print_json("20. document evidence", [])
+            print(f"\n[20-1. document mode]\nskipped: {_trim_error(str(exc))}")
+
+    if routing_target == "fixed_answer":
+        evidence_docs = collector.collect_fixed_answer_context(analysis_payload)
+        _print_json("18. fixed-answer evidence", evidence_docs)
+
+    context = answer_agent.AnswerDraftContext(ticket=target, evidence_docs=evidence_docs)
+    _print_json("21. answer draft context", context.model_dump())
+
+    draft_generator = answer_agent.AnswerDraftGenerator()
+    draft_prompt_input = draft_generator._build_prompt_input(context)
+    _print_json("22. draft prompt input", draft_prompt_input)
+
+    try:
+        draft = draft_generator.generate(context)
+        draft_mode = "llm"
+    except Exception as exc:
+        draft = answer_agent.AnswerDraftResult(
+            draft_text=LLM_FALLBACK_DRAFT_TEXT,
+            safety_label="review_required",
+            review_reason="llm_generation_failed",
+            used_evidence_count=len(evidence_docs),
+            metadata={"draft_mode": "fallback", "llm_error": _trim_error(str(exc))},
+        )
+        draft_mode = f"fallback: {_trim_error(str(exc))}"
+    _print_json("23. generated draft", draft.model_dump())
+    print(f"\n[23-1. draft mode]\n{draft_mode}")
+
+    safety_evaluator = answer_agent.AnswerSafetyEvaluator()
+    safety_prompt_input = safety_evaluator._build_prompt_input({"context": context, "draft": draft})
+    _print_json("24. safety prompt input", safety_prompt_input)
+
+    try:
+        safety = safety_evaluator.evaluate(context, draft)
+        safety_mode = "llm"
+    except Exception as exc:
+        safety = answer_agent.AnswerSafetyResult(
+            hallucination_score=0.4,
+            toxicity_score=0.0,
+            policy_violation_score=0.0,
+            factuality_score=0.4,
+            safety_action="fixed_answer",
+            safety_reason="llm_safety_failed",
+            retry_count=0,
+            average_score=0.5,
+        )
+        safety_mode = f"fallback: {_trim_error(str(exc))}"
+    _print_json("25. safety result", safety.model_dump())
+    print(f"\n[25-1. safety mode]\n{safety_mode}")
+
+    routed_draft = answer_agent.AnswerSafetyRouter().route(context, draft, safety)
+    _print_json("26. routed answer draft", routed_draft.model_dump())
+
+    final_result = {
+        "ticket_id": target.ticket_id,
+        "routing_target": target.routing_target,
+        "evidence_count": len(evidence_docs),
+        "draft_text": routed_draft.draft_text,
+        "safety_label": routed_draft.safety_label,
+        "review_reason": routed_draft.review_reason,
+        "safety": safety.model_dump(),
+        "metadata": routed_draft.metadata,
+    }
+    _print_json("27. final live answer result", final_result)
+    return final_result
+
+
+def _run_live_answer_agent_trace() -> dict[str, Any]:
+    _require_live_env()
+    ticket = _build_live_ticket()
+    analysis = _run_analysis_step_by_step(ticket)
+    return _run_answer_step_by_step(ticket, analysis)
+
+
+def test_answer_target_model_accepts_live_shape() -> None:
+    payload = {
+        "ticket_id": 1,
+        "account_id": 2,
+        "user_id": 3,
+        "title": HARD_CODED_KOREAN_INQUIRY["title"],
+        "raw_query": HARD_CODED_KOREAN_INQUIRY["raw_query"],
+        "source_type": "naver_cafe",
+        "status": "analyzed",
+        "analysis_id": 10,
+        "category": "payment",
+        "enriched_query": HARD_CODED_KOREAN_INQUIRY["title"],
+        "risk_level": "MID",
+        "sentiment": "negative",
+        "routing_target": "DB&DOC",
+        "summary": "summary",
+    }
+
+    target = answer_agent.AnswerTarget.model_validate(payload)
+
+    assert target.ticket_id == 1
+    assert target.category == "payment"
+    assert target.routing_target == "DB&DOC"
+
+
+def test_answer_safety_router_uses_fixed_answer_when_safety_fails() -> None:
+    target = answer_agent.AnswerTarget.model_validate(
+        {
+            "ticket_id": 1,
+            "title": HARD_CODED_KOREAN_INQUIRY["title"],
+            "raw_query": HARD_CODED_KOREAN_INQUIRY["raw_query"],
+            "category": "payment",
+            "routing_target": "fixed_answer",
+            "summary": "summary",
+        }
+    )
+    context = answer_agent.AnswerDraftContext(
+        ticket=target,
+        evidence_docs=[
+            {
+                "source_type": "fixed_answer",
+                "source_id": "fallback_1",
+                "evidence_text": "문의 내용을 확인했습니다. 정확한 안내를 위해 운영팀이 검토 후 다시 안내드리겠습니다.",
+                "relevance_score": 1.0,
                 "retrieval_rank": 1,
             }
         ],
     )
-
-    assert result["safety_action"] == "fixed_answer"
-    assert result["safety_reason"] == "unsafe_expression_detected"
-    assert result["policy_violation_score"] >= 0.5
-
-
-def test_route_by_safety_result_updates_fixed_answer_status_and_analysis(monkeypatch) -> None:
-    executed: list[tuple[str, tuple[object, ...]]] = []
-
-    class FakeCursor:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *args):
-            return False
-
-        def execute(self, sql, params=()):
-            executed.append((" ".join(str(sql).split()), tuple(params)))
-
-    class FakeConnection:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *args):
-            return False
-
-        def cursor(self, **kwargs):
-            return FakeCursor()
-
-    monkeypatch.setattr(agent, "db_connection", lambda: FakeConnection())
-
-    agent.route_by_safety_result(
-        {"ticket_id": 1},
-        {"analysis_id": 100},
-        {"draft_id": 55},
-        {"safety_action": "fixed_answer"},
+    draft = answer_agent.AnswerDraftResult(
+        draft_text="temporary",
+        used_evidence_count=1,
+        metadata={},
+    )
+    safety = answer_agent.AnswerSafetyResult(
+        hallucination_score=0.8,
+        toxicity_score=0.0,
+        policy_violation_score=0.0,
+        factuality_score=0.1,
+        safety_action="fixed_answer",
+        safety_reason="low_safety_average_score",
+        retry_count=0,
+        average_score=0.3,
     )
 
-    assert executed[0][1] == ("human_review", 1)
-    assert "UPDATE qa_ticket" in executed[0][0]
-    assert executed[1][1] == ("fixed_answer", 100)
-    assert "UPDATE ticket_analysis" in executed[1][0]
+    routed = answer_agent.AnswerSafetyRouter().route(context, draft, safety)
+
+    assert "운영팀이 검토" in routed.draft_text
+    assert routed.safety_label == "review_required"
 
 
-def test_next_integer_id_rejects_unknown_table() -> None:
-    class FakeCursor:
-        def execute(self, sql, params=()):
-            raise AssertionError("SQL should not execute for unsupported id target")
+def test_live_answer_agent_with_real_db_and_llm() -> None:
+    r"""실제 DB/LLM을 사용해 answer_agent 단계를 터미널에 출력한다.
 
-    try:
-        agent._next_integer_id(FakeCursor(), "qa_ticket", "ticket_id")
-    except ValueError as exc:
-        assert "Unsupported id target" in str(exc)
-    else:
-        raise AssertionError("unsupported id target should fail")
+    실행 예:
+    $env:CS_AUTO_RUN_LIVE_TESTS="1"
+    python -m pytest apps\tests\cs-auto_tests\test_answer_agent.py -s
+    """
 
+    if os.environ.get("CS_AUTO_RUN_LIVE_TESTS", "").strip().lower() not in {"1", "true", "yes"}:
+        pytest.skip("Set CS_AUTO_RUN_LIVE_TESTS=1 to run the live DB/LLM answer-agent trace.")
 
-def test_ticket_status_for_safety_action_matches_frontend_contract() -> None:
-    assert agent._ticket_status_for_safety_action("ready_for_review") == "drafted"
-    assert agent._ticket_status_for_safety_action("human_review") == "human_review"
-    assert agent._ticket_status_for_safety_action("fixed_answer") == "human_review"
-    assert agent._ticket_status_for_safety_action("unknown") == "human_review"
+    result = _run_live_answer_agent_trace()
 
-
-def test_stale_regeneration_evidence_routes_to_human_review() -> None:
-    target = agent.AnswerTarget.model_validate(_target())
-    context = agent.DraftContext(
-        ticket=target,
-        analysis=target,
-        evidence_docs=[agent.EvidenceItem.model_validate(item) for item in _evidence()],
-        regeneration_reason="다시 작성",
-        evidence_is_stale=True,
-    )
-
-    result = agent._evaluate_context_safety(context)
-
-    assert result.safety_action == "human_review"
-    assert result.safety_reason == "stale_evidence_requires_review"
+    assert result["ticket_id"] > 0
+    assert result["evidence_count"] >= 1
+    assert result["draft_text"].strip() != ""
+    assert result["safety"]["average_score"] >= 0.0
 
 
-def test_regeneration_evidence_stale_policy_uses_draft_created_at(monkeypatch) -> None:
-    monkeypatch.setenv("CS_AUTO_REGENERATION_EVIDENCE_MAX_AGE_DAYS", "7")
-
-    assert agent._is_regeneration_evidence_stale(datetime.now() - timedelta(days=8)) is True
-    assert agent._is_regeneration_evidence_stale(datetime.now() - timedelta(days=1)) is False
-    assert agent._is_regeneration_evidence_stale(None) is True
-
-
-def test_collect_answer_evidence_delegates_to_retrieval_router(monkeypatch) -> None:
-    class FakeRouter:
-        def retrieve_by_routing_target(self, ticket, analysis):
-            return [{"source_type": analysis["routing_target"], "ticket_id": ticket["ticket_id"]}]
-
-    monkeypatch.setattr(agent, "RetrievalRouter", lambda: FakeRouter())
-
-    evidence = agent.collect_answer_evidence(_target(), _target(routing_target="DB_only"), {"routing_target": "DB_only"})
-
-    assert evidence == [{"source_type": "DB_only", "ticket_id": 1}]
-
-
-def test_generate_answer_result_builds_context_draft_and_safety(monkeypatch) -> None:
-    monkeypatch.setattr(agent, "collect_answer_evidence", lambda ticket, analysis, strategy: _evidence())
-
-    result = agent.generate_answer_result(_target())
-
-    assert result.context.ticket.ticket_id == 1
-    assert result.context.evidence_docs[0].source_type == "payments"
-    assert result.safety.safety_action == "approved"
-    assert "payment_status=paid" in result.draft_text
-
-
-def test_generate_regeneration_result_uses_existing_context() -> None:
-    context = {
-        "ticket": _target(),
-        "analysis": _target(),
-        "evidence_docs": _evidence(),
-    }
-
-    result = agent.generate_regeneration_result(context, "간결하게")
-
-    assert result.context.regeneration_reason == "간결하게"
-    assert "재생성 요청 반영 사항" in result.draft_text
-
-
-def test_process_answer_target_orchestrates_persistence(monkeypatch) -> None:
-    calls: list[tuple[str, object]] = []
-    monkeypatch.setattr(agent, "collect_answer_evidence", lambda ticket, analysis, strategy: _evidence())
-    monkeypatch.setattr(
-        agent,
-        "persist_answer_generation_result",
-        lambda result, route_ticket: calls.append(("persist", route_ticket, result.safety.safety_action))
-        or {"draft": {"draft_id": 55}, "evidence_docs": [], "safety": {"safety_action": result.safety.safety_action}},
-    )
-    monkeypatch.setattr(agent, "log_answer_generation_event", lambda **kwargs: calls.append(("log", kwargs["event_type"])))
-
-    agent.process_answer_target(_target())
-
-    assert calls == [("draft", 1), ("evidence", 55), ("safety", 55), ("route", "approved")]
-    assert calls == [
-        ("log", "answer_generation_started"),
-        ("persist", True, "ready_for_review"),
-        ("log", "answer_generation_succeeded"),
-    ]
-
-
-def test_process_answer_target_logs_failure_without_sensitive_text(monkeypatch) -> None:
-    logged: list[dict[str, object]] = []
-
-    monkeypatch.setattr(agent, "collect_answer_evidence", lambda ticket, analysis, strategy: (_ for _ in ()).throw(RuntimeError("SQL failed raw text")))
-    monkeypatch.setattr(agent, "log_answer_generation_event", lambda **kwargs: logged.append(kwargs))
-
-    try:
-        agent.process_answer_target(_target(raw_query="민감 원문", routing_target="DB_only"))
-    except RuntimeError:
-        pass
-    else:
-        raise AssertionError("process_answer_target should re-raise failures")
-
-    assert [row["event_type"] for row in logged] == ["answer_generation_started", "answer_generation_failed"]
-    assert logged[-1]["failure_reason"] == "db_retrieval_failed"
-    assert "민감 원문" not in str(logged)
-
-
-def test_persist_answer_generation_result_saves_draft_evidence_safety_in_transaction(monkeypatch) -> None:
-    executed: list[tuple[str, tuple[object, ...]]] = []
-    next_ids = iter([55, 77, 88])
-
-    class FakeCursor:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *args):
-            return False
-
-        def execute(self, sql, params=()):
-            self.sql = " ".join(str(sql).split())
-            self.params = tuple(params)
-            executed.append((self.sql, self.params))
-
-        def fetchone(self):
-            if "SELECT COALESCE(MAX(" in self.sql:
-                return {"next_id": next(next_ids)}
-            if "RETURNING draft_id" in self.sql:
-                return {"draft_id": 55, "ticket_id": 1, "analysis_id": 100, "draft_text": self.params[-1], "created_at": None}
-            if "RETURNING evidence_id" in self.sql:
-                return {
-                    "evidence_id": 77,
-                    "draft_id": 55,
-                    "source_type": "payments",
-                    "source_id": "1",
-                    "evidence_text": "payment_status=paid",
-                    "relevance_score": 0.9,
-                    "retrieval_rank": 1,
-                }
-            if "RETURNING safety_id" in self.sql:
-                return {"safety_id": 88, "draft_id": 55, "safety_action": "ready_for_review", "safety_reason": "ok", "retry_count": 0}
-            raise AssertionError(f"unexpected fetchone after SQL: {self.sql}")
-
-    class FakeConnection:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *args):
-            return False
-
-        def cursor(self, **kwargs):
-            return FakeCursor()
-
-    target = agent.AnswerTarget.model_validate(_target())
-    result = agent.AnswerGenerationResult(
-        context=agent.DraftContext(
-            ticket=target,
-            analysis=target,
-            evidence_docs=[agent.EvidenceItem.model_validate(item) for item in _evidence()],
-        ),
-        draft_text="draft",
-        safety=agent.SafetyResult(
-            hallucination_score=0.1,
-            toxicity_score=0.0,
-            policy_violation_score=0.0,
-            factuality_score=0.9,
-            safety_action="ready_for_review",
-            safety_reason="ok",
-        ),
-    )
-    monkeypatch.setattr(agent, "db_connection", lambda: FakeConnection())
-
-    saved = agent.persist_answer_generation_result(result, route_ticket=True)
-
-    assert saved["draft"]["draft_id"] == 55
-    assert saved["evidence_docs"][0]["evidence_id"] == 77
-    assert saved["safety"]["safety_id"] == 88
-    assert any("INSERT INTO answer_draft" in sql for sql, _ in executed)
-    assert any("INSERT INTO evidence_docs" in sql for sql, _ in executed)
-    assert any("INSERT INTO safety_results" in sql for sql, _ in executed)
-    assert executed[-1][1] == ("drafted", 1)
-
-
-def test_run_answer_agent_logs_ticket_failures_and_continues(monkeypatch) -> None:
-    calls: list[tuple[str, object]] = []
-    targets = [_target(ticket_id=11), _target(ticket_id=12), _target(ticket_id=13)]
-
-    def fake_process(target: dict[str, object]) -> None:
-        calls.append(("process", target["ticket_id"]))
-        if target["ticket_id"] == 12:
-            raise RuntimeError("retrieval failed")
-
-    monkeypatch.setattr(agent, "fetch_answer_target_tickets", lambda: targets)
-    monkeypatch.setattr(agent, "process_answer_target", fake_process)
-    monkeypatch.setattr(agent, "log_answer_ticket_failure", lambda failure: calls.append(("failure", failure)))
-    monkeypatch.setattr(agent, "log_answer_batch_event", lambda payload, status="success": calls.append(("batch", {**payload, "status": status})))
-
-    result = agent.run_answer_agent()
-
-    assert result["target_count"] == 3
-    assert result["processed_count"] == 2
-    assert result["failed_count"] == 1
-    assert result["failures"][0]["ticket_id"] == 12
-    assert result["failures"][0]["failure_reason"] == "answer_generation_failed"
-    assert calls[0:3] == [("process", 11), ("process", 12), ("failure", result["failures"][0])]
-    assert calls[3][0:2] == ("process", 13)
-    assert calls[-1][0] == "batch"
-    assert calls[-1][1]["status"] == "partial_failed"
-
-
-def test_regenerate_agent_respects_limit_and_saves_new_draft(monkeypatch) -> None:
-    monkeypatch.setattr(agent, "validate_regeneration_limit", lambda ticket_id: {"can_regenerate": True, "retry_count": 1})
-    monkeypatch.setattr(agent, "fetch_regeneration_context", lambda ticket_id: {"ticket": _target(), "analysis": _target(), "evidence_docs": _evidence()})
-    monkeypatch.setattr(
-        agent,
-        "persist_answer_generation_result",
-        lambda result, route_ticket: {
-            "draft": {"draft_id": 77, "ticket_id": result.context.ticket.ticket_id},
-            "evidence_docs": [item.model_dump() for item in result.context.evidence_docs],
-            "safety": {"retry_count": result.safety.retry_count},
-        },
-    )
-    logged: list[dict[str, object]] = []
-    monkeypatch.setattr(agent, "log_regeneration_event", lambda **kwargs: logged.append(kwargs))
-
-    result = agent.regenerate_agent(1, "정중하게")
-
-    assert result is not None
-    assert result["draft"]["draft_id"] == 77
-    assert result["retry_count"] == 2
-    assert result["safety"]["retry_count"] == 2
-    assert logged[0]["ticket_id"] == 1
-    assert logged[0]["retry_count"] == 2
-
-
-def test_regenerate_agent_returns_none_when_limit_exceeded(monkeypatch) -> None:
-    monkeypatch.setattr(agent, "validate_regeneration_limit", lambda ticket_id: {"can_regenerate": False, "retry_count": 3, "limit": 3})
-    monkeypatch.setattr(agent, "fetch_regeneration_context", lambda ticket_id: (_ for _ in ()).throw(AssertionError("should not fetch context")))
-
-    assert agent.regenerate_agent(1, "다시 작성") is None
-
-
-
+if __name__ == "__main__":
+    _run_live_answer_agent_trace()

@@ -43,9 +43,22 @@ Airflow 컨테이너는 `apps/cs_auto/backend/airflow`의 DAG를 읽고, 이미�
 
 `apps/cs_auto/backend/airflow/analysis_agent_dag.py`와 `apps/cs_auto/backend/airflow/answer_agent_dag.py`는 현재 Docker 배포 경로에 포함된다.
 
+`apps/cs_auto/backend/agents/answer_agent.py`도 같은 방식으로 Airflow 이미지에 포함된다. `answer_agent_dag.py`가 내부에서 `agents.answer_agent.run_answer_agent()`를 import하므로, DAG 파일만 올라가고 agent 파일이 빠지면 배포가 실패한다.
+
 - `apps/cs_auto/deploy/docker/airflow.Dockerfile`이 `apps/cs_auto/backend` 전체를 `/opt/airflow/cs_auto_backend`로 복사한다.
 - `AIRFLOW__CORE__DAGS_FOLDER=/opt/airflow/cs_auto_backend/airflow` 로 설정되어 있어 Airflow가 위 디렉터리의 DAG 파일을 자동으로 읽는다.
 - 따라서 `analysis_agent_dag.py`를 수정한 뒤 `docker-compose --env-file .\.env up -d --build`로 이미지를 다시 빌드하면 변경 사항이 배포된다.
+
+이미지 내부 포함 여부는 아래 스크립트로 바로 검증할 수 있다.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\verify-airflow-deploy.ps1
+```
+
+이 스크립트는 Airflow Docker 이미지를 새로 빌드한 뒤 아래 파일들이 이미지 안에 실제로 존재하는지 검사한다.
+
+- `/opt/airflow/cs_auto_backend/agents/answer_agent.py`
+- `/opt/airflow/cs_auto_backend/airflow/answer_agent_dag.py`
 
 배포 후 Airflow UI에서 확인할 DAG:
 

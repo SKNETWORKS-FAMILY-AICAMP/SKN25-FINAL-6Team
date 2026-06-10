@@ -4,18 +4,44 @@ CS Auto API route skeletons.
 
 from __future__ import annotations
 
+import os
 from datetime import datetime
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from api.services.load_ticket import get_review_tickets, get_ticket_detail, run_load_ticket
+from api.services.load_ticket import get_review_tickets, get_ticket_detail
+from api.services.approve_draft import approve_answer_draft as approve_answer_draft_service
 from api.services.draft_actions import update_answer_draft as update_answer_draft_service
+from api.services.regenerate_draft import regenerate_answer_draft as regenerate_answer_draft_service
 
 # 로그인 api 구현
 from utils.login.admin_login import create_admin_session, revoke_admin_session, verify_admin_user_credentials
 
 
-app = FastAPI(title="CS Auto API")
+# API 전반에서 재사용하는 설정 문자열을 상수로 모은다.
+API_TITLE = "CS Auto API"
+API_PREFIX = "/api/cs-auto"
+HEALTH_PATH = "/health"
+DEFAULT_CORS_ORIGIN = "*"
+
+
+def _get_cors_origins() -> list[str]:
+    # 프론트 실행 환경에 맞게 허용 Origin 목록을 환경변수로 받는다.
+    raw_origins = str(os.environ.get("CS_AUTO_API_CORS_ORIGINS") or DEFAULT_CORS_ORIGIN)
+    return [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
+
+
+app = FastAPI(title=API_TITLE)
+
+# 정적 프론트 또는 별도 포트 프론트에서 호출할 수 있도록 CORS를 연다.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_get_cors_origins(),
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 class AdminLoginRequest(BaseModel):
@@ -49,15 +75,15 @@ class DraftApproveRequest(BaseModel):
 
 
 
-@app.get("/health")
-@app.get("/api/cs-auto/health")
+@app.get(HEALTH_PATH)
+@app.get(f"{API_PREFIX}/health")
 def api_health_check() -> dict[str, object]:
     return {"status": "ok"}
 # ---------------------------------------------------------------------------
 # 문의 보이는 APIs
 # ---------------------------------------------------------------------------
 
-@app.get("/api/cs-auto/tickets")
+@app.get(f"{API_PREFIX}/tickets")
 def api_get_review_tickets(
     limit: int | None = None,
     status: str | None = None,
@@ -76,7 +102,7 @@ def api_get_review_tickets(
     )
 
 
-@app.get("/api/cs-auto/tickets/{ticket_id}")
+@app.get(f"{API_PREFIX}/tickets/{{ticket_id}}")
 def api_get_ticket_detail(ticket_id: int) -> dict[str, object]:
     return get_ticket_detail(ticket_id)
 
@@ -86,7 +112,7 @@ def api_get_ticket_detail(ticket_id: int) -> dict[str, object]:
 # ---------------------------------------------------------------------------
 # Login/Logout APIs
 # ---------------------------------------------------------------------------
-@app.post("/api/cs-auto/auth/login")
+@app.post(f"{API_PREFIX}/auth/login")
 def api_login_operator(payload: AdminLoginRequest) -> dict[str, object]:
     # apps\cs_auto\backend\utils\login\admin_login.py에서 구현한 함수.
     admin_user = verify_admin_user_credentials(payload.login_id, payload.password)
@@ -102,7 +128,7 @@ def api_login_operator(payload: AdminLoginRequest) -> dict[str, object]:
     }
 
 
-@app.post("/api/cs-auto/auth/logout")
+@app.post(f"{API_PREFIX}/auth/logout")
 def api_logout_operator(payload: OperatorLogoutRequest) -> dict[str, object]:
     return revoke_admin_session(payload.session_id, payload.admin_id)
 
@@ -113,8 +139,9 @@ def api_logout_operator(payload: OperatorLogoutRequest) -> dict[str, object]:
 # ---------------------------------------------------------------------------
 
 # 답변 초안 수정 api
-@app.patch("/api/cs-auto/tickets/{ticket_id}/draft")
+@app.patch(f"{API_PREFIX}/tickets/{{ticket_id}}/draft")
 def api_update_answer_draft(ticket_id: int, payload: DraftUpdateRequest) -> dict[str, object]:
+    # 수정 액션 이후 프론트가 바로 병합할 수 있는 ticket payload로 감싼다.
     result = update_answer_draft_service(
         ticket_id=ticket_id,
         draft_id=payload.draft_id,
@@ -127,14 +154,33 @@ def api_update_answer_draft(ticket_id: int, payload: DraftUpdateRequest) -> dict
     return {"ok": True, "ticket": build_frontend_ticket_payload(result.get("ticket"))}
 
 # 답변 초안 재생성 api
-@app.post("/api/cs-auto/tickets/{ticket_id}/draft/regenerate")
+@app.post(f"{API_PREFIX}/tickets/{{ticket_id}}/draft/regenerate")
 def api_regenerate_answer_draft(ticket_id: int, payload: DraftRegenerateRequest) -> dict[str, object]:
-    pass
+    # 재생성 사유를 AnswerAgent 기반 서비스로 넘겨 새 초안을 만든다.
+    result = regenerate_answer_draft_service(
+        ticket_id=ticket_id,
+        draft_id=payload.draft_id,
+        regeneration_reason=payload.regeneration_reason,
+        admin_id=payload.admin_id,
+    )
+    if result.get("ok") is False:
+        return result
+    return {"ok": True, "ticket": build_frontend_ticket_payload(result.get("ticket"))}
 
 # 답변 초안 승인 api
-@app.post("/api/cs-auto/tickets/{ticket_id}/draft/approve")
+@app.post(f"{API_PREFIX}/tickets/{{ticket_id}}/draft/approve")
 def api_approve_answer_draft(ticket_id: int, payload: DraftApproveRequest) -> dict[str, object]:
-    pass
+    # 승인 액션 이후에도 프론트는 동일한 ticket 구조만 받도록 맞춘다.
+    result = approve_answer_draft_service(
+        ticket_id=ticket_id,
+        draft_id=payload.draft_id,
+        final_text=payload.final_text,
+        admin_id=payload.admin_id,
+        edit_reason=payload.edit_reason,
+    )
+    if result.get("ok") is False:
+        return result
+    return {"ok": True, "ticket": build_frontend_ticket_payload(result.get("ticket"))}
 
 # ---------------------------------------------------------------------------
 # 

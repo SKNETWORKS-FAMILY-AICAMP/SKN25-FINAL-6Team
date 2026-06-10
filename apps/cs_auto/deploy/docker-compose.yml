@@ -36,16 +36,24 @@ services:
       LLM_API_KEY: ${LLM_API_KEY}
       LLM_MODEL: ${LLM_MODEL}
       CS_AUTO_ROUTING_MODEL: ${CS_AUTO_ROUTING_MODEL:-}
+      CS_AUTO_KEYWORD_DIR: /opt/airflow/data/keywords
       LLM_TIMEOUT_SECONDS: ${LLM_TIMEOUT_SECONDS:-60}
       AIRFLOW__CORE__LOAD_EXAMPLES: "False"
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/cs_auto_backend/airflow
+      AIRFLOW__CORE__DEFAULT_TIMEZONE: Asia/Seoul
       AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "True"
-      PYTHONPATH: /opt/airflow/packages/common-python/src
+      PYTHONPATH: /opt/airflow/packages/common-python/src:/opt/airflow/cs_auto_backend
     command: standalone
     ports:
       - "${CS_AUTO_AIRFLOW_PORT:-18080}:8080"
     volumes:
       - cs_auto_airflow_logs:/opt/airflow/logs
+    healthcheck:
+      test: ["CMD-SHELL", "airflow dags list >/dev/null 2>&1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
 volumes:
   cs_auto_airflow_logs:
