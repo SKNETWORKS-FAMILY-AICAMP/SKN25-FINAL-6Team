@@ -5,47 +5,13 @@ import json
 from langchain_core.tools import tool
 
 
+# Agent가 추론 중 직접 조회할 수 있는 DB read만 LangChain tool로 노출한다.
+# 티켓 저장/초안 저장/최종 응답 저장은 workflow 노드에서 repository를 직접 호출한다.
 def _json(data: object) -> str:
     return json.dumps(data, ensure_ascii=False, indent=2, default=str)
 
 
-@tool(parse_docstring=True)
-def verify_user_login(email: str, password: str) -> str:
-    """Verify chatbot login credentials and return linked game account metadata.
-
-    Args:
-        email: Login email stored in community_users.email.
-        password: Plain-text password entered by the user.
-    """
-    from chatbot.repository.account_repository import verify_user_login as verify_login
-
-    return _json(verify_login(email=email, password=password))
-
-
-@tool(parse_docstring=True)
-def read_payments(account_id: int) -> str:
-    """Read payment records for the given account.
-
-    Args:
-        account_id: Game account ID to look up.
-    """
-    from chatbot.repository.operation_log_repository import read_payments_by_account
-
-    return _json(read_payments_by_account(account_id))
-
-
-@tool(parse_docstring=True)
-def read_refunds(payment_id: int) -> str:
-    """Read refund records for the given payment.
-
-    Args:
-        payment_id: Payment ID to look up refunds for.
-    """
-    from chatbot.repository.operation_log_repository import read_refunds_by_payment
-
-    return _json(read_refunds_by_payment(payment_id))
-
-
+# 버그 agent가 아이템 미지급 문의를 검토할 때 계정별 지급 로그를 조회한다.
 @tool(parse_docstring=True)
 def read_item_delivery_logs(account_id: int) -> str:
     """Read item delivery log records for the given account.
@@ -58,6 +24,7 @@ def read_item_delivery_logs(account_id: int) -> str:
     return _json(read_item_delivery_logs_by_account(account_id))
 
 
+# 버그 agent가 가챠/뽑기 결과 문의를 검토할 때 계정별 뽑기 로그를 조회한다.
 @tool(parse_docstring=True)
 def read_gacha_logs(account_id: int) -> str:
     """Read gacha pull log records for the given account.
@@ -70,6 +37,7 @@ def read_gacha_logs(account_id: int) -> str:
     return _json(read_gacha_logs_by_account(account_id))
 
 
+# payment agent가 결제/환불/아이템 지급/가챠 로그를 사용자 소유 범위 안에서 한 번에 모은다.
 @tool(parse_docstring=True)
 def collect_user_payment_context(user_id: int, account_id: int | None = None) -> str:
     """Read payment, refund, item delivery, and gacha records owned by the logged-in user.
@@ -81,89 +49,3 @@ def collect_user_payment_context(user_id: int, account_id: int | None = None) ->
     from chatbot.repository.operation_log_repository import collect_payment_context_by_user
 
     return _json(collect_payment_context_by_user(user_id=user_id, account_id=account_id))
-
-
-@tool(parse_docstring=True)
-def write_qa_ticket(payload: dict) -> str:
-    """Write a new QA ticket record.
-
-    Args:
-        payload: QA_ticket fields including ticket_id, user_id, account_id, session_id, and raw_query.
-    """
-    from chatbot.repository.ticket_repository import save_qa_ticket
-
-    return _json(save_qa_ticket(payload))
-
-
-@tool(parse_docstring=True)
-def write_answer_draft(payload: dict) -> str:
-    """Write an answer draft for a ticket.
-
-    Args:
-        payload: answer_draft fields including ticket_id, draft_text, and prompt_version.
-    """
-    from chatbot.repository.draft_repository import save_answer_draft
-
-    return _json(save_answer_draft(payload))
-
-
-@tool(parse_docstring=True)
-def write_evidence_docs(payload: dict) -> str:
-    """Write evidence document references tied to an answer draft.
-
-    Args:
-        payload: evidence_docs fields including draft_id, source_type, source_id, evidence_text,
-            relevance_score, and retrieval_rank.
-    """
-    from chatbot.repository.draft_repository import save_evidence_docs
-
-    return _json(save_evidence_docs(payload))
-
-
-@tool(parse_docstring=True)
-def write_safety_results(payload: dict) -> str:
-    """Write safety evaluation results for an answer draft.
-
-    Args:
-        payload: safety_results fields including draft_id, scores, safety_action, safety_reason,
-            and retry_count.
-    """
-    from chatbot.repository.safety_repository import save_safety_results
-
-    return _json(save_safety_results(payload))
-
-
-@tool(parse_docstring=True)
-def write_final_response(payload: dict) -> str:
-    """Write the final customer-facing answer.
-
-    Args:
-        payload: Final response fields including ticket_id, draft_id, final_text, and safety_action.
-    """
-    from chatbot.repository.final_response_repository import save_final_response
-
-    return _json(save_final_response(payload))
-
-
-@tool(parse_docstring=True)
-def write_failed_query(payload: dict) -> str:
-    """Write a failed FAQ or low-evidence query for later analysis.
-
-    Args:
-        payload: Failed query fields including ticket_id, query, category, and reason.
-    """
-    from chatbot.repository.failed_query_repository import save_failed_query
-
-    return _json(save_failed_query(payload))
-
-
-@tool(parse_docstring=True)
-def update_qa_ticket_status(payload: dict) -> str:
-    """Update a QA ticket status after final chatbot handling.
-
-    Args:
-        payload: Fields including ticket_id and status.
-    """
-    from chatbot.repository.ticket_repository import update_qa_ticket_status as update_status
-
-    return _json(update_status(payload))

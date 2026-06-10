@@ -3,6 +3,7 @@ from __future__ import annotations
 from chatbot.generation.prompts.system_prompt import CHATBOT_SYSTEM_PROMPT
 
 
+# bug agent가 자동 단정 대신 재현 정보와 운영 검토 안내 중심으로 초안을 만들게 하는 prompt다.
 BUG_AGENT_PROMPT = CHATBOT_SYSTEM_PROMPT + """
 
 Category focus: 인게임버그 / 가챠 / 아이템 지급 이상

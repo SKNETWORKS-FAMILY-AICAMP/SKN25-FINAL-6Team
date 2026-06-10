@@ -7,6 +7,7 @@ from korcen import korcen as korcen_filter
 
 
 PROMPT_INJECTION_PATTERNS: tuple[re.Pattern[str], ...] = (
+    # 입력 전처리 단계에서는 LLM 호출 없이 prompt injection 의심 표현만 빠르게 마스킹한다.
     re.compile(
         r"\b(ignore|forget|bypass|override|disregard)\b.{0,40}\b(instruction|rule|policy|safety|guardrail)s?\b",
         re.IGNORECASE,
@@ -35,6 +36,7 @@ PROMPT_INJECTION_PATTERNS: tuple[re.Pattern[str], ...] = (
 
 
 SENSITIVE_PATTERNS: tuple[tuple[str, re.Pattern[str], str], ...] = (
+    # LLM과 로그에 그대로 들어가면 위험한 개인정보/인증정보 패턴을 먼저 마스킹한다.
     ("rrn", re.compile(r"\b\d{6}-?[1-4]\d{6}\b"), "[RRN]"),
     ("card_number", re.compile(r"\b(?:\d[ -]?){13,19}\b"), "[CARD_NUMBER]"),
     ("email", re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"), "[EMAIL]"),
@@ -66,6 +68,7 @@ def _append_unique(labels: list[str], label: str) -> None:
 
 
 def _mask_profanity(text: str) -> tuple[str, bool]:
+    # korcen으로 욕설 구간을 감지하고, 감지된 구간만 [PROFANITY]로 치환한다.
     marker = "\ue000"
     highlighted = korcen_filter.highlight_profanity(text, highlight_char=marker)
     if highlighted == text:
@@ -76,6 +79,7 @@ def _mask_profanity(text: str) -> tuple[str, bool]:
 
 
 def _mask_prompt_injection(text: str) -> tuple[str, bool]:
+    # prompt injection 의심 표현은 답변 차단이 아니라 [PROMPT_INJECTION] 마스킹과 label 기록만 수행한다.
     masked_text = text
     detected = False
     for pattern in PROMPT_INJECTION_PATTERNS:
@@ -85,20 +89,23 @@ def _mask_prompt_injection(text: str) -> tuple[str, bool]:
 
 
 def preprocess_user_input(raw_content: str | None) -> dict[str, Any]:
-    """Mask sensitive user input for runtime LLM use without changing the stored raw query."""
+    # 1단계: 원문은 보존하고, 런타임 LLM에 넘길 masked_content만 별도로 만든다.
     raw = "" if raw_content is None else str(raw_content)
     masked_content = raw.replace("\x00", "")
     detected_labels: list[str] = []
 
+    # 2단계: 개인정보/인증정보 regex를 먼저 적용한다.
     for label, pattern, replacement in SENSITIVE_PATTERNS:
         masked_content, count = pattern.subn(replacement, masked_content)
         if count:
             _append_unique(detected_labels, label)
 
+    # 3단계: 욕설은 korcen으로 감지해서 label과 마스킹 결과에 반영한다.
     masked_content, profanity_detected = _mask_profanity(masked_content)
     if profanity_detected:
         _append_unique(detected_labels, "profanity")
 
+    # 4단계: prompt injection 의심 regex를 적용하고, 차단 대신 마스킹 label만 남긴다.
     masked_content, prompt_injection_detected = _mask_prompt_injection(masked_content)
     if prompt_injection_detected:
         _append_unique(detected_labels, "prompt_injection")

@@ -10,6 +10,7 @@ from chatbot.repository.base import read_response, safe_read
 from chatbot.utils.passwords import verify_password
 
 
+# 로그인 API에서 이메일/서버/비밀번호를 기준으로 사용자와 게임 계정을 확인한다.
 def verify_user_login(
     email: str,
     password: str,
@@ -119,6 +120,7 @@ def verify_user_login(
     return safe_read(operation="verify_user_login", reader=_read)
 
 
+# 로그인 화면이나 검증 로직에서 사용할 서버 지역 목록을 조회한다.
 def read_server_regions() -> dict[str, Any]:
     """Read selectable server regions from existing game accounts."""
 

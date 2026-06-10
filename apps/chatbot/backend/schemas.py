@@ -17,9 +17,9 @@ SafetyAction = Literal[
 ]
 
 
+# LangGraph 전체 노드가 공유하는 state 계약이다.
+# 전처리 -> 라우팅 -> agent -> 저장 -> safety -> final_response 순서로 값이 채워진다.
 class ChatbotState(AgentState):
-    """Runtime state shared by category nodes and the StateGraph workflow."""
-
     # Request/session metadata.
     user_id: NotRequired[int]
     session_id: NotRequired[int]

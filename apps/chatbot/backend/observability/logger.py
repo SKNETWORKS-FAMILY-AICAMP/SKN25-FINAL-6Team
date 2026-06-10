@@ -21,8 +21,8 @@ EVENT_NOTIFICATION_DISPATCHED = "notification_dispatched"
 EVENT_NOTIFICATION_FAILED = "notification_failed"
 
 
+# admin_event_log/콘솔/LangSmith metadata에서 공통으로 읽을 수 있는 구조화 이벤트를 만든다.
 def build_log_event(event_type: str, **payload: Any) -> dict[str, Any]:
-    """Build a structured admin log event without binding to a logging backend yet."""
     return {
         "event_type": event_type,
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -30,6 +30,7 @@ def build_log_event(event_type: str, **payload: Any) -> dict[str, Any]:
     }
 
 
+# 각 노드와 tool이 동일한 JSON 형태로 실행 결과를 남기도록 하는 경량 logger다.
 def log_event(
     event_type: str,
     *,
@@ -44,7 +45,6 @@ def log_event(
     error_category: str | None = None,
     metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Print a structured admin log event as JSON and return it for tests."""
     event = build_log_event(
         event_type,
         ticket_id=ticket_id,

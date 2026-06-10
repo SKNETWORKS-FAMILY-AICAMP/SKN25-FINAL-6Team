@@ -7,6 +7,7 @@ from common.db.connection import db_connection
 from chatbot.repository.base import safe_read, safe_write
 
 
+# 같은 ticket/channel 조합으로 이미 알림을 보냈는지 확인해 중복 발송을 막는다.
 def notification_log_exists(ticket_id: int | None, channel: str) -> dict[str, Any]:
     if ticket_id is None:
         return {"status": "ok", "exists": False, "count": 0}
@@ -30,6 +31,7 @@ def notification_log_exists(ticket_id: int | None, channel: str) -> dict[str, An
     return safe_read(operation="read_notification_log_exists", reader=_read, ticket_id=ticket_id)
 
 
+# Slack/GitHub 알림 발송 결과를 notification_log에 저장한다.
 def save_notification_log(payload: dict[str, Any]) -> dict[str, Any]:
     def _write() -> dict[str, Any]:
         with db_connection() as conn:

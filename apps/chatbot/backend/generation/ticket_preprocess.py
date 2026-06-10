@@ -2,15 +2,24 @@ from __future__ import annotations
 
 from typing import Any
 
+from chatbot.repository.ticket_repository import save_qa_ticket
 from chatbot.schemas import ChatbotState
-from chatbot.tools.db_tools import write_qa_ticket
 from chatbot.utils.query_enrichment import normalize_query_text
 
 
 SUPPORTED_CATEGORIES = {"payment", "bug", "faq", "voc"}
+write_qa_ticket = save_qa_ticket
+
+
+def _write_qa_ticket(payload: dict[str, Any]) -> dict[str, Any]:
+    target = write_qa_ticket
+    if hasattr(target, "invoke"):
+        return target.invoke({"payload": payload})
+    return target(payload)
 
 
 def _category_from_user_selection(value: Any) -> str:
+    # 사용자가 선택한 category만 신뢰하고, 지원하지 않는 category는 초기에 차단한다.
     category = str(value or "").strip().lower()
     if not category:
         raise ValueError("category is required for chatbot routing")
@@ -21,7 +30,7 @@ def _category_from_user_selection(value: Any) -> str:
 
 
 def ticket_preprocess_node(state: ChatbotState) -> dict:
-    """Normalize the inquiry, store the QA ticket, and trust the user-selected category."""
+    # 1단계: 마스킹된 문의를 검색/분류에 쓰기 좋은 normalized_query로 정리한다.
     ticket_id = state["ticket_id"]
     raw_query = state["raw_query"]
     masked_content = state.get("masked_content") or raw_query
@@ -29,20 +38,20 @@ def ticket_preprocess_node(state: ChatbotState) -> dict:
     normalized_query = normalize_query_text(masked_content)
     routing_target = state.get("routing_target") or "rag_reply"
 
-    write_qa_ticket.invoke(
+    # 2단계: 원문 문의는 qa_ticket에 저장하고, 이후 노드는 state의 normalized_query를 사용한다.
+    _write_qa_ticket(
         {
-            "payload": {
-                "ticket_id": ticket_id,
-                "user_id": state["user_id"],
-                "account_id": state["account_id"],
-                "session_id": state.get("session_id"),
-                "raw_query": raw_query,
-                "source_type": state["source_type"],
-                "status": "pending",
-            },
+            "ticket_id": ticket_id,
+            "user_id": state["user_id"],
+            "account_id": state["account_id"],
+            "session_id": state.get("session_id"),
+            "raw_query": raw_query,
+            "source_type": state["source_type"],
+            "status": "pending",
         }
     )
 
+    # 3단계: 선택 category와 RAG 사용 여부를 다음 라우팅 노드가 판단할 수 있게 넘긴다.
     return {
         "ticket_id": ticket_id,
         "normalized_query": normalized_query,

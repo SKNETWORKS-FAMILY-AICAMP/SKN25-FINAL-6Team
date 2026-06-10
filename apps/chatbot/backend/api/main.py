@@ -70,16 +70,19 @@ class InquiryHistoryItem(BaseModel):
 
 @app.get("/health")
 def health() -> dict[str, str]:
+    # 배포/헬스체크용: API 프로세스가 살아 있는지만 빠르게 확인한다.
     return {"status": "ok"}
 
 
 @app.get("/server-regions")
 def server_regions() -> dict[str, list[str]]:
+    # 로그인 화면에서 선택할 수 있는 서버 목록을 DB에서 읽어온다.
     return {"items": get_server_regions()}
 
 
 @app.post("/login", response_model=LoginResponse)
 def login(request: LoginRequest) -> LoginResponse:
+    # 1단계: 이메일/비밀번호/서버로 게임 계정을 확인하고 user_id/account_id를 반환한다.
     result = login_with_credentials(request.email, request.password, request.server_region)
     return LoginResponse(**result)
 
@@ -90,6 +93,7 @@ def list_tickets(
     account_id: int | None = Query(default=None, ge=1),
     limit: int = Query(default=20, ge=1, le=100),
 ) -> list[InquiryHistoryItem]:
+    # 1단계: 로그인 사용자의 최근 문의와 최신 final_response를 함께 조회한다.
     params: list[Any] = [user_id]
     account_filter = ""
     if account_id is not None:
@@ -142,6 +146,7 @@ def list_tickets(
 
 @app.post("/chat", response_model=ChatResponse)
 def chat(request: ChatRequest) -> ChatResponse:
+    # 1단계: 요청에 이전 대화가 없으면 DB에서 최근 멀티턴 context를 구성한다.
     previous_messages = request.previous_messages
     conversation_summary = request.conversation_summary
     if previous_messages is None:
@@ -155,6 +160,7 @@ def chat(request: ChatRequest) -> ChatResponse:
         previous_messages = context.previous_messages
         conversation_summary = conversation_summary or context.conversation_summary
 
+    # 2단계: chatbot_service가 LangGraph workflow를 실행하고 최종 답변/state를 반환한다.
     output: dict[str, Any] = run_chatbot(
         ticket_id=request.ticket_id,
         user_message=request.user_message,
@@ -167,6 +173,8 @@ def chat(request: ChatRequest) -> ChatResponse:
         conversation_summary=conversation_summary,
     )
     state = output["state"]
+
+    # 3단계: 프론트엔드에 필요한 최소 결과만 응답 스키마로 정리한다.
     return ChatResponse(
         answer=output["answer"],
         ticket_id=request.ticket_id,

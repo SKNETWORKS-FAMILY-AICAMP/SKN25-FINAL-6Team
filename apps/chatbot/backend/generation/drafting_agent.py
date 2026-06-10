@@ -5,6 +5,7 @@ from typing import Any
 from chatbot.schemas import ChatbotState
 
 
+# agent 응답 message에서 실제 텍스트 content만 추출한다.
 def _message_text(message: Any) -> str:
     content = message["content"] if isinstance(message, dict) else message.content
     if isinstance(content, list):
@@ -12,12 +13,12 @@ def _message_text(message: Any) -> str:
     return str(content)
 
 
+# concrete agent 실행 결과를 workflow가 저장할 draft_text state로 변환한다.
 def build_draft_update(
     state: ChatbotState,
     result: dict[str, Any],
     node_name: str,
 ) -> dict[str, Any]:
-    """Convert a concrete agent result into a StateGraph update."""
     messages = result["messages"]
     draft_text = _message_text(messages[-1])
 

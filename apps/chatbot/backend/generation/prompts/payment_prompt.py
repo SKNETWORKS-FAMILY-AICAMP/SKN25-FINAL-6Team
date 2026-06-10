@@ -3,6 +3,7 @@ from __future__ import annotations
 from chatbot.generation.prompts.system_prompt import CHATBOT_SYSTEM_PROMPT
 
 
+# payment agent가 결제/환불/아이템 지급 DB context만 근거로 답하도록 하는 세부 prompt다.
 PAYMENT_AGENT_PROMPT = CHATBOT_SYSTEM_PROMPT + """
 
 Category focus: 결제 / 환불 / 유료 아이템 지급 문의

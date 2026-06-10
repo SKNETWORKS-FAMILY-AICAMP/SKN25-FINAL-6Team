@@ -3,8 +3,8 @@ from __future__ import annotations
 from urllib.error import HTTPError, URLError
 
 
+# DB/API/LLM 오류를 운영자가 보기 쉬운 안정적인 error_category로 변환한다.
 def classify_error(exc: Exception) -> str:
-    """Classify infrastructure/runtime errors into admin-friendly categories."""
     message = str(exc).lower()
     error_type = type(exc).__name__.lower()
 

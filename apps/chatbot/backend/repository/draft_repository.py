@@ -7,6 +7,7 @@ from common.db.connection import db_connection
 from chatbot.repository.base import safe_write
 
 
+# category agent가 만든 초안을 answer_draft에 저장한다.
 def save_answer_draft(payload: dict[str, Any]) -> dict[str, Any]:
     def _write() -> dict[str, Any]:
         with db_connection() as conn:
@@ -39,6 +40,7 @@ def save_answer_draft(payload: dict[str, Any]) -> dict[str, Any]:
     return safe_write(operation="write_answer_draft", payload=payload, writer=_write)
 
 
+# 초안 생성에 사용된 RAG/DB 근거 문서를 draft_id와 연결해 저장한다.
 def save_evidence_docs(payload: dict[str, Any]) -> dict[str, Any]:
     def _write() -> dict[str, Any]:
         with db_connection() as conn:

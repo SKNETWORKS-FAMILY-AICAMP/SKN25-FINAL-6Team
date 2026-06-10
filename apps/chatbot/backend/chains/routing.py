@@ -18,20 +18,20 @@ def _is_voc_state(state: ChatbotState) -> bool:
 
 
 def route_by_category(state: ChatbotState) -> str:
-    """Route to the concrete category node selected by the request category."""
+    # 1단계: 전처리에서 확정한 category를 실제 agent 노드 이름으로 변환한다.
     category = state["category"]
     return CATEGORY_NODE_BY_NAME.get(str(category), "voc_agent")
 
 
 def route_after_draft_persistence(state: ChatbotState) -> str:
-    """Skip safety scoring for fixed VOC responses, otherwise run safety."""
+    # 2단계: VOC는 고정 응답이라 safety 검사를 생략하고, 나머지 category는 safety_layer로 보낸다.
     if _is_voc_state(state):
         return "final_response"
     return "safety_layer"
 
 
 def route_after_safety(state: ChatbotState) -> str:
-    """Return to the concrete category node on retry, or finish when safety passes/exhausts."""
+    # 3단계: safety 결과에 따라 마스킹 재저장, fallback/review/block, 재생성, 최종 응답을 결정한다.
     if _is_voc_state(state):
         return "final_response"
     if state.get("safety_action") == "MASKING":

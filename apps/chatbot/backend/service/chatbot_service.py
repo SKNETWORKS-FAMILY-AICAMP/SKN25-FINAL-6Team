@@ -19,6 +19,7 @@ def build_state(
     previous_messages: list[dict[str, str]] | None = None,
     conversation_summary: str | None = None,
 ) -> dict[str, Any]:
+    # 1단계: 사용자 입력을 마스킹/정규화 준비하고 LangGraph가 공유할 초기 state를 만든다.
     preprocessing = preprocess_user_input(user_message)
     masked_content = preprocessing["masked_content"]
     messages = list(previous_messages or [])
@@ -61,6 +62,7 @@ def build_state(
 
 
 def last_message_text(result: dict[str, Any]) -> str:
+    # workflow가 끝난 뒤 사용자에게 반환할 최종 응답만 꺼낸다.
     final_text = result.get("final_text")
     if final_text:
         return str(final_text)
@@ -68,6 +70,7 @@ def last_message_text(result: dict[str, Any]) -> str:
 
 
 def _node_summary(node_name: str, node_update: dict[str, Any], state_snapshot: dict[str, Any]) -> dict[str, Any]:
+    # stream 실행 중 각 노드가 무엇을 했는지 콘솔/로그용 요약 문장으로 변환한다.
     merged = {**state_snapshot, **node_update}
     title_by_node = {
         "ticket_preprocess": "Ticket preprocess",
@@ -145,6 +148,7 @@ def run_chatbot(
     previous_messages: list[dict[str, str]] | None = None,
     conversation_summary: str | None = None,
 ) -> dict[str, Any]:
+    # 동기 실행 경로: 초기 state 생성 -> graph.invoke -> 최종 답변 반환.
     from chatbot.chains.workflow import graph
 
     state = build_state(
@@ -191,6 +195,7 @@ def stream_chatbot(
     previous_messages: list[dict[str, str]] | None = None,
     conversation_summary: str | None = None,
 ):
+    # 스트리밍 실행 경로: graph.stream의 노드별 update를 누적하면서 진행 상황을 기록한다.
     from chatbot.chains.workflow import graph
 
     state = build_state(
