@@ -294,6 +294,10 @@ const appState = {
   activeCategory: "전체",
   selectedTicketId: null,
   ticketListPage: 1,
+  // 서버 페이지네이션 상태 보관 필드는 전 로직 복구를 위해 사용 중지한다.
+  // ticketListTotalPages: 1,
+  // ticketListTotalCount: 0,
+  // ticketSideTabCounts: {},
   reviewSelectedDate: "",
   reviewCalendarYear: 2026,
   reviewCalendarMonth: 5,
@@ -329,6 +333,27 @@ const primarySideTabs = [
 
 const filterTabs = ["전체", "대기", "검토 중", "긴급", "종료"];
 const categoryTabs = ["전체", "결제", "계정", "버그", "환불"];
+// 서버 필터 매핑 상수는 전 로직 복구를 위해 사용 중지한다.
+// const TICKET_FILTER_TO_API_STATUS = {
+//   "전체": null,
+//   "대기": null,
+//   "검토 중": null,
+//   "긴급": null,
+//   "종료": null
+// };
+// const TICKET_CATEGORY_TO_API_CATEGORY = {
+//   "전체": null,
+//   "결제": "payment",
+//   "계정": "account",
+//   "버그": "bug",
+//   "환불": "refund"
+// };
+// const TICKET_SIDE_TAB_TO_API_SOURCE_TYPE = {
+//   "전체": null,
+//   "긴급": null,
+//   "네이버 카페 문의": "naver_cafe",
+//   "챗봇 문의": "chatbot"
+// };
 const workflowSteps = [
   { label: "문의 내용 분석 중...", progress: 20 },
   { label: "카테고리 분류 중...", progress: 40 },
@@ -401,6 +426,15 @@ function mapApiEvidenceRows(rows) {
   }));
 }
 
+// 서버 쿼리 파라미터 조합 함수는 전 로직 복구를 위해 사용 중지한다.
+// function buildTicketQueryParams(page = appState.ticketListPage) {
+//   const queryParams = {
+//     limit: TICKET_SIDEBAR_PAGE_SIZE,
+//     page
+//   };
+//   return queryParams;
+// }
+
 async function loadTicketDetailFromApi(ticketId, shouldRender = true) {
   const data = await window.CSAutoApi.getTicketDetail(ticketId);
   if (!data || !data.ticket) {
@@ -423,6 +457,8 @@ async function loadTicketDetailFromApi(ticketId, shouldRender = true) {
 }
 
 async function loadTicketsFromApi() {
+  // 서버 페이지네이션 버전은 목록 미노출 이슈로 중단한다.
+  // const data = await window.CSAutoApi.getTickets(buildTicketQueryParams(page));
   const data = await window.CSAutoApi.getTickets(50);
   if (Array.isArray(data.tickets) && data.tickets.length > 0) {
     appState.tickets = data.tickets.map(mapApiTicketToUiTicket);
@@ -430,7 +466,13 @@ async function loadTicketsFromApi() {
     appState.ticketListPage = 1;
     await loadTicketDetailFromApi(appState.tickets[0].ticketId, false);
     render();
+    return;
   }
+  appState.tickets = [];
+  appState.selectedTicketId = null;
+  appState.evidence = [];
+  appState.history = [];
+  render();
 }
 
 function mergeTicketFromApi(apiTicket) {

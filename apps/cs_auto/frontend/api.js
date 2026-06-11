@@ -20,6 +20,16 @@
   global.CSAutoApi = {
     request,
     getTickets(limit = 50) {
+      // 서버 페이지네이션/복합 필터 실험 버전은 목록 미노출 이슈로 중단한다.
+      // const searchParams = new URLSearchParams();
+      // Object.entries(params).forEach(([key, value]) => {
+      //   if (value === null || value === undefined || value === "") {
+      //     return;
+      //   }
+      //   searchParams.set(key, String(value));
+      // });
+      // const queryString = searchParams.toString();
+      // return request(queryString ? `/tickets?${queryString}` : "/tickets");
       return request(`/tickets?limit=${limit}`);
     },
     getTicketDetail(ticketId) {

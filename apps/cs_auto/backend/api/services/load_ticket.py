@@ -57,7 +57,7 @@ def fetch_tickets(
     risk_level: str | None = None,
     page: int | None = None,
 ) -> list[dict[str, Any]]:
-    page_size = limit or 50
+    page_size = limit or 200
     page_no = page or 1
     offset = max(page_no - 1, 0) * page_size
     where_clauses: list[str] = []
