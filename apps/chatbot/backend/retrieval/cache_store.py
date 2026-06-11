@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import json
 import os
 import time
-import json
 from functools import lru_cache
 from typing import TypedDict
 
@@ -113,3 +113,31 @@ def set_cached_retrieval(query_hash: str, documents: list[dict], ttl: int = 3600
         "document_count": len(documents),
     }
 
+
+# eval/운영 점검에서 FAQ retrieval cache를 명시적으로 비울 때 사용한다.
+def clear_faq_cache(namespace: str | None = None) -> dict[str, object]:
+    if namespace in (None, "retrieval"):
+        _RETRIEVAL_CACHE.clear()
+
+    deleted = 0
+    backend = "memory"
+    client = _redis_client()
+    if client is not None:
+        backend = "redis"
+        namespaces = [namespace] if namespace else ["answer", "retrieval"]
+        for cache_namespace in namespaces:
+            pattern = _cache_key("*", namespace=str(cache_namespace))
+            try:
+                for key in client.scan_iter(match=pattern):
+                    deleted += int(client.delete(key) or 0)
+            except Exception:
+                backend = "redis_error"
+
+    return {
+        "status": "ok",
+        "backend": backend,
+        "namespace": namespace or "all",
+        "redis_deleted": deleted,
+        "memory_answer_entries": 0,
+        "memory_retrieval_entries": len(_RETRIEVAL_CACHE),
+    }

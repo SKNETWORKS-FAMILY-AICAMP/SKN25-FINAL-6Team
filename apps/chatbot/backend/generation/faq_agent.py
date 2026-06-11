@@ -7,7 +7,6 @@ from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
-from pydantic import BaseModel, Field
 
 from chatbot.generation.policies import FAQ_POLICY
 from chatbot.generation.response.fixed_responses import SAFE_FALLBACK_RESPONSE
@@ -17,42 +16,6 @@ from chatbot.retrieval.cache_store import get_cached_retrieval, set_cached_retri
 from common.retrieval.vector_tools import embed_query, enrich_retrieval_query, rerank_documents, search_document_chunks
 from chatbot.schemas import ChatbotState
 from chatbot.utils.query_enrichment import rewrite_query_with_llm
-
-
-class MultihopQueryPlan(BaseModel):
-    needs_multihop: bool = Field(description="Whether additional retrieval queries are needed.")
-    search_queries: list[str] = Field(
-        default_factory=list,
-        description="Additional concise Korean FAQ/RAG search queries.",
-    )
-    reason: str = Field(default="", description="Short reason for the decomposition decision.")
-
-
-class SubQuery(BaseModel):
-    """멀티홉 분해된 하위 질문"""
-    id: str = Field(description="Sub-query ID (e.g., 'q1', 'q2')")
-    question: str = Field(description="정규화된 하위 질문")
-    intent: str = Field(description="의도 분류 (e.g., 'payment_missing_item', 'refund_eligibility')")
-    route: str = Field(description="라우팅 대상 (e.g., 'payment_agent', 'faq_agent', 'policy_agent')")
-    priority: int = Field(default=1, description="우선순위 (1=높음, 2=낮음)")
-
-
-class MultihopDecompositionPlan(BaseModel):
-    """멀티홉 분해 계획"""
-    is_decomposable: bool = Field(description="분해 가능 여부")
-    sub_queries: list[SubQuery] = Field(default_factory=list, description="하위 질문 리스트")
-    reason: str = Field(default="", description="분해 결정 이유")
-    confidence: float = Field(default=0.0, description="분해 신뢰도 (0.0-1.0)")
-
-
-class SubQueryResult(BaseModel):
-    """하위 질문 처리 결과"""
-    sub_query: SubQuery
-    status: str = Field(description="상태 (success, partial, failed)")
-    evidence: list[dict[str, Any]] = Field(default_factory=list, description="근거 문서")
-    summary: str = Field(default="", description="간단한 답변 요약")
-    tool_calls: list[str] = Field(default_factory=list, description="사용한 도구")
-    error: str | None = Field(default=None, description="오류 메시지")
 
 
 def _active_query(state: ChatbotState) -> str:
@@ -125,16 +88,8 @@ def _env_flag(name: str, default: bool = False) -> bool:
 
 
 def _retrieval_cache_enabled() -> bool:
-    # FAQ/RAG 검색 캐시는 명시적으로 켠 경우에만 사용한다.
+    # FAQ/RAG 검색 결과 캐시는 명시적으로 켠 경우에만 사용한다.
     return _env_flag("FAQ_RETRIEVAL_CACHE_ENABLED", False)
-
-
-def _multihop_enabled() -> bool:
-    return _env_flag("FAQ_MULTIHOP_ENABLED", True)
-
-
-def _multihop_precheck_enabled() -> bool:
-    return _env_flag("FAQ_MULTIHOP_PRECHECK_ENABLED", True)
 
 
 def _retrieval_cache_hash(
@@ -144,7 +99,7 @@ def _retrieval_cache_hash(
     final_top_k: int,
     candidate_top_k: int,
 ) -> str:
-    # 원문 query를 Redis key에 직접 남기지 않도록 검색 조건 전체를 hash로 만든다.
+    # 원문 query를 Redis key에 직접 노출하지 않도록 검색 조건 전체를 hash로 만든다.
     enrichment_payload = enrichment.model_dump() if hasattr(enrichment, "model_dump") else enrichment
     payload = {
         "retrieval_query": retrieval_query,
@@ -193,472 +148,6 @@ def _passes_relevance_gate(documents: list[dict[str, Any]]) -> tuple[bool, str |
     return False, "retrieval_relevance_gate_failed"
 
 
-def _passes_multihop_relevance_gate(documents: list[dict[str, Any]]) -> tuple[bool, str | None]:
-    if not documents:
-        return False, "no_retrieved_documents"
-
-    min_field_match = float(
-        os.environ.get(
-            "FAQ_MULTIHOP_MIN_FIELD_MATCH_SCORE",
-            os.environ.get("FAQ_MIN_FIELD_MATCH_SCORE", "0"),
-        )
-    )
-    if min_field_match <= 0:
-        return True, None
-
-    for document in documents:
-        if float(document.get("field_match_score") or 0) >= min_field_match:
-            return True, None
-
-    return False, "multihop_relevance_gate_failed"
-
-
-def _multihop_evidence_summary(documents: list[dict[str, Any]], max_documents: int = 4) -> list[dict[str, str]]:
-    summary = []
-    for document in documents[:max_documents]:
-        summary.append(
-            {
-                "title": str(document.get("title") or ""),
-                "source_type": str(document.get("source_type") or ""),
-                "category": str(document.get("category") or ""),
-                "content": " ".join(str(document.get("chunk_text") or "").split())[:500],
-            }
-        )
-    return summary
-
-
-# 의도별 라우팅 매핑
-_INTENT_TO_ROUTE_MAP = {
-    "payment_missing_item": "payment_agent",
-    "payment_history": "payment_agent",
-    "payment_how_to": "faq_agent",
-    "refund_eligibility": "faq_agent",
-    "refund_policy": "faq_agent",
-    "account_deletion": "faq_agent",
-    "account_linking": "faq_agent",
-    "reward_delivery": "faq_agent",
-    "reward_policy": "faq_agent",
-    "bug_report": "bug_agent",
-    "game_issue": "bug_agent",
-    "privacy_policy": "faq_agent",
-    "terms_of_service": "faq_agent",
-}
-
-
-def _determine_route_for_sub_query(sub_query: SubQuery) -> str:
-    """
-    하위 질문의 의도에 따라 라우팅 대상을 결정합니다.
-    
-    Returns:
-        route: "payment_agent", "bug_agent", "faq_agent" 등
-    """
-    return _INTENT_TO_ROUTE_MAP.get(sub_query.intent, "faq_agent")
-
-
-def _determine_route_for_sub_query(sub_query: SubQuery) -> str:
-    """
-    하위 질문의 의도에 따라 라우팅 대상을 결정합니다.
-    
-    Returns:
-        route: "payment_agent", "bug_agent", "faq_agent" 등
-    """
-    return _INTENT_TO_ROUTE_MAP.get(sub_query.intent, "faq_agent")
-
-
-def _generate_brief_summary(documents: list[dict[str, Any]], query: str) -> str:
-
-    sub_query: SubQuery,
-    state: ChatbotState,
-) -> SubQueryResult:
-    """
-    하위 질문을 동기적으로 처리합니다. 라우트별로 도메인 도구 호출.
-    """
-    try:
-        if sub_query.route == "payment_agent":
-            # payment_agent 호출
-            from chatbot.generation.agent import invoke_payment_agent
-            
-            agent_state = {
-                "raw_query": sub_query.question,
-                "normalized_query": sub_query.question,
-                "ticket_id": state.get("ticket_id"),
-                "session_id": state.get("session_id"),
-            }
-            result = invoke_payment_agent(agent_state)
-            
-            return SubQueryResult(
-                sub_query=sub_query,
-                status="success",
-                evidence=[{
-                    "chunk_text": str(result.get("output", ""))[:500],
-                    "source_type": "agent_payment",
-                }],
-                summary=str(result.get("output", ""))[:500],
-                tool_calls=["invoke_payment_agent"],
-            )
-        
-        elif sub_query.route == "bug_agent":
-            # bug_agent 호출
-            from chatbot.generation.agent import invoke_bug_agent
-            
-            agent_state = {
-                "raw_query": sub_query.question,
-                "normalized_query": sub_query.question,
-                "ticket_id": state.get("ticket_id"),
-                "session_id": state.get("session_id"),
-            }
-            result = invoke_bug_agent(agent_state)
-            
-            return SubQueryResult(
-                sub_query=sub_query,
-                status="success",
-                evidence=[{
-                    "chunk_text": str(result.get("output", ""))[:500],
-                    "source_type": "agent_bug",
-                }],
-                summary=str(result.get("output", ""))[:500],
-                tool_calls=["invoke_bug_agent"],
-            )
-        
-        else:  # faq_agent (default)
-            # FAQ 검색
-            documents = _retrieve_documents(
-                retrieval_query=sub_query.question,
-                enrichment=None,
-                final_top_k=3,
-                candidate_top_k=6,
-                state=state,
-            )
-            
-            low_evidence, _ = _is_low_evidence(documents)
-            return SubQueryResult(
-                sub_query=sub_query,
-                status="partial" if low_evidence else "success",
-                evidence=documents,
-                summary=_generate_brief_summary(documents, sub_query.question),
-                tool_calls=["search_document_chunks"],
-            )
-    
-    except Exception as exc:
-        return SubQueryResult(
-            sub_query=sub_query,
-            status="failed",
-            error=str(exc),
-        )
-
-
-
-
-def _generate_brief_summary(documents: list[dict[str, Any]], query: str) -> str:
-    """근거 문서들로부터 간단한 요약을 생성합니다."""
-    if not documents:
-        return "관련 문서를 찾을 수 없습니다."
-    
-    summaries = []
-    for doc in documents[:2]:
-        text = str(doc.get("chunk_text") or "")[:200]
-        if text:
-            summaries.append(text)
-    
-    return " ".join(summaries) if summaries else "관련 정보가 제한적입니다."
-
-
-_MULTIHOP_DOMAIN_KEYWORDS: dict[str, tuple[str, ...]] = {
-    "account_deletion": ("계정 삭제", "계정을 삭제", "탈퇴", "삭제 신청"),
-    "payment": ("결제", "구매", "결제 기록", "결제 내역", "충전"),
-    "refund": ("환불", "취소", "회수"),
-    "privacy": ("개인정보", "처리방침", "보관", "제3자", "수집"),
-    "recovery": ("복구", "되돌", "나중에", "다시"),
-    "linking": ("연동", "PSN", "크로스 세이브", "플랫폼"),
-    "game_data": ("게임 데이터", "진행도", "UID", "세이브"),
-    "reward_rule": ("보상 조건", "수령 조건", "대상", "초회", "초회 충전", "초회충전", "공월 축복"),
-    "reward_delivery": ("보상", "보너스", "우편함", "지급", "미지급", "못 받", "안 들어", "수령", "받을"),
-}
-
-
-def _looks_like_multihop_query(text: str) -> tuple[bool, str]:
-    # 1차 rule precheck: 단순 FAQ면 비싼 decomposition LLM 호출을 건너뛴다.
-    if not _multihop_precheck_enabled():
-        return True, "precheck_disabled"
-
-    normalized = f" {' '.join(str(text or '').split())} "
-    matched_domains = {
-        domain
-        for domain, keywords in _MULTIHOP_DOMAIN_KEYWORDS.items()
-        if any(keyword in normalized for keyword in keywords)
-    }
-    if len(matched_domains) < 2:
-        return False, "single_domain_query"
-
-    if {"account_deletion", "payment"}.issubset(matched_domains):
-        return True, "account_deletion_with_payment"
-    if {"account_deletion", "privacy"}.issubset(matched_domains):
-        return True, "account_deletion_with_privacy"
-    if {"account_deletion", "recovery"}.issubset(matched_domains):
-        return True, "account_deletion_with_recovery"
-    if {"privacy", "recovery"}.issubset(matched_domains):
-        return True, "privacy_with_recovery"
-    if {"payment", "refund"}.issubset(matched_domains):
-        return True, "payment_with_refund"
-    if {"payment", "reward_delivery"}.issubset(matched_domains):
-        return True, "payment_with_reward_delivery"
-    if {"linking", "game_data"}.issubset(matched_domains) and any(
-        keyword in normalized for keyword in ("해제", "사라", "삭제", "보존")
-    ):
-        return True, "linking_with_game_data_loss"
-    if {"reward_rule", "reward_delivery"}.issubset(matched_domains) and any(
-        keyword in normalized for keyword in ("나중에", "이미 산", "다시", "초기화", "보관 기간", "조건")
-    ):
-        return True, "reward_rule_with_delivery_exception"
-
-    return False, "no_multihop_pattern"
-
-
-def _decompose_multihop_queries(
-    *,
-    original_query: str,
-    retrieval_query: str,
-    documents: list[dict[str, Any]],
-) -> dict[str, Any]:
-    # 2차 query decomposition: 복합 문의에서 부족한 근거를 찾기 위한 추가 검색어를 만든다.
-    if not _multihop_enabled():
-        return {"queries": [], "reason": "multihop_disabled"}
-
-    precheck_ok, precheck_reason = _looks_like_multihop_query(original_query)
-    if not precheck_ok:
-        return {"queries": [], "reason": precheck_reason}
-
-    if int(os.environ.get("FAQ_MULTIHOP_MAX_HOPS", "2")) < 2:
-        return {"queries": [], "reason": "max_hops_lt_2"}
-    if int(os.environ.get("FAQ_MULTIHOP_MAX_SECOND_PASS", "2")) < 1:
-        return {"queries": [], "reason": "max_second_pass_lt_1"}
-
-    mode = os.environ.get("FAQ_MULTIHOP_TRIGGER_MODE", "decompose").strip().lower()
-    if mode not in {"decompose", "llm", "query_decomposition"}:
-        return {"queries": [], "reason": f"unsupported_mode:{mode}"}
-
-    api_key = os.environ.get("LLM_API_KEY")
-    model = os.environ.get("FAQ_MULTIHOP_PLANNER_MODEL") or os.environ.get("QUERY_ENRICHMENT_MODEL") or os.environ.get("LLM_MODEL")
-    if not api_key or not model:
-        return {"queries": [], "reason": "planner_model_missing"}
-
-    max_queries = int(os.environ.get("FAQ_MULTIHOP_MAX_SECOND_PASS", "2"))
-    try:
-        planner = ChatOpenAI(
-            model=model,
-            api_key=api_key,
-            temperature=0,
-            timeout=float(os.environ.get("LLM_TIMEOUT_SECONDS", "60")),
-        ).with_structured_output(MultihopQueryPlan)
-        plan = planner.invoke(
-            [
-                SystemMessage(
-                    content=(
-                        "You are a query decomposition planner for a Korean game customer-support FAQ/RAG system. "
-                        "Do not answer the customer. Decide whether the customer question needs additional retrieval. "
-                        "Use additional retrieval only for compound questions where the current evidence may cover only part "
-                        "of the customer's request, such as account deletion plus payment records, account linking plus game data, "
-                        "privacy plus recovery, or reward missing plus collection conditions. "
-                        "For simple FAQ questions, set needs_multihop=false. "
-                        f"If needed, return at most {max_queries} concise Korean search queries. "
-                        "Each search query should target missing evidence, not repeat the existing normalized search query."
-                    )
-                ),
-                HumanMessage(
-                    content=json.dumps(
-                        {
-                            "customer_question": original_query,
-                            "current_retrieval_query": retrieval_query,
-                            "current_evidence": _multihop_evidence_summary(documents),
-                        },
-                        ensure_ascii=False,
-                    )
-                ),
-            ]
-        )
-    except Exception as exc:
-        return {"queries": [], "reason": f"planner_error:{type(exc).__name__}"}
-
-    if not plan.needs_multihop:
-        return {"queries": [], "reason": plan.reason or "planner_no_multihop"}
-
-    seen: set[str] = set()
-    for existing_query in (retrieval_query, original_query):
-        normalized_existing = " ".join(str(existing_query or "").split())
-        if normalized_existing:
-            seen.add(normalized_existing.lower())
-
-    queries: list[str] = []
-    for query in plan.search_queries:
-        normalized = " ".join(str(query or "").split())
-        if not normalized or normalized.lower() in seen:
-            continue
-        seen.add(normalized.lower())
-        queries.append(normalized)
-        if len(queries) >= max_queries:
-            break
-
-    return {"queries": queries, "reason": plan.reason or "planner_multihop"}
-
-
-def _merge_and_rerank_documents(
-    *,
-    first_documents: list[dict[str, Any]],
-    second_documents: list[dict[str, Any]],
-    query: str,
-    final_top_k: int,
-) -> list[dict[str, Any]]:
-    by_key: dict[str, dict[str, Any]] = {}
-    for document in [*first_documents, *second_documents]:
-        key = str(document.get("chunk_id") or document.get("document_id") or id(document))
-        by_key.setdefault(key, document)
-
-    merged = list(by_key.values())
-    if len(merged) <= final_top_k:
-        return merged
-
-    return _rerank_documents(merged, query)[:final_top_k]
-
-
-def _maybe_run_multihop_retrieval(
-    *,
-    state: ChatbotState,
-    original_query: str,
-    retrieval_query: str,
-    documents: list[dict[str, Any]],
-    final_top_k: int,
-    candidate_top_k: int,
-) -> dict[str, Any] | None:
-    """
-    멀티홉 검색: 하위 질문별로 라우팅하여 도메인 도구 활용.
-    
-    처리 흐름:
-    1. Rule-based 복합 질문 감지
-    2. LLM으로 하위 질문 분해
-    3. 하위 질문별 route 결정
-    4. 라우트별 도메인 도구 호출 (async)
-    5. 결과 병합
-    """
-    
-    # Step 1: Rule-based 복합 질문 감지
-    precheck_ok, precheck_reason = _looks_like_multihop_query(original_query)
-    if not precheck_ok:
-        return None
-    
-    if not _multihop_enabled():
-        return None
-    
-    # Step 2: LLM decomposition으로 하위 질문 생성
-    decomposition = _decompose_multihop_queries(
-        original_query=original_query,
-        retrieval_query=retrieval_query,
-        documents=documents,
-    )
-    followup_queries = list(decomposition.get("queries") or [])
-    if not followup_queries:
-        return None
-    
-    # Step 3 & 4: 하위 질문별 라우팅 및 도메인 도구 호출
-    sub_query_results = []
-    
-    for idx, query_text in enumerate(followup_queries, 1):
-        # 하위 질문 객체 생성
-        sub_query = SubQuery(
-            id=f"q{idx}",
-            question=query_text,
-            intent=_infer_intent_from_query(query_text),
-            route=_determine_route_from_query_text(query_text),
-        )
-        
-        # 라우트에 따라 도메인 도구 호출
-        result = _execute_sub_query_sync(sub_query, state)
-        sub_query_results.append(result)
-        
-        _print_retrieval_summary(
-            original_query=original_query,
-            retrieval_query=query_text,
-            documents=result.evidence,
-        )
-    
-    # Step 5: 하위 질문 결과에서 근거 수집
-    accepted_second_documents: list[dict[str, Any]] = []
-    accepted_queries: list[str] = []
-    
-    for result in sub_query_results:
-        if result.status in ("success", "partial") and result.evidence:
-            # relevance gate 통과 확인
-            low_evidence, _ = _is_low_evidence(result.evidence)
-            relevance_ok, _ = _passes_multihop_relevance_gate(result.evidence)
-            
-            if not low_evidence and relevance_ok:
-                accepted_second_documents.extend(result.evidence)
-                accepted_queries.append(result.sub_query.question)
-    
-    if not accepted_second_documents:
-        return {
-            "accepted": False,
-            "reason": "no_evidence_from_sub_queries",
-            "followup_query": " | ".join(followup_queries),
-            "followup_queries": followup_queries,
-            "accepted_followup_queries": [],
-            "second_documents": [],
-            "documents": documents,
-        }
-    
-    # Step 6: 근거 병합 및 Rerank
-    merged_documents = _merge_and_rerank_documents(
-        first_documents=documents,
-        second_documents=accepted_second_documents,
-        query=original_query,
-        final_top_k=final_top_k,
-    )
-    
-    return {
-        "accepted": True,
-        "reason": "multihop_enriched",
-        "followup_query": " | ".join(accepted_queries),
-        "followup_queries": followup_queries,
-        "accepted_followup_queries": accepted_queries,
-        "second_documents": accepted_second_documents,
-        "documents": merged_documents,
-    }
-
-
-def _infer_intent_from_query(query_text: str) -> str:
-    """
-    쿼리 텍스트로부터 의도를 빠르게 판단합니다 (Rule-based, 비용 $0).
-    """
-    normalized = query_text.lower()
-    
-    # 의도 키워드 매핑
-    intent_keywords = {
-        "payment_missing_item": ["결제", "미지급", "안 들어", "못 받"],
-        "refund_eligibility": ["환불", "취소", "회수"],
-        "account_deletion": ["계정", "삭제", "탈퇴"],
-        "reward_delivery": ["보상", "우편함", "미지급"],
-        "bug_report": ["버그", "오류", "크래시"],
-        "game_issue": ["접속", "끊김", "로딩"],
-    }
-    
-    for intent, keywords in intent_keywords.items():
-        if any(kw in normalized for kw in keywords):
-            return intent
-    
-    return "general_faq"
-
-
-def _determine_route_from_query_text(query_text: str) -> str:
-    """
-    쿼리 텍스트로부터 라우트를 결정합니다 (Rule-based, 빠름).
-    """
-    intent = _infer_intent_from_query(query_text)
-    return _determine_route_for_sub_query(SubQuery(
-        id="temp", question=query_text, intent=intent, route=""
-    ))
-
-
-
-
 def _retrieve_documents(
     *,
     retrieval_query: str,
@@ -667,7 +156,7 @@ def _retrieve_documents(
     candidate_top_k: int,
     state: ChatbotState | None = None,
 ) -> list[dict[str, Any]]:
-    # FAQ 검색 공통 단계: cache 확인 -> embedding -> DB 검색 -> rerank -> cache 저장 순서로 실행한다.
+    # cache 확인 -> embedding -> DB 검색 -> rerank -> cache 저장 순서로 실행한다.
     cache_hash = _retrieval_cache_hash(
         retrieval_query=retrieval_query,
         enrichment=enrichment,
@@ -756,7 +245,7 @@ def _retry_retrieval_with_rewrite(
     final_top_k: int,
     candidate_top_k: int,
 ) -> dict[str, Any] | None:
-    # 검색 실패/근거 부족 시 LLM rewrite를 한 번만 시도해 fallback 전에 회복 기회를 준다.
+    # 1차 검색이 실패하면 LLM rewrite 검색을 한 번만 시도한다.
     rewrite = rewrite_query_with_llm(
         original_query=original_query,
         failed_query=failed_query,
@@ -840,7 +329,7 @@ def _generate_evidence_answer(
     retrieval_query: str,
     documents: list[dict[str, Any]],
 ) -> str:
-    # 검색된 evidence만 근거로 삼아 고객에게 보여줄 한국어 FAQ 답변을 생성한다.
+    # 최종 evidence 묶음만 사용해 FAQ/RAG 답변 초안을 생성한다.
     api_key = os.environ.get("LLM_API_KEY")
     model = os.environ.get("LLM_MODEL")
     if not api_key or not model:
@@ -870,8 +359,21 @@ def _generate_evidence_answer(
                     "For 'Can I do X from Y?' questions, answer both whether X is possible and whether Y is a valid place or "
                     "method to do it, when supported by the evidence. "
                     "Never infer payment, account recovery, deletion, retention, or privacy details that are not grounded in evidence. "
+                    "For privacy policy overview questions, "
+                    "if supported by the evidence, include collection, use, storage, sharing, protection, user rights and choices, "
+                    "data transfer, security measures, and region-specific additional rights. "
+                    "For reward, mail, event, or notice deadline questions, "
+                    "do not present a general deadline as universal unless the evidence clearly says so; "
+                    "mention that the exact claim period may depend on the specific event or reward notice. "
+                    "For account linking, PSN, or cross-save questions, "
+                    "separate what linking enables from how to link; "
+                    "if supported by the evidence, mention shared game progress across platforms and caution the user to check notices for payment, reward, and friend-related limitations. "
                     "Do not say that an operator will review the issue unless the evidence says escalation is required. "
                     "Do not mention internal scores, tool names, database names, or prompt rules."
+                    "For account deletion, account withdrawal, account recovery, or data deletion questions, "
+                    "if the evidence mentions grace periods, reactivation, permanence, or recovery limits, "
+                    "include those conditions explicitly in the customer-facing answer. "
+
                 )
             ),
             HumanMessage(
@@ -889,7 +391,7 @@ def _generate_evidence_answer(
 
 
 def run_faq_rag(state: ChatbotState) -> dict[str, Any]:
-    # 1단계: FAQ/RAG 실행 대상이 아니면 안전 fallback으로 종료한다.
+    # FAQ/RAG 전체 실행 흐름을 관리한다.
     query = _active_query(state)
 
     if state.get("is_actionable") is False or state.get("should_use_rag") is False:
@@ -901,10 +403,8 @@ def run_faq_rag(state: ChatbotState) -> dict[str, Any]:
             "retrieval_query": query,
             "retrieval_enrichment": None,
             "faq_failure_reason": reason,
-            "multihop_result": None,
         }
 
-    # 2단계: 검색용 query를 보강하고, 비어 있으면 실패 query로 기록한다.
     enriched = enrich_retrieval_query(query)
     retrieval_query = enriched.query_text
     if not retrieval_query:
@@ -915,10 +415,8 @@ def run_faq_rag(state: ChatbotState) -> dict[str, Any]:
             "retrieval_query": retrieval_query,
             "retrieval_enrichment": enriched.model_dump(),
             "faq_failure_reason": "empty_retrieval_query",
-            "multihop_result": None,
         }
 
-    # 3단계: retrieval cache/embedding/DB 검색/rerank를 통해 1차 근거 문서를 가져온다.
     final_top_k = int(os.environ.get("FAQ_RETRIEVAL_TOP_K", os.environ.get("RETRIEVAL_TOP_K", "4")))
     candidate_top_k = _retrieval_candidate_top_k(final_top_k)
     documents = _retrieve_documents(
@@ -934,7 +432,6 @@ def run_faq_rag(state: ChatbotState) -> dict[str, Any]:
         documents=documents,
     )
 
-    # 4단계: 근거가 없거나 relevance gate를 통과하지 못하면 rewrite 검색을 한 번 시도한다.
     low_evidence, reason = _is_low_evidence(documents)
     if low_evidence:
         reason = reason or "low_evidence"
@@ -962,7 +459,6 @@ def run_faq_rag(state: ChatbotState) -> dict[str, Any]:
                 "retrieval_query": retrieval_query,
                 "retrieval_enrichment": enrichment_dump,
                 "faq_failure_reason": None,
-                "multihop_result": None,
             }
         if retry:
             reason = retry["failure_reason"] or reason
@@ -976,7 +472,6 @@ def run_faq_rag(state: ChatbotState) -> dict[str, Any]:
             "retrieval_query": retrieval_query,
             "retrieval_enrichment": enrichment_dump,
             "faq_failure_reason": reason,
-            "multihop_result": None,
         }
 
     relevance_ok, relevance_reason = _passes_relevance_gate(documents)
@@ -1006,7 +501,6 @@ def run_faq_rag(state: ChatbotState) -> dict[str, Any]:
                 "retrieval_query": retrieval_query,
                 "retrieval_enrichment": enrichment_dump,
                 "faq_failure_reason": None,
-                "multihop_result": None,
             }
         if retry:
             reason = retry["failure_reason"] or reason
@@ -1020,22 +514,8 @@ def run_faq_rag(state: ChatbotState) -> dict[str, Any]:
             "retrieval_query": retrieval_query,
             "retrieval_enrichment": enrichment_dump,
             "faq_failure_reason": reason,
-            "multihop_result": None,
         }
 
-    # 5단계: 복합 문의면 multi-hop 검색으로 부족한 근거를 보강한다.
-    multihop_result = _maybe_run_multihop_retrieval(
-        state=state,
-        original_query=query,
-        retrieval_query=retrieval_query,
-        documents=documents,
-        final_top_k=final_top_k,
-        candidate_top_k=candidate_top_k,
-    )
-    if multihop_result and multihop_result.get("accepted"):
-        documents = list(multihop_result.get("documents") or documents)
-
-    # 6단계: 최종 evidence 묶음만 사용해 답변 초안을 생성한다.
     answer = _generate_evidence_answer(
         original_query=query,
         retrieval_query=retrieval_query,
@@ -1047,7 +527,6 @@ def run_faq_rag(state: ChatbotState) -> dict[str, Any]:
         "retrieval_query": retrieval_query,
         "retrieval_enrichment": enriched.model_dump(),
         "faq_failure_reason": None,
-        "multihop_result": multihop_result,
     }
 
 
@@ -1072,7 +551,6 @@ def faq_agent_node(state: ChatbotState) -> dict:
         "retrieval_enrichment": rag_result.get("retrieval_enrichment"),
         "retrieved_documents": rag_result["retrieved_documents"],
         "faq_failure_reason": rag_result["faq_failure_reason"],
-        "multihop_result": rag_result.get("multihop_result"),
     }
     log_event(
         EVENT_NODE_COMPLETED,
@@ -1085,7 +563,6 @@ def faq_agent_node(state: ChatbotState) -> dict:
             "draft_length": len(update.get("draft_text") or ""),
             "retrieved_count": len(update.get("retrieved_documents") or []),
             "failure_reason": update.get("faq_failure_reason"),
-            "multihop": update.get("multihop_result"),
         },
     )
     return update

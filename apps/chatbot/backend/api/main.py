@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import os
 from typing import Any, Literal
 
 from fastapi import FastAPI, Query
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from common.observability.langsmith import configure_langsmith
@@ -16,6 +18,21 @@ from chatbot.service.multiturn_service import build_session_context
 
 
 app = FastAPI(title="GameOps Chatbot API")
+
+cors_origins = [
+    origin.strip()
+    for origin in os.environ.get(
+        "CHATBOT_CORS_ORIGINS",
+        "null,http://127.0.0.1:8000,http://localhost,http://127.0.0.1",
+    ).split(",")
+    if origin.strip()
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=cors_origins,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 ChatCategory = Literal["payment", "bug", "faq", "voc"]
 
@@ -122,6 +139,7 @@ def list_tickets(
                     LIMIT 1
                 ) latest_response ON TRUE
                 WHERE t.user_id = %s
+                AND COALESCE(t.source_type, 'chatbot') <> 'eval'
                 {account_filter}
                 ORDER BY t.inquiry_created_at DESC NULLS LAST, t.ticket_id DESC
                 LIMIT %s

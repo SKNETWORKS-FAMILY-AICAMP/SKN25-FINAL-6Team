@@ -9,6 +9,7 @@ from typing import Any
 
 from langchain_core.tools import tool
 from langchain_openai import OpenAIEmbeddings
+from langsmith import traceable
 from psycopg.rows import dict_row
 from pydantic import BaseModel, Field
 
@@ -104,15 +105,12 @@ def _query_patterns(query: str, max_tokens: int = 8) -> list[str]:
 _RULE_POLICY_KEYWORDS = frozenset(["개인정보", "처리방침", "이용약관", "약관"])
 
 
-def _rule_source_types(text: str) -> list[str]:
-    """Return source_type preferences by keyword rules.
+def _is_policy_query(text: str) -> bool:
+    return any(kw in text for kw in _RULE_POLICY_KEYWORDS)
 
-    Policy queries are narrowed to hoyoverse_policy; everything else uses all
-    FAQ source types so that naver_cafe_guide / naver_cafe_notice docs are
-    never excluded by an overly specific LLM enrichment guess.
-    """
-    if any(kw in text for kw in _RULE_POLICY_KEYWORDS):
-        return ["hoyoverse_policy"]
+
+def _rule_source_types(text: str) -> list[str]:
+    """Return broad FAQ source preferences without excluding candidates."""
     return list(FAQ_SOURCE_TYPES)
 
 
@@ -350,6 +348,8 @@ def _rrf_fuse(
         source_boost = SOURCE_PRIORITY.get(str(chunk.get("source_type") or ""), 0) * float(
             os.environ.get("RETRIEVAL_SOURCE_PRIORITY_WEIGHT", "0.003")
         )
+        if _is_policy_query(query_text) and str(chunk.get("source_type") or "") == "hoyoverse_policy":
+            source_boost += float(os.environ.get("RETRIEVAL_POLICY_SOURCE_BOOST", "0.012"))
         field_boost = _field_match_boost(query_text, chunk)
         rrf = (
             1 / (k + cosine_rank.get(cid, len(cosine_rank)) + 1)
@@ -550,6 +550,52 @@ def _fetch_candidate_rows(
             return [dict(row) for row in cur.fetchall()]
 
 
+def _summarize_retrieval_inputs(inputs: dict[str, Any]) -> dict[str, Any]:
+    embedding_json = str(inputs.get("embedding_json") or "")
+    enrichment = inputs.get("enrichment")
+    if hasattr(enrichment, "model_dump"):
+        enrichment = enrichment.model_dump()
+    try:
+        embedding_dimensions = len(json.loads(embedding_json))
+    except Exception:
+        embedding_dimensions = None
+    return {
+        "query_text": inputs.get("query_text"),
+        "top_k": inputs.get("top_k"),
+        "prefer_faq": inputs.get("prefer_faq"),
+        "embedding_dimensions": embedding_dimensions,
+        "enrichment": enrichment,
+    }
+
+
+def _summarize_retrieval_outputs(outputs: list[dict[str, Any]]) -> dict[str, Any]:
+    return {
+        "result_count": len(outputs),
+        "candidate_scope": outputs[0].get("candidate_scope") if outputs else "none",
+        "results": [
+            {
+                "chunk_id": result.get("chunk_id"),
+                "document_id": result.get("document_id"),
+                "source_type": result.get("source_type"),
+                "category": result.get("category"),
+                "title": result.get("title"),
+                "score": result.get("score"),
+                "cosine_score": result.get("cosine_score"),
+                "bm25_score": result.get("bm25_score"),
+                "field_match_score": result.get("field_match_score"),
+            }
+            for result in outputs
+        ],
+    }
+
+
+@traceable(
+    name="search_document_chunks",
+    run_type="retriever",
+    tags=["rag", "vector_search", "postgres"],
+    process_inputs=_summarize_retrieval_inputs,
+    process_outputs=_summarize_retrieval_outputs,
+)
 def search_document_chunks(
     *,
     embedding_json: str,

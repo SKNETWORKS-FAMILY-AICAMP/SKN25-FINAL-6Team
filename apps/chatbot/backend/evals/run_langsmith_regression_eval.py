@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import os
 import sys
 import time
@@ -77,7 +78,12 @@ def chatbot_target(inputs: dict[str, Any]) -> dict[str, Any]:
             "retrieved_contexts": [],
         }
 
-    account_id = int(inputs.get("account_id") or 0)
+    raw_account_id = inputs.get("account_id")
+    account_id = (
+        int(raw_account_id)
+        if category == "payment" and raw_account_id not in (None, "")
+        else None
+    )
     user_id = int(inputs.get("user_id") or 0)
     ticket_id = int(inputs.get("ticket_id") or int(time.time() * 1000) % 1_000_000_000)
 
@@ -255,6 +261,19 @@ def _ragas_judges() -> dict[str, Any]:
     }
 
 
+def _ragas_string_rubrics(rubrics: dict[str, Any]) -> dict[str, str]:
+    """RAGAS InstanceRubrics expects rubrics as dict[str, str]."""
+    normalized: dict[str, str] = {}
+    for key, value in rubrics.items():
+        if value is None:
+            continue
+        if isinstance(value, str):
+            normalized[str(key)] = value
+        else:
+            normalized[str(key)] = json.dumps(value, ensure_ascii=False, default=str)
+    return normalized
+
+
 def _ragas_metric_result(
     *,
     key: str,
@@ -263,15 +282,20 @@ def _ragas_metric_result(
     outputs: dict[str, Any],
     reference_outputs: dict[str, Any],
 ) -> dict[str, Any]:
-    if not _requires_ragas(reference_outputs):
+    if metric_name not in {"answer_relevancy", "instance_rubrics"} and not _requires_ragas(reference_outputs):
         return {"key": key, "value": "not_applicable"}
 
     answer = str(outputs.get("answer") or "").strip()
     reference = str(reference_outputs.get("reference_answer") or "").strip()
+    rubrics = dict(reference_outputs.get("rubrics") or {})
     contexts = list(outputs.get("retrieved_contexts") or [])
-    if not answer or not reference:
+    if not answer:
         return {"key": key, "value": "not_applicable"}
-    if metric_name not in {"factual_correctness", "answer_relevancy"} and not contexts:
+    if metric_name in {"factual_correctness", "context_precision", "context_recall"} and not reference:
+        return {"key": key, "value": "not_applicable"}
+    if metric_name == "instance_rubrics" and not rubrics:
+        return {"key": key, "value": "not_applicable"}
+    if metric_name in {"faithfulness", "context_precision", "context_recall"} and not contexts:
         return {"key": key, "score": 0.0, "value": "no_retrieved_contexts"}
 
     try:
@@ -279,22 +303,25 @@ def _ragas_metric_result(
         from ragas.metrics import (
             FactualCorrectness,
             Faithfulness,
+            InstanceRubrics,
             LLMContextPrecisionWithReference,
             LLMContextRecall,
         )
         try:
-            from ragas.metrics import ResponseRelevancy
+            from ragas.metrics import AnswerRelevancy
         except ImportError:
-            ResponseRelevancy = None
+            from ragas.metrics import ResponseRelevancy
+            AnswerRelevancy = ResponseRelevancy
     except ImportError:
         return {"key": key, "value": "not_applicable"}
 
     metric_by_name = {
         "factual_correctness": FactualCorrectness,
+        "answer_relevancy": AnswerRelevancy,
         "faithfulness": Faithfulness,
         "context_precision": LLMContextPrecisionWithReference,
         "context_recall": LLMContextRecall,
-        "answer_relevancy": ResponseRelevancy,
+        "instance_rubrics": InstanceRubrics,
     }
     metric_cls = metric_by_name[metric_name]
     if metric_cls is None:
@@ -306,12 +333,15 @@ def _ragas_metric_result(
     if hasattr(metric, "embeddings"):
         metric.embeddings = judges["embeddings"]
 
-    sample = SingleTurnSample(
-        user_input=str(inputs.get("user_message") or ""),
-        response=answer,
-        reference=reference,
-        retrieved_contexts=contexts,
-    )
+    sample_kwargs = {
+        "user_input": str(inputs.get("user_message") or ""),
+        "response": answer,
+        "reference": reference,
+        "retrieved_contexts": contexts,
+    }
+    if metric_name == "instance_rubrics":
+        sample_kwargs["rubrics"] = _ragas_string_rubrics(rubrics)
+    sample = SingleTurnSample(**sample_kwargs)
     try:
         score = asyncio.run(metric.single_turn_ascore(sample))
     except RuntimeError:
@@ -395,41 +425,18 @@ def context_recall(
     )
 
 
-def instance_rubrics(outputs: dict[str, Any], reference_outputs: dict[str, Any]) -> dict[str, Any]:
-    rubrics = reference_outputs.get("rubrics") or {}
-    must_include = list(rubrics.get("must_include") or reference_outputs.get("must_include") or [])
-    must_not_include = list(rubrics.get("must_not_include") or reference_outputs.get("must_not_include") or [])
-    if not must_include and not must_not_include:
-        return {"key": "instance_rubrics", "value": "not_applicable"}
-
-    answer = str(outputs.get("answer") or "")
-    normalized_answer = answer.lower()
-
-    include_hits = [
-        item
-        for item in must_include
-        if str(item).strip() and str(item).strip().lower() in normalized_answer
-    ]
-    forbidden_hits = [
-        item
-        for item in must_not_include
-        if str(item).strip() and str(item).strip().lower() in normalized_answer
-    ]
-
-    include_score = len(include_hits) / len(must_include) if must_include else 1.0
-    forbidden_score = 1.0 - (len(forbidden_hits) / len(must_not_include)) if must_not_include else 1.0
-    score = (include_score + forbidden_score) / 2
-
-    return {
-        "key": "instance_rubrics",
-        "score": score,
-        "value": {
-            "include": f"{len(include_hits)}/{len(must_include)}",
-            "forbidden": f"{len(forbidden_hits)}/{len(must_not_include)}",
-            "missing": [item for item in must_include if item not in include_hits],
-            "forbidden_hits": forbidden_hits,
-        },
-    }
+def instance_rubrics(
+    inputs: dict[str, Any],
+    outputs: dict[str, Any],
+    reference_outputs: dict[str, Any],
+) -> dict[str, Any]:
+    return _ragas_metric_result(
+        key="instance_rubrics",
+        metric_name="instance_rubrics",
+        inputs=inputs,
+        outputs=outputs,
+        reference_outputs=reference_outputs,
+    )
 
 
 def tool_db_call_accuracy(outputs: dict[str, Any], reference_outputs: dict[str, Any]) -> dict[str, Any]:
@@ -457,6 +464,27 @@ def latency(outputs: dict[str, Any]) -> dict[str, Any]:
     return {"key": "latency", "score": latency_ms <= target_ms, "value": round(latency_ms, 1)}
 
 
+def invalid_category_handling(outputs: dict[str, Any]) -> dict[str, Any]:
+    category = str(outputs.get("category") or "")
+    if category in CHATBOT_CATEGORIES:
+        return {"key": "invalid_category_handling", "value": "not_applicable"}
+    handled = (
+        outputs.get("route") == "out_of_chatbot_scope"
+        and outputs.get("routing_target") == "external_system"
+        and outputs.get("safety_action") == "REVIEW_REQUIRED"
+    )
+    return {
+        "key": "invalid_category_handling",
+        "score": handled,
+        "value": {
+            "category": category,
+            "route": outputs.get("route"),
+            "routing_target": outputs.get("routing_target"),
+            "safety_action": outputs.get("safety_action"),
+        },
+    }
+
+
 def redis_cache_observed(outputs: dict[str, Any], reference_outputs: dict[str, Any]) -> dict[str, Any]:
     expected = reference_outputs.get("expected_cache_behavior")
     if expected == "retrieval_cache_hit":
@@ -479,10 +507,30 @@ def main() -> None:
     parser.add_argument("--test-type", help="Evaluate only examples whose metadata.test_type matches this value.")
     parser.add_argument("--eval-slice", help="Evaluate only examples whose metadata.eval_slice matches this value.")
     parser.add_argument("--enable-ragas", action="store_true", help="Run RAGAS judge metrics for RAG examples.")
+    parser.add_argument(
+        "--disable-retrieval-cache",
+        action="store_true",
+        help="Disable FAQ/RAG retrieval cache for this evaluation run.",
+    )
+    parser.add_argument("--clear-cache", action="store_true", help="Clear chatbot FAQ cache before running evaluation.")
+    parser.add_argument(
+        "--cache-namespace",
+        choices=["answer", "retrieval", "all"],
+        default="all",
+        help="FAQ cache namespace to clear when --clear-cache is set.",
+    )
     args = parser.parse_args()
 
     load_chatbot_langsmith_env()
     os.environ.setdefault("CHATBOT_DEBUG_ROUTING", "false")
+    if args.disable_retrieval_cache:
+        os.environ["FAQ_RETRIEVAL_CACHE_ENABLED"] = "false"
+
+    if args.clear_cache:
+        from chatbot.retrieval.cache_store import clear_faq_cache
+
+        namespace = None if args.cache_namespace == "all" else args.cache_namespace
+        print(f"Cleared FAQ cache: {clear_faq_cache(namespace)}")
 
     data: Any = args.dataset_name
     if args.limit is not None or args.test_type or args.eval_slice:
@@ -503,6 +551,7 @@ def main() -> None:
         tool_db_call_accuracy,
         safety_pass_accuracy,
         latency,
+        invalid_category_handling,
         action_match,
         answer_non_empty,
         instance_rubrics,

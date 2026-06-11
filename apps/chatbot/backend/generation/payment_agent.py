@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from langsmith import traceable
+
 from chatbot.agent import invoke_payment_agent
 from chatbot.generation.drafting_agent import build_draft_update
 from chatbot.generation.policies import PAYMENT_POLICY
@@ -59,6 +61,37 @@ def _payment_context_message(context: dict[str, Any]) -> dict[str, str]:
     }
 
 
+def _summarize_payment_context_inputs(inputs: dict[str, Any]) -> dict[str, Any]:
+    state = inputs.get("state") or {}
+    return {
+        "ticket_id": state.get("ticket_id"),
+        "session_id": state.get("session_id"),
+        "user_id": state.get("user_id"),
+        "account_id": state.get("account_id"),
+        "category": state.get("category"),
+        "routing_target": state.get("routing_target"),
+    }
+
+
+def _summarize_payment_context_outputs(outputs: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "status": outputs.get("status"),
+        "user_id": outputs.get("user_id"),
+        "account_id": outputs.get("account_id"),
+        "count": outputs.get("count"),
+        "counts": outputs.get("counts") or {},
+        "error": outputs.get("error"),
+        "error_category": outputs.get("error_category"),
+    }
+
+
+@traceable(
+    name="collect_payment_context",
+    run_type="tool",
+    tags=["chatbot", "db", "payment"],
+    process_inputs=_summarize_payment_context_inputs,
+    process_outputs=_summarize_payment_context_outputs,
+)
 def _collect_payment_context(state: ChatbotState) -> dict[str, Any]:
     # 로그인된 user_id/account_id 기준으로 결제 관련 DB context를 한 번에 조회한다.
     user_id = state.get("user_id")
