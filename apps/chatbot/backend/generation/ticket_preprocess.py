@@ -36,7 +36,10 @@ def ticket_preprocess_node(state: ChatbotState) -> dict:
     masked_content = state.get("masked_content") or raw_query
     category = _category_from_user_selection(state.get("category"))
     normalized_query = normalize_query_text(masked_content)
-    routing_target = state.get("routing_target") or ("urgent_alert" if category == "bug" else "rag_reply")  
+    routing_target = state.get("routing_target") or ("urgent_alert" if category == "bug" else "rag_reply")
+    should_use_rag = state.get("should_use_rag")
+    if should_use_rag is None:
+        should_use_rag = category == "faq"
 
     # 2단계: 원문 문의는 qa_ticket에 저장하고, 이후 노드는 state의 normalized_query를 사용한다.
     _write_qa_ticket(
@@ -55,9 +58,12 @@ def ticket_preprocess_node(state: ChatbotState) -> dict:
     return {
         "ticket_id": ticket_id,
         "normalized_query": normalized_query,
+        "ui_category": state.get("ui_category"),
+        "sub_category": state.get("sub_category"),
         "category": category,
         "routing_target": routing_target,
+        "fallback_routing_target": state.get("fallback_routing_target"),
         "is_actionable": True,
-        "should_use_rag": category == "faq",
+        "should_use_rag": should_use_rag,
         "fallback_reason": None,
     }

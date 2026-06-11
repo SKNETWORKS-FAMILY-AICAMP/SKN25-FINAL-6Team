@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import secrets
 from typing import Any, Literal
 
 from fastapi import FastAPI, Query
@@ -38,13 +39,18 @@ ChatCategory = Literal["payment", "bug", "faq", "voc"]
 
 
 class ChatRequest(BaseModel):
-    ticket_id: int
+    ticket_id: int | None = None
     user_message: str = Field(min_length=1)
     category: ChatCategory
     account_id: int | None = None
     user_id: int = 1
-    session_id: int = 1
+    session_id: int | None = None
     source_type: str = "chatbot"
+    ui_category: str | None = None
+    sub_category: str | None = None
+    routing_target: str | None = None
+    should_use_rag: bool | None = None
+    fallback_routing_target: str | None = None
     previous_messages: list[dict[str, str]] | None = None
     conversation_summary: str | None = None
 
@@ -52,7 +58,11 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     answer: str
     ticket_id: int
+    session_id: int
+    draft_id: int | None = None
     category: str | None = None
+    ui_category: str | None = None
+    sub_category: str | None = None
     routing_target: str | None = None
     review_required: bool | None = None
     safety_passed: bool | None = None
@@ -83,6 +93,24 @@ class InquiryHistoryItem(BaseModel):
     source_type: str | None = None
     inquiry_created_at: Any | None = None
     final_text: str | None = None
+
+
+def _new_numeric_id() -> int:
+    return 100_000_000 + secrets.randbelow(800_000_000)
+
+
+def _new_ticket_id() -> int:
+    for _ in range(8):
+        ticket_id = _new_numeric_id()
+        try:
+            with db_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT 1 FROM qa_ticket WHERE ticket_id = %s", (ticket_id,))
+                    if cur.fetchone() is None:
+                        return ticket_id
+        except Exception:
+            return ticket_id
+    return _new_numeric_id()
 
 
 @app.get("/health")
@@ -164,15 +192,18 @@ def list_tickets(
 
 @app.post("/chat", response_model=ChatResponse)
 def chat(request: ChatRequest) -> ChatResponse:
+    ticket_id = request.ticket_id or _new_ticket_id()
+    session_id = request.session_id or _new_numeric_id()
+
     # 1단계: 요청에 이전 대화가 없으면 DB에서 최근 멀티턴 context를 구성한다.
     previous_messages = request.previous_messages
     conversation_summary = request.conversation_summary
     if previous_messages is None:
         context = build_session_context(
-            session_id=request.session_id,
+            session_id=session_id,
             user_id=request.user_id,
             account_id=request.account_id,
-            current_ticket_id=request.ticket_id,
+            current_ticket_id=ticket_id,
             recent_turns=3,
         )
         previous_messages = context.previous_messages
@@ -180,13 +211,18 @@ def chat(request: ChatRequest) -> ChatResponse:
 
     # 2단계: chatbot_service가 LangGraph workflow를 실행하고 최종 답변/state를 반환한다.
     output: dict[str, Any] = run_chatbot(
-        ticket_id=request.ticket_id,
+        ticket_id=ticket_id,
         user_message=request.user_message,
         category=request.category,
         account_id=request.account_id,
         user_id=request.user_id,
-        session_id=request.session_id,
+        session_id=session_id,
         source_type=request.source_type,
+        ui_category=request.ui_category,
+        sub_category=request.sub_category,
+        routing_target=request.routing_target,
+        should_use_rag=request.should_use_rag,
+        fallback_routing_target=request.fallback_routing_target,
         previous_messages=previous_messages,
         conversation_summary=conversation_summary,
     )
@@ -195,8 +231,12 @@ def chat(request: ChatRequest) -> ChatResponse:
     # 3단계: 프론트엔드에 필요한 최소 결과만 응답 스키마로 정리한다.
     return ChatResponse(
         answer=output["answer"],
-        ticket_id=request.ticket_id,
+        ticket_id=ticket_id,
+        session_id=session_id,
+        draft_id=state.get("draft_id"),
         category=state.get("category"),
+        ui_category=state.get("ui_category"),
+        sub_category=state.get("sub_category"),
         routing_target=state.get("routing_target"),
         review_required=state.get("review_required"),
         safety_passed=state.get("safety_passed"),

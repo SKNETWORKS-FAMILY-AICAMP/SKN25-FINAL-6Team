@@ -35,8 +35,11 @@ class ChatbotState(AgentState):
 
     # Routing and workflow state.
     ticket_id: NotRequired[int]
+    ui_category: NotRequired[str | None]
+    sub_category: NotRequired[str | None]
     category: NotRequired[Category | str]
     routing_target: NotRequired[RoutingTarget | str]
+    fallback_routing_target: NotRequired[str | None]
     is_actionable: NotRequired[bool | None]
     should_use_rag: NotRequired[bool | None]
     fallback_reason: NotRequired[str | None]

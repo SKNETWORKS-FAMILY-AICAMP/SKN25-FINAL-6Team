@@ -16,6 +16,15 @@ CATEGORY_NODE_BY_NAME = {
     "voc": "voc_agent",
 }
 
+ROUTING_NODE_BY_TARGET = {
+    "payment_agent": "payment_agent",
+    "bug_agent": "bug_agent",
+    "faq_agent": "faq_agent",
+    "voc_agent": "voc_agent",
+    "rag_reply": "faq_agent",
+    "urgent_alert": "bug_agent",
+}
+
 
 def _is_voc_state(state: ChatbotState) -> bool:
     category = str(state.get("category") or "").strip().lower()
@@ -69,11 +78,13 @@ def _summarize_dispatch_outputs(outputs: dict[str, Any]) -> dict[str, Any]:
 )
 def _trace_category_dispatch(state: ChatbotState, *, started_at: float) -> dict[str, Any]:
     category = str(state.get("category") or "").strip().lower()
-    target_node = CATEGORY_NODE_BY_NAME.get(category)
+    routing_target = str(state.get("routing_target") or "").strip().lower()
+    target_node = ROUTING_NODE_BY_TARGET.get(routing_target) or CATEGORY_NODE_BY_NAME.get(category)
     dispatch_valid = target_node is not None
 
     return {
         "selected_category": category,
+        "routing_target": routing_target,
         "target_node": target_node or "voc_agent",
         "dispatch_valid": dispatch_valid,
         "dispatch_match": dispatch_valid,
