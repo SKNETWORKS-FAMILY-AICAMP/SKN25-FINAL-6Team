@@ -167,3 +167,15 @@ def update_qa_ticket_status(payload: dict) -> str:
     from chatbot.repository.ticket_repository import update_qa_ticket_status as update_status
 
     return _json(update_status(payload))
+
+
+@tool(parse_docstring=True)
+def update_qa_ticket_raw_query(payload: dict) -> str:
+    """Update qa_ticket.raw_query with the full Q&A text for this turn.
+
+    Args:
+        payload: Fields including ticket_id and raw_query.
+    """
+    from chatbot.repository.ticket_repository import update_qa_ticket_raw_query as update_raw_query
+
+    return _json(update_raw_query(payload))

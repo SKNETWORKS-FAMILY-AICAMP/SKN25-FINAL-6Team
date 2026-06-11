@@ -81,6 +81,12 @@ def _trace_category_dispatch(state: ChatbotState, *, started_at: float) -> dict[
         "latency_ms": round((perf_counter() - started_at) * 1000, 3),
     }
 
+def route_after_preprocess(state: ChatbotState) -> str:
+    if "prompt_injection" in (state.get("input_detected_labels") or []):
+        return "final_response"
+    return route_by_category(state)
+
+
 def route_by_category(state: ChatbotState) -> str:
     started_at = perf_counter()
     dispatch = _trace_category_dispatch(state, started_at=started_at)

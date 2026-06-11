@@ -85,6 +85,16 @@ class InquiryHistoryItem(BaseModel):
     final_text: str | None = None
 
 
+def _extract_ai_response(raw_query: str | None) -> str | None:
+    if not raw_query:
+        return None
+    marker = "\nAI: "
+    idx = raw_query.find(marker)
+    if idx == -1:
+        return None
+    return raw_query[idx + len(marker):]
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
@@ -124,16 +134,8 @@ def list_tickets(
                     t.raw_query,
                     t.status,
                     t.source_type,
-                    t.inquiry_created_at,
-                    latest_response.final_text
+                    t.inquiry_created_at
                 FROM qa_ticket t
-                LEFT JOIN LATERAL (
-                    SELECT fr.final_text
-                    FROM final_response fr
-                    WHERE fr.ticket_id = t.ticket_id
-                    ORDER BY fr.created_at DESC NULLS LAST, fr.response_id DESC
-                    LIMIT 1
-                ) latest_response ON TRUE
                 WHERE t.user_id = %s
                 AND COALESCE(t.source_type, 'chatbot') <> 'eval'
                 {account_filter}
@@ -152,7 +154,7 @@ def list_tickets(
             status=row[3],
             source_type=row[4],
             inquiry_created_at=row[5],
-            final_text=row[6],
+            final_text=_extract_ai_response(row[2]),
         )
         for row in rows
     ]

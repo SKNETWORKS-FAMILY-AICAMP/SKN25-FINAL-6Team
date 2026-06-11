@@ -506,24 +506,15 @@ def _final_state(category: str, safety_action: str = "SAFE_FALLBACK") -> dict:
 def _patch_final_response_writes(monkeypatch) -> list[dict]:
     payloads = []
 
-    class FakeWriteFinalResponse:
+    class FakeUpdateRawContent:
         @staticmethod
         def invoke(args):
             payloads.append(args["payload"])
-            return json.dumps({"stored": True, "response_id": 123})
-
-    class FakeUpdateTicketStatus:
-        @staticmethod
-        def invoke(args):
-            return json.dumps({"stored": True, "ticket_status": args["payload"]["status"]})
+            return json.dumps({"stored": True, "ticket_id": args["payload"]["ticket_id"]})
 
     monkeypatch.setattr(
-        "chatbot.generation.response.final_response.write_final_response",
-        FakeWriteFinalResponse,
-    )
-    monkeypatch.setattr(
-        "chatbot.generation.response.final_response.update_qa_ticket_status",
-        FakeUpdateTicketStatus,
+        "chatbot.generation.response.final_response.update_qa_ticket_raw_query",
+        FakeUpdateRawContent,
     )
     monkeypatch.setattr(
         "chatbot.generation.response.final_response.dispatch_urgent_alert",
@@ -546,7 +537,7 @@ def test_final_response_uses_category_fallbacks(monkeypatch) -> None:
         result = final_response_node(_final_state(category))
         assert result["final_text"] == expected
 
-    assert [payload["final_text"] for payload in payloads] == [expected for _, expected in cases]
+    assert [payload["raw_query"] for payload in payloads] == [f"User: \nAI: {expected}" for _, expected in cases]
 
 
 def test_final_response_uses_fixed_block_and_review_responses(monkeypatch) -> None:

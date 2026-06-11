@@ -8,7 +8,7 @@ from chatbot.generation.payment_agent import payment_agent_node
 from chatbot.generation.ticket_preprocess import ticket_preprocess_node
 from chatbot.generation.voc_agent import voc_agent_node
 from chatbot.chains.persistence import draft_persistence_node
-from chatbot.chains.routing import route_after_draft_persistence, route_after_safety, route_by_category
+from chatbot.chains.routing import route_after_draft_persistence, route_after_preprocess, route_after_safety
 from chatbot.generation.response.final_response import final_response_node
 from chatbot.safety.safety_layer import safety_layer_node
 from chatbot.schemas import ChatbotState
@@ -29,12 +29,13 @@ workflow.set_entry_point("ticket_preprocess")
 
 workflow.add_conditional_edges(
     "ticket_preprocess",
-    route_by_category,
+    route_after_preprocess,
     {
         "payment_agent": "payment_agent",
         "bug_agent": "bug_agent",
         "faq_agent": "faq_agent",
         "voc_agent": "voc_agent",
+        "final_response": "final_response",
     },
 )
 

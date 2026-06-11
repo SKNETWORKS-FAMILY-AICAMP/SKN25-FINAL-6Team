@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from chatbot.generation.response.fixed_responses import BLOCK_RESPONSE
 from chatbot.schemas import ChatbotState
 from chatbot.tools.db_tools import write_qa_ticket
 from chatbot.utils.query_enrichment import normalize_query_text
@@ -42,6 +43,21 @@ def ticket_preprocess_node(state: ChatbotState) -> dict:
             },
         }
     )
+
+    if "prompt_injection" in (state.get("input_detected_labels") or []):
+        return {
+            "ticket_id": ticket_id,
+            "normalized_query": normalized_query,
+            "category": category,
+            "routing_target": routing_target,
+            "is_actionable": False,
+            "should_use_rag": False,
+            "fallback_reason": "prompt_injection_detected",
+            "draft_text": BLOCK_RESPONSE,
+            "safety_action": "BLOCK_RESPONSE",
+            "safety_passed": False,
+            "retry_count": 0,
+        }
 
     return {
         "ticket_id": ticket_id,

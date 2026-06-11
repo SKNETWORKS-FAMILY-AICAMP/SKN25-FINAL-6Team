@@ -10,7 +10,7 @@ from chatbot.generation.response.fixed_responses import (
 from chatbot.notifications.dispatcher import dispatch_urgent_alert
 from chatbot.observability.logger import EVENT_FINAL_RESPONSE_CREATED, log_event
 from chatbot.schemas import ChatbotState
-from chatbot.tools.db_tools import update_qa_ticket_status, write_final_response
+from chatbot.tools.db_tools import update_qa_ticket_raw_query
 
 
 def _ticket_status_for_decision(decision: str) -> str:
@@ -36,17 +36,12 @@ def final_response_node(state: ChatbotState) -> dict:
 
     notification_result = dispatch_urgent_alert({**state, "final_text": final_text})
 
-    final_response_result = json.loads(write_final_response.invoke({
+    raw_query = state.get("raw_query") or ""
+    ticket_status_result = json.loads(update_qa_ticket_raw_query.invoke({
         "payload": {
             "ticket_id": state["ticket_id"],
-            "draft_id": state.get("draft_id"),
-            "final_text": final_text,
+            "raw_query": f"User: {raw_query}\nAI: {final_text}",
             "safety_action": decision,
-        },
-    }))
-    ticket_status_result = json.loads(update_qa_ticket_status.invoke({
-        "payload": {
-            "ticket_id": state["ticket_id"],
             "status": _ticket_status_for_decision(decision),
         },
     }))
@@ -68,7 +63,6 @@ def final_response_node(state: ChatbotState) -> dict:
 
     return {
         "final_text": final_text,
-        "final_response_result": final_response_result,
         "notification_result": notification_result,
         "ticket_status_result": ticket_status_result,
     }

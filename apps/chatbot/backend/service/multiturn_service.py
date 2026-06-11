@@ -49,6 +49,26 @@ def build_session_context(
     )
 
 
+def _extract_user_query(raw_query: str | None) -> str:
+    if not raw_query:
+        return ""
+    marker = "\nAI: "
+    text = raw_query.split(marker, 1)[0]
+    if text.startswith("User: "):
+        text = text[len("User: "):]
+    return _clean_text(text)
+
+
+def _extract_ai_response(raw_query: str | None) -> str | None:
+    if not raw_query:
+        return None
+    marker = "\nAI: "
+    idx = raw_query.find(marker)
+    if idx == -1:
+        return None
+    return raw_query[idx + len(marker):]
+
+
 def _fetch_session_turns(
     *,
     session_id: int,
@@ -68,16 +88,8 @@ def _fetch_session_turns(
                 f"""
                 SELECT
                     t.ticket_id,
-                    t.raw_query,
-                    latest_response.final_text
+                    t.raw_query
                 FROM qa_ticket t
-                LEFT JOIN LATERAL (
-                    SELECT fr.final_text
-                    FROM final_response fr
-                    WHERE fr.ticket_id = t.ticket_id
-                    ORDER BY fr.created_at DESC NULLS LAST, fr.response_id DESC
-                    LIMIT 1
-                ) latest_response ON TRUE
                 WHERE t.session_id = %s
                   AND t.user_id = %s
                   AND t.ticket_id <> %s
@@ -89,9 +101,9 @@ def _fetch_session_turns(
             rows = cur.fetchall()
 
     turns: list[ConversationTurn] = []
-    for ticket_id, raw_query, final_text in rows:
-        user_text = _clean_text(raw_query)
-        assistant_text = _clean_text(final_text) if final_text else None
+    for ticket_id, raw_query in rows:
+        user_text = _extract_user_query(raw_query)
+        assistant_text = _extract_ai_response(raw_query)
         if user_text:
             turns.append(
                 ConversationTurn(

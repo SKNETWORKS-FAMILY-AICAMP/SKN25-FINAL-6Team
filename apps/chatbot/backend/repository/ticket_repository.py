@@ -86,3 +86,31 @@ def update_qa_ticket_status(payload: dict[str, Any]) -> dict[str, Any]:
         }
 
     return safe_write(operation="update_qa_ticket_status", payload=payload, writer=_write)
+
+
+def update_qa_ticket_raw_query(payload: dict[str, Any]) -> dict[str, Any]:
+    def _write() -> dict[str, Any]:
+        with db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE qa_ticket
+                    SET raw_query = %s,
+                        safety_action = %s,
+                        status = %s
+                    WHERE ticket_id = %s
+                    """,
+                    (
+                        payload["raw_query"],
+                        payload.get("safety_action"),
+                        payload.get("status"),
+                        _optional_int(payload["ticket_id"]),
+                    ),
+                )
+        return {
+            "status": "ok",
+            "stored": True,
+            "ticket_id": payload["ticket_id"],
+        }
+
+    return safe_write(operation="update_qa_ticket_raw_query", payload=payload, writer=_write)
