@@ -162,6 +162,13 @@ ANSWER_SAFETY_PROMPT = PromptTemplate(
 
 # qa_ticket와 ticket_analysis를 조인해 초안 생성 대상 1건을 읽어오는 저장소 클래스다.
 # retrieval 이전 단계에서 필요한 필드만 가져와 AnswerTarget으로 정규화한다.
+def _next_integer_id(cur: Any, table_name: str, id_column: str) -> int:
+    cur.execute(f"LOCK TABLE {table_name} IN SHARE ROW EXCLUSIVE MODE")
+    cur.execute(f"SELECT COALESCE(MAX({id_column}), 0) + 1 AS next_id FROM {table_name}")
+    row = cur.fetchone()
+    return int(row[0])
+
+
 class AnswerTargetRepository:
     """Load answer-draft targets from qa_ticket and ticket_analysis."""
 
@@ -174,19 +181,19 @@ class AnswerTargetRepository:
                         q.ticket_id,
                         q.account_id,
                         q.user_id,
-                        q.title,
-                        q.raw_query,
-                        q.source_type,
-                        q.status,
+                        COALESCE(q.title, '') AS title,
+                        COALESCE(q.raw_query, '') AS raw_query,
+                        COALESCE(q.source_type, '') AS source_type,
+                        COALESCE(q.status, '') AS status,
                         q.inquiry_created_at,
                         q.assignee_admin_id,
                         a.analysis_id,
-                        a.category,
-                        a.enriched_query,
-                        a.risk_level,
-                        a.sentiment,
-                        a.routing_target,
-                        a.summary,
+                        COALESCE(a.category, 'general') AS category,
+                        COALESCE(a.enriched_query, '') AS enriched_query,
+                        COALESCE(a.risk_level, '') AS risk_level,
+                        COALESCE(a.sentiment, '') AS sentiment,
+                        COALESCE(a.routing_target, 'fixed_answer') AS routing_target,
+                        COALESCE(a.summary, '') AS summary,
                         a.analyzed_at
                     FROM qa_ticket q
                     LEFT JOIN ticket_analysis a ON a.ticket_id = q.ticket_id
@@ -448,23 +455,24 @@ class AnswerDraftRepository:
     def save_draft(self, target: AnswerTarget, result: AnswerDraftResult) -> int:
         with db_connection() as conn:
             with conn.cursor() as cur:
+                draft_id = _next_integer_id(cur, "answer_draft", "draft_id")
                 cur.execute(
                     """
                     INSERT INTO answer_draft (
+                        draft_id,
                         ticket_id,
                         analysis_id,
                         draft_text,
-                        prompt_version,
                         created_at
                     )
                     VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP)
                     RETURNING draft_id
                     """,
                     (
+                        draft_id,
                         target.ticket_id,
                         target.analysis_id,
                         result.draft_text,
-                        "cs-auto-answer-v1",
                     ),
                 )
                 row = cur.fetchone()
@@ -504,9 +512,11 @@ class AnswerDraftRepository:
     def save_safety_results(self, draft_id: int, safety: AnswerSafetyResult) -> int:
         with db_connection() as conn:
             with conn.cursor() as cur:
+                safety_id = _next_integer_id(cur, "safety_results", "safety_id")
                 cur.execute(
                     """
                     INSERT INTO safety_results (
+                        safety_id,
                         draft_id,
                         hallucination_score,
                         toxicity_score,
@@ -517,10 +527,11 @@ class AnswerDraftRepository:
                         safety_reason,
                         retry_count
                     )
-                    VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, %s, %s, %s)
                     RETURNING safety_id
                     """,
                     (
+                        safety_id,
                         draft_id,
                         safety.hallucination_score,
                         safety.toxicity_score,

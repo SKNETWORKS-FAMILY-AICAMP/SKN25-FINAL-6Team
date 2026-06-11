@@ -310,6 +310,7 @@ const appState = {
   workflowLabel: "문의 내용 분석 중...",
   workflowLogs: [],
   isApproving: false,
+  isRegenerating: false,
   tickets: [],
   evidence: [],
   history: [],
@@ -853,9 +854,11 @@ async function approveDraft() {
 function requestRegenerateDraft() {
   const ticket = getSelectedTicket();
   if (!ticket.ticketId || !ticket.draftId || !appState.currentReviewerId) {
+    pushAlert("초안 재생성에 필요한 티켓 정보가 없습니다.", "error");
     return;
   }
   if ((ticket.regenCount || 0) >= (ticket.regenLimit || 3)) {
+    pushAlert("재생성 가능 횟수를 모두 사용했습니다.", "error");
     return;
   }
 
@@ -870,22 +873,33 @@ async function regenerateDraft() {
   const ticket = getSelectedTicket();
   const reason = appState.regenReason.trim();
   if (!ticket.ticketId || !ticket.draftId || !appState.currentReviewerId) {
+    pushAlert("초안 재생성에 필요한 티켓 정보가 없습니다.", "error");
     return;
   }
   if ((ticket.regenCount || 0) >= (ticket.regenLimit || 3) || !reason) {
+    pushAlert(!reason ? "재생성 사유를 입력하세요." : "재생성 가능 횟수를 모두 사용했습니다.", "error");
     return;
   }
-
-  const result = await window.CSAutoApi.regenerateDraft(
-    ticket.ticketId,
-    ticket.draftId,
-    reason,
-    appState.currentReviewerId
-  );
-  if (result.ok === false) return;
-  mergeTicketFromApi(result.ticket);
-  appState.showRegenBox = false;
-  appState.regenReason = "";
+  appState.isRegenerating = true;
+  render();
+  try {
+    const result = await window.CSAutoApi.regenerateDraft(
+      ticket.ticketId,
+      ticket.draftId,
+      reason,
+      appState.currentReviewerId
+    );
+    if (result.ok === false) {
+      pushAlert(result.message || "초안 재생성에 실패했습니다.", "error");
+      return;
+    }
+    mergeTicketFromApi(result.ticket);
+    appState.showRegenBox = false;
+    appState.regenReason = "";
+    pushAlert("초안을 다시 생성했습니다.", "success");
+  } finally {
+    appState.isRegenerating = false;
+  }
   render();
 }
 
@@ -1317,14 +1331,14 @@ function render() {
                     <textarea id="draft-input" class="min-h-[180px] w-full resize-y rounded-[7px] border border-sand-300 bg-white px-3 py-2.5 text-xs leading-[1.6] text-ink-900 outline-none ${ticket.isDraftEditing ? "focus:border-brand-500" : "text-ink-500"}" ${ticket.isDraftEditing ? "" : "readonly"}>${escapeHtml(ticket.draft)}</textarea>
                     <div class="mt-2 flex flex-wrap gap-1.5">
                       <button id="confirm-draft-btn" class="btn btn-ghost btn-sm ${!hasDraft ? "cursor-not-allowed opacity-40 hover:border-sand-300 hover:text-ink-700" : ""}" ${!hasDraft ? "disabled" : ""}><i class="ti ti-device-floppy"></i> ${ticket.isDraftEditing ? "수정 완료" : "수정"}</button>
-                      <button id="regen-toggle-btn" class="btn btn-ghost btn-sm ml-auto ${!hasDraft || remainingRegens === 0 ? "cursor-not-allowed opacity-40 hover:border-sand-300 hover:text-ink-700" : ""}" ${!hasDraft || remainingRegens === 0 ? "disabled" : ""}><i class="ti ti-refresh"></i> 재생성</button>
+                      <button id="regen-toggle-btn" class="btn btn-ghost btn-sm ml-auto ${!hasDraft || remainingRegens === 0 || appState.isRegenerating ? "cursor-not-allowed opacity-40 hover:border-sand-300 hover:text-ink-700" : ""}" ${!hasDraft || remainingRegens === 0 || appState.isRegenerating ? "disabled" : ""}><i class="ti ti-refresh"></i> 재생성</button>
                     </div>
                     ${!hasDraft ? `<div class="mt-2 text-[11px] text-ink-500">이 티켓은 아직 답변 초안이 생성되지 않아 수정할 수 없습니다.</div>` : ""}
                     <div class="${appState.showRegenBox ? "block" : "hidden"} mt-2 rounded-lg border border-brand-200 bg-brand-500/5 p-3">
                       <label class="mb-1 block text-[11px] font-medium text-brand-500">재생성 사유 입력</label>
                       <textarea id="regen-reason-input" class="min-h-[52px] w-full resize-none rounded-md border border-brand-200 bg-white px-2.5 py-2 text-xs outline-none" placeholder="예: 문체를 더 정중하게 수정, 환불 기준 문구 반영">${escapeHtml(appState.regenReason)}</textarea>
                       <div class="mt-1.5 flex gap-1">
-                        <button id="regen-submit-btn" class="btn btn-primary btn-sm"><i class="ti ti-send"></i> 사유 반영 재생성</button>
+                        <button id="regen-submit-btn" class="btn btn-primary btn-sm ${appState.isRegenerating ? "cursor-not-allowed opacity-40 hover:bg-brand-500" : ""}" ${appState.isRegenerating ? "disabled" : ""}><i class="ti ${appState.isRegenerating ? "ti-loader-2 animate-spin" : "ti-send"}"></i> ${appState.isRegenerating ? "재생성 중..." : "사유 반영 재생성"}</button>
                         <button id="regen-cancel-btn" class="btn btn-ghost btn-sm">취소</button>
                       </div>
                     </div>
