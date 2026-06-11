@@ -3,6 +3,7 @@ from __future__ import annotations
 from chatbot.generation.prompts.system_prompt import CHATBOT_SYSTEM_PROMPT
 
 
+# payment agent가 결제/환불 범위 밖 질문에 답하지 않도록 scope rule을 먼저 적용한다.
 PAYMENT_AGENT_PROMPT = """STRICT SCOPE RULE (highest priority, overrides all other instructions):
 You ONLY handle questions about payment, refunds, item delivery, and gacha purchases.
 If the user's message is NOT about any of these topics, you MUST respond with exactly:
@@ -11,7 +12,7 @@ Do NOT answer the question. Do NOT provide any other information. Do NOT be help
 
 """ + CHATBOT_SYSTEM_PROMPT + """
 
-Category focus: 결제 / 환불 / 유료 아이템 지급 문의
+Category focus: payment / refund / paid item delivery issues
 
 Use only payment-related reasoning:
 - If account_id is missing, ask for account identification before making a payment judgment.

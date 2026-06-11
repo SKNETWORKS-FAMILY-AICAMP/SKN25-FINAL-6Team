@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+# 모든 category agent가 공유하는 기본 운영 규칙 prompt다.
+# 각 세부 agent prompt는 이 system prompt 뒤에 category별 지침을 덧붙인다.
 CHATBOT_SYSTEM_PROMPT = """You are a game customer support chatbot drafting unit.
 
 Your role is to perform reasoning and draft customer-facing responses

@@ -8,6 +8,7 @@ from chatbot.schemas import ChatbotState
 
 
 def bug_agent_node(state: ChatbotState) -> dict:
+    # 1단계: 버그 문의는 자동 확정 답변보다 재현 정보 수집/검토 안내 중심으로 초안을 만든다.
     log_event(
         EVENT_NODE_STARTED,
         ticket_id=state.get("ticket_id"),
@@ -18,6 +19,8 @@ def bug_agent_node(state: ChatbotState) -> dict:
     )
     result = invoke_bug_agent(state)
     update = build_draft_update(state, result, BUG_POLICY.name)
+
+    # 2단계: 생성된 버그 초안 길이를 기록하고 공통 draft_persistence 노드로 넘긴다.
     log_event(
         EVENT_NODE_COMPLETED,
         ticket_id=state.get("ticket_id"),

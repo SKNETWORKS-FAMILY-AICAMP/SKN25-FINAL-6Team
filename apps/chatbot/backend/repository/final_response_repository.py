@@ -7,6 +7,7 @@ from common.db.connection import db_connection
 from chatbot.repository.base import safe_write
 
 
+# safety 결과까지 반영된 최종 고객 응답을 final_response에 저장한다.
 def save_final_response(payload: dict[str, Any]) -> dict[str, Any]:
     def _write() -> dict[str, Any]:
         with db_connection() as conn:

@@ -83,9 +83,6 @@ def test_ticket_preprocess_persists_raw_query_and_normalizes_masked_content(monk
 
     assert saved_payloads[0]["raw_query"] == "아이템 미지급입니다. test@example.com"
     assert update["normalized_query"] == "아이템 미지급입니다. [EMAIL]"
-    assert update["enriched_query"] == "아이템 미지급입니다. [EMAIL]"
-    assert update["query_enrichment_method"] == "normalize_only"
-    assert update["query_enrichment_terms"] == []
     assert update["category"] == "faq"
 
 
@@ -506,15 +503,13 @@ def _final_state(category: str, safety_action: str = "SAFE_FALLBACK") -> dict:
 def _patch_final_response_writes(monkeypatch) -> list[dict]:
     payloads = []
 
-    class FakeUpdateRawContent:
-        @staticmethod
-        def invoke(args):
-            payloads.append(args["payload"])
-            return json.dumps({"stored": True, "ticket_id": args["payload"]["ticket_id"]})
+    def fake_update_raw_query(payload):
+        payloads.append(payload)
+        return {"stored": True, "ticket_id": payload["ticket_id"]}
 
     monkeypatch.setattr(
         "chatbot.generation.response.final_response.update_qa_ticket_raw_query",
-        FakeUpdateRawContent,
+        fake_update_raw_query,
     )
     monkeypatch.setattr(
         "chatbot.generation.response.final_response.dispatch_urgent_alert",
@@ -587,7 +582,7 @@ def test_dispatch_urgent_alert_creates_github_issue_for_bug_agent(monkeypatch) -
             "category": "in-game-bug",
             "routing_target": "urgent_alert",
             "reasoning_node": "bug_agent",
-            "enriched_query": "game closes after loading",
+            "normalized_query": "game closes after loading",
             "final_text": "operator will review",
         }
     )
@@ -617,7 +612,7 @@ def test_dispatch_urgent_alert_skips_github_issue_for_non_bug(monkeypatch) -> No
             "category": "payment",
             "routing_target": "urgent_alert",
             "reasoning_node": "payment_agent",
-            "enriched_query": "paid item was not delivered",
+            "normalized_query": "paid item was not delivered",
         }
     )
 
@@ -646,7 +641,7 @@ def test_dispatch_urgent_alert_sends_slack_only_for_review_queue_once(monkeypatc
             "routing_target": "urgent_alert",
             "reasoning_node": "faq_agent",
             "safety_action": "REVIEW_QUEUE",
-            "enriched_query": "needs human review",
+            "normalized_query": "needs human review",
         }
     )
 
@@ -662,7 +657,7 @@ def test_dispatch_urgent_alert_sends_slack_only_for_review_queue_once(monkeypatc
             "routing_target": "urgent_alert",
             "reasoning_node": "faq_agent",
             "safety_action": "REVIEW_QUEUE",
-            "enriched_query": "needs human review again",
+            "normalized_query": "needs human review again",
         }
     )
 
@@ -677,7 +672,7 @@ def test_voc_agent_uses_fallback_for_non_actionable_non_rag_intent(monkeypatch) 
             "ticket_id": 1,
             "user_id": 1,
             "account_id": 101,
-            "enriched_query": "게임 이용 불만",
+            "normalized_query": "게임 이용 불만",
             "routing_target": "rag_reply",
             "retry_count": 0,
             "is_actionable": False,
@@ -695,14 +690,6 @@ def test_route_by_user_selected_categories() -> None:
     assert route_by_category({"category": "bug"}) == "bug_agent"
     assert route_by_category({"category": "faq"}) == "faq_agent"
     assert route_by_category({"category": "voc"}) == "voc_agent"
-
-
-def test_route_by_legacy_display_categories() -> None:
-    assert route_by_category({"category": "결제"}) == "payment_agent"
-    assert route_by_category({"category": "인게임/버그"}) == "bug_agent"
-    assert route_by_category({"category": "FAQ"}) == "faq_agent"
-    assert route_by_category({"category": "VOC"}) == "voc_agent"
-
 
 def test_voc_skips_safety_and_never_retries_from_safety() -> None:
     voc_state = {

@@ -5,6 +5,7 @@ from typing import Any
 from chatbot.repository.base import read_response, safe_read
 
 
+# operation log 조회는 여러 함수에서 같은 DB connection/cursor 패턴을 사용한다.
 def _db_context() -> tuple[Any, Any]:
     from psycopg.rows import dict_row
     from common.db.connection import db_connection
@@ -12,6 +13,7 @@ def _db_context() -> tuple[Any, Any]:
     return db_connection, dict_row
 
 
+# 특정 게임 계정의 결제 이력을 조회한다.
 def read_payments_by_account(account_id: int) -> dict[str, Any]:
     def _read() -> dict[str, Any]:
         db_connection, dict_row = _db_context()
@@ -42,6 +44,7 @@ def read_payments_by_account(account_id: int) -> dict[str, Any]:
     return safe_read(operation="read_payments", reader=_read)
 
 
+# payment_id 기준으로 연결된 환불 이력을 조회한다.
 def read_refunds_by_payment(payment_id: int) -> dict[str, Any]:
     def _read() -> dict[str, Any]:
         db_connection, dict_row = _db_context()
@@ -68,6 +71,7 @@ def read_refunds_by_payment(payment_id: int) -> dict[str, Any]:
     return safe_read(operation="read_refunds", reader=_read)
 
 
+# 특정 게임 계정의 아이템 지급 로그를 조회한다.
 def read_item_delivery_logs_by_account(account_id: int) -> dict[str, Any]:
     def _read() -> dict[str, Any]:
         db_connection, dict_row = _db_context()
@@ -97,6 +101,7 @@ def read_item_delivery_logs_by_account(account_id: int) -> dict[str, Any]:
     return safe_read(operation="read_item_delivery_logs", reader=_read)
 
 
+# 특정 게임 계정의 가챠/뽑기 로그를 조회한다.
 def read_gacha_logs_by_account(account_id: int) -> dict[str, Any]:
     def _read() -> dict[str, Any]:
         db_connection, dict_row = _db_context()
@@ -125,6 +130,7 @@ def read_gacha_logs_by_account(account_id: int) -> dict[str, Any]:
     return safe_read(operation="read_gacha_logs", reader=_read)
 
 
+# payment agent가 한 번에 사용할 수 있도록 결제/환불/지급/가챠 context를 사용자 소유 범위로 묶는다.
 def collect_payment_context_by_user(user_id: int, account_id: int | None = None) -> dict[str, Any]:
     """Read payment-related evidence only from accounts owned by the logged-in user."""
 

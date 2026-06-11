@@ -4,18 +4,16 @@ import json
 from typing import Any
 
 from chatbot.observability.logger import EVENT_NODE_COMPLETED, EVENT_NODE_STARTED, log_event
+from chatbot.repository.draft_repository import save_answer_draft, save_evidence_docs
 from chatbot.schemas import ChatbotState
-from chatbot.tools.db_tools import write_answer_draft, write_evidence_docs
 
 
 def _write_answer_draft(payload: dict[str, Any]) -> dict[str, Any]:
-    result = write_answer_draft.invoke({"payload": payload})
-    return json.loads(result) if isinstance(result, str) else result
+    return save_answer_draft(payload)
 
 
 def _write_evidence_doc(payload: dict[str, Any]) -> dict[str, Any]:
-    result = write_evidence_docs.invoke({"payload": payload})
-    return json.loads(result) if isinstance(result, str) else result
+    return save_evidence_docs(payload)
 
 
 def _as_result(value: Any) -> dict[str, Any]:
@@ -27,6 +25,7 @@ def _evidence_payloads_from_retrieved_documents(
     draft_id: int,
     documents: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
+    # RAG/DB 검색 결과를 evidence_docs 테이블에 저장할 payload 형태로 바꾼다.
     payloads = []
     for rank, document in enumerate(documents, start=1):
         evidence_text = str(document.get("chunk_text") or "").strip()
@@ -48,6 +47,7 @@ def _evidence_payloads_from_retrieved_documents(
 
 
 def _fallback_evidence_payload(*, draft_id: int, state: ChatbotState) -> dict[str, Any]:
+    # 검색 근거가 없는 agent 답변도 초안과 연결될 수 있게 최소 근거 레코드를 만든다.
     return {
         "draft_id": draft_id,
         "source_type": "agent",
@@ -59,6 +59,7 @@ def _fallback_evidence_payload(*, draft_id: int, state: ChatbotState) -> dict[st
 
 
 def _persist_evidence(draft_id: int, state: ChatbotState) -> tuple[int, list[dict[str, Any]]]:
+    # 2단계: 검색 문서가 있으면 문서 근거를 저장하고, 없으면 생성 초안 자체를 fallback 근거로 저장한다.
     retrieved_documents = state.get("retrieved_documents") or []
     evidence_payloads = _evidence_payloads_from_retrieved_documents(
         draft_id=draft_id,
@@ -75,7 +76,7 @@ def _persist_evidence(draft_id: int, state: ChatbotState) -> tuple[int, list[dic
 
 
 def draft_persistence_node(state: ChatbotState) -> dict:
-    """Persist the generated answer draft and the evidence used to create it."""
+    # 1단계: category agent가 만든 draft_text를 answer_draft에 먼저 저장한다.
     log_event(
         EVENT_NODE_STARTED,
         ticket_id=state.get("ticket_id"),
@@ -96,6 +97,7 @@ def draft_persistence_node(state: ChatbotState) -> dict:
     evidence_count = 0
     evidence_results: list[dict[str, Any]] = []
     if draft_id is not None:
+        # 3단계: 초안 저장에 성공하면 초안 생성에 사용한 evidence를 draft_id와 연결한다.
         evidence_count, evidence_results = _persist_evidence(int(draft_id), state)
 
     log_event(

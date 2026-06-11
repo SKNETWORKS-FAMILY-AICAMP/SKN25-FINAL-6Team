@@ -12,6 +12,8 @@ from chatbot.observability.logger import EVENT_NOTIFICATION_FAILED, log_event
 SLACK_API_BASE_URL = "https://slack.com/api"
 
 
+# Slack Web API 호출 공통 helper다.
+# HTTP/API 실패는 예외로 올리고, 상위 send_slack_alert가 운영 로그로 남긴다.
 def _post_slack_api(method: str, token: str, payload: dict[str, str]) -> dict[str, object]:
     body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     req = request.Request(
@@ -36,8 +38,8 @@ def _post_slack_api(method: str, token: str, payload: dict[str, str]) -> dict[st
     return data
 
 
+# REVIEW_QUEUE나 urgent_alert 상황에서 운영 Slack 채널로 알림을 보낸다.
 def send_slack_alert(message: str) -> dict[str, str]:
-    """Send Slack channel alert with a bot token; otherwise return mock result."""
     bot_token = os.getenv("SLACK_BOT_TOKEN", "").strip()
     channel_id = os.getenv("SLACK_CHANNEL_ID", "").strip()
     if not bot_token:

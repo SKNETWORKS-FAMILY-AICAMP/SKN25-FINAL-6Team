@@ -11,10 +11,12 @@ from chatbot.repository.notification_repository import notification_log_exists, 
 BUG_CATEGORY_VALUES = {"bug", "인게임/버그", "인게임버그"}
 
 
+# 알림 메시지에는 원문보다 전처리된 normalized_query를 우선 사용한다.
 def _inquiry_content(state: dict[str, Any]) -> str:
     return str(state.get("normalized_query") or state.get("raw_query") or "")
 
 
+# Slack/GitHub로 보낼 긴급 알림 본문을 workflow state에서 조립한다.
 def _urgent_alert_message(state: dict[str, Any]) -> str:
     content = _inquiry_content(state)
     final_text = state.get("final_text") or ""
@@ -29,6 +31,7 @@ def _urgent_alert_message(state: dict[str, Any]) -> str:
     )
 
 
+# urgent_alert 중에서도 인게임 버그 성격일 때만 GitHub issue 생성 대상으로 본다.
 def _is_in_game_bug_alert(state: dict[str, Any]) -> bool:
     return (
         state.get("routing_target") == "urgent_alert"
@@ -39,6 +42,7 @@ def _is_in_game_bug_alert(state: dict[str, Any]) -> bool:
     )
 
 
+# GitHub issue 목록에서 식별하기 쉽도록 문의 앞부분을 제목으로 만든다.
 def _github_issue_title(state: dict[str, Any]) -> str:
     content = _inquiry_content(state).strip()
     if len(content) > 60:
@@ -46,6 +50,7 @@ def _github_issue_title(state: dict[str, Any]) -> str:
     return f"[인게임 버그] {content or '운영자 확인 필요'}"
 
 
+# 운영자가 재현 정보와 최종 응답을 함께 볼 수 있게 issue body를 구성한다.
 def _github_issue_body(state: dict[str, Any]) -> str:
     content = _inquiry_content(state)
     final_text = state.get("final_text") or ""
@@ -65,6 +70,7 @@ def _github_issue_body(state: dict[str, Any]) -> str:
     )
 
 
+# 인게임 긴급 버그 문의는 GitHub issue로 남기고 notification_log에 발송 결과를 저장한다.
 def _dispatch_github_issue_for_bug(state: dict[str, Any]) -> dict[str, Any]:
     if not _is_in_game_bug_alert(state):
         return {"status": "skipped", "reason": "not an in-game urgent bug alert"}
@@ -85,6 +91,7 @@ def _dispatch_github_issue_for_bug(state: dict[str, Any]) -> dict[str, Any]:
     return {**result, "notification_log_result": notification_log_result}
 
 
+# REVIEW_QUEUE 대상은 Slack으로 한 번만 알리고 중복 발송은 notification_log로 막는다.
 def _dispatch_slack_review_alert(state: dict[str, Any], message: str) -> dict[str, Any]:
     if state.get("safety_action") != "REVIEW_QUEUE":
         return {"status": "skipped", "reason": "safety_action is not REVIEW_QUEUE"}
@@ -107,8 +114,8 @@ def _dispatch_slack_review_alert(state: dict[str, Any], message: str) -> dict[st
     return {**result, "notification_log_result": notification_log_result}
 
 
+# final_response 단계에서 urgent_alert 라우팅이면 Slack/GitHub 알림을 통합 발송한다.
 def dispatch_urgent_alert(state: dict[str, Any]) -> dict[str, Any]:
-    """Dispatch urgent chatbot state to notification channels."""
     if state.get("routing_target") != "urgent_alert":
         return {"status": "skipped", "reason": "routing_target is not urgent_alert"}
 

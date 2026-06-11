@@ -7,6 +7,7 @@ from common.db.connection import db_connection
 from chatbot.repository.base import safe_write
 
 
+# FAQ/RAG 검색 실패나 fallback 사유를 운영 분석용으로 저장한다.
 def save_failed_query(payload: dict[str, Any]) -> dict[str, Any]:
     def _write() -> dict[str, Any]:
         with db_connection() as conn:

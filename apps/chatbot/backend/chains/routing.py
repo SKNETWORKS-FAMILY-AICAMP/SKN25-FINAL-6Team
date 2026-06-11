@@ -16,23 +16,30 @@ CATEGORY_NODE_BY_NAME = {
     "voc": "voc_agent",
 }
 
+ROUTING_NODE_BY_TARGET = {
+    "payment_agent": "payment_agent",
+    "bug_agent": "bug_agent",
+    "faq_agent": "faq_agent",
+    "voc_agent": "voc_agent",
+    "rag_reply": "faq_agent",
+    "urgent_alert": "bug_agent",
+}
+
 
 def _is_voc_state(state: ChatbotState) -> bool:
     category = str(state.get("category") or "").strip().lower()
     return category == "voc" or state.get("reasoning_node") == "voc_agent"
 
 
-
-
 def route_after_draft_persistence(state: ChatbotState) -> str:
-    """Skip safety scoring for fixed VOC responses, otherwise run safety."""
+    # 1단계: VOC는 고정 응답이라 safety 검사를 생략하고, 나머지 category는 safety_layer로 보낸다.
     if _is_voc_state(state):
         return "final_response"
     return "safety_layer"
 
 
 def route_after_safety(state: ChatbotState) -> str:
-    """Return to the concrete category node on retry, or finish when safety passes/exhausts."""
+    # 2단계: safety 결과에 따라 마스킹 재저장, fallback/review/block, 재생성, 최종 응답을 결정한다.
     if _is_voc_state(state):
         return "final_response"
     if state.get("safety_action") == "MASKING":
@@ -46,6 +53,7 @@ def route_after_safety(state: ChatbotState) -> str:
     if state["retry_count"] >= MAX_SAFETY_RETRY:
         return "final_response"
     return route_by_category(state)
+
 
 def _summarize_dispatch_inputs(inputs: dict[str, Any]) -> dict[str, Any]:
     state = inputs.get("state") or {}
@@ -70,11 +78,13 @@ def _summarize_dispatch_outputs(outputs: dict[str, Any]) -> dict[str, Any]:
 )
 def _trace_category_dispatch(state: ChatbotState, *, started_at: float) -> dict[str, Any]:
     category = str(state.get("category") or "").strip().lower()
-    target_node = CATEGORY_NODE_BY_NAME.get(category)
+    routing_target = str(state.get("routing_target") or "").strip().lower()
+    target_node = ROUTING_NODE_BY_TARGET.get(routing_target) or CATEGORY_NODE_BY_NAME.get(category)
     dispatch_valid = target_node is not None
 
     return {
         "selected_category": category,
+        "routing_target": routing_target,
         "target_node": target_node or "voc_agent",
         "dispatch_valid": dispatch_valid,
         "dispatch_match": dispatch_valid,
@@ -88,6 +98,7 @@ def route_after_preprocess(state: ChatbotState) -> str:
 
 
 def route_by_category(state: ChatbotState) -> str:
+    # 3단계: category를 실제 agent 노드 이름으로 변환하고 LangSmith에 dispatch latency를 남긴다.
     started_at = perf_counter()
     dispatch = _trace_category_dispatch(state, started_at=started_at)
 

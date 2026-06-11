@@ -17,8 +17,8 @@ from chatbot.constants import (
 )
 from chatbot.generation.response.fixed_responses import SAFE_FALLBACK_RESPONSE
 from chatbot.observability.logger import EVENT_SAFETY_CHECKED, log_event
+from chatbot.repository.safety_repository import save_safety_results
 from chatbot.schemas import ChatbotState
-from chatbot.tools.db_tools import write_safety_results
 
 
 MODERATION_MODEL = "omni-moderation-latest"
@@ -72,11 +72,7 @@ def _mask_sensitive_text(text: str) -> tuple[str, list[str]]:
 
 
 def _evidence_grounding_scores(text: str, documents: list[dict[str, Any]]) -> tuple[float, float, str]:
-    """Estimate factuality/hallucination from retrieved evidence coverage.
-
-    This is a lightweight runtime checker. RAGAS still remains the deeper offline
-    evaluation path for faithfulness and factual correctness.
-    """
+    # 런타임 경량 검사: 답변 토큰이 검색/DB 근거에 얼마나 포함되는지로 grounding을 추정한다.
     normalized_text = " ".join(text.split())
     if not normalized_text:
         return 1.0, 0.0, "empty draft"
@@ -199,6 +195,7 @@ def _requires_second_pass_safety(
     scores: dict[str, float],
     mask_labels: list[str],
 ) -> tuple[bool, str]:
+    # 1차 rule 검사에서 민감/불확실 신호가 있으면 2차 moderation/grounding 검사를 수행한다.
     detected_labels = set(state.get("input_detected_labels") or [])
     sensitive_labels = {
         "rrn",
@@ -259,6 +256,7 @@ def _decide_safety_action(
     documents: list[dict[str, Any]],
     requires_grounding: bool = True,
 ) -> tuple[bool, str, bool]:
+    # safety 점수와 grounding 결과를 AUTO_RESPONSE/SAFE_FALLBACK/BLOCK/REVIEW로 변환한다.
     if moderation_blocked or scores["toxicity_score"] >= TOXICITY_THRESHOLD:
         return False, "BLOCK_RESPONSE", False
 
@@ -356,10 +354,11 @@ def _write_safety_results(payload: dict[str, Any]) -> dict[str, Any]:
             "reason": "missing_draft_id",
             "payload": payload,
         }
-    return json.loads(write_safety_results.invoke({"payload": payload}))
+    return save_safety_results(payload)
 
 
 def safety_layer_node(state: ChatbotState) -> dict:
+    # 1단계: 초안에서 민감정보를 마스킹하고, FAQ/RAG 답변이면 근거 문서를 함께 검사한다.
     draft_text = state["draft_text"]
     draft_id = state.get("draft_id")
     ticket_id = state["ticket_id"]
@@ -379,11 +378,13 @@ def safety_layer_node(state: ChatbotState) -> dict:
     )
     is_blocked = False
     if second_pass_required:
+        # 2단계: 민감 문의나 약한 grounding은 OpenAI moderation까지 포함한 2차 검사를 수행한다.
         is_blocked, scores, safety_reason = _evaluate_safety(evaluation_text, grounding_documents)
         safety_reason = f"{safety_reason}; second_pass={second_pass_reason}"
     else:
         safety_reason = f"{safety_reason}; second_pass={second_pass_reason}"
     if mask_labels:
+        # 3단계-A: 답변에 개인정보가 남아 있으면 마스킹된 초안으로 재저장하도록 라우팅한다.
         update = _masking_update(
             state=state,
             scores=scores,
@@ -408,6 +409,7 @@ def safety_layer_node(state: ChatbotState) -> dict:
         )
         return update
 
+    # 3단계-B: 마스킹이 필요 없으면 safety action을 결정하고 결과를 DB에 저장한다.
     safety_passed, safety_action, review_required = _decide_safety_action(
         moderation_blocked=is_blocked,
         scores=scores,

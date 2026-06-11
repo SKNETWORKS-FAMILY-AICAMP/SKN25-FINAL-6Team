@@ -14,14 +14,15 @@ from common.retrieval.vector_tools import RetrievalQuery, hybrid_rank_documents,
 
 @pytest.fixture(autouse=True)
 def _isolate_faq_retrieval_cache(monkeypatch):
-    """Keep FAQ/RAG tests independent from real Redis env values and cache state."""
-    cache_store.clear_cache_for_tests()
+    cache_store._RETRIEVAL_CACHE.clear()
+    cache_store._redis_client.cache_clear()
     monkeypatch.delenv("FAQ_RETRIEVAL_CACHE_ENABLED", raising=False)
     monkeypatch.delenv("FAQ_RETRIEVAL_CACHE_TTL", raising=False)
     monkeypatch.delenv("REDIS_ENABLED", raising=False)
     monkeypatch.delenv("REDIS_URL", raising=False)
     yield
-    cache_store.clear_cache_for_tests()
+    cache_store._RETRIEVAL_CACHE.clear()
+    cache_store._redis_client.cache_clear()
 
 
 def _retrieval_query() -> RetrievalQuery:
@@ -37,7 +38,6 @@ def _state() -> dict:
         "ticket_id": 123,
         "raw_query": "payment item delivery",
         "normalized_query": "payment item delivery",
-        "enriched_query": "payment item delivery",
         "category": "FAQ",
         "routing_target": "rag_reply",
         "retry_count": 0,
@@ -103,7 +103,6 @@ def test_run_faq_rag_skips_retrieval_when_intent_says_rag_is_not_needed(monkeypa
         {
             **_state(),
             "raw_query": "게임이 너무 어려워요.",
-            "enriched_query": "게임 문제 해결 방법",
             "is_actionable": False,
             "should_use_rag": False,
             "fallback_reason": "low_information_complaint",
@@ -255,7 +254,7 @@ def test_run_faq_rag_reuses_cached_retrieved_documents(monkeypatch) -> None:
         }
     ]
 
-    cache_store.clear_cache_for_tests()
+    cache_store._RETRIEVAL_CACHE.clear()
     monkeypatch.setenv("FAQ_RETRIEVAL_CACHE_ENABLED", "true")
     monkeypatch.setattr(faq_agent, "enrich_retrieval_query", lambda text: _retrieval_query())
     monkeypatch.setattr(
@@ -297,7 +296,7 @@ def test_run_faq_rag_reuses_cached_retrieved_documents(monkeypatch) -> None:
     assert all(event["tool_name"] == "faq_retrieval_cache" for event in cache_events)
 
 
-def test_run_faq_rag_prefers_normalized_query_over_legacy_enriched_query(monkeypatch) -> None:
+def test_run_faq_rag_uses_normalized_query(monkeypatch) -> None:
     calls = []
     docs = [
         {
@@ -331,7 +330,6 @@ def test_run_faq_rag_prefers_normalized_query_over_legacy_enriched_query(monkeyp
         {
             **_state(),
             "normalized_query": "normalized question",
-            "enriched_query": "legacy enriched question",
         }
     )
 
@@ -374,7 +372,6 @@ def test_run_faq_rag_answers_with_canonical_retrieval_query(monkeypatch) -> None
             **_state(),
             "raw_query": "스토리 초기화 문의",
             "normalized_query": "스토리 초기화 문의",
-            "enriched_query": "스토리 초기화 문의",
             "should_use_rag": True,
         }
     )

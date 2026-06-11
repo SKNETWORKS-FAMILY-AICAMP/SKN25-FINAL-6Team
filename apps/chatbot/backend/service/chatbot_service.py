@@ -16,9 +16,15 @@ def build_state(
     user_id: int = 1,
     session_id: int = 1,
     source_type: str = "chatbot",
+    ui_category: str | None = None,
+    sub_category: str | None = None,
+    routing_target: str | None = None,
+    should_use_rag: bool | None = None,
+    fallback_routing_target: str | None = None,
     previous_messages: list[dict[str, str]] | None = None,
     conversation_summary: str | None = None,
 ) -> dict[str, Any]:
+    # 1단계: 사용자 입력을 마스킹/정규화 준비하고 LangGraph가 공유할 초기 state를 만든다.
     preprocessing = preprocess_user_input(user_message)
     masked_content = preprocessing["masked_content"]
     messages = list(previous_messages or [])
@@ -45,7 +51,11 @@ def build_state(
         "normalized_query": None,
         "ticket_id": ticket_id,
         "category": category or "",
-        "routing_target": "",
+        "ui_category": ui_category,
+        "sub_category": sub_category,
+        "routing_target": routing_target or "",
+        "fallback_routing_target": fallback_routing_target,
+        "should_use_rag": should_use_rag,
         "draft_id": None,
         "draft_text": None,
         "final_text": None,
@@ -61,6 +71,7 @@ def build_state(
 
 
 def last_message_text(result: dict[str, Any]) -> str:
+    # workflow가 끝난 뒤 사용자에게 반환할 최종 응답만 꺼낸다.
     final_text = result.get("final_text")
     if final_text:
         return str(final_text)
@@ -68,6 +79,7 @@ def last_message_text(result: dict[str, Any]) -> str:
 
 
 def _node_summary(node_name: str, node_update: dict[str, Any], state_snapshot: dict[str, Any]) -> dict[str, Any]:
+    # stream 실행 중 각 노드가 무엇을 했는지 콘솔/로그용 요약 문장으로 변환한다.
     merged = {**state_snapshot, **node_update}
     title_by_node = {
         "ticket_preprocess": "Ticket preprocess",
@@ -142,9 +154,15 @@ def run_chatbot(
     user_id: int = 1,
     session_id: int = 1,
     source_type: str = "chatbot",
+    ui_category: str | None = None,
+    sub_category: str | None = None,
+    routing_target: str | None = None,
+    should_use_rag: bool | None = None,
+    fallback_routing_target: str | None = None,
     previous_messages: list[dict[str, str]] | None = None,
     conversation_summary: str | None = None,
 ) -> dict[str, Any]:
+    # 동기 실행 경로: 초기 state 생성 -> graph.invoke -> 최종 답변 반환.
     from chatbot.chains.workflow import graph
 
     state = build_state(
@@ -155,6 +173,11 @@ def run_chatbot(
         user_id=user_id,
         session_id=session_id,
         source_type=source_type,
+        ui_category=ui_category,
+        sub_category=sub_category,
+        routing_target=routing_target,
+        should_use_rag=should_use_rag,
+        fallback_routing_target=fallback_routing_target,
         previous_messages=previous_messages,
         conversation_summary=conversation_summary,
     )
@@ -188,9 +211,15 @@ def stream_chatbot(
     user_id: int = 1,
     session_id: int = 1,
     source_type: str = "chatbot",
+    ui_category: str | None = None,
+    sub_category: str | None = None,
+    routing_target: str | None = None,
+    should_use_rag: bool | None = None,
+    fallback_routing_target: str | None = None,
     previous_messages: list[dict[str, str]] | None = None,
     conversation_summary: str | None = None,
 ):
+    # 스트리밍 실행 경로: graph.stream의 노드별 update를 누적하면서 진행 상황을 기록한다.
     from chatbot.chains.workflow import graph
 
     state = build_state(
@@ -201,6 +230,11 @@ def stream_chatbot(
         user_id=user_id,
         session_id=session_id,
         source_type=source_type,
+        ui_category=ui_category,
+        sub_category=sub_category,
+        routing_target=routing_target,
+        should_use_rag=should_use_rag,
+        fallback_routing_target=fallback_routing_target,
         previous_messages=previous_messages,
         conversation_summary=conversation_summary,
     )

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+# workflow와 safety layer가 함께 쓰는 공통 기준값이다.
+# category/route 이름을 바꿀 때는 라우팅 코드보다 이 상수를 먼저 확인한다.
 MAX_SAFETY_RETRY = 2
 MAX_MASKING_RETRY = 2
 

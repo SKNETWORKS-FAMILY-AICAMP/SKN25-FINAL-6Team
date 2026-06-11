@@ -1,15 +1,15 @@
 from __future__ import annotations
 
+import json
 import os
 import time
-import json
 from functools import lru_cache
 from typing import TypedDict
 
 
+# FAQ/RAG 검색 결과 캐시의 반환 형태다.
+# 최종 답변 텍스트가 아니라 검색된 근거 문서만 저장한다.
 class RetrievalCacheLookupResult(TypedDict, total=False):
-    """Return shape for cached FAQ/RAG retrieval documents."""
-
     hit: bool
     documents: list[dict]
 
@@ -17,23 +17,24 @@ class RetrievalCacheLookupResult(TypedDict, total=False):
 _RETRIEVAL_CACHE: dict[str, tuple[list[dict], float]] = {}
 
 
+# 환경변수에서 boolean 값을 읽는 공통 helper다.
+# Redis가 꺼져 있으면 retrieval cache는 프로세스 메모리 fallback을 사용한다.
 def _env_flag(name: str, default: bool = False) -> bool:
-    """Read boolean-like environment variables such as REDIS_ENABLED."""
     value = os.environ.get(name)
     if value is None:
         return default
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
+# 원문 query를 Redis key에 직접 노출하지 않기 위해 hash 기반 key를 만든다.
 def _cache_key(query_hash: str, *, namespace: str = "answer") -> str:
-    """Build a versioned Redis key without exposing the original user query."""
     prefix = os.environ.get("CACHE_KEY_PREFIX", "chatbot").strip() or "chatbot"
     return f"{prefix}:faq:{namespace}:v1:{query_hash}"
 
 
 @lru_cache(maxsize=1)
 def _redis_client():
-    """Create a Redis client when enabled, returning None on any setup failure."""
+    # Redis가 활성화되어 있고 연결이 가능할 때만 client를 만든다.
     if not _env_flag("REDIS_ENABLED"):
         return None
 
@@ -51,8 +52,9 @@ def _redis_client():
         return None
 
 
+# Redis를 사용할 수 없을 때 쓰는 로컬 메모리 cache 조회다.
+# TTL이 지난 항목은 조회 시점에 제거한다.
 def _get_memory_retrieval_cache(query_hash: str) -> RetrievalCacheLookupResult:
-    """Read cached retrieved documents from local memory and enforce TTL expiry."""
     entry = _RETRIEVAL_CACHE.get(query_hash)
     if entry is None:
         return {"hit": False}
@@ -65,17 +67,14 @@ def _get_memory_retrieval_cache(query_hash: str) -> RetrievalCacheLookupResult:
     return {"hit": True, "documents": documents}
 
 
+# 로컬 메모리 cache에 retrieved_documents와 만료 시각을 함께 저장한다.
 def _set_memory_retrieval_cache(query_hash: str, documents: list[dict], ttl: int) -> None:
-    """Store retrieved documents in the local fallback cache with TTL."""
     _RETRIEVAL_CACHE[query_hash] = (documents, time.time() + ttl)
 
 
+# retrieval cache 조회 순서: Redis -> memory fallback.
+# cache hit이어도 이후 answer generation/safety는 동일하게 실행된다.
 def get_cached_retrieval(query_hash: str) -> RetrievalCacheLookupResult:
-    """Return cached retrieved documents from Redis first, then memory fallback.
-
-    This stores document evidence, not final answers, so downstream evidence and
-    safety checks can still run with the documents used for generation.
-    """
     client = _redis_client()
     if client is not None:
         try:
@@ -88,12 +87,9 @@ def get_cached_retrieval(query_hash: str) -> RetrievalCacheLookupResult:
     return _get_memory_retrieval_cache(query_hash)
 
 
+# retrieval cache 저장 순서: Redis setex -> 실패 시 memory fallback.
+# ttl은 검색 결과를 얼마나 오래 재사용할지 결정한다.
 def set_cached_retrieval(query_hash: str, documents: list[dict], ttl: int = 3600) -> dict[str, object]:
-    """Persist retrieved FAQ/RAG documents using Redis when available.
-
-    If Redis is disabled or unavailable, the documents are stored in the
-    in-memory fallback cache. Final answer text is intentionally not cached here.
-    """
     client = _redis_client()
     backend = "memory"
     if client is not None:
@@ -118,16 +114,8 @@ def set_cached_retrieval(query_hash: str, documents: list[dict], ttl: int = 3600
     }
 
 
-def clear_cache_for_tests() -> None:
-    """Reset local cache state and Redis client memoization between tests."""
-    _RETRIEVAL_CACHE.clear()
-    cache_clear = getattr(_redis_client, "cache_clear", None)
-    if cache_clear is not None:
-        cache_clear()
-
-
+# eval/운영 점검에서 FAQ retrieval cache를 명시적으로 비울 때 사용한다.
 def clear_faq_cache(namespace: str | None = None) -> dict[str, object]:
-    """Clear FAQ answer/retrieval cache from memory and Redis when available."""
     if namespace in (None, "retrieval"):
         _RETRIEVAL_CACHE.clear()
 

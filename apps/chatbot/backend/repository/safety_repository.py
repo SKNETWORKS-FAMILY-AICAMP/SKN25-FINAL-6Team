@@ -7,6 +7,7 @@ from common.db.connection import db_connection
 from chatbot.repository.base import safe_write
 
 
+# safety_layer가 계산한 action/score/reason을 DB에 남긴다.
 def save_safety_results(payload: dict[str, Any]) -> dict[str, Any]:
     def _write() -> dict[str, Any]:
         with db_connection() as conn:

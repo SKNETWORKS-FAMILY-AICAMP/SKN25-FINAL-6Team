@@ -7,12 +7,14 @@ from common.db.connection import db_connection
 from chatbot.repository.base import safe_write
 
 
+# user_id/account_id처럼 비어 있을 수 있는 값을 DB 저장 가능한 int/None으로 정리한다.
 def _optional_int(value: Any) -> int | None:
     if value in (None, ""):
         return None
     return int(value)
 
 
+# 전처리 단계에서 새 문의를 qa_ticket에 저장하고 ticket_id를 반환한다.
 def save_qa_ticket(payload: dict[str, Any]) -> dict[str, Any]:
     def _write() -> dict[str, Any]:
         with db_connection() as conn:
@@ -61,6 +63,7 @@ def save_qa_ticket(payload: dict[str, Any]) -> dict[str, Any]:
     return safe_write(operation="write_qa_ticket", payload=payload, writer=_write)
 
 
+# final_response 단계에서 qa_ticket의 처리 상태를 resolved/review 등으로 갱신한다.
 def update_qa_ticket_status(payload: dict[str, Any]) -> dict[str, Any]:
     def _write() -> dict[str, Any]:
         with db_connection() as conn:

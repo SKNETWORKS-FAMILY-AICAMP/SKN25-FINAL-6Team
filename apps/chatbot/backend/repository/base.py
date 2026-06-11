@@ -13,17 +13,18 @@ from chatbot.observability.logger import (
 )
 
 
+# repository read 결과를 공통 응답 형태로 감싼다.
 def read_response(rows: list[dict[str, Any]]) -> dict[str, Any]:
     return {"status": "ok", "data": rows, "count": len(rows)}
 
 
+# DB 조회 실패는 답변 근거 부족으로 이어지므로, 예외를 던지지 않고 명시적인 error payload로 반환한다.
 def safe_read(
     *,
     operation: str,
     reader: Callable[[], dict[str, Any]],
     ticket_id: int | None = None,
 ) -> dict[str, Any]:
-    """Read failures mean evidence is unavailable, so return an explicit error payload."""
     try:
         result = reader()
         log_event(
@@ -55,13 +56,13 @@ def safe_read(
         }
 
 
+# DB 저장 실패는 고객 응답 생성을 막지 않도록 로그만 남기고 error payload를 반환한다.
 def safe_write(
     *,
     operation: str,
     payload: dict[str, Any],
     writer: Callable[[], dict[str, Any]],
 ) -> dict[str, Any]:
-    """Write failures should not block the customer response path."""
     try:
         result = writer()
         log_event(

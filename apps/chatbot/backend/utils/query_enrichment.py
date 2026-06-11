@@ -18,19 +18,24 @@ CATEGORY_ALIASES = {
 }
 
 
+# 검색/분류 전에 공백을 정리해 같은 의미의 입력이 같은 normalized_query에 가깝게 들어가도록 한다.
 def normalize_query_text(text: str | None) -> str:
     return " ".join(str(text or "").strip().split())
 
 
+# category 표시값이 한글/영문/대소문자로 섞여 들어와도 내부 category 이름으로 맞춘다.
 def _canonical_category(category: Any) -> str:
     value = str(category or "").strip()
     return CATEGORY_ALIASES.get(value, CATEGORY_ALIASES.get(value.lower(), value.lower()))
 
 
+# LLM rewrite는 답변 생성이 아니라 검색어만 짧게 다시 만드는 데 사용한다.
 class QueryRewriteResult(BaseModel):
     query_text: str = Field(description="Short Korean retrieval query")
 
 
+# FAQ 검색이 실패했을 때 한 번만 LLM으로 검색어를 재작성한다.
+# 원문은 이미 input_preprocessing에서 마스킹된 값을 사용해야 한다.
 def rewrite_query_with_llm(
     *,
     original_query: str,
@@ -38,7 +43,6 @@ def rewrite_query_with_llm(
     category: Any,
     failure_reason: str,
 ) -> dict[str, Any]:
-    """Rewrite a failed retrieval query once, using only already-masked text."""
     api_key = os.environ.get("LLM_API_KEY")
     model = os.environ.get("QUERY_REWRITE_MODEL") or os.environ.get("QUERY_ENRICHMENT_MODEL") or os.environ.get("LLM_MODEL")
     if not api_key or not model:

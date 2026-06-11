@@ -9,6 +9,7 @@ from chatbot.repository.account_repository import read_server_regions, verify_us
 
 
 def _login_inputs(inputs: dict[str, Any]) -> dict[str, Any]:
+    # LangSmith trace에는 비밀번호 원문이 남지 않도록 입력을 마스킹한다.
     return {
         "email": inputs.get("email"),
         "server_region": inputs.get("server_region"),
@@ -17,6 +18,7 @@ def _login_inputs(inputs: dict[str, Any]) -> dict[str, Any]:
 
 
 def _login_outputs(output: dict[str, Any]) -> dict[str, Any]:
+    # 로그인 결과 trace에는 성공 여부와 계정 식별 정보만 남긴다.
     return {
         "login_success": output.get("login_success"),
         "user_id": output.get("user_id"),
@@ -29,6 +31,7 @@ def _login_outputs(output: dict[str, Any]) -> dict[str, Any]:
 
 
 def get_server_regions() -> list[str]:
+    # DB에서 서버 목록을 읽되, 실패하면 프론트가 깨지지 않도록 기본 서버를 반환한다.
     result = read_server_regions()
     if result.get("status") != "ok":
         return ["KR", "JP"]
@@ -44,6 +47,7 @@ def get_server_regions() -> list[str]:
     process_outputs=_login_outputs,
 )
 def login_with_credentials(email: str, password: str, server_region: str) -> dict[str, Any]:
+    # 1단계: 입력값을 정리하고 필수값이 비어 있으면 DB 조회 전에 실패 응답을 만든다.
     normalized_email = email.strip()
     normalized_region = server_region.strip()
     if not normalized_email or not password or not normalized_region:
@@ -59,6 +63,7 @@ def login_with_credentials(email: str, password: str, server_region: str) -> dic
         _log_login_result(response)
         return response
 
+    # 2단계: account_repository에서 실제 계정/비밀번호/서버 매칭을 확인한다.
     result = verify_user_login(normalized_email, password, normalized_region)
     if result.get("status") != "ok":
         response = {
@@ -73,6 +78,7 @@ def login_with_credentials(email: str, password: str, server_region: str) -> dic
         _log_login_result(response, db_status=result.get("status"), error=result.get("error"))
         return response
 
+    # 3단계: 로그인 성공/실패 결과를 API 응답 스키마에 맞는 dict로 정리한다.
     response = {
         "login_success": bool(result.get("login_success")),
         "user_id": result.get("user_id"),
@@ -87,6 +93,7 @@ def login_with_credentials(email: str, password: str, server_region: str) -> dic
     return response
 
 def _log_login_result(login_result: dict[str, Any], **extra_metadata: Any) -> None:
+    # 로그인 성공/실패를 admin log와 LangSmith trace에서 추적할 수 있게 이벤트로 남긴다.
     log_event(
         "game_account_login_completed",
         status="ok" if login_result.get("login_success") else "failed",

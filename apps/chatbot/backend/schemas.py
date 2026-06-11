@@ -17,9 +17,9 @@ SafetyAction = Literal[
 ]
 
 
+# LangGraph 전체 노드가 공유하는 state 계약이다.
+# 전처리 -> 라우팅 -> agent -> 저장 -> safety -> final_response 순서로 값이 채워진다.
 class ChatbotState(AgentState):
-    """Runtime state shared by category nodes and the StateGraph workflow."""
-
     # Request/session metadata.
     user_id: NotRequired[int]
     session_id: NotRequired[int]
@@ -35,8 +35,11 @@ class ChatbotState(AgentState):
 
     # Routing and workflow state.
     ticket_id: NotRequired[int]
+    ui_category: NotRequired[str | None]
+    sub_category: NotRequired[str | None]
     category: NotRequired[Category | str]
     routing_target: NotRequired[RoutingTarget | str]
+    fallback_routing_target: NotRequired[str | None]
     is_actionable: NotRequired[bool | None]
     should_use_rag: NotRequired[bool | None]
     fallback_reason: NotRequired[str | None]
@@ -53,7 +56,6 @@ class ChatbotState(AgentState):
     retrieval_query: NotRequired[str | None]
     retrieval_enrichment: NotRequired[dict[str, Any] | None]
     retrieved_documents: NotRequired[list[dict[str, Any]]]
-    multihop_result: NotRequired[dict[str, Any] | None]
     payment_context: NotRequired[dict[str, Any] | None]
     faq_failure_reason: NotRequired[str | None]
     safety_passed: NotRequired[bool | None]

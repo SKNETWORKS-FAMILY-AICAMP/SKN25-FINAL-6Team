@@ -6,6 +6,7 @@ from typing import Any
 from common.db.connection import db_connection
 
 
+# 로그 payload의 id 값을 DB 저장 가능한 int/None으로 정리한다.
 def _optional_int(value: Any) -> int | None:
     if value in (None, ""):
         return None
@@ -15,6 +16,7 @@ def _optional_int(value: Any) -> int | None:
         return None
 
 
+# 노드 실행/도구 호출/에러 같은 운영 이벤트를 admin_event_log에 저장한다.
 def save_admin_event_log(payload: dict[str, Any]) -> dict[str, Any]:
     """Persist an admin event without using safe_write to avoid log recursion."""
     try:

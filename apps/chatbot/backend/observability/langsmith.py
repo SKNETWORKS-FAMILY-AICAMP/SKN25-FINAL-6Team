@@ -8,14 +8,19 @@ TRACE_METADATA_FIELDS = (
     "session_id",
     "user_id",
     "account_id",
+    "ui_category",
+    "sub_category",
     "category",
     "routing_target",
+    "fallback_routing_target",
+    "should_use_rag",
     "draft_id",
     "input_masked",
     "input_detected_labels",
 )
 
 
+# LangSmith trace에 ticket/session/category 같은 운영 식별자를 metadata로 붙인다.
 def build_trace_metadata(state: dict[str, Any], **extra: Any) -> dict[str, Any]:
     metadata = {
         field: state.get(field)
@@ -26,6 +31,7 @@ def build_trace_metadata(state: dict[str, Any], **extra: Any) -> dict[str, Any]:
     return metadata
 
 
+# LangGraph 실행 시 LangSmith run_name/tags/metadata를 함께 넘기기 위한 config를 만든다.
 def build_runnable_config(state: dict[str, Any], *, run_name: str) -> dict[str, Any]:
     ticket_id = state.get("ticket_id")
     session_id = state.get("session_id")

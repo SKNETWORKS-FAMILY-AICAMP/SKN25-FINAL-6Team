@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import os
 import sys
 import time
@@ -260,6 +261,19 @@ def _ragas_judges() -> dict[str, Any]:
     }
 
 
+def _ragas_string_rubrics(rubrics: dict[str, Any]) -> dict[str, str]:
+    """RAGAS InstanceRubrics expects rubrics as dict[str, str]."""
+    normalized: dict[str, str] = {}
+    for key, value in rubrics.items():
+        if value is None:
+            continue
+        if isinstance(value, str):
+            normalized[str(key)] = value
+        else:
+            normalized[str(key)] = json.dumps(value, ensure_ascii=False, default=str)
+    return normalized
+
+
 def _ragas_metric_result(
     *,
     key: str,
@@ -326,7 +340,7 @@ def _ragas_metric_result(
         "retrieved_contexts": contexts,
     }
     if metric_name == "instance_rubrics":
-        sample_kwargs["rubrics"] = rubrics
+        sample_kwargs["rubrics"] = _ragas_string_rubrics(rubrics)
     sample = SingleTurnSample(**sample_kwargs)
     try:
         score = asyncio.run(metric.single_turn_ascore(sample))

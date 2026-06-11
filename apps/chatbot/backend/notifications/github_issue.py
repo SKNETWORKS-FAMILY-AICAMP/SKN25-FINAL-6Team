@@ -12,13 +12,14 @@ from chatbot.observability.logger import EVENT_NOTIFICATION_FAILED, log_event
 GITHUB_API_BASE_URL = "https://api.github.com"
 
 
+# GitHub issue에 붙일 label 목록을 환경변수에서 읽는다.
 def _github_labels() -> list[str]:
     raw_labels = os.getenv("GITHUB_ISSUE_LABELS", "bug,in-game,chatbot")
     return [label.strip() for label in raw_labels.split(",") if label.strip()]
 
 
+# 긴급 인게임 버그 문의를 운영자가 추적할 수 있도록 GitHub issue로 생성한다.
 def create_github_issue(title: str, body: str) -> dict[str, str]:
-    """Create a GitHub issue for an in-game bug report; otherwise return mock result."""
     token = os.getenv("GITHUB_TOKEN", "").strip()
     repository = os.getenv("GITHUB_REPOSITORY", "").strip()
     if not token:

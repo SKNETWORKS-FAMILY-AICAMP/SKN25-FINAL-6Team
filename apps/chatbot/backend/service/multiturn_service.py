@@ -7,6 +7,7 @@ from typing import Any
 from common.db.connection import db_connection
 
 
+# 이전 ticket 한 건을 현재 대화 context에 넣기 위한 최소 단위다.
 @dataclass(frozen=True)
 class ConversationTurn:
     ticket_id: int
@@ -14,6 +15,7 @@ class ConversationTurn:
     assistant_text: str | None
 
 
+# chatbot_service가 workflow state에 넣을 멀티턴 context 결과다.
 @dataclass(frozen=True)
 class ConversationContext:
     previous_messages: list[dict[str, str]]
@@ -21,6 +23,7 @@ class ConversationContext:
     turn_count: int
 
 
+# 현재 ticket 이전의 같은 session/user/account 문의를 모아 최근 대화와 과거 요약으로 나눈다.
 def build_session_context(
     *,
     session_id: int,
@@ -29,7 +32,6 @@ def build_session_context(
     current_ticket_id: int,
     recent_turns: int = 3,
 ) -> ConversationContext:
-    """Build compact multi-turn context from previously answered tickets."""
     turns = _fetch_session_turns(
         session_id=session_id,
         user_id=user_id,
@@ -69,6 +71,7 @@ def _extract_ai_response(raw_query: str | None) -> str | None:
     return raw_query[idx + len(marker):]
 
 
+# qa_ticket.raw_query의 User/AI transcript에서 이전 문의/답변 turn 목록을 가져온다.
 def _fetch_session_turns(
     *,
     session_id: int,
@@ -115,6 +118,7 @@ def _fetch_session_turns(
     return turns
 
 
+# 최근 turn은 요약하지 않고 user/assistant message 형태로 그대로 전달한다.
 def _turns_to_messages(turns: list[ConversationTurn]) -> list[dict[str, str]]:
     messages: list[dict[str, str]] = []
     for turn in turns:
@@ -124,6 +128,7 @@ def _turns_to_messages(turns: list[ConversationTurn]) -> list[dict[str, str]]:
     return messages
 
 
+# 오래된 turn은 토큰 절감을 위해 LLM 요약을 우선 시도하고 실패하면 규칙 기반 요약으로 대체한다.
 def _summarize_older_turns(turns: list[ConversationTurn]) -> str | None:
     if not turns:
         return None
@@ -135,6 +140,7 @@ def _summarize_older_turns(turns: list[ConversationTurn]) -> str | None:
     return summary or _fallback_summary(source_turns)
 
 
+# 이전 대화 transcript를 짧은 한국어 요약으로 압축한다.
 def _summarize_with_llm(transcript: str) -> str | None:
     api_key = os.environ.get("LLM_API_KEY")
     model = os.environ.get("LLM_MODEL")

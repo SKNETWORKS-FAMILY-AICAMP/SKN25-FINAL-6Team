@@ -3,6 +3,7 @@ from __future__ import annotations
 from chatbot.generation.prompts.system_prompt import CHATBOT_SYSTEM_PROMPT
 
 
+# FAQ/RAG 답변이 제공된 evidence 범위를 벗어나지 않도록 제한하는 prompt다.
 FAQ_AGENT_PROMPT = CHATBOT_SYSTEM_PROMPT + """
 
 Category focus: FAQ / 공지 / 정책 / 일반 안내

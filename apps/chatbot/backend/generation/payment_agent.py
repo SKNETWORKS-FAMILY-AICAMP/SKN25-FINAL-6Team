@@ -18,6 +18,7 @@ def _compact_row(row: dict[str, Any]) -> str:
 
 
 def _payment_context_to_evidence(context: dict[str, Any]) -> list[dict[str, Any]]:
+    # 결제/환불/아이템 지급/가챠 로그를 safety와 평가에서 볼 수 있는 evidence 형식으로 변환한다.
     data = context.get("data") or {}
     evidence: list[dict[str, Any]] = []
     rank = 1
@@ -48,6 +49,7 @@ def _payment_context_to_evidence(context: dict[str, Any]) -> list[dict[str, Any]
 
 
 def _payment_context_message(context: dict[str, Any]) -> dict[str, str]:
+    # payment agent가 사용자 범위 DB 근거만 보고 답하도록 system message에 DB context를 붙인다.
     return {
         "role": "system",
         "content": (
@@ -91,6 +93,7 @@ def _summarize_payment_context_outputs(outputs: dict[str, Any]) -> dict[str, Any
     process_outputs=_summarize_payment_context_outputs,
 )
 def _collect_payment_context(state: ChatbotState) -> dict[str, Any]:
+    # 로그인된 user_id/account_id 기준으로 결제 관련 DB context를 한 번에 조회한다.
     user_id = state.get("user_id")
     if user_id is None:
         return {
@@ -110,6 +113,7 @@ def _collect_payment_context(state: ChatbotState) -> dict[str, Any]:
 
 
 def payment_agent_node(state: ChatbotState) -> dict:
+    # 1단계: 결제 agent 시작 로그를 남기고 사용자 범위 결제 context를 수집한다.
     log_event(
         EVENT_NODE_STARTED,
         ticket_id=state.get("ticket_id"),
@@ -120,6 +124,8 @@ def payment_agent_node(state: ChatbotState) -> dict:
     )
     payment_context = _collect_payment_context(state)
     payment_evidence = _payment_context_to_evidence(payment_context)
+
+    # 2단계: DB context를 message와 retrieved_documents에 추가해 agent와 safety가 같은 근거를 보게 한다.
     agent_state = dict(state)
     agent_state["payment_context"] = payment_context
     agent_state["retrieved_documents"] = payment_evidence
@@ -131,6 +137,8 @@ def payment_agent_node(state: ChatbotState) -> dict:
     update = build_draft_update(state, result, PAYMENT_POLICY.name)
     update["payment_context"] = payment_context
     update["retrieved_documents"] = payment_evidence
+
+    # 3단계: 생성된 초안과 근거 수를 기록하고 다음 draft_persistence 노드로 넘긴다.
     log_event(
         EVENT_NODE_COMPLETED,
         ticket_id=state.get("ticket_id"),
