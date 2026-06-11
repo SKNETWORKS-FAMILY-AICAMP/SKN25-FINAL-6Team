@@ -176,46 +176,46 @@ def fetch_ticket_detail(ticket_id: int) -> dict[str, Any] | None:
                 SELECT
                     t.ticket_id,
                     t.account_id,
-                    t.user_id,
+                    -- t.user_id,
                     t.title,
                     t.raw_query,
                     t.source_type,
                     t.status,
                     t.inquiry_created_at,
-                    t.session_id,
+                    -- t.session_id,
                     t.assignee_admin_id,
                     u.nickname,
                     u.email,
                     au.login_id AS assignee_login_id,
                     au.display_name AS assignee_display_name,
-                    a.analysis_id,
+                    -- a.analysis_id,
                     a.category,
-                    a.enriched_query,
+                    -- a.enriched_query,
                     a.risk_level,
-                    a.sentiment,
+                    -- a.sentiment,
                     a.routing_target,
                     a.summary,
-                    a.analyzed_at,
+                    -- a.analyzed_at,
                     d.draft_id,
                     d.draft_text,
                     d.created_at AS draft_created_at,
                     fr.response_id,
                     fr.final_text,
-                    s.retry_count,
-                    s.safety_action
+                    s.retry_count
+                    -- s.safety_action
                 FROM qa_ticket t
                 LEFT JOIN community_users u ON u.user_id = t.user_id
                 LEFT JOIN admin_users au ON au.admin_id = t.assignee_admin_id
                 LEFT JOIN LATERAL (
                     SELECT
-                        ta.analysis_id,
+                        -- ta.analysis_id,
                         ta.category,
-                        ta.enriched_query,
+                        -- ta.enriched_query,
                         ta.risk_level,
-                        ta.sentiment,
+                        -- ta.sentiment,
                         ta.routing_target,
-                        ta.summary,
-                        ta.analyzed_at
+                        ta.summary
+                        -- ta.analyzed_at
                     FROM ticket_analysis ta
                     WHERE ta.ticket_id = t.ticket_id
                     ORDER BY ta.analyzed_at DESC NULLS LAST, ta.analysis_id DESC
@@ -242,8 +242,8 @@ def fetch_ticket_detail(ticket_id: int) -> dict[str, Any] | None:
                 ) fr ON TRUE
                 LEFT JOIN LATERAL (
                     SELECT
-                        sr.retry_count,
-                        sr.safety_action
+                        sr.retry_count
+                        -- sr.safety_action
                     FROM safety_results sr
                     WHERE sr.draft_id = d.draft_id
                     ORDER BY sr.checked_at DESC NULLS LAST, sr.safety_id DESC
@@ -278,5 +278,4 @@ def fetch_ticket_evidence(draft_id: Any) -> list[dict[str, Any]]:
                 (draft_id,),
             )
             return [dict(row) for row in cur.fetchall()]
-
 
