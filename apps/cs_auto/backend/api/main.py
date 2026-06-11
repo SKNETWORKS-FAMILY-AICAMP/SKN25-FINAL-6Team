@@ -75,7 +75,6 @@ class DraftApproveRequest(BaseModel):
 
 
 
-@app.get(HEALTH_PATH)
 @app.get(f"{API_PREFIX}/health")
 def api_health_check() -> dict[str, object]:
     return {"status": "ok"}

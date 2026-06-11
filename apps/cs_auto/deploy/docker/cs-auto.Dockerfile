@@ -20,6 +20,8 @@ RUN python -m pip install --upgrade pip \
 COPY packages/common-python/src ./packages/common-python/src
 COPY apps/cs_auto/backend ./apps/cs_auto/backend
 COPY apps/cs_auto/frontend ./apps/cs_auto/frontend
+COPY data/sql ./data/sql
+COPY data/keywords ./data/keywords
 COPY apps/cs_auto/deploy/nginx/cs_auto.conf /etc/nginx/conf.d/default.conf
 COPY apps/cs_auto/deploy/scripts/start-cs-auto.sh /usr/local/bin/start-cs-auto
 
@@ -29,6 +31,6 @@ RUN chmod +x /usr/local/bin/start-cs-auto \
 EXPOSE 80
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-    CMD curl -fsS http://127.0.0.1/health || exit 1
+    CMD curl -fsS http://127.0.0.1:8000/api/cs-auto/health || exit 1
 
 CMD ["start-cs-auto"]

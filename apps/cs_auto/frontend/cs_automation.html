@@ -313,6 +313,7 @@ const appState = {
 };
 
 let reviewCalendarInstance = null;
+const TICKET_SIDEBAR_PAGE_SIZE = 10;
 
 const topTabs = [
   { label: "답변 생성", icon: "sparkles" },
@@ -833,7 +834,7 @@ function getReviewedTickets() {
 }
 
 function getTicketListPagination() {
-  const pageSize = 4;
+  const pageSize = TICKET_SIDEBAR_PAGE_SIZE;
   const visibleTickets = getVisibleTicketsForSideTab();
   const totalPages = Math.max(Math.ceil(visibleTickets.length / pageSize), 1);
   const currentPage = Math.min(Math.max(appState.ticketListPage, 1), totalPages);
@@ -1420,9 +1421,9 @@ function bindEvents() {
       if (appState.activeTopTab === "검토 이력") {
         appState.reviewDetailVisible = true;
       }
-      const ticketIndex = appState.tickets.findIndex((ticket) => ticket.id === button.dataset.ticketId);
+      const ticketIndex = getVisibleTicketsForSideTab().findIndex((ticket) => ticket.id === button.dataset.ticketId);
       if (ticketIndex >= 0) {
-        appState.ticketListPage = Math.floor(ticketIndex / 4) + 1;
+        appState.ticketListPage = Math.floor(ticketIndex / TICKET_SIDEBAR_PAGE_SIZE) + 1;
       }
       appState.isTicketSidebarOpen = false;
       appState.showRegenBox = false;
@@ -1470,7 +1471,7 @@ function bindEvents() {
   const ticketPageNextBtn = document.getElementById("ticket-page-next-btn");
   if (ticketPageNextBtn) {
     ticketPageNextBtn.addEventListener("click", () => {
-      const totalPages = Math.max(Math.ceil(appState.tickets.length / 4), 1);
+      const totalPages = Math.max(Math.ceil(getVisibleTicketsForSideTab().length / TICKET_SIDEBAR_PAGE_SIZE), 1);
       appState.ticketListPage = Math.min(appState.ticketListPage + 1, totalPages);
       render();
     });
