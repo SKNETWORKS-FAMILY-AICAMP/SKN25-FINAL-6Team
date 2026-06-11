@@ -11,7 +11,29 @@
     });
 
     if (!response.ok) {
-      return { ok: false, status: response.status };
+      let errorPayload = null;
+      try {
+        errorPayload = await response.json();
+      } catch {
+        try {
+          const text = await response.text();
+          errorPayload = text ? { message: text } : null;
+        } catch {
+          errorPayload = null;
+        }
+      }
+
+      return {
+        ok: false,
+        status: response.status,
+        ...(errorPayload && typeof errorPayload === "object" ? errorPayload : {}),
+        message:
+          errorPayload && typeof errorPayload === "object" && errorPayload.message
+            ? errorPayload.message
+            : errorPayload && typeof errorPayload === "object" && errorPayload.detail
+              ? String(errorPayload.detail)
+              : `HTTP ${response.status}`
+      };
     }
 
     return response.json();

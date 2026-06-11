@@ -303,13 +303,13 @@ const appState = {
   reviewCalendarMonth: 5,
   reviewDetailVisible: false,
   reviewHistoryStatusFilter: "전체",
-  isTicketSidebarOpen: false,
   showRegenBox: false,
   regenReason: "",
   workflowVisible: false,
   workflowProgress: 0,
   workflowLabel: "문의 내용 분석 중...",
   workflowLogs: [],
+  isApproving: false,
   tickets: [],
   evidence: [],
   history: [],
@@ -598,6 +598,16 @@ function showLoginError(message) {
   err.innerHTML = `<i class="ti ti-alert-circle" aria-hidden="true"></i> ${escapeHtml(message)}`;
 }
 
+function pushAlert(message, tone = "info") {
+  const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  appState.alerts = [{ id, message: String(message || ""), tone }, ...appState.alerts].slice(0, 3);
+  render();
+  window.setTimeout(() => {
+    appState.alerts = appState.alerts.filter((alert) => alert.id !== id);
+    render();
+  }, 2800);
+}
+
 async function doLogin() {
   const idInput = document.getElementById("li-id");
   const pwInput = document.getElementById("li-pw");
@@ -816,16 +826,27 @@ async function confirmDraft() {
 async function approveDraft() {
   const ticket = getSelectedTicket();
   if (!ticket.ticketId || !ticket.draftId || !appState.currentReviewerId) {
+    pushAlert("답변 완료에 필요한 티켓 정보가 없습니다.", "error");
     return;
   }
-  const result = await window.CSAutoApi.approveDraft(
-    ticket.ticketId,
-    ticket.draftId,
-    ticket.draft,
-    appState.currentReviewerId
-  );
-  if (result.ok === false) return;
-  mergeTicketFromApi(result.ticket);
+  appState.isApproving = true;
+  render();
+  try {
+    const result = await window.CSAutoApi.approveDraft(
+      ticket.ticketId,
+      ticket.draftId,
+      ticket.draft,
+      appState.currentReviewerId
+    );
+    if (result.ok === false) {
+      pushAlert(result.message || "답변 완료 처리에 실패했습니다.", "error");
+      return;
+    }
+    mergeTicketFromApi(result.ticket);
+    pushAlert("답변 완료 처리되었습니다.", "success");
+  } finally {
+    appState.isApproving = false;
+  }
   render();
 }
 
@@ -1140,6 +1161,8 @@ function renderReviewHistoryContent() {
 function render() {
   syncReviewCalendarState();
   const ticket = getSelectedTicket() || getEmptyTicket();
+  const hasDraft = Boolean(ticket.draftId);
+  const canApprove = hasDraft && ticket.status !== "done" && !appState.isApproving;
   const remainingRegens = Math.max((ticket.regenLimit || 3) - (ticket.regenCount || 0), 0);
   const ticketListPagination = getTicketListPagination();
   const reviewHistorySidebarGroups = getReviewHistorySidebarGroups();
@@ -1252,7 +1275,6 @@ function render() {
     <main class="flex min-h-0 flex-col overflow-y-auto bg-white">
       ${appState.activeTopTab === "검토 이력" ? renderReviewHistoryContent() : `
       <div class="relative min-h-0 flex-1 overflow-y-auto bg-white pr-8 pl-4 pb-3.5 pt-3.5">
-        ${appState.isTicketSidebarOpen ? `<button id="ticket-sidebar-backdrop" class="absolute inset-0 z-10 bg-ink-900/20"></button>` : ""}
         <div class="section-head rounded-t-xl bg-white">
             <div class="min-w-0 flex-1">
               <h3 class="text-[18px] font-semibold leading-[1.3] text-ink-900">${ticket.title}</h3>
@@ -1294,9 +1316,10 @@ function render() {
                   <div class="subcard-body">
                     <textarea id="draft-input" class="min-h-[180px] w-full resize-y rounded-[7px] border border-sand-300 bg-white px-3 py-2.5 text-xs leading-[1.6] text-ink-900 outline-none ${ticket.isDraftEditing ? "focus:border-brand-500" : "text-ink-500"}" ${ticket.isDraftEditing ? "" : "readonly"}>${escapeHtml(ticket.draft)}</textarea>
                     <div class="mt-2 flex flex-wrap gap-1.5">
-                      <button id="confirm-draft-btn" class="btn btn-ghost btn-sm"><i class="ti ti-device-floppy"></i> ${ticket.isDraftEditing ? "수정 완료" : "수정"}</button>
-                      <button id="regen-toggle-btn" class="btn btn-ghost btn-sm ml-auto ${remainingRegens === 0 ? "cursor-not-allowed opacity-40 hover:border-sand-300 hover:text-ink-700" : ""}" ${remainingRegens === 0 ? "disabled" : ""}><i class="ti ti-refresh"></i> 재생성</button>
+                      <button id="confirm-draft-btn" class="btn btn-ghost btn-sm ${!hasDraft ? "cursor-not-allowed opacity-40 hover:border-sand-300 hover:text-ink-700" : ""}" ${!hasDraft ? "disabled" : ""}><i class="ti ti-device-floppy"></i> ${ticket.isDraftEditing ? "수정 완료" : "수정"}</button>
+                      <button id="regen-toggle-btn" class="btn btn-ghost btn-sm ml-auto ${!hasDraft || remainingRegens === 0 ? "cursor-not-allowed opacity-40 hover:border-sand-300 hover:text-ink-700" : ""}" ${!hasDraft || remainingRegens === 0 ? "disabled" : ""}><i class="ti ti-refresh"></i> 재생성</button>
                     </div>
+                    ${!hasDraft ? `<div class="mt-2 text-[11px] text-ink-500">이 티켓은 아직 답변 초안이 생성되지 않아 수정할 수 없습니다.</div>` : ""}
                     <div class="${appState.showRegenBox ? "block" : "hidden"} mt-2 rounded-lg border border-brand-200 bg-brand-500/5 p-3">
                       <label class="mb-1 block text-[11px] font-medium text-brand-500">재생성 사유 입력</label>
                       <textarea id="regen-reason-input" class="min-h-[52px] w-full resize-none rounded-md border border-brand-200 bg-white px-2.5 py-2 text-xs outline-none" placeholder="예: 문체를 더 정중하게 수정, 환불 기준 문구 반영">${escapeHtml(appState.regenReason)}</textarea>
@@ -1312,14 +1335,9 @@ function render() {
                     <div class="flex items-center gap-1.5 text-xs font-bold text-ink-900"><i class="ti ti-activity text-sm text-brand-500"></i> 처리 현황</div>
                   </div>
                   <div class="subcard-body px-2.5 py-2.5">
-                    <div class="flex flex-col gap-0">
-                      ${renderTimelineItem("AI 분석 완료", answerWorkflowStage > 1 ? "done" : answerWorkflowStage === 1 ? "active" : "pending")}
-                      ${renderTimelineItem("초안 생성", answerWorkflowStage > 2 ? "done" : answerWorkflowStage === 2 ? "active" : "pending")}
-                      ${renderTimelineItem("검토 중", ticket.status === "done" ? "done" : answerWorkflowStage === 3 ? "active" : "pending")}
-                      ${renderTimelineItem("발송", ticket.status === "done" ? "done" : "pending", true)}
-                    </div>
                     <div class="mt-3 flex flex-col gap-1.5">
-                      <button id="complete-answer-btn" class="btn btn-primary btn-sm w-full justify-center"><i class="ti ti-check"></i> 답변 완료</button>
+                      <button id="complete-answer-btn" class="btn btn-primary btn-sm w-full justify-center ${!canApprove ? "cursor-not-allowed opacity-40 hover:bg-brand-500" : ""}" ${!canApprove ? "disabled" : ""}><i class="ti ${appState.isApproving ? "ti-loader-2 animate-spin" : "ti-check"}"></i> ${appState.isApproving ? "처리 중..." : "답변 완료"}</button>
+                      ${!canApprove ? `<div class="text-[11px] text-ink-500">${appState.isApproving ? "답변 완료 요청을 처리 중입니다." : ticket.status === "done" ? "이미 완료 처리된 티켓입니다." : "답변 초안이 있어야 완료 처리할 수 있습니다."}</div>` : ""}
                     </div>
                   </div>
                 </div>
@@ -1361,44 +1379,22 @@ function render() {
             </div>
           </div>
 
-        <aside class="hidden absolute right-0 top-2.5 z-20 grid h-[380px] w-[332px] grid-cols-[28px_1fr] overflow-hidden rounded-l-xl border border-sand-300 bg-white shadow-panel transition-transform duration-300 ${appState.isTicketSidebarOpen ? "translate-x-0" : "translate-x-[304px]"}">
-          <button id="ticket-sidebar-handle-btn" class="flex h-full w-full flex-col items-center justify-center border-r border-sand-300 bg-sand-100 px-0.5 text-ink-700 transition hover:bg-sand-200 hover:text-ink-900">
-            <span class="[writing-mode:vertical-rl] text-[10px] font-semibold tracking-[0.06em]">문의목록</span>
-          </button>
-          <div class="flex min-h-0 flex-col bg-white">
-            <div class="section-head">
-              <i class="ti ti-inbox text-base text-brand-500" aria-hidden="true"></i>
-              <h3>문의 목록</h3>
-              <button id="ticket-sidebar-close-btn" class="btn btn-ghost btn-sm"><i class="ti ti-x"></i> 닫기</button>
-            </div>
-            <div class="shrink-0 border-b border-sand-300 px-3 py-[7px]">
-              <div class="relative">
-                <i class="ti ti-search absolute left-2 top-1/2 -translate-y-1/2 text-sm text-brand-200" aria-hidden="true"></i>
-                <input class="w-full rounded-[7px] border border-sand-300 bg-sand-100 py-1.5 pl-7 pr-2.5 text-xs text-ink-900 outline-none focus:border-brand-500 focus:bg-white" type="text" placeholder="유저명, 제목, ID 검색...">
-              </div>
-            </div>
-            <div class="flex-1 overflow-y-auto p-2">
-              ${appState.tickets.map((item) => {
-                const itemMeta = getTicketDisplayMeta(item);
-                return `
-                <button class="ticket-card w-full text-left ${appState.selectedTicketId === item.id ? "selected" : ""} ${itemMeta.tone === "urgent" ? "border-l-[3px] border-l-alert-red" : ""} ${itemMeta.status === "done" ? "opacity-50" : ""}" data-ticket-id="${item.id}">
-                  <div class="mb-1 flex items-center gap-1.5">
-                    <span class="font-mono text-[10px] text-ink-500">#${item.id}</span>
-                    <span class="ml-auto flex items-center gap-1.5 text-[10px]">
-                      <span class="${itemMeta.status === "done" ? "font-medium text-alert-green" : itemMeta.assignedToOther ? "font-semibold text-alert-amber" : "font-normal text-ink-500"}">${itemMeta.statusText}</span>
-                      <span class="text-ink-500">${item.timeAgo}</span>
-                    </span>
-                  </div>
-                  <div class="mb-1 text-xs font-medium leading-[1.4] text-ink-900">${escapeHtml(item.title)}</div>
-                </button>
-                `;
-              }).join("")}
-            </div>
-          </div>
-        </aside>
       </div>
       `}
     </main>
+    <div class="pointer-events-none fixed right-4 top-4 z-[220] flex flex-col gap-2">
+      ${appState.alerts.map((alert) => `
+        <div class="min-w-[240px] rounded-[10px] border px-3 py-2 text-[11px] shadow-panel ${
+          alert.tone === "error"
+            ? "border-alert-redBorder bg-alert-redBg text-alert-red"
+            : alert.tone === "success"
+              ? "border-[#a7dfc3] bg-alert-greenBg text-alert-green"
+              : "border-sand-300 bg-white text-ink-700"
+        }">
+          ${escapeHtml(alert.message)}
+        </div>
+      `).join("")}
+    </div>
   `;
 
   const authSlot = document.getElementById("auth-slot");
@@ -1467,7 +1463,6 @@ function bindEvents() {
       if (ticketIndex >= 0) {
         appState.ticketListPage = Math.floor(ticketIndex / TICKET_SIDEBAR_PAGE_SIZE) + 1;
       }
-      appState.isTicketSidebarOpen = false;
       appState.showRegenBox = false;
       appState.regenReason = "";
       const selectedTicket = appState.tickets.find((ticket) => ticket.id === button.dataset.ticketId);
@@ -1515,30 +1510,6 @@ function bindEvents() {
     ticketPageNextBtn.addEventListener("click", () => {
       const totalPages = Math.max(Math.ceil(getVisibleTicketsForSideTab().length / TICKET_SIDEBAR_PAGE_SIZE), 1);
       appState.ticketListPage = Math.min(appState.ticketListPage + 1, totalPages);
-      render();
-    });
-  }
-
-  const ticketSidebarHandleBtn = document.getElementById("ticket-sidebar-handle-btn");
-  if (ticketSidebarHandleBtn) {
-    ticketSidebarHandleBtn.addEventListener("click", () => {
-      appState.isTicketSidebarOpen = !appState.isTicketSidebarOpen;
-      render();
-    });
-  }
-
-  const ticketSidebarCloseBtn = document.getElementById("ticket-sidebar-close-btn");
-  if (ticketSidebarCloseBtn) {
-    ticketSidebarCloseBtn.addEventListener("click", () => {
-      appState.isTicketSidebarOpen = false;
-      render();
-    });
-  }
-
-  const ticketSidebarBackdrop = document.getElementById("ticket-sidebar-backdrop");
-  if (ticketSidebarBackdrop) {
-    ticketSidebarBackdrop.addEventListener("click", () => {
-      appState.isTicketSidebarOpen = false;
       render();
     });
   }
