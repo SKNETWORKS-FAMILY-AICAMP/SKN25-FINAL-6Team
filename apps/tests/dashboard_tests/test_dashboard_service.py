@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 import pytest
+from psycopg.errors import UndefinedTable
 
 from common.db.connection import db_connection
 from api import main as dashboard_api_main
@@ -270,3 +271,16 @@ def test_weekly_report_render_pdf_path_and_slack_path_are_lazy(monkeypatch: pyte
 
 def test_dashboard_api_import_does_not_require_slack_sdk_runtime() -> None:
     assert dashboard_api_main.app.title == "Dashboard API"
+
+
+def test_fetch_optional_all_returns_empty_list_for_missing_table() -> None:
+    class _DummyCursor:
+        def execute(self, sql: str, params: tuple[object, ...] = ()) -> None:
+            raise UndefinedTable("relation does not exist")
+
+        def fetchall(self) -> list[tuple[object, ...]]:
+            return []
+
+    result = dashboard_api_main._fetch_optional_all(_DummyCursor(), "SELECT * FROM voc_feedback")
+
+    assert result == []

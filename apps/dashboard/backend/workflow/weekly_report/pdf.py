@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import base64
 import io
+import os
 from html import escape
+from pathlib import Path
+from urllib.parse import unquote, urlparse
 from typing import Any
 
 from xhtml2pdf import pisa
@@ -14,6 +17,121 @@ from util.text import translate_value
 
 REVIEW_PREVIEW_LIMIT = 5
 ANALYSIS_PREVIEW_LIMIT = 8
+FONT_FAMILY_NAME = "DashboardKorean"
+FONT_REGULAR_ENV = "DASHBOARD_WEEKLY_REPORT_FONT_REGULAR"
+FONT_BOLD_ENV = "DASHBOARD_WEEKLY_REPORT_FONT_BOLD"
+
+
+def _existing_font_path(value: str | None) -> Path | None:
+    if not value:
+        return None
+    candidate = Path(value).expanduser()
+    return candidate if candidate.exists() else None
+
+
+def _resolve_pdf_fonts() -> dict[str, Path] | None:
+    """주간 PDF에 사용할 실제 한글 폰트 파일을 찾는다."""
+
+    candidate_pairs = [
+        (
+            os.environ.get(FONT_REGULAR_ENV),
+            os.environ.get(FONT_BOLD_ENV),
+        ),
+        (
+            r"C:\Windows\Fonts\malgun.ttf",
+            r"C:\Windows\Fonts\malgunbd.ttf",
+        ),
+        (
+            r"C:\Windows\Fonts\malgun.ttf",
+            r"C:\Windows\Fonts\malgunsl.ttf",
+        ),
+        (
+            "/usr/share/fonts/truetype/nanum/NanumGothic.ttf",
+            "/usr/share/fonts/truetype/nanum/NanumGothicBold.ttf",
+        ),
+        (
+            "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc",
+        ),
+        (
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
+        ),
+    ]
+
+    for regular_candidate, bold_candidate in candidate_pairs:
+        regular_path = _existing_font_path(regular_candidate)
+        if regular_path is None:
+            continue
+        bold_path = _existing_font_path(bold_candidate) or regular_path
+        return {"regular": regular_path, "bold": bold_path}
+    return None
+
+
+def _font_face_css() -> str:
+    fonts = _resolve_pdf_fonts()
+    if fonts is None:
+        return ""
+    regular_uri = fonts["regular"].resolve().as_uri()
+    bold_uri = fonts["bold"].resolve().as_uri()
+    return f"""
+            @font-face {{
+                font-family: '{FONT_FAMILY_NAME}';
+                src: url('{regular_uri}');
+                font-weight: normal;
+            }}
+            @font-face {{
+                font-family: '{FONT_FAMILY_NAME}';
+                src: url('{bold_uri}');
+                font-weight: bold;
+            }}
+    """
+
+
+def _resolve_resource_path(uri: str, rel: str | None = None) -> str:
+    """xhtml2pdf가 로컬 파일을 읽을 때 사용할 경로를 정리한다."""
+
+    del rel
+    parsed = urlparse(uri)
+    if parsed.scheme == "file":
+        path = unquote(parsed.path or "")
+        if os.name == "nt" and path.startswith("/") and len(path) > 2 and path[2] == ":":
+            path = path.lstrip("/")
+        return path
+    if parsed.scheme == "":
+        candidate = Path(uri)
+        if candidate.exists():
+            return str(candidate.resolve())
+    return uri
+
+
+
+def _metric_rows(summary: dict[str, Any], comparisons: dict[str, Any]) -> list[tuple[str, str, str]]:
+    return [
+        ("분석 건수", _number(summary.get("analysis_count")), _change_text(comparisons.get("analysis_count", {}).get("change_rate"))),
+        ("고위험 문의", _number(summary.get("high_risk_count")), _change_text(comparisons.get("high_risk_count", {}).get("change_rate"))),
+        ("부정 반응 문의", _number(summary.get("negative_sentiment_count")), _change_text(comparisons.get("negative_sentiment_count", {}).get("change_rate"))),
+        ("사람 검토 필요", _number(summary.get("human_review_count")), _change_text(comparisons.get("human_review_count", {}).get("change_rate"))),
+    ]
+
+
+def _summary_rows(summary: dict[str, Any]) -> list[tuple[str, str]]:
+    return [
+        ("응답률", _percent(summary.get("response_rate"))),
+        ("분석 커버리지", _percent(summary.get("analysis_coverage_rate"))),
+        ("초안 커버리지", _percent(summary.get("draft_coverage_rate"))),
+        ("최종 답변 전환", _percent(summary.get("final_response_ticket_rate"))),
+        ("고위험 문의 비율", _percent(summary.get("high_risk_rate"))),
+        ("부정 반응 문의 비율", _percent(summary.get("negative_sentiment_rate"))),
+        ("사람 검토 필요 비율", _percent(summary.get("human_review_rate"))),
+        ("즉시 알림 필요 비율", _percent(summary.get("urgent_alert_rate"))),
+    ]
+
+
+def _distribution_rows(report: dict[str, Any], key: str) -> list[dict[str, Any]]:
+    return [row for row in report.get(key, []) if row.get("label") not in {None, ""}]
+
+
 
 
 def _text(value: object, fallback: str = "-") -> str:
@@ -240,32 +358,73 @@ def _build_plotly_chart_data_uri(title: str, rows: list[dict[str, Any]], *, kind
     return f"data:image/png;base64,{encoded}"
 
 
+def _build_chart_fallback_table(rows: list[dict[str, Any]], *, kind: str) -> str:
+    """Plotly 렌더링이 실패했을 때 데이터를 라벨+값 표로 대체 표시한다.
+
+    차트 이미지가 없어도 수치를 읽을 수 있도록 정보를 보존하는 것이 목적이다.
+    kind='bar'이면 값을 퍼센트로, 'pie'이면 개수와 비율을 함께 표시한다.
+    """
+    usable = [r for r in rows if r.get("label") not in {None, ""} and r.get("value") not in {None, ""}]
+    if not usable:
+        return "<div class='chart-empty'>표시할 데이터가 없습니다.</div>"
+
+    total = sum(float(r.get("value") or 0) for r in usable) or 1
+    table_rows = ""
+    for row in usable[:8]:  # 최대 8행 — 카드 높이 유지
+        label = escape(_translate_chart_label(row.get("label")))
+        value = float(row.get("value") or 0)
+        if kind == "bar":
+            display = _percent(value)
+        else:
+            pct = value / total * 100
+            display = f"{value:,.0f}건 ({pct:.1f}%)"
+        table_rows += f"<tr><td class='ft-label'>{label}</td><td class='ft-value'>{escape(display)}</td></tr>"
+
+    return f"<table class='fallback-table'>{table_rows}</table>"
+
+
 def _build_chart_gallery(report: dict[str, Any]) -> str:
     cells: list[str] = []
     for spec in _chart_specs(report):
         image_data = _build_plotly_chart_data_uri(spec["title"], spec["rows"], kind=spec["kind"])
-        if image_data is None:
+
+        if image_data is not None:
+            # Plotly 이미지 정상 렌더링
             cells.append(
                 f"""
                 <td class="chart-cell">
                     <div class="chart-card">
                         <div class="chart-title">{escape(spec["title"])}</div>
-                        <div class="chart-empty">차트를 생성하지 못했습니다.</div>
+                        <img class="chart-image" src="{image_data}" alt="{escape(spec['title'])}" />
                     </div>
                 </td>
                 """
             )
-            continue
-        cells.append(
-            f"""
-            <td class="chart-cell">
-                <div class="chart-card">
-                    <div class="chart-title">{escape(spec["title"])}</div>
-                    <img class="chart-image" src="{image_data}" alt="{escape(spec['title'])}" />
-                </div>
-            </td>
-            """
-        )
+        elif spec["rows"]:
+            # Plotly 실패 + 데이터 있음 → 표로 대체 (정보 보존)
+            cells.append(
+                f"""
+                <td class="chart-cell">
+                    <div class="chart-card">
+                        <div class="chart-title">{escape(spec["title"])}</div>
+                        <div class="chart-note">차트 렌더링 불가 — 수치 표로 대체합니다.</div>
+                        {_build_chart_fallback_table(spec["rows"], kind=spec["kind"])}
+                    </div>
+                </td>
+                """
+            )
+        else:
+            # 데이터 자체가 없음
+            cells.append(
+                f"""
+                <td class="chart-cell">
+                    <div class="chart-card">
+                        <div class="chart-title">{escape(spec["title"])}</div>
+                        <div class="chart-empty">이번 기간 해당 데이터가 없습니다.</div>
+                    </div>
+                </td>
+                """
+            )
 
     rows: list[str] = []
     for index in range(0, len(cells), 2):
@@ -290,12 +449,13 @@ def _build_html(report: dict[str, Any]) -> str:
     <head>
         <meta charset="utf-8" />
         <style>
+            {_font_face_css()}
             @page {{
                 size: A4;
                 margin: 15mm 12mm 14mm 12mm;
             }}
             body {{
-                font-family: Helvetica;
+                font-family: '{FONT_FAMILY_NAME}', Helvetica, Arial, sans-serif;
                 color: #172033;
                 font-size: 10pt;
                 line-height: 1.45;
@@ -330,16 +490,19 @@ def _build_html(report: dict[str, Any]) -> str:
                 border: 1px solid #d9e2ef;
                 border-radius: 12px;
                 background: #ffffff;
+                page-break-inside: avoid;
             }}
             .section-title {{
                 font-size: 13pt;
                 font-weight: bold;
                 color: #0f172a;
                 margin-bottom: 10px;
+                word-break: break-word;
             }}
             table {{
                 width: 100%;
                 border-collapse: collapse;
+                table-layout: fixed;
             }}
             .metric-card {{
                 width: 25%;
@@ -347,11 +510,13 @@ def _build_html(report: dict[str, Any]) -> str:
                 border: 1px solid #dbe3ef;
                 background: #f8fafc;
                 vertical-align: top;
+                word-break: break-word;
             }}
             .metric-label {{
                 font-size: 8.5pt;
                 color: #64748b;
                 margin-bottom: 8px;
+                word-break: break-word;
             }}
             .metric-value {{
                 font-size: 17pt;
@@ -366,6 +531,7 @@ def _build_html(report: dict[str, Any]) -> str:
             .summary-label, .summary-value {{
                 border-bottom: 1px solid #e5e7eb;
                 padding: 7px 9px;
+                word-break: break-word;
             }}
             .summary-label {{
                 width: 68%;
@@ -382,6 +548,7 @@ def _build_html(report: dict[str, Any]) -> str:
                 border-left: 5px solid #0f766e;
                 background: #effcf8;
                 margin-bottom: 12px;
+                word-break: break-word;
             }}
             .interpretation-headline {{
                 font-size: 12pt;
@@ -411,6 +578,7 @@ def _build_html(report: dict[str, Any]) -> str:
                 border: 1px solid #f1dcc7;
                 border-radius: 10px;
                 background: #fff7ed;
+                word-break: break-word;
             }}
             .action-index {{
                 display: inline-block;
@@ -437,6 +605,7 @@ def _build_html(report: dict[str, Any]) -> str:
                 border-radius: 10px;
                 background: #fcfcfd;
                 padding: 10px;
+                page-break-inside: avoid;
             }}
             .chart-title {{
                 font-size: 10pt;
@@ -453,12 +622,37 @@ def _build_html(report: dict[str, Any]) -> str:
                 color: #64748b;
                 padding: 14px 0;
             }}
+            .chart-note {{
+                font-size: 8pt;
+                color: #94a3b8;
+                margin-bottom: 6px;
+            }}
+            .fallback-table {{
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 8.5pt;
+            }}
+            .fallback-table .ft-label {{
+                padding: 4px 6px;
+                border-bottom: 1px solid #e5e7eb;
+                color: #374151;
+                word-break: break-word;
+            }}
+            .fallback-table .ft-value {{
+                padding: 4px 6px;
+                border-bottom: 1px solid #e5e7eb;
+                text-align: right;
+                font-weight: bold;
+                color: #0f172a;
+                white-space: nowrap;
+            }}
             .review-card {{
                 border: 1px solid #e2e8f0;
                 border-radius: 12px;
                 padding: 12px 14px;
                 margin-bottom: 10px;
                 background: #fcfcfd;
+                page-break-inside: avoid;
             }}
             .review-head-table {{
                 margin-bottom: 6px;
@@ -477,15 +671,18 @@ def _build_html(report: dict[str, Any]) -> str:
                 font-size: 11pt;
                 font-weight: bold;
                 margin-bottom: 6px;
+                word-break: break-word;
             }}
             .review-meta {{
                 font-size: 8.8pt;
                 color: #64748b;
                 margin-bottom: 8px;
+                word-break: break-word;
             }}
             .review-body {{
                 font-size: 9.4pt;
                 color: #1f2937;
+                word-break: break-word;
             }}
             .analysis-note {{
                 font-size: 8.5pt;
@@ -505,6 +702,10 @@ def _build_html(report: dict[str, Any]) -> str:
                 border: 1px solid #e5e7eb;
                 font-size: 8.6pt;
                 vertical-align: top;
+                word-break: break-word;
+            }}
+            .analysis-table th {{
+                word-break: break-word;
             }}
         </style>
     </head>
@@ -586,7 +787,7 @@ def render_report_pdf(report: dict[str, Any]) -> bytes:
 
     html = _build_html(report)
     buffer = io.BytesIO()
-    pdf = pisa.CreatePDF(src=html, dest=buffer, encoding="utf-8")
-    if pdf.err:
-        raise RuntimeError("weekly report PDF rendering failed")
+    result = pisa.CreatePDF(src=html, dest=buffer, encoding="utf-8", link_callback=_resolve_resource_path)
+    if result.err:
+        raise RuntimeError("주간 리포트 PDF 렌더링에 실패했습니다")
     return buffer.getvalue()

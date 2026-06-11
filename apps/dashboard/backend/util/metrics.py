@@ -48,43 +48,6 @@ def safe_average(values: list[int | float | None]) -> float | None:
     return float(mean(filtered))
 
 
-def format_minutes(value: float | int | None) -> str:
-    """Format a latency value in minutes for display."""
-
-    if value is None:
-        return "-"
-    minutes = float(value)
-    if minutes < 60:
-        return f"{minutes:.1f}분"
-    hours = minutes / 60.0
-    return f"{hours:.1f}시간"
-
-
-def mask_identifier(value: object, *, keep_start: int = 3, keep_end: int = 2) -> str:
-    """Mask a token-like identifier for list and detail views."""
-
-    text = str(value or "").strip()
-    if not text:
-        return "-"
-    if len(text) <= keep_start + keep_end:
-        return "*" * len(text)
-    return f"{text[:keep_start]}***{text[-keep_end:]}"
-
-
-def mask_email(value: object) -> str:
-    """Mask an email address while preserving its domain."""
-
-    text = str(value or "").strip()
-    if not text or "@" not in text:
-        return mask_identifier(text)
-    local, domain = text.split("@", 1)
-    if len(local) <= 2:
-        masked_local = "*" * len(local)
-    else:
-        masked_local = f"{local[:2]}***"
-    return f"{masked_local}@{domain}"
-
-
 def _window_payload(window: dict[str, Any]) -> dict[str, Any]:
     return {
         "days": int(window["days"]),

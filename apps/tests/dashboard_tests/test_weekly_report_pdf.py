@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+from io import BytesIO
 from types import SimpleNamespace
+
+import fitz
+from pypdf import PdfReader
 
 from workflow.weekly_report import pdf
 
@@ -82,12 +86,30 @@ def test_build_html_includes_chart_gallery_and_preview_limits(monkeypatch) -> No
     assert "분석 원본 미리보기" in html
 
 
+def test_build_html_uses_korean_font_when_available(monkeypatch) -> None:
+    monkeypatch.setattr(
+        pdf,
+        "_resolve_pdf_fonts",
+        lambda: {
+            "regular": pdf.Path(r"C:\Windows\Fonts\malgun.ttf"),
+            "bold": pdf.Path(r"C:\Windows\Fonts\malgunbd.ttf"),
+        },
+    )
+
+    html = pdf._build_html(_sample_report())
+
+    assert "DashboardKorean" in html
+    assert "malgun.ttf" in html
+    assert "font-family: 'DashboardKorean'" in html
+
+
 def test_render_report_pdf_uses_pisa_and_returns_bytes(monkeypatch) -> None:
     captured: dict[str, object] = {}
 
-    def _fake_create_pdf(*, src, dest, encoding):
+    def _fake_create_pdf(*, src, dest, encoding, link_callback=None):
         captured["src"] = src
         captured["encoding"] = encoding
+        captured["link_callback"] = link_callback
         dest.write(b"%PDF-FAKE")
         return SimpleNamespace(err=False)
 
@@ -98,4 +120,22 @@ def test_render_report_pdf_uses_pisa_and_returns_bytes(monkeypatch) -> None:
 
     assert result == b"%PDF-FAKE"
     assert captured["encoding"] == "utf-8"
-    assert "차트를 생성하지 못했습니다." in str(captured["src"])
+    assert captured["link_callback"] is not None
+    # Plotly 실패 + 데이터 있음 → 표 대체 경로. 데이터 없음 → "이번 기간 해당 데이터가 없습니다."
+    # _sample_report()는 category_distribution 등에 실제 데이터를 포함하므로 표 대체 경로를 탄다.
+    assert "차트 렌더링 불가 — 수치 표로 대체합니다." in str(captured["src"])
+    assert "fallback-table" in str(captured["src"])
+
+
+def test_render_report_pdf_produces_extractable_korean_text() -> None:
+    result = pdf.render_report_pdf(_sample_report())
+
+    reader = PdfReader(BytesIO(result))
+    document = fitz.open(stream=result, filetype="pdf")
+    first_page_pixmap = document[0].get_pixmap(matrix=fitz.Matrix(2, 2), alpha=False)
+
+    assert result.startswith(b"%PDF")
+    assert reader.pages
+    assert document.page_count >= 3
+    assert first_page_pixmap.width > 0
+    assert first_page_pixmap.height > 0
