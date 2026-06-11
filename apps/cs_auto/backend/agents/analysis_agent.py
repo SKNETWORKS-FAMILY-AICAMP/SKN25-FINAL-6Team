@@ -21,6 +21,10 @@ from pydantic import BaseModel, ConfigDict
 import yaml
 
 from common.db.connection import db_connection
+from common.observability.langsmith import configure_langsmith
+
+
+configure_langsmith("operation")
 
 
 Category = Literal["payment", "refund", "account", "bug", "gacha", "policy", "general"]
@@ -42,7 +46,7 @@ class TicketPayload(BaseModel):
     raw_query: str | None = ""
     source_type: str | None = ""
     status: str | None = ""
-    session_id: str | None = None
+    session_id: str | int | None = None
 
 
 class EnrichedTicket(BaseModel):

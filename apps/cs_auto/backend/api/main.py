@@ -11,10 +11,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from common.observability.langsmith import configure_langsmith
+
 from api.services.load_ticket import get_review_tickets, get_ticket_detail
 from api.services.approve_draft import approve_answer_draft as approve_answer_draft_service
 from apps.cs_auto.backend.api.services.edit_draft import update_answer_draft as update_answer_draft_service
 from api.services.regenerate_draft import regenerate_answer_draft as regenerate_answer_draft_service
+
+configure_langsmith("operation")
 
 # 로그인 api 구현
 from utils.login.admin_login import create_admin_session, revoke_admin_session, verify_admin_user_credentials

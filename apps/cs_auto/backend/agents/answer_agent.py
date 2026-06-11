@@ -23,6 +23,10 @@ from agents.tool.dbsearch import DbSearchRouter, EvidenceItem
 from agents.tool.docsearch import DocumentRetriever
 from common.db.connection import db_connection
 from common.llm.client import get_chat_llm
+from common.observability.langsmith import configure_langsmith
+
+
+configure_langsmith("operation")
 
 
 RoutingTarget = Literal["DB_only", "doc_only", "DB&DOC", "fixed_answer"]
