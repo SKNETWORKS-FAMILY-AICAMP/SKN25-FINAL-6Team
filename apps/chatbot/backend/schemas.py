@@ -22,7 +22,7 @@ SafetyAction = Literal[
 class ChatbotState(AgentState):
     # Request/session metadata.
     user_id: NotRequired[int]
-    session_id: NotRequired[int]
+    session_id: NotRequired[str]
     account_id: NotRequired[int | None]
     source_type: NotRequired[str]
 

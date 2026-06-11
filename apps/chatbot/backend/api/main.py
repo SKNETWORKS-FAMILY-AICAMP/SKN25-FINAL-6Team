@@ -44,7 +44,7 @@ class ChatRequest(BaseModel):
     category: ChatCategory
     account_id: int | None = None
     user_id: int = 1
-    session_id: int | None = None
+    session_id: str | int | None = None
     source_type: str = "chatbot"
     ui_category: str | None = None
     sub_category: str | None = None
@@ -58,7 +58,7 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     answer: str
     ticket_id: int
-    session_id: int
+    session_id: str
     draft_id: int | None = None
     category: str | None = None
     ui_category: str | None = None
@@ -121,6 +121,20 @@ def _new_ticket_id() -> int:
         except Exception:
             return ticket_id
     return _new_numeric_id()
+
+
+def _next_session_turn_id(previous_session_id: str | int | None) -> str:
+    if not previous_session_id:
+        return f"{_new_numeric_id()}-1"
+
+    session_id = str(previous_session_id).strip()
+    if not session_id:
+        return f"{_new_numeric_id()}-1"
+
+    base, separator, turn = session_id.rpartition("-")
+    if separator and base and turn.isdigit():
+        return f"{base}-{int(turn) + 1}"
+    return f"{session_id}-1"
 
 
 @app.get("/health")
@@ -194,8 +208,8 @@ def list_tickets(
 
 @app.post("/chat", response_model=ChatResponse)
 def chat(request: ChatRequest) -> ChatResponse:
-    ticket_id = request.ticket_id or _new_ticket_id()
-    session_id = request.session_id or _new_numeric_id()
+    ticket_id = _new_ticket_id()
+    session_id = _next_session_turn_id(request.session_id)
 
     # 1단계: 요청에 이전 대화가 없으면 DB에서 최근 멀티턴 context를 구성한다.
     previous_messages = request.previous_messages

@@ -7,6 +7,8 @@ from langsmith import traceable
 from chatbot.observability.logger import log_event
 from chatbot.repository.account_repository import read_server_regions, verify_user_login
 
+DEFAULT_SERVER_REGIONS = ["ASIA", "KR", "EU", "NA"]
+
 
 def _login_inputs(inputs: dict[str, Any]) -> dict[str, Any]:
     # LangSmith trace에는 비밀번호 원문이 남지 않도록 입력을 마스킹한다.
@@ -34,9 +36,18 @@ def get_server_regions() -> list[str]:
     # DB에서 서버 목록을 읽되, 실패하면 프론트가 깨지지 않도록 기본 서버를 반환한다.
     result = read_server_regions()
     if result.get("status") != "ok":
-        return ["KR", "JP"]
-    regions = [row["server_region"] for row in result.get("data", []) if row.get("server_region")]
-    return regions or ["KR", "JP"]
+        return DEFAULT_SERVER_REGIONS
+
+    db_regions = [
+        str(row["server_region"]).strip()
+        for row in result.get("data", [])
+        if row.get("server_region") and str(row["server_region"]).strip()
+    ]
+    regions = []
+    for region in [*DEFAULT_SERVER_REGIONS, *db_regions]:
+        if region not in regions:
+            regions.append(region)
+    return regions or DEFAULT_SERVER_REGIONS
 
 
 @traceable(

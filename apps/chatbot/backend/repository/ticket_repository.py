@@ -51,7 +51,7 @@ def save_qa_ticket(payload: dict[str, Any]) -> dict[str, Any]:
                         payload["raw_query"],
                         payload.get("source_type") or "chatbot",
                         payload.get("status") or "pending",
-                        _optional_int(payload.get("session_id")),
+                        payload.get("session_id"),
                     ),
                 )
         return {

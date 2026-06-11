@@ -17,16 +17,14 @@ def save_answer_draft(payload: dict[str, Any]) -> dict[str, Any]:
                     INSERT INTO answer_draft (
                         ticket_id,
                         draft_text,
-                        prompt_version,
                         created_at
                     )
-                    VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
+                    VALUES (%s, %s, CURRENT_TIMESTAMP)
                     RETURNING draft_id
                     """,
                     (
                         payload["ticket_id"],
                         payload.get("draft_text"),
-                        payload.get("prompt_version") or "chatbot-db-v1",
                     ),
                 )
                 draft_id = cur.fetchone()[0]

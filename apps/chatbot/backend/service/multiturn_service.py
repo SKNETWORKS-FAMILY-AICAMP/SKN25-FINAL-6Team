@@ -26,7 +26,7 @@ class ConversationContext:
 # 현재 ticket 이전의 같은 session/user/account 문의를 모아 최근 대화와 과거 요약으로 나눈다.
 def build_session_context(
     *,
-    session_id: int,
+    session_id: str,
     user_id: int,
     account_id: int | None,
     current_ticket_id: int,
@@ -74,12 +74,14 @@ def _extract_ai_response(raw_query: str | None) -> str | None:
 # qa_ticket.raw_query의 User/AI transcript에서 이전 문의/답변 turn 목록을 가져온다.
 def _fetch_session_turns(
     *,
-    session_id: int,
+    session_id: str,
     user_id: int,
     account_id: int | None,
     current_ticket_id: int,
 ) -> list[ConversationTurn]:
-    params: list[Any] = [session_id, user_id, current_ticket_id]
+    session_base = _session_base(session_id)
+    session_pattern = f"{session_base}-%"
+    params: list[Any] = [session_pattern, user_id, current_ticket_id]
     account_filter = ""
     if account_id is not None:
         account_filter = "AND t.account_id = %s"
@@ -93,7 +95,7 @@ def _fetch_session_turns(
                     t.ticket_id,
                     t.raw_query
                 FROM qa_ticket t
-                WHERE t.session_id = %s
+                WHERE t.session_id::text LIKE %s
                   AND t.user_id = %s
                   AND t.ticket_id <> %s
                   {account_filter}
@@ -116,6 +118,14 @@ def _fetch_session_turns(
                 )
             )
     return turns
+
+
+def _session_base(session_id: str) -> str:
+    text = str(session_id or "").strip()
+    base, separator, turn = text.rpartition("-")
+    if separator and base and turn.isdigit():
+        return base
+    return text
 
 
 # 최근 turn은 요약하지 않고 user/assistant message 형태로 그대로 전달한다.

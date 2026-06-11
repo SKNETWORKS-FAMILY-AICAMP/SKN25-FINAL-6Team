@@ -1457,10 +1457,6 @@
       return text ? text.toUpperCase() : "KR";
     }
 
-    function createClientTicketId() {
-      return 100000000 + Math.floor(Math.random() * 800000000);
-    }
-
     function ticketTypeLabel(ticket) {
       return ticket.source_type || ticket.status || "inquiry";
     }
@@ -2038,11 +2034,7 @@
         const categoryInfo = inferCategoryInfoForMessage(message);
         clientState.selectedCategoryInfo = categoryInfo;
         clientState.selectedCategory = categoryInfo?.category || clientState.selectedCategory;
-        if (!clientState.activeTicketId) {
-          clientState.activeTicketId = createClientTicketId();
-        }
         const requestBody = {
-          ticket_id: clientState.activeTicketId,
           user_message: message,
           category: categoryInfo.category,
           ui_category: categoryInfo.ui_category,
