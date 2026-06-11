@@ -118,3 +118,38 @@ def set_cached_retrieval(query_hash: str, documents: list[dict], ttl: int = 3600
     }
 
 
+def clear_cache_for_tests() -> None:
+    """Reset local cache state and Redis client memoization between tests."""
+    _RETRIEVAL_CACHE.clear()
+    cache_clear = getattr(_redis_client, "cache_clear", None)
+    if cache_clear is not None:
+        cache_clear()
+
+
+def clear_faq_cache(namespace: str | None = None) -> dict[str, object]:
+    """Clear FAQ answer/retrieval cache from memory and Redis when available."""
+    if namespace in (None, "retrieval"):
+        _RETRIEVAL_CACHE.clear()
+
+    deleted = 0
+    backend = "memory"
+    client = _redis_client()
+    if client is not None:
+        backend = "redis"
+        namespaces = [namespace] if namespace else ["answer", "retrieval"]
+        for cache_namespace in namespaces:
+            pattern = _cache_key("*", namespace=str(cache_namespace))
+            try:
+                for key in client.scan_iter(match=pattern):
+                    deleted += int(client.delete(key) or 0)
+            except Exception:
+                backend = "redis_error"
+
+    return {
+        "status": "ok",
+        "backend": backend,
+        "namespace": namespace or "all",
+        "redis_deleted": deleted,
+        "memory_answer_entries": 0,
+        "memory_retrieval_entries": len(_RETRIEVAL_CACHE),
+    }

@@ -455,7 +455,7 @@
       sessionId: Date.now(),
       inquiries: [],
       activeTicketId: null,
-      selectedCategory: "payment",
+      selectedCategory: null,
       previousMessages: [],
     };
 
@@ -482,11 +482,12 @@
       });
       if (!response.ok) {
         let detail = `HTTP ${response.status}`;
+        const bodyText = await response.text();
         try {
-          const payload = await response.json();
+          const payload = JSON.parse(bodyText);
           detail = payload.detail || payload.message || JSON.stringify(payload);
         } catch (_error) {
-          detail = await response.text();
+          detail = bodyText;
         }
         throw new Error(detail || `HTTP ${response.status}`);
       }
@@ -853,7 +854,7 @@
     chatViewButton.addEventListener("click", showChatMainPage);
     newChatButton.addEventListener("click", () => {
       showChatMainPage();
-      clientState.selectedCategory = "payment";
+      clientState.selectedCategory = null;
       resetChat();
     });
     inquiryHistoryButton.addEventListener("click", showInquiryPage);
@@ -865,6 +866,10 @@
       if (!message) return;
       if (!clientState.login?.user_id) {
         openInfoModal("로그인 필요", "<p>먼저 계정을 연동한 뒤 문의를 전송해 주세요.</p>");
+        return;
+      }
+      if (!clientState.selectedCategory) {
+        openInfoModal("카테고리 선택 필요", "<p>문의 유형을 먼저 선택해 주세요.</p>");
         return;
       }
       addUserMessage(message);

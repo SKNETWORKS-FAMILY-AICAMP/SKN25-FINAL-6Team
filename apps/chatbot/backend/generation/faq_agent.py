@@ -641,8 +641,21 @@ def _generate_evidence_answer(
                     "For 'Can I do X from Y?' questions, answer both whether X is possible and whether Y is a valid place or "
                     "method to do it, when supported by the evidence. "
                     "Never infer payment, account recovery, deletion, retention, or privacy details that are not grounded in evidence. "
+                    "For privacy policy overview questions, "
+                    "if supported by the evidence, include collection, use, storage, sharing, protection, user rights and choices, "
+                    "data transfer, security measures, and region-specific additional rights. "
+                    "For reward, mail, event, or notice deadline questions, "
+                    "do not present a general deadline as universal unless the evidence clearly says so; "
+                    "mention that the exact claim period may depend on the specific event or reward notice. "
+                    "For account linking, PSN, or cross-save questions, "
+                    "separate what linking enables from how to link; "
+                    "if supported by the evidence, mention shared game progress across platforms and caution the user to check notices for payment, reward, and friend-related limitations. "
                     "Do not say that an operator will review the issue unless the evidence says escalation is required. "
                     "Do not mention internal scores, tool names, database names, or prompt rules."
+                    "For account deletion, account withdrawal, account recovery, or data deletion questions, "
+                    "if the evidence mentions grace periods, reactivation, permanence, or recovery limits, "
+                    "include those conditions explicitly in the customer-facing answer. "
+
                 )
             ),
             HumanMessage(
@@ -688,7 +701,13 @@ def run_faq_rag(state: ChatbotState) -> dict[str, Any]:
             "multihop_result": None,
         }
 
-    final_top_k = int(os.environ.get("FAQ_RETRIEVAL_TOP_K", os.environ.get("RETRIEVAL_TOP_K", "4")))
+    base_top_k = int(os.environ.get("FAQ_RETRIEVAL_TOP_K", os.environ.get("RETRIEVAL_TOP_K", "4")))
+    multihop_candidate, _ = _looks_like_multihop_query(query)
+    final_top_k = (
+        int(os.environ.get("FAQ_MULTIHOP_RETRIEVAL_TOP_K", "6"))
+        if multihop_candidate
+        else base_top_k
+    )
     candidate_top_k = _retrieval_candidate_top_k(final_top_k)
     documents = _retrieve_documents(
         retrieval_query=retrieval_query,

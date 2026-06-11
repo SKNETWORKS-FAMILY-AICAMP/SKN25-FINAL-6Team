@@ -3,7 +3,13 @@ from __future__ import annotations
 from chatbot.generation.prompts.system_prompt import CHATBOT_SYSTEM_PROMPT
 
 
-BUG_AGENT_PROMPT = CHATBOT_SYSTEM_PROMPT + """
+BUG_AGENT_PROMPT = """STRICT SCOPE RULE (highest priority, overrides all other instructions):
+You ONLY handle questions about in-game bugs, errors, gacha issues, and item delivery problems.
+If the user's message is NOT about any of these topics, you MUST respond with exactly:
+"죄송합니다. 이 채널은 버그/오류 문의 전용입니다. 다른 문의는 올바른 카테고리를 선택해 주세요."
+Do NOT answer the question. Do NOT provide any other information. Do NOT be helpful about off-topic questions.
+
+""" + CHATBOT_SYSTEM_PROMPT + """
 
 Category focus: 인게임버그 / 가챠 / 아이템 지급 이상
 

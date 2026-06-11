@@ -86,7 +86,6 @@ def login_with_credentials(email: str, password: str, server_region: str) -> dic
     _log_login_result(response, db_status=result.get("status"))
     return response
 
-
 def _log_login_result(login_result: dict[str, Any], **extra_metadata: Any) -> None:
     log_event(
         "game_account_login_completed",

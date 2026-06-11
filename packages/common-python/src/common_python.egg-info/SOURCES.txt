@@ -11,6 +11,12 @@ src/common/documents_processing/types.py
 src/common/llm/client.py
 src/common/observability/__init__.py
 src/common/observability/langsmith.py
+src/common/observability/logger.py
+src/common/retrieval/__init__.py
+src/common/retrieval/embeddings.py
+src/common/retrieval/retriever.py
+src/common/retrieval/vector_store.py
+src/common/retrieval/vector_tools.py
 src/common_python.egg-info/PKG-INFO
 src/common_python.egg-info/SOURCES.txt
 src/common_python.egg-info/dependency_links.txt
