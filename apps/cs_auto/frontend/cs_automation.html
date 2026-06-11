@@ -249,12 +249,12 @@ tailwind.config = {
 <style type="text/tailwindcss">
 @layer base {
   * { @apply box-border; }
-  html, body { @apply h-full overflow-hidden bg-sand-50 font-sans text-[13px] leading-[1.5] text-ink-900; }
+  html, body { @apply h-full overflow-hidden bg-sand-50 font-sans text-[15px] leading-[1.5] text-ink-900; }
 }
 @layer components {
   .panel { @apply flex min-h-0 flex-col overflow-hidden rounded-xl border border-sand-300 bg-white shadow-panel; }
   .section-head { @apply flex shrink-0 items-center gap-2 border-b border-sand-300 bg-white px-3.5 py-2.5; }
-  .section-head h3 { @apply flex-1 text-[13px] font-bold text-ink-900; }
+  .section-head h3 { @apply flex-1 text-[15px] font-bold text-ink-900; }
   .menu-tab { @apply flex cursor-pointer items-center gap-1.5 rounded-md border border-transparent bg-transparent px-3.5 py-1.5 text-xs font-medium text-white/65 transition hover:bg-white/10 hover:text-white; }
   .menu-tab.active { @apply bg-white/20 text-white; }
   .filter-chip { @apply cursor-pointer rounded-full border border-sand-300 bg-transparent px-2.5 py-1 text-[11px] font-medium text-ink-500 transition hover:border-brand-500 hover:text-brand-500; }
@@ -263,7 +263,7 @@ tailwind.config = {
   .category-chip.active { @apply border-brand-500 bg-brand-500/10 font-medium text-brand-500; }
   .side-item { @apply flex cursor-pointer items-center gap-2 border-l-2 border-transparent px-4 py-1.5 text-xs font-medium text-ink-700 transition hover:bg-sand-200 hover:text-ink-900; }
   .side-item.active { @apply border-brand-500 bg-brand-500/10 text-brand-500; }
-  .ticket-card { @apply mb-1 cursor-pointer rounded-lg border border-sand-300 bg-white px-3 py-2 transition hover:border-brand-300 hover:bg-brand-300/10; }
+  .ticket-card { @apply mb-1 cursor-pointer rounded-lg border border-sand-300 bg-white px-3 py-1.5 transition hover:border-brand-300 hover:bg-brand-300/10; }
   .ticket-card.selected { @apply border-[1.5px] border-brand-500 bg-brand-500/5; }
   .subcard { @apply overflow-hidden rounded-[9px] border border-sand-300; }
   .subcard-editable { @apply overflow-visible; }
@@ -276,10 +276,19 @@ tailwind.config = {
   .btn-success { @apply border-[#a7dfc3] bg-alert-greenBg text-alert-green hover:bg-[#d6f0e4]; }
   .btn-sm { @apply px-2.5 py-1 text-[11px]; }
 }
+
+/* Frontend-wide text bump: raise the common utility sizes by 2px without touching each node. */
+.text-\[10px\] { font-size: 12px !important; }
+.text-\[11px\] { font-size: 13px !important; }
+.text-\[13px\] { font-size: 15px !important; }
+.text-\[18px\] { font-size: 20px !important; }
+.text-xs { font-size: 14px !important; }
+.text-sm { font-size: 16px !important; }
+.text-base { font-size: 18px !important; }
 </style>
 </head>
 <body>
-<div id="app" class="grid h-screen grid-cols-[196px_1fr] grid-rows-[50px_1fr] overflow-hidden"></div>
+<div id="app" class="grid h-screen grid-cols-[220px_1fr] grid-rows-[50px_1fr] overflow-hidden"></div>
 
 <script src="./api.js"></script>
 <script>
@@ -320,6 +329,7 @@ const appState = {
 
 let reviewCalendarInstance = null;
 const TICKET_SIDEBAR_PAGE_SIZE = 10;
+const DEFAULT_DRAFT_TEXTAREA_HEIGHT = 220;
 
 const topTabs = [
   { label: "답변 생성", icon: "sparkles" },
@@ -1221,7 +1231,7 @@ function render() {
 
   app.innerHTML = `
     <div class="col-span-2 flex items-center gap-0 bg-brand-500 pr-5">
-      <div class="flex h-full w-[196px] shrink-0 items-center gap-2.5 border-r border-white/15 bg-black/10 px-[18px]">
+      <div class="flex h-full w-[220px] shrink-0 items-center gap-2.5 border-r border-white/15 bg-black/10 px-[18px]">
         <div class="flex h-[30px] w-[30px] items-center justify-center rounded-lg bg-white/20 text-base text-white">
           <i class="ti ti-shield-bolt" aria-hidden="true"></i>
         </div>
@@ -1300,15 +1310,15 @@ function render() {
               const itemMeta = getTicketDisplayMeta(item);
               return `
               <button class="ticket-card mb-0 w-full text-left ${appState.selectedTicketId === item.id ? "selected" : ""} ${itemMeta.tone === "urgent" ? "border-l-[3px] border-l-alert-red" : ""} ${itemMeta.status === "done" ? "opacity-50" : ""}" data-ticket-id="${item.id}">
-                <div class="mb-1 text-xs font-medium leading-[1.4] text-ink-900">${escapeHtml(item.title)}</div>
+                <div class="mb-0.5 text-xs font-medium leading-[1.35] text-ink-900">${escapeHtml(item.title)}</div>
               </button>
               `;
             }).join("")}
           </div>
           <div class="mt-2 flex items-center justify-center gap-1">
-            <button id="ticket-page-prev-btn" class="btn btn-ghost btn-sm px-2 py-0.5" ${ticketListPagination.currentPage === 1 ? "disabled" : ""}><i class="ti ti-chevron-left"></i></button>
+            <button id="ticket-page-prev-btn" class="btn btn-ghost btn-sm px-3 py-1" ${ticketListPagination.currentPage === 1 ? "disabled" : ""}><i class="ti ti-chevron-left text-sm"></i></button>
             <span class="text-[10px] text-ink-500">${ticketListPagination.currentPage}/${ticketListPagination.totalPages}페이지</span>
-            <button id="ticket-page-next-btn" class="btn btn-ghost btn-sm px-2 py-0.5" ${ticketListPagination.currentPage === ticketListPagination.totalPages ? "disabled" : ""}><i class="ti ti-chevron-right"></i></button>
+            <button id="ticket-page-next-btn" class="btn btn-ghost btn-sm px-3 py-1" ${ticketListPagination.currentPage === ticketListPagination.totalPages ? "disabled" : ""}><i class="ti ti-chevron-right text-sm"></i></button>
           </div>
         </div>
       `}
@@ -1345,7 +1355,7 @@ function render() {
                 </div>
               </div>
 
-              <div class="grid grid-cols-[1fr_172px] gap-2.5">
+              <div class="grid grid-cols-[1fr_208px] gap-2.5">
                 <div class="subcard">
                   <div class="subcard-head">
                     <div class="flex items-center gap-1.5 text-xs font-bold text-ink-900">
@@ -1356,7 +1366,7 @@ function render() {
                     </div>
                   </div>
                   <div class="subcard-body">
-                    <textarea id="draft-input" class="min-h-[180px] w-full resize-y rounded-[7px] border border-sand-300 bg-white px-3 py-2.5 text-xs leading-[1.6] text-ink-900 outline-none ${ticket.isDraftEditing ? "focus:border-brand-500" : "text-ink-500"}" ${ticket.isDraftEditing ? "" : "readonly"}>${escapeHtml(displayedDraft)}</textarea>
+                    <textarea id="draft-input" class="min-h-[180px] w-full resize-y rounded-[7px] border border-sand-300 bg-white px-3 py-2.5 text-xs leading-[1.6] text-ink-900 outline-none ${ticket.isDraftEditing ? "focus:border-brand-500" : "text-ink-500"}" style="height:${DEFAULT_DRAFT_TEXTAREA_HEIGHT}px" ${ticket.isDraftEditing ? "" : "readonly"}>${escapeHtml(displayedDraft)}</textarea>
                     <div class="mt-2 flex flex-wrap gap-1.5">
                       <button id="confirm-draft-btn" class="btn btn-ghost btn-sm ${!hasDraft ? "cursor-not-allowed opacity-40 hover:border-sand-300 hover:text-ink-700" : ""}" ${!hasDraft ? "disabled" : ""}><i class="ti ti-device-floppy"></i> ${ticket.isDraftEditing ? "수정 완료" : "수정"}</button>
                       <button id="regen-toggle-btn" class="btn btn-ghost btn-sm ml-auto ${!hasDraft || remainingRegens === 0 || appState.isRegenerating ? "cursor-not-allowed opacity-40 hover:border-sand-300 hover:text-ink-700" : ""}" ${!hasDraft || remainingRegens === 0 || appState.isRegenerating ? "disabled" : ""}><i class="ti ti-refresh"></i> 재생성</button>
