@@ -414,9 +414,6 @@ function mapApiTicketToUiTicket(row) {
     createdAt: formatDisplayDate(row.inquiry_created_at),
     body: row.raw_query || "",
     aiSummary: row.summary || "",
-    route: row.routing_target || "-",
-    direction: row.routing_target || "-",
-    risk: riskLevel,
     draft: row.draft_text || row.final_text || "",
     draftStatus: hasResponse ? "approved" : hasDraft ? "draft" : "none",
     isDraftEditing: false,
@@ -523,9 +520,6 @@ function getEmptyTicket() {
     createdAt: "-",
     body: "",
     aiSummary: "",
-    route: "-",
-    direction: "-",
-    risk: "LOW",
     draft: "",
     draftStatus: "draft",
     isDraftEditing: false,
@@ -546,7 +540,7 @@ function getTicketDisplayMeta(ticket) {
   const isChatbotPending = ticket.sourceType === "chatbot" && ticket.rawStatus === "pending";
   const assignedToOther = assigneeAdminId > 0 && currentReviewerId > 0 && assigneeAdminId !== currentReviewerId;
   const assignedToMe = assigneeAdminId > 0 && currentReviewerId > 0 && assigneeAdminId === currentReviewerId;
-  const isUrgent = String(ticket.level || ticket.risk || "").toUpperCase() === "HIGH";
+  const isUrgent = String(ticket.level || "").toUpperCase() === "HIGH";
 
   if (isDone) {
     return { label: "종료", tone: "done", status: "done", statusText: "종료 처리되었습니다.", assignedToMe, assignedToOther, hasDraft, isUrgent };
@@ -1414,8 +1408,6 @@ function render() {
                   <div class="mb-1.5 text-[11px] font-semibold text-ink-900">AI 분석 및 안전성 검토</div>
                   <div class="space-y-2 text-xs leading-[1.8] text-ink-700">
                     <p>${ticket.aiSummary}</p>
-                    <p>관련 내용은 ${ticket.route} 유형으로 분류되며, ${ticket.direction} 방향으로 처리하는 것이 적절합니다. 현재 위험도는 ${ticket.risk}로 판단됩니다.</p>
-                    <p>안전성 검토 결과 근거 일치는 통과했고, 환각 가능성은 주의 1건 수준이며, 정책 위반이나 부정 표현은 확인되지 않았습니다.</p>
                   </div>
                 </div>
 
