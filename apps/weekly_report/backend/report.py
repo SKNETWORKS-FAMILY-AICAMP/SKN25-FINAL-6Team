@@ -288,28 +288,39 @@ def _build_report_payload(
         "top_requests": requests,
         "spike_alerts": alerts,
         "ai_interpretation": ai_interp,
-        "narrative_insights": ai_interp.get("bullets", []),
+        "narrative_insights": [
+            f"[{a.get('category', '')}] {a.get('action', '')}"
+            for a in ai_interp.get("actions", [])
+        ],
         "column_insights": [
             {
                 "column": "AI 종합 해석",
                 "metric": ai_interp.get("headline", ""),
-                "insight": ai_interp.get("summary", ""),
+                "insight": ai_interp.get("headline", ""),
                 "severity": "info",
             },
             *[
                 {
-                    "column": "바로 볼 내용",
-                    "metric": f"항목 {i}",
-                    "insight": item,
+                    "column": "기획팀 권장 액션",
+                    "metric": f"#{a.get('rank', i + 1)} {a.get('category', '')}",
+                    "insight": f"{a.get('action', '')} — {a.get('reason', '')}",
                     "severity": "info",
                 }
-                for i, item in enumerate(ai_interp.get("bullets", []), start=1)
+                for i, a in enumerate(ai_interp.get("actions", []))
             ],
         ],
         "report_sections": [
-            {"kind": "heading", "text": ai_interp.get("headline", "AI 종합 해석")},
-            {"kind": "body", "text": ai_interp.get("summary", "")},
-            *[{"kind": "bullet", "text": item} for item in ai_interp.get("bullets", [])],
+            {"kind": "heading", "text": ai_interp.get("headline", "AI 권장 액션")},
+            *[
+                {
+                    "kind": "bullet",
+                    "text": (
+                        f"#{a.get('rank', i + 1)} [{a.get('category', '')}] "
+                        f"{a.get('action', '')} — {a.get('reason', '')}"
+                    ),
+                }
+                for i, a in enumerate(ai_interp.get("actions", []))
+            ],
             {"kind": "heading", "text": "우선 확인 문의"},
             *[
                 {
@@ -365,7 +376,16 @@ def run(
 
     requests = top_requests.fetch(window)
     alerts = spike_alerts.detect(window)
-    ai_interp = ai_summary.generate(current_metrics, requests, alerts)
+    ai_input = {
+        "summary": {
+            "total_count": len(current_rows),
+            "prev_total": len(previous_rows),
+        },
+        "spike_alerts": alerts,
+        "top5_improvements": requests,
+        "category_distribution": _distribution(current_rows, "category"),
+    }
+    ai_interp = ai_summary.generate_ai_actions(ai_input)
 
     report = _build_report_payload(
         window=window,

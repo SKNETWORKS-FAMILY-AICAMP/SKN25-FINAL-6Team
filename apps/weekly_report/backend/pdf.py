@@ -208,24 +208,38 @@ def _build_summary_table(summary: dict[str, Any]) -> str:
     )
 
 
-def _build_bullet_list(items: list[str]) -> str:
-    if not items:
-        return "<li>자동 해석 결과가 아직 없습니다.</li>"
-    return "".join(f"<li>{escape(item)}</li>" for item in items[:3])
-
-
-def _build_actions(actions: list[str]) -> str:
+def _build_actions(actions: list) -> str:
+    """actions: [{"rank", "category", "action", "reason"}] 형식을 HTML로 변환한다."""
     if not actions:
         return "<p class='muted'>이번 주에 바로 조치할 권장 항목이 없습니다.</p>"
-    return "".join(
-        f"""
-        <div class="action-item">
-            <span class="action-index">{index}</span>
-            <span class="action-text">{escape(item)}</span>
-        </div>
-        """
-        for index, item in enumerate(actions[:2], start=1)
-    )
+    parts: list[str] = []
+    for i, item in enumerate(actions[:5]):
+        if isinstance(item, dict):
+            rank = escape(str(item.get("rank", i + 1)))
+            category = escape(str(item.get("category", "")))
+            action = escape(str(item.get("action", "")))
+            reason = escape(str(item.get("reason", "")))
+            parts.append(
+                f"""
+                <div class="action-item">
+                    <span class="action-index">{rank}</span>
+                    <span class="action-text">
+                        <strong>[{category}]</strong> {action}
+                        <div class="action-reason" style="font-size:8.5pt;color:#92400e;margin-top:3px;">{reason}</div>
+                    </span>
+                </div>
+                """
+            )
+        else:
+            parts.append(
+                f"""
+                <div class="action-item">
+                    <span class="action-index">{i + 1}</span>
+                    <span class="action-text">{escape(str(item))}</span>
+                </div>
+                """
+            )
+    return "".join(parts)
 
 
 def _build_review_cards(rows: list[dict[str, Any]]) -> str:
@@ -725,20 +739,9 @@ def _build_html(report: dict[str, Any]) -> str:
             <div class="section-title">AI 종합 해석</div>
             <div class="interpretation-box">
                 <div class="interpretation-headline">{escape(_text(interpretation.get("headline"), "이번 주 운영 해석"))}</div>
-                <div>{escape(_text(interpretation.get("summary"), "자동 해석 결과가 아직 없습니다."))}</div>
             </div>
-            <table>
-                <tr>
-                    <td width="52%" style="vertical-align: top; padding-right: 8px;">
-                        <div class="column-title">핵심 요약</div>
-                        <ul>{_build_bullet_list(interpretation.get("bullets", []))}</ul>
-                    </td>
-                    <td width="48%" style="vertical-align: top; padding-left: 8px;">
-                        <div class="column-title">권장 액션</div>
-                        {_build_actions(interpretation.get("actions", []))}
-                    </td>
-                </tr>
-            </table>
+            <div class="column-title">기획팀 권장 액션</div>
+            {_build_actions(interpretation.get("actions", []))}
         </div>
 
         <div class="section">

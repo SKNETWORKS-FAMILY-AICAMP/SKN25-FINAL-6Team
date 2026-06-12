@@ -10,10 +10,8 @@
   ≥ +50% → warning / ≥ +100% → critical
   근거: Taylor & Letham(2018) Prophet / Cleveland et al.(1990) STL
 
-방법론 3: 카테고리별 WoW (방법론 2 확장)
-  ticket_analysis.category 단위로 WoW 계산
-  > 50% → warning / > 100% → critical
-  IQR 미채택: 카테고리별 데이터 소규모 시 기준 불안정
+방법론 3: 월별 추세 — 직전 4주 총 건수 바차트
+  임계값 없음. 추세 시각화 목적.
 """
 
 from __future__ import annotations
@@ -197,82 +195,100 @@ def _calculate_wow_by_day(window: dict[str, Any]) -> list[dict[str, Any]]:
     return sorted(results, key=lambda x: -x["pct_change"])
 
 
-def _calculate_wow_by_category(window: dict[str, Any]) -> list[dict[str, Any]]:
-    """카테고리별 WoW 증가율 계산 (방법론 3).
+_WEEK_LABELS = {0: "이번 주", -1: "1주 전", -2: "2주 전", -3: "3주 전"}
 
-    ticket_analysis.category 단위로 이번 주 / 전주 건수를 비교한다.
+
+def _calculate_monthly_trend(window: dict[str, Any]) -> list[dict[str, Any]]:
+    """직전 4주 총 건수 집계 (방법론 3).
+
+    임계값 없음 — 추세 시각화 목적.
     """
     current_start: datetime = window["window_start"]
     current_end: datetime = window["window_end"]
     days = int(window.get("days", 7))
-    prev_start = current_start - timedelta(days=days)
-    prev_end = current_start
+
+    w_starts = [current_start - timedelta(days=days * i) for i in range(4)]
+    w_ends = [current_start - timedelta(days=days * i) + timedelta(days=days) for i in range(4)]
+    # w_ends[0] = current_end (이번 주 끝)
+    w_ends[0] = current_end
+    four_weeks_start = w_starts[3]
 
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
-            current_rows = _fetch_all(
+            rows = _fetch_all(
                 cur,
                 """
                 SELECT
-                    COALESCE(a.category, 'unknown') AS category,
-                    COUNT(DISTINCT t.ticket_id) AS cnt
-                FROM qa_ticket t
-                LEFT JOIN LATERAL (
-                    SELECT category
-                    FROM ticket_analysis a
-                    WHERE a.ticket_id = t.ticket_id
-                    ORDER BY a.analyzed_at DESC NULLS LAST, a.analysis_id DESC
-                    LIMIT 1
-                ) a ON TRUE
-                WHERE t.inquiry_created_at >= %s
-                  AND t.inquiry_created_at < %s
+                    CASE
+                        WHEN inquiry_created_at >= %s AND inquiry_created_at < %s THEN 0
+                        WHEN inquiry_created_at >= %s AND inquiry_created_at < %s THEN -1
+                        WHEN inquiry_created_at >= %s AND inquiry_created_at < %s THEN -2
+                        WHEN inquiry_created_at >= %s AND inquiry_created_at < %s THEN -3
+                    END AS week_offset,
+                    COUNT(*) AS cnt
+                FROM qa_ticket
+                WHERE inquiry_created_at >= %s
+                  AND inquiry_created_at < %s
                 GROUP BY 1
+                ORDER BY 1 DESC
                 """,
-                (current_start, current_end),
-            )
-            prev_rows = _fetch_all(
-                cur,
-                """
-                SELECT
-                    COALESCE(a.category, 'unknown') AS category,
-                    COUNT(DISTINCT t.ticket_id) AS cnt
-                FROM qa_ticket t
-                LEFT JOIN LATERAL (
-                    SELECT category
-                    FROM ticket_analysis a
-                    WHERE a.ticket_id = t.ticket_id
-                    ORDER BY a.analyzed_at DESC NULLS LAST, a.analysis_id DESC
-                    LIMIT 1
-                ) a ON TRUE
-                WHERE t.inquiry_created_at >= %s
-                  AND t.inquiry_created_at < %s
-                GROUP BY 1
-                """,
-                (prev_start, prev_end),
+                (
+                    w_starts[0], w_ends[0],
+                    w_starts[1], w_ends[1],
+                    w_starts[2], w_ends[2],
+                    w_starts[3], w_ends[3],
+                    four_weeks_start, current_end,
+                ),
             )
 
-    current_by_cat = {r["category"]: int(r["cnt"]) for r in current_rows}
-    prev_by_cat = {r["category"]: int(r["cnt"]) for r in prev_rows}
+    count_by_offset = {int(r["week_offset"]): int(r["cnt"]) for r in rows if r["week_offset"] is not None}
 
-    results = []
-    for category, this_cnt in current_by_cat.items():
-        prev_cnt = prev_by_cat.get(category, 0)
-        if prev_cnt == 0:
-            pct_change = float(this_cnt) if this_cnt > 0 else 0.0
-        else:
-            pct_change = (this_cnt - prev_cnt) / prev_cnt
+    return [
+        {
+            "week_offset": offset,
+            "label": _WEEK_LABELS[offset],
+            "count": count_by_offset.get(offset, 0),
+        }
+        for offset in (0, -1, -2, -3)
+    ]
 
-        level = _wow_level(pct_change)
-        if level != "normal":
-            results.append({
-                "category": category,
-                "this_week": this_cnt,
-                "prev_week": prev_cnt,
-                "pct_change": round(pct_change, 4),
-                "level": level,
-            })
 
-    return sorted(results, key=lambda x: -x["pct_change"])
+def build_spike_slack_blocks(alerts: dict[str, Any]) -> list[dict]:
+    """폭증 감지 결과를 Slack Block Kit 형식으로 변환한다."""
+    hourly: list[dict] = alerts.get("hourly", [])
+    daily: list[dict] = alerts.get("daily", [])
+
+    if not hourly and not daily:
+        return [
+            {
+                "type": "section",
+                "text": {"type": "mrkdwn", "text": "✅ 이번 주 이상 폭증 감지 없음"},
+            }
+        ]
+
+    blocks: list[dict] = []
+
+    if hourly:
+        lines = ["*[시간별 문의 집중도]*"]
+        for item in hourly:
+            bar_len = min(int(item["zscore"]), 5)
+            bar = "█" * bar_len
+            lines.append(f"{item['hour']:02d}시  {bar}  {item['level']} (Z={item['zscore']})")
+        lines.append("_※ 정상 시간대 생략_")
+        blocks.append(
+            {"type": "section", "text": {"type": "mrkdwn", "text": "\n".join(lines)}}
+        )
+
+    if daily:
+        lines = ["*[일별 폭증 감지]*"]
+        for item in daily:
+            pct = item["pct_change"] * 100
+            lines.append(f"{item['day']}  {pct:+.1f}%  ({item['level']})")
+        blocks.append(
+            {"type": "section", "text": {"type": "mrkdwn", "text": "\n".join(lines)}}
+        )
+
+    return blocks
 
 
 def detect(window: dict[str, Any]) -> dict[str, Any]:
@@ -280,13 +296,13 @@ def detect(window: dict[str, Any]) -> dict[str, Any]:
 
     Returns:
         {
-            "hourly":      [{"hour", "avg", "std", "current", "zscore", "level"}],  # Z-Score
-            "daily":       [{"day", "this_week", "prev_week", "pct_change", "level"}],  # WoW
-            "by_category": [{"category", "this_week", "prev_week", "pct_change", "level"}],  # WoW
+            "hourly":  [{"hour", "avg", "std", "current", "zscore", "level"}],  # Z-Score
+            "daily":   [{"day", "this_week", "prev_week", "pct_change", "level"}],  # WoW
+            "monthly": [{"week_offset", "label", "count"}],  # 4주 추세
         }
     """
     return {
         "hourly": _calculate_zscore_by_hour(window),
         "daily": _calculate_wow_by_day(window),
-        "by_category": _calculate_wow_by_category(window),
+        "monthly": _calculate_monthly_trend(window),
     }
