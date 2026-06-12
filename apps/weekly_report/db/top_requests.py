@@ -132,8 +132,10 @@ def calculate_priority_score(window: dict[str, Any]) -> list[dict[str, Any]]:
                 (start, end),
             )
             categories = [str(r["category"]) for r in rows]
-            # 커넥션을 재사용하기 위해 같은 with 블록 안에서 키워드를 조회한다.
-            keywords_map = _fetch_category_keywords(cur, start, end, categories)
+            try:
+                keywords_map = _fetch_category_keywords(cur, start, end, categories)
+            except Exception:
+                keywords_map = {}
 
     result: list[dict[str, Any]] = []
     for row in rows:

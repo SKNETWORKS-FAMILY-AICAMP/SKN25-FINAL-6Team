@@ -172,6 +172,8 @@ def build_report_payload(
         "analysis_rows": build_analysis_rows_payload(current_rows),
         # 우선 확인 행 (AI 해석 포함)
         "review_rows": review_rows,
+        "category_counts_current": current_metrics.get("category_counts", []),
+        "category_counts_previous": previous_metrics.get("category_counts", []),
         "top_requests": requests,
         "spike_alerts": alerts,
         "ai_interpretation": ai_interp,

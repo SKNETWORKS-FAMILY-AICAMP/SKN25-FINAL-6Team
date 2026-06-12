@@ -1,4 +1,4 @@
--e ../../../packages/common-python
+-e ../../packages/common-python
 langsmith
 psycopg[binary]>=3.1
 plotly==6.1.1

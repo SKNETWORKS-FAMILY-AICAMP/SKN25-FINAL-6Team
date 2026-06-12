@@ -1,7 +1,7 @@
 # 대시보드 백엔드 단독 운영 구성 (프론트엔드 제외)
 #
 # 실행 (프로젝트 루트 SKN25-FINAL-6Team/ 에서):
-#   docker compose -f apps/dashboard/deploy/docker-compose.yml up -d --build
+#   docker compose -f apps/weekly_report/deploy/docker-compose.yml up -d --build
 #
 # 필수 환경변수:
 #   DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME
@@ -14,8 +14,8 @@
 services:
   dashboard-backend:
     build:
-      context: ../..                                                  # 프로젝트 루트
-      dockerfile: apps/dashboard/deploy/docker/python-app.Dockerfile
+      context: ../../..                                               # 프로젝트 루트
+      dockerfile: apps/weekly_report/deploy/docker/python-app.Dockerfile
     image: skn25-dashboard-backend:latest
     container_name: dashboard-backend
     # EC2/서버 재시작 시 컨테이너를 자동으로 다시 올린다.

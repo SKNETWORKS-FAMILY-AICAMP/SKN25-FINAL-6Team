@@ -12,21 +12,17 @@ from typing import Any
 
 from xhtml2pdf import pisa
 
-from utils.labels import translate_value
 
-
-# PDF 섹션별 미리보기 행 수 상한 — 너무 많으면 페이지가 넘쳐 레이아웃이 깨진다.
-REVIEW_PREVIEW_LIMIT = 5
-ANALYSIS_PREVIEW_LIMIT = 8
-# CSS @font-face에서 참조하는 폰트 패밀리 이름 (임의의 식별자).
 FONT_FAMILY_NAME = "DashboardKorean"
-# 운영자가 폰트 경로를 직접 지정할 때 사용하는 환경변수 이름.
 FONT_REGULAR_ENV = "DASHBOARD_WEEKLY_REPORT_FONT_REGULAR"
 FONT_BOLD_ENV = "DASHBOARD_WEEKLY_REPORT_FONT_BOLD"
 
+_CATEGORIES = ["결제", "지급", "뽑기", "계정", "인게임버그"]
+
+
+# ── 폰트 유틸리티 ──────────────────────────────────────────────────────────────
 
 def _existing_font_path(value: str | None) -> Path | None:
-    """경로 문자열이 실제로 존재하면 Path 객체를 반환하고, 없으면 None을 반환한다."""
     if not value:
         return None
     candidate = Path(value).expanduser()
@@ -34,88 +30,48 @@ def _existing_font_path(value: str | None) -> Path | None:
 
 
 def _resolve_pdf_fonts() -> dict[str, Path] | None:
-    """주간 PDF에 사용할 실제 한글 폰트 파일을 찾는다.
-
-    우선순위:
-    1. 환경변수(DASHBOARD_WEEKLY_REPORT_FONT_*)로 명시된 경로
-    2. Windows 맑은 고딕 (bold 우선, 없으면 slim으로 대체)
-    3. Linux NanumGothic
-    4. Linux NotoSansCJK (truetype)
-    5. Linux NotoSansCJK (opentype)
-
-    Regular 폰트를 찾지 못하면 None을 반환해 @font-face CSS 없이 렌더링한다.
-    Bold만 없으면 Regular로 대체한다.
-    """
     candidate_pairs = [
-        (
-            os.environ.get(FONT_REGULAR_ENV),
-            os.environ.get(FONT_BOLD_ENV),
-        ),
-        (
-            r"C:\Windows\Fonts\malgun.ttf",
-            r"C:\Windows\Fonts\malgunbd.ttf",
-        ),
-        (
-            r"C:\Windows\Fonts\malgun.ttf",
-            r"C:\Windows\Fonts\malgunsl.ttf",
-        ),
-        (
-            "/usr/share/fonts/truetype/nanum/NanumGothic.ttf",
-            "/usr/share/fonts/truetype/nanum/NanumGothicBold.ttf",
-        ),
-        (
-            "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
-            "/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc",
-        ),
-        (
-            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-            "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
-        ),
+        (os.environ.get(FONT_REGULAR_ENV), os.environ.get(FONT_BOLD_ENV)),
+        (r"C:\Windows\Fonts\malgun.ttf", r"C:\Windows\Fonts\malgunbd.ttf"),
+        (r"C:\Windows\Fonts\malgun.ttf", r"C:\Windows\Fonts\malgunsl.ttf"),
+        ("/usr/share/fonts/truetype/nanum/NanumGothic.ttf",
+         "/usr/share/fonts/truetype/nanum/NanumGothicBold.ttf"),
+        ("/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+         "/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc"),
+        ("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+         "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc"),
     ]
-
-    for regular_candidate, bold_candidate in candidate_pairs:
-        regular_path = _existing_font_path(regular_candidate)
-        if regular_path is None:
+    for reg, bold in candidate_pairs:
+        reg_path = _existing_font_path(reg)
+        if reg_path is None:
             continue
-        # Bold 폰트가 없으면 Regular로 대체해 CSS에서 font-weight: bold가 무시되지 않게 한다.
-        bold_path = _existing_font_path(bold_candidate) or regular_path
-        return {"regular": regular_path, "bold": bold_path}
+        return {"regular": reg_path, "bold": _existing_font_path(bold) or reg_path}
     return None
 
 
 def _font_face_css() -> str:
-    """사용 가능한 한글 폰트의 @font-face CSS를 반환한다. 폰트가 없으면 빈 문자열을 반환한다."""
     fonts = _resolve_pdf_fonts()
     if fonts is None:
         return ""
-    # xhtml2pdf는 file:// URI로 로컬 폰트를 로드하므로 as_uri()를 사용한다.
-    regular_uri = fonts["regular"].resolve().as_uri()
-    bold_uri = fonts["bold"].resolve().as_uri()
     return f"""
-            @font-face {{
-                font-family: '{FONT_FAMILY_NAME}';
-                src: url('{regular_uri}');
-                font-weight: normal;
-            }}
-            @font-face {{
-                font-family: '{FONT_FAMILY_NAME}';
-                src: url('{bold_uri}');
-                font-weight: bold;
-            }}
+        @font-face {{
+            font-family: '{FONT_FAMILY_NAME}';
+            src: url('{fonts["regular"].resolve().as_uri()}');
+            font-weight: normal;
+        }}
+        @font-face {{
+            font-family: '{FONT_FAMILY_NAME}';
+            src: url('{fonts["bold"].resolve().as_uri()}');
+            font-weight: bold;
+        }}
     """
 
 
 def _resolve_resource_path(uri: str, rel: str | None = None) -> str:
-    """xhtml2pdf link_callback — 로컬 파일 URI를 OS 경로로 변환한다.
-
-    xhtml2pdf가 img src나 @font-face src를 읽을 때 이 함수를 호출한다.
-    Windows에서 file:///C:/... 형식의 경로 앞에 붙는 '/'를 제거해야 정상 접근이 가능하다.
-    """
-    del rel  # xhtml2pdf가 넘겨주지만 여기서는 사용하지 않는다.
+    del rel
     parsed = urlparse(uri)
     if parsed.scheme == "file":
         path = unquote(parsed.path or "")
-        # Windows: "/C:/Windows/..." → "C:/Windows/..."
         if os.name == "nt" and path.startswith("/") and len(path) > 2 and path[2] == ":":
             path = path.lstrip("/")
         return path
@@ -126,362 +82,355 @@ def _resolve_resource_path(uri: str, rel: str | None = None) -> str:
     return uri
 
 
+# ── 공통 포매터 ────────────────────────────────────────────────────────────────
+
 def _text(value: object, fallback: str = "-") -> str:
-    """None·빈 문자열을 fallback으로 치환해 HTML escape 전에 항상 문자열을 보장한다."""
     raw = str(value or "").strip()
     return raw if raw else fallback
 
 
-def _percent(value: object) -> str:
-    """float을 "12.3%" 형식으로 변환한다. 변환 불가 시 "-"를 반환한다."""
-    try:
-        return f"{float(value):.1%}"
-    except (TypeError, ValueError):
-        return "-"
+# ── 차트 렌더링 ────────────────────────────────────────────────────────────────
 
-
-def _number(value: object) -> str:
-    """float을 천단위 구분 정수 문자열로 변환한다. 변환 불가 시 "-"를 반환한다."""
-    try:
-        return f"{float(value):,.0f}"
-    except (TypeError, ValueError):
-        return "-"
-
-
-def _change_text(value: object) -> str:
-    """전주 대비 변화율 문자열을 운영자 친화적 텍스트로 변환한다."""
-    text = _text(value)
-    if text == "-":
-        return "이전 주 비교 정보 없음"
-    if text in {"0", "0.0%", "+0", "+0.0%", "-0.0%"}:
-        return "이전 주와 비슷함"
-    return f"이전 주 대비 {text}"
-
-
-def _translate_chart_label(value: object) -> str:
-    """차트 레이블 값을 한국어로 변환한다."""
-    return str(translate_value(value, key="label"))
-
-
-def _limit_rows(rows: list[dict[str, Any]], limit: int) -> list[dict[str, Any]]:
-    """rows의 앞 limit개만 반환한다. PDF 섹션 길이를 제한하기 위해 사용한다."""
-    return rows[:limit]
-
-
-def _build_metric_cards(summary: dict[str, Any], comparisons: dict[str, Any]) -> str:
-    """상단 4개 핵심 지표 카드의 HTML <td> 목록을 반환한다."""
-    cards = [
-        ("분석 건수", _number(summary.get("analysis_count")), _change_text(comparisons.get("analysis_count", {}).get("change_rate"))),
-        ("고위험 문의", _number(summary.get("high_risk_count")), _change_text(comparisons.get("high_risk_count", {}).get("change_rate"))),
-        ("부정 반응 문의", _number(summary.get("negative_sentiment_count")), _change_text(comparisons.get("negative_sentiment_count", {}).get("change_rate"))),
-        ("사람 검토 필요", _number(summary.get("human_review_count")), _change_text(comparisons.get("human_review_count", {}).get("change_rate"))),
-    ]
-    return "".join(
-        f"""
-        <td class="metric-card">
-            <div class="metric-label">{escape(label)}</div>
-            <div class="metric-value">{escape(value)}</div>
-            <div class="metric-delta">{escape(delta)}</div>
-        </td>
-        """
-        for label, value, delta in cards
-    )
-
-
-def _build_summary_table(summary: dict[str, Any]) -> str:
-    """핵심 비율 8개를 레이블-값 2열 테이블 HTML로 반환한다."""
-    rows = [
-        ("응답률", _percent(summary.get("response_rate"))),
-        ("분석 커버리지", _percent(summary.get("analysis_coverage_rate"))),
-        ("초안 커버리지", _percent(summary.get("draft_coverage_rate"))),
-        ("최종 답변 전환", _percent(summary.get("final_response_ticket_rate"))),
-        ("고위험 문의 비율", _percent(summary.get("high_risk_rate"))),
-        ("부정 반응 문의 비율", _percent(summary.get("negative_sentiment_rate"))),
-        ("사람 검토 필요 비율", _percent(summary.get("human_review_rate"))),
-        ("즉시 알림 필요 비율", _percent(summary.get("urgent_alert_rate"))),
-    ]
-    return "".join(
-        f"""
-        <tr>
-            <td class="summary-label">{escape(label)}</td>
-            <td class="summary-value">{escape(value)}</td>
-        </tr>
-        """
-        for label, value in rows
-    )
-
-
-def _build_actions(actions: list) -> str:
-    """AI 권장 액션 리스트를 번호 뱃지가 붙은 카드 HTML로 반환한다.
-
-    actions가 비어있으면 안내 문구를 반환해 섹션이 빈 채로 표시되지 않게 한다.
-    actions 항목이 dict가 아닌 경우(구버전 포맷)도 단순 텍스트로 렌더링한다.
-    """
-    if not actions:
-        return "<p class='muted'>이번 주에 바로 조치할 권장 항목이 없습니다.</p>"
-    parts: list[str] = []
-    for i, item in enumerate(actions[:5]):
-        if isinstance(item, dict):
-            rank = escape(str(item.get("rank", i + 1)))
-            category = escape(str(item.get("category", "")))
-            action = escape(str(item.get("action", "")))
-            reason = escape(str(item.get("reason", "")))
-            parts.append(
-                f"""
-                <div class="action-item">
-                    <span class="action-index">{rank}</span>
-                    <span class="action-text">
-                        <strong>[{category}]</strong> {action}
-                        <div class="action-reason" style="font-size:8.5pt;color:#92400e;margin-top:3px;">{reason}</div>
-                    </span>
-                </div>
-                """
-            )
-        else:
-            parts.append(
-                f"""
-                <div class="action-item">
-                    <span class="action-index">{i + 1}</span>
-                    <span class="action-text">{escape(str(item))}</span>
-                </div>
-                """
-            )
-    return "".join(parts)
-
-
-def _build_review_cards(rows: list[dict[str, Any]]) -> str:
-    """우선 확인 행을 카드 형태의 HTML로 반환한다. REVIEW_PREVIEW_LIMIT개까지만 표시한다."""
-    if not rows:
-        return "<p class='muted'>우선 확인이 필요한 문의가 없습니다.</p>"
-
-    cards: list[str] = []
-    for row in _limit_rows(rows, REVIEW_PREVIEW_LIMIT):
-        cards.append(
-            f"""
-            <div class="review-card">
-                <table class="review-head-table">
-                    <tr>
-                        <td class="review-ticket">문의 #{escape(_text(row.get('ticket_id')))}</td>
-                        <td class="review-risk">{escape(_text(row.get('risk_level')))}</td>
-                    </tr>
-                </table>
-                <div class="review-title">{escape(_text(row.get('title')))}</div>
-                <div class="review-meta">
-                    분류: {escape(_text(row.get('category')))} |
-                    반응: {escape(_text(row.get('sentiment')))} |
-                    다음 처리: {escape(_text(row.get('routing_target')))}
-                </div>
-                <div class="review-body">{escape(_text(row.get('ai_row_interpretation')))}</div>
-            </div>
-            """
-        )
-    return "".join(cards)
-
-
-def _build_analysis_table(rows: list[dict[str, Any]]) -> str:
-    """분석 원본 행을 6열 테이블의 <tr> HTML로 반환한다. ANALYSIS_PREVIEW_LIMIT개까지만 표시한다."""
-    if not rows:
-        return "<tr><td colspan='6' class='muted'>표시할 분석 원본이 없습니다.</td></tr>"
-
-    return "".join(
-        f"""
-        <tr>
-            <td>{escape(_text(row.get('analysis_id')))}</td>
-            <td>{escape(_text(row.get('ticket_id')))}</td>
-            <td>{escape(_text(row.get('title')))}</td>
-            <td>{escape(_text(row.get('category')))}</td>
-            <td>{escape(_text(row.get('risk_level')))}</td>
-            <td>{escape(_text(row.get('routing_target')))}</td>
-        </tr>
-        """
-        for row in _limit_rows(rows, ANALYSIS_PREVIEW_LIMIT)
-    )
-
-
-def _chart_specs(report: dict[str, Any]) -> list[dict[str, Any]]:
-    """PDF에 렌더링할 차트 명세 리스트를 반환한다.
-
-    각 항목: {"title": str, "rows": list, "kind": "pie"|"bar"}
-    "처리 단계 비율"만 bar 차트이고 나머지는 파이 차트다.
-    """
-    summary = report.get("summary", {})
-    return [
-        {"title": "문의 분류", "rows": report.get("category_distribution", []), "kind": "pie"},
-        {"title": "위험도 분포", "rows": report.get("risk_distribution", []), "kind": "pie"},
-        {"title": "응답 주체 분포", "rows": report.get("responder_distribution", []), "kind": "pie"},
-        {"title": "이용자 반응 분포", "rows": report.get("sentiment_distribution", []), "kind": "pie"},
-        {"title": "다음 처리 분포", "rows": report.get("routing_distribution", []), "kind": "pie"},
-        {
-            "title": "처리 단계 비율",
-            "rows": [
-                {"label": "response_rate", "value": summary.get("response_rate", 0)},
-                {"label": "analysis_coverage", "value": summary.get("analysis_coverage_rate", 0)},
-                {"label": "draft_coverage", "value": summary.get("draft_coverage_rate", 0)},
-                {"label": "final_response", "value": summary.get("final_response_ticket_rate", 0)},
-            ],
-            "kind": "bar",
-        },
-    ]
-
-
-def _build_plotly_chart_data_uri(title: str, rows: list[dict[str, Any]], *, kind: str) -> str | None:
-    """Plotly로 차트를 PNG로 렌더링한 뒤 data URI 문자열로 반환한다.
-
-    plotly가 설치되어 있지 않거나 이미지 생성에 실패하면 None을 반환한다.
-    None이 반환되면 _build_chart_gallery가 fallback 테이블로 대체 렌더링한다.
-    data URI 형식(data:image/png;base64,...)을 사용하는 이유는 xhtml2pdf가
-    외부 파일 경로 없이 인라인 이미지를 지원하기 때문이다.
-    """
-    usable_rows = [row for row in rows if row.get("label") not in {None, ""} and row.get("value") not in {None, ""}]
-    if not usable_rows:
+def _make_bar_chart_png(
+    labels: list[str],
+    values: list[float],
+    colors: list[str],
+    *,
+    width: int = 720,
+    height: int = 300,
+) -> str | None:
+    """Plotly 바차트 PNG → data URI. 실패하면 None."""
+    if not labels:
         return None
-
     try:
         import plotly.graph_objects as go
         import plotly.io as pio
+
+        fig = go.Figure(data=[go.Bar(
+            x=labels,
+            y=values,
+            marker={"color": colors},
+            text=[f"{int(v):,}" for v in values],
+            textposition="outside",
+        )])
+        fig.update_layout(
+            paper_bgcolor="#ffffff",
+            plot_bgcolor="#f8f9fb",
+            margin={"l": 28, "r": 16, "t": 16, "b": 36},
+            font={"family": "Arial", "size": 11, "color": "#1a1a2e"},
+            showlegend=False,
+            yaxis={"gridcolor": "#f3f4f6", "zeroline": False},
+            xaxis={"tickfont": {"size": 10}},
+        )
+        image_bytes = pio.to_image(fig, format="png", width=width, height=height, scale=2)
+        return "data:image/png;base64," + base64.b64encode(image_bytes).decode("ascii")
     except Exception:
         return None
 
-    labels = [_translate_chart_label(row.get("label")) for row in usable_rows]
-    values = [float(row.get("value") or 0) for row in usable_rows]
-    # 고정 색상 팔레트 — 브랜드 컬러(teal/orange/blue 계열)와 구별이 쉬운 조합.
-    colors = ["#0f766e", "#f97316", "#2563eb", "#e11d48", "#7c3aed", "#059669", "#d97706", "#475569"]
 
-    if kind == "bar":
-        figure = go.Figure(
-            data=[
-                go.Bar(
-                    x=labels,
-                    y=values,
-                    marker={"color": colors[: len(values)]},
-                    text=[_percent(value) for value in values],
-                    textposition="outside",
-                )
-            ]
+# ── 섹션 빌더 ──────────────────────────────────────────────────────────────────
+
+def _summary_bullets(report: dict[str, Any]) -> list[str]:
+    """AI 요약 왼쪽 컬럼 — 주간 지표 요약 bullet 자동 생성."""
+    bullets: list[str] = []
+
+    summary = report.get("summary") or {}
+    total = int(summary.get("analysis_count") or 0)
+    comp = (report.get("comparisons") or {}).get("analysis_count") or {}
+    change_rate = _text(comp.get("change_rate"), "-")
+    bullets.append(f"총 응대 건수 {total:,}건 — 전주 대비 {change_rate}")
+
+    cur_map = {r.get("category", ""): int(r.get("count", 0))
+               for r in (report.get("category_counts_current") or [])}
+    prev_map = {r.get("category", ""): int(r.get("count", 0))
+                for r in (report.get("category_counts_previous") or [])}
+
+    notable: list[tuple[float, str]] = []
+    for cat in _CATEGORIES:
+        cur = cur_map.get(cat, 0)
+        prev = prev_map.get(cat, 0)
+        if prev > 0:
+            pct = (cur - prev) / prev * 100
+            if abs(pct) >= 10:
+                word = "증가" if pct > 0 else "감소"
+                notable.append((abs(pct), f"{cat} 카테고리 전주 대비 {abs(pct):.0f}% {word}"))
+    for _, txt in sorted(notable, reverse=True)[:2]:
+        bullets.append(txt)
+
+    spike = report.get("spike_alerts") or {}
+    anomaly = [d for d in (spike.get("daily") or []) if d.get("level") != "normal"]
+    if anomaly:
+        w = max(anomaly, key=lambda x: x.get("pct_change", 0))
+        bullets.append(f"{w.get('day', '?')} {w.get('pct_change', 0)*100:+.0f}% 폭증 감지")
+
+    critical_h = [h for h in (spike.get("hourly") or []) if h.get("level") == "critical"]
+    if critical_h:
+        times = ", ".join(f"{h['hour']:02d}시" for h in critical_h[:3])
+        bullets.append(f"집중 위험 시간대: {times}")
+
+    return bullets[:5] if bullets else ["이번 주 특이 사항 없음"]
+
+
+def _build_ai_section(report: dict[str, Any]) -> str:
+    """AI 요약 카드 — 주간지표요약(좌) · 권장액션(우) 2컬럼."""
+    ai = report.get("ai_interpretation") or {}
+    actions = ai.get("actions") or []
+
+    def li(text: str) -> str:
+        return f"<li>{escape(text)}</li>"
+
+    # 왼쪽: 주간 지표 요약
+    left_items = "".join(li(b) for b in _summary_bullets(report))
+
+    # 오른쪽: AI 권장 액션
+    if actions:
+        right_items = "".join(
+            li(f"[{a.get('category','')}] {a.get('action','')} — {a.get('reason','')}")
+            for a in actions[:5]
         )
-        # Y축을 0~1(100%)로 고정해 비율 차트임을 명확히 한다.
-        figure.update_yaxes(range=[0, 1], tickformat=".0%")
     else:
-        figure = go.Figure(
-            data=[
-                go.Pie(
-                    labels=labels,
-                    values=values,
-                    hole=0.45,  # 도넛 차트 — 파이보다 중앙 공간이 있어 가독성이 좋다.
-                    marker={"colors": colors[: len(values)]},
-                    textinfo="percent+label",
-                )
-            ]
+        right_items = "<li>이번 주 권장 액션이 없습니다</li>"
+
+    return f"""
+    <div class="ai-badge">AI SUMMARY</div>
+    <table class="ai-cols-table">
+        <tr>
+            <td class="ai-col">
+                <div class="ai-col-title">주간 지표 요약</div>
+                <ul class="ai-list">{left_items}</ul>
+            </td>
+            <td class="ai-col">
+                <div class="ai-col-title">권장 액션</div>
+                <ul class="ai-list">{right_items}</ul>
+            </td>
+        </tr>
+    </table>
+    """
+
+
+def _build_category_blocks(report: dict[str, Any]) -> str:
+    """카테고리별 건수 블록 — 건수 · ▲▼ badge · 증감 텍스트."""
+    cur_map = {r.get("category", ""): int(r.get("count", 0))
+               for r in (report.get("category_counts_current") or [])}
+    prev_map = {r.get("category", ""): int(r.get("count", 0))
+                for r in (report.get("category_counts_previous") or [])}
+
+    cells: list[str] = []
+    for cat in _CATEGORIES:
+        cur = cur_map.get(cat, 0)
+        prev = prev_map.get(cat, 0)
+
+        if prev > 0:
+            pct = (cur - prev) / prev * 100
+            if pct > 5:
+                badge_cls = "badge-up"
+                arrow = "▲"
+                note = "전주 대비 증가하였습니다"
+            elif pct < -5:
+                badge_cls = "badge-dn"
+                arrow = "▼"
+                note = "전주 대비 감소하였습니다"
+            else:
+                badge_cls = "badge-eq"
+                arrow = "→"
+                note = "전주와 동일합니다"
+            badge_html = f'<div><span class="{badge_cls}">{arrow} {abs(pct):.0f}%</span></div>'
+        else:
+            badge_html = '<div><span class="badge-eq">— 비교 없음</span></div>'
+            note = "전주 비교 데이터 없음"
+
+        cells.append(f"""
+        <td class="m-block">
+            <div class="m-cat">{escape(cat)}</div>
+            <div class="m-count">{cur:,}</div>
+            {badge_html}
+            <div class="m-note">{escape(note)}</div>
+        </td>
+        """)
+
+    return f"<table class='m-row'><tr>{''.join(cells)}</tr></table>"
+
+
+def _build_heatmap(hourly: list[dict[str, Any]]) -> str:
+    """24시간 히트맵 — 두 줄(AM/PM) 테이블, Z-Score 기반 색상."""
+    by_hour = {item["hour"]: item for item in hourly}
+
+    def cell(h: int) -> str:
+        item = by_hour.get(h, {})
+        level = item.get("level", "normal")
+        cnt = item.get("current", "")
+        if level == "critical":
+            bg, fg = "#b45309", "#ffffff"
+        elif level == "warning":
+            bg, fg = "#f97316", "#ffffff"
+        else:
+            bg, fg = "#f0f2f5", "#9ca3af"
+        cnt_txt = f"<br/>{cnt}" if cnt else ""
+        return (
+            f'<td style="background:{bg};color:{fg};text-align:center;'
+            f'padding:4px 1px;font-size:7pt;border:1px solid #e5e7eb;width:4.16%;">'
+            f'{h:02d}시{cnt_txt}</td>'
         )
 
-    figure.update_layout(
-        title={"text": title, "x": 0.03, "xanchor": "left"},
-        paper_bgcolor="#ffffff",
-        plot_bgcolor="#ffffff",
-        margin={"l": 24, "r": 24, "t": 56, "b": 32},
-        font={"family": "Arial", "size": 14, "color": "#18202b"},
-        showlegend=kind != "bar",
-        legend={"orientation": "h", "yanchor": "bottom", "y": -0.18, "xanchor": "center", "x": 0.5},
+    am = "".join(cell(h) for h in range(12))
+    pm = "".join(cell(h) for h in range(12, 24))
+    legend = (
+        '<div style="font-size:7pt;color:#888;margin-top:3px;">'
+        '<span style="color:#b45309;font-weight:bold;">■ 위험(Z≥3)</span>&nbsp;&nbsp;'
+        '<span style="color:#f97316;font-weight:bold;">■ 경고(Z≥2)</span>&nbsp;&nbsp;'
+        '□ 정상</div>'
+    )
+    return (
+        f'<div class="heat-label">시간별 문의량 (운영 인력 배치)</div>'
+        f'<table style="width:100%;table-layout:fixed;border-collapse:collapse;">'
+        f'<tr>{am}</tr><tr>{pm}</tr></table>'
+        f'<div style="font-size:7pt;color:#bbb;margin-top:1px;">'
+        f'위: 00~11시 / 아래: 12~23시</div>'
+        f'{legend}'
     )
 
-    try:
-        # scale=2로 2배 해상도 PNG를 생성해 PDF에서 선명하게 보이게 한다.
-        image_bytes = pio.to_image(figure, format="png", width=900, height=540, scale=2)
-    except Exception:
-        return None
-    encoded = base64.b64encode(image_bytes).decode("ascii")
-    return f"data:image/png;base64,{encoded}"
 
+def _build_spike_section(spike_alerts: dict[str, Any]) -> str:
+    """전주 폭증(좌) · 월별 추세(우) 2컬럼."""
+    daily = spike_alerts.get("daily") or []
+    hourly = spike_alerts.get("hourly") or []
+    monthly = spike_alerts.get("monthly") or []
 
-def _build_chart_fallback_table(rows: list[dict[str, Any]], *, kind: str) -> str:
-    """Plotly 렌더링 실패 시 차트 데이터를 수치 테이블로 대체 표시한다.
+    # ── 좌: 7일 바차트 + 히트맵 ──
+    if daily:
+        labels = [r.get("day", "?") for r in daily]
+        values = [float(r.get("this_week", 0)) for r in daily]
+        colors = [
+            "#b45309" if r.get("level") == "critical" else
+            "#f97316" if r.get("level") == "warning" else
+            "rgba(180,83,9,0.45)"
+            for r in daily
+        ]
+        uri = _make_bar_chart_png(labels, values, colors, width=480, height=270)
+        left_chart = (
+            f'<img style="width:100%;height:auto;" src="{uri}" />'
+            if uri else
+            "<table class='fb-table'>" +
+            "".join(f"<tr><td>{escape(r.get('day',''))}</td><td>{int(r.get('this_week',0)):,}건</td></tr>" for r in daily) +
+            "</table>"
+        )
+        anomaly = [d for d in daily if d.get("level") != "normal"]
+        sub = (
+            "폭증 감지: " + ", ".join(f"{d['day']} {d['pct_change']*100:+.0f}%({d['level']})" for d in anomaly)
+            if anomaly else "이번 주 일별 폭증 감지 없음 ✅"
+        )
+    else:
+        left_chart = "<div class='no-data'>일별 문의량 데이터가 없습니다.</div>"
+        sub = ""
 
-    bar 차트는 비율 형식, 파이 차트는 건수+비율 형식으로 표시한다.
-    """
-    usable = [r for r in rows if r.get("label") not in {None, ""} and r.get("value") not in {None, ""}]
-    if not usable:
-        return "<div class='chart-empty'>표시할 데이터가 없습니다.</div>"
-
-    # 파이 차트 비율 계산용 합계. 0 방지를 위해 `or 1` 처리.
-    total = sum(float(r.get("value") or 0) for r in usable) or 1
-    table_rows = ""
-    for row in usable[:8]:
-        label = escape(_translate_chart_label(row.get("label")))
-        value = float(row.get("value") or 0)
-        if kind == "bar":
-            display = _percent(value)
+    # ── 우: 4주 바차트 + 요약 ──
+    if monthly:
+        labels_m = [r.get("label", "?") for r in monthly]
+        values_m = [float(r.get("count", 0)) for r in monthly]
+        colors_m = [
+            "rgba(180,83,9,0.85)",
+            "rgba(180,83,9,0.65)",
+            "rgba(180,83,9,0.45)",
+            "rgba(180,83,9,0.25)",
+        ][:len(values_m)]
+        uri_m = _make_bar_chart_png(labels_m, values_m, colors_m, width=440, height=270)
+        right_chart = (
+            f'<img style="width:100%;height:auto;" src="{uri_m}" />'
+            if uri_m else
+            "<table class='fb-table'>" +
+            "".join(f"<tr><td>{escape(r.get('label',''))}</td><td>{int(r.get('count',0)):,}건</td></tr>" for r in monthly) +
+            "</table>"
+        )
+        # 요약 텍스트
+        if len(monthly) >= 2:
+            this_w, prev_w = int(monthly[0].get("count", 0)), int(monthly[1].get("count", 0))
+            if prev_w > 0:
+                pct = (this_w - prev_w) / prev_w * 100
+                trend_txt = f"이번 주 총 <strong>{this_w:,}건</strong> (전주 대비 {pct:+.1f}%)"
+            else:
+                trend_txt = f"이번 주 총 <strong>{this_w:,}건</strong>"
         else:
-            pct = value / total * 100
-            display = f"{value:,.0f}건 ({pct:.1f}%)"
-        table_rows += f"<tr><td class='ft-label'>{label}</td><td class='ft-value'>{escape(display)}</td></tr>"
+            trend_txt = "이번 주 데이터 집계 없음"
+        summary_box = f'<div class="summary-box">{trend_txt}</div>'
+    else:
+        right_chart = "<div class='no-data'>월별 추세 데이터가 없습니다.</div>"
+        summary_box = ""
 
-    return f"<table class='fallback-table'>{table_rows}</table>"
-
-
-def _build_chart_gallery(report: dict[str, Any]) -> str:
-    """모든 차트를 2열 그리드 HTML 테이블로 조립한다.
-
-    각 차트는 Plotly 이미지 → fallback 테이블 → 빈 카드 순으로 대체된다.
-    셀 수가 홀수이면 마지막 행에 빈 <td>를 추가해 레이아웃을 맞춘다.
+    return f"""
+    <table class="sr-table">
+        <tr>
+            <td class="sr-col">
+                <div class="sr-badge sr-spike">전주 대비 폭증 문의</div>
+                {f'<div class="sr-sub">{escape(sub)}</div>' if sub else ''}
+                {left_chart}
+                {_build_heatmap(hourly)}
+            </td>
+            <td class="sr-col">
+                <div class="sr-badge sr-spike">월별 폭증 문의</div>
+                {right_chart}
+                {summary_box}
+            </td>
+        </tr>
+    </table>
     """
-    cells: list[str] = []
-    for spec in _chart_specs(report):
-        image_data = _build_plotly_chart_data_uri(spec["title"], spec["rows"], kind=spec["kind"])
 
-        if image_data is not None:
-            cells.append(
-                f"""
-                <td class="chart-cell">
-                    <div class="chart-card">
-                        <div class="chart-title">{escape(spec["title"])}</div>
-                        <img class="chart-image" src="{image_data}" alt="{escape(spec['title'])}" />
-                    </div>
-                </td>
-                """
-            )
-        elif spec["rows"]:
-            cells.append(
-                f"""
-                <td class="chart-cell">
-                    <div class="chart-card">
-                        <div class="chart-title">{escape(spec["title"])}</div>
-                        <div class="chart-note">차트 렌더링 불가 — 수치 표로 대체합니다.</div>
-                        {_build_chart_fallback_table(spec["rows"], kind=spec["kind"])}
-                    </div>
-                </td>
-                """
-            )
-        else:
-            cells.append(
-                f"""
-                <td class="chart-cell">
-                    <div class="chart-card">
-                        <div class="chart-title">{escape(spec["title"])}</div>
-                        <div class="chart-empty">이번 기간 해당 데이터가 없습니다.</div>
-                    </div>
-                </td>
-                """
-            )
 
-    rows: list[str] = []
-    for index in range(0, len(cells), 2):
-        pair = cells[index : index + 2]
-        # 홀수 번째 셀이면 오른쪽 빈 셀로 채운다.
-        if len(pair) == 1:
-            pair.append("<td class='chart-cell'></td>")
-        rows.append(f"<tr>{''.join(pair)}</tr>")
-    return "<table class='chart-grid'>" + "".join(rows) + "</table>"
+def _build_top5_section(top_requests: list[dict[str, Any]]) -> str:
+    """유저 개선 요청 Top 5 — 설계 결함(좌) · 편의 개선(우)."""
+    if not top_requests:
+        return "<p class='no-data'>집계된 개선 요청이 없습니다.</p>"
 
+    design = [r for r in top_requests if r.get("improvement_type") == "설계 결함"]
+    ux = [r for r in top_requests if r.get("improvement_type") != "설계 결함"]
+
+    def render_col(items: list[dict], cls: str) -> str:
+        if not items:
+            return "<div class='no-data'>해당 없음</div>"
+        rows = ""
+        for item in items:
+            rank = escape(str(item.get("rank", "?")))
+            cat = escape(str(item.get("category", "?")))
+            kw = escape(" / ".join(item.get("topic_keywords") or []) or "—")
+            cnt = int(item.get("count", 0))
+            rows += f"""
+            <li>
+                <span class="rank rank-{cls}">{rank}</span>
+                <div class="item-body">
+                    <div class="item-cat">{cat}</div>
+                    <div class="item-kw">{kw}</div>
+                </div>
+                <span class="item-cnt">{cnt:,}건</span>
+            </li>
+            """
+        return f"<ul class='improve-list'>{rows}</ul>"
+
+    return f"""
+    <table class="improve-table">
+        <tr>
+            <th class="improve-head design-head">설계 결함</th>
+            <th class="improve-head ux-head">편의 개선</th>
+        </tr>
+        <tr>
+            <td class="improve-col">{render_col(design, 'design')}</td>
+            <td class="improve-col">{render_col(ux, 'ux')}</td>
+        </tr>
+    </table>
+    <div class="criteria-box">
+        기준: 건수 × 심각도 가중합 (Nielsen 1994) — critical/high = 설계 결함, medium/low = 편의 개선
+    </div>
+    """
+
+
+# ── HTML 조립 ──────────────────────────────────────────────────────────────────
 
 def _build_html(report: dict[str, Any]) -> str:
-    """report 페이로드 전체를 A4 PDF용 HTML 문자열로 변환한다."""
-    summary = report.get("summary", {})
-    comparisons = report.get("comparisons", {})
-    interpretation = report.get("ai_interpretation", {}) or {}
-    window = report.get("window", {})
-    previous_window = report.get("previous_window", {})
     title = _text(report.get("title"), "운영 주간 보고서")
-    generated_at = _text(report.get("generated_at"))
+    gen_at = _text(report.get("generated_at"), "")[:10].replace("-", ".")
+    window = report.get("window") or {}
+    w_start = _text(window.get("window_start"), "?")[:10].replace("-", ".")
+    w_end = _text(window.get("window_end"), "?")[:10].replace("-", ".")
+    spike = report.get("spike_alerts") or {}
+    top_requests = report.get("top_requests") or []
 
     return f"""
     <html>
@@ -491,330 +440,194 @@ def _build_html(report: dict[str, Any]) -> str:
             {_font_face_css()}
             @page {{
                 size: A4;
-                margin: 15mm 12mm 14mm 12mm;
+                margin: 13mm 11mm 12mm 11mm;
             }}
+            * {{ box-sizing: border-box; }}
             body {{
-                font-family: '{FONT_FAMILY_NAME}', Helvetica, Arial, sans-serif;
-                color: #172033;
+                font-family: '{FONT_FAMILY_NAME}', 'Segoe UI', Helvetica, Arial, sans-serif;
+                background: #f0f2f5;
+                color: #1a1a2e;
                 font-size: 10pt;
                 line-height: 1.45;
-                background: #f4f7fb;
             }}
-            .hero {{
-                background: #0f172a;
-                color: white;
-                padding: 20px 22px;
-                border-radius: 12px;
-                margin-bottom: 14px;
-            }}
-            .eyebrow {{
-                font-size: 8pt;
-                color: #cbd5e1;
-                margin-bottom: 8px;
-                letter-spacing: 1px;
-            }}
-            .title {{
-                font-size: 22pt;
-                font-weight: bold;
-                margin-bottom: 8px;
-            }}
-            .subtitle {{
-                font-size: 9pt;
-                color: #e2e8f0;
-                line-height: 1.6;
-            }}
-            .section {{
-                margin-top: 12px;
-                padding: 14px 16px;
-                border: 1px solid #d9e2ef;
-                border-radius: 12px;
-                background: #ffffff;
-                page-break-inside: avoid;
-            }}
-            .section-title {{
-                font-size: 13pt;
-                font-weight: bold;
-                color: #0f172a;
-                margin-bottom: 10px;
-                word-break: break-word;
-            }}
-            table {{
-                width: 100%;
-                border-collapse: collapse;
-                table-layout: fixed;
-            }}
-            .metric-card {{
-                width: 25%;
-                padding: 12px;
-                border: 1px solid #dbe3ef;
-                background: #f8fafc;
-                vertical-align: top;
-                word-break: break-word;
-            }}
-            .metric-label {{
-                font-size: 8.5pt;
-                color: #64748b;
-                margin-bottom: 8px;
-                word-break: break-word;
-            }}
-            .metric-value {{
-                font-size: 17pt;
-                font-weight: bold;
-                color: #0f172a;
-                margin-bottom: 4px;
-            }}
-            .metric-delta {{
-                font-size: 8pt;
-                color: #334155;
-            }}
-            .summary-label, .summary-value {{
-                border-bottom: 1px solid #e5e7eb;
-                padding: 7px 9px;
-                word-break: break-word;
-            }}
-            .summary-label {{
-                width: 68%;
-                color: #475569;
-            }}
-            .summary-value {{
-                width: 32%;
-                font-weight: bold;
-                text-align: right;
-                color: #0f172a;
-            }}
-            .interpretation-box {{
-                padding: 14px 16px;
-                border-left: 5px solid #0f766e;
-                background: #effcf8;
+            table {{ width: 100%; border-collapse: collapse; }}
+
+            /* ── 헤더 ── */
+            .header {{
+                background: #1e3a5f;
+                color: #fff;
+                padding: 16px 20px;
                 margin-bottom: 12px;
-                word-break: break-word;
             }}
-            .interpretation-headline {{
-                font-size: 12pt;
-                font-weight: bold;
-                margin-bottom: 8px;
-                color: #0f172a;
+            .header-inner {{ width: 100%; }}
+            .header-left td {{ vertical-align: middle; padding: 0; }}
+            .header-right td {{ text-align: right; vertical-align: middle; padding: 0; }}
+            .eyebrow {{ font-size: 7.5pt; opacity: .7; letter-spacing: 1px; margin-bottom: 4px; color: #cbd5e1; }}
+            .h-title {{ font-size: 17pt; font-weight: bold; color: #fff; }}
+            .gen-date {{ font-size: 9pt; color: #cbd5e1; margin-bottom: 3px; }}
+            .period {{ font-size: 11pt; font-weight: bold; color: #fff; }}
+
+            /* ── 섹션 공통 ── */
+            .sec-title {{
+                font-size: 11pt; font-weight: bold; color: #1e3a5f;
+                border-left: 4px solid #2d6a9f; padding-left: 8px; margin: 10px 0 7px;
             }}
-            .muted {{
-                color: #64748b;
-            }}
-            ul {{
-                margin: 8px 0 0 18px;
-                padding: 0;
-            }}
-            li {{
-                margin-bottom: 6px;
-            }}
-            .column-title {{
-                font-size: 10.5pt;
-                font-weight: bold;
-                color: #0f172a;
-                margin-bottom: 8px;
-            }}
-            .action-item {{
-                margin-bottom: 8px;
-                padding: 9px 11px;
-                border: 1px solid #f1dcc7;
-                border-radius: 10px;
-                background: #fff7ed;
-                word-break: break-word;
-            }}
-            .action-index {{
-                display: inline-block;
-                width: 18px;
-                height: 18px;
-                line-height: 18px;
-                text-align: center;
-                background: #f97316;
-                color: white;
-                border-radius: 50%;
-                font-size: 8.5pt;
-                margin-right: 8px;
-            }}
-            .chart-grid {{
-                table-layout: fixed;
-            }}
-            .chart-cell {{
-                width: 50%;
-                vertical-align: top;
-                padding: 6px;
-            }}
-            .chart-card {{
-                border: 1px solid #dbe3ef;
-                border-radius: 10px;
-                background: #fcfcfd;
-                padding: 10px;
-                page-break-inside: avoid;
-            }}
-            .chart-title {{
-                font-size: 10pt;
-                font-weight: bold;
-                color: #0f172a;
-                margin-bottom: 8px;
-            }}
-            .chart-image {{
-                width: 100%;
-                height: auto;
-            }}
-            .chart-empty {{
-                font-size: 9pt;
-                color: #64748b;
-                padding: 14px 0;
-            }}
-            .chart-note {{
-                font-size: 8pt;
-                color: #94a3b8;
-                margin-bottom: 6px;
-            }}
-            .fallback-table {{
-                width: 100%;
-                border-collapse: collapse;
-                font-size: 8.5pt;
-            }}
-            .fallback-table .ft-label {{
-                padding: 4px 6px;
-                border-bottom: 1px solid #e5e7eb;
-                color: #374151;
-                word-break: break-word;
-            }}
-            .fallback-table .ft-value {{
-                padding: 4px 6px;
-                border-bottom: 1px solid #e5e7eb;
-                text-align: right;
-                font-weight: bold;
-                color: #0f172a;
-                white-space: nowrap;
-            }}
-            .review-card {{
-                border: 1px solid #e2e8f0;
-                border-radius: 12px;
-                padding: 12px 14px;
-                margin-bottom: 10px;
-                background: #fcfcfd;
-                page-break-inside: avoid;
-            }}
-            .review-head-table {{
-                margin-bottom: 6px;
-            }}
-            .review-ticket {{
-                font-weight: bold;
-                color: #0f172a;
-            }}
-            .review-risk {{
-                text-align: right;
-                color: #b91c1c;
-                font-size: 9pt;
-                font-weight: bold;
-            }}
-            .review-title {{
-                font-size: 11pt;
-                font-weight: bold;
-                margin-bottom: 6px;
-                word-break: break-word;
-            }}
-            .review-meta {{
-                font-size: 8.8pt;
-                color: #64748b;
-                margin-bottom: 8px;
-                word-break: break-word;
-            }}
-            .review-body {{
-                font-size: 9.4pt;
-                color: #1f2937;
-                word-break: break-word;
-            }}
-            .analysis-note {{
-                font-size: 8.5pt;
-                color: #64748b;
-                margin-bottom: 8px;
-            }}
-            .analysis-table th {{
-                background: #f1f5f9;
-                color: #0f172a;
-                font-size: 8.8pt;
-                padding: 7px;
-                border: 1px solid #dbe3ef;
-                text-align: left;
-                word-break: break-word;
-            }}
-            .analysis-table td {{
-                padding: 7px;
+            .card {{
+                background: #fff;
                 border: 1px solid #e5e7eb;
-                font-size: 8.6pt;
-                vertical-align: top;
-                word-break: break-word;
+                padding: 14px 16px;
+                margin-bottom: 10px;
+                page-break-inside: avoid;
             }}
+
+            /* ── AI 요약 ── */
+            .ai-card {{ border-left: 4px solid #7c3aed; background: #faf5ff; }}
+            .ai-badge {{
+                display: inline-block; background: #7c3aed; color: #fff;
+                font-size: 8pt; font-weight: bold; padding: 2px 7px; margin-bottom: 9px;
+            }}
+            .ai-cols-table {{ table-layout: fixed; }}
+            .ai-col {{ width: 50%; padding: 0 8px 0 0; vertical-align: top; }}
+            .ai-col:last-child {{ padding: 0 0 0 8px; border-left: 1px solid #ede9fe; }}
+            .ai-col-title {{
+                font-size: 8.5pt; font-weight: bold; color: #7c3aed; margin-bottom: 7px;
+                text-transform: uppercase; letter-spacing: 0.5px;
+            }}
+            .ai-list {{ list-style: none; padding: 0; margin: 0; }}
+            .ai-list li {{
+                font-size: 9pt; padding: 3px 0; border-bottom: 1px solid #ede9fe;
+                color: #3b3060; line-height: 1.5;
+            }}
+            .ai-list li:last-child {{ border-bottom: none; }}
+            .ai-list li::before {{ content: "· "; color: #7c3aed; font-weight: bold; }}
+
+            /* ── 카테고리 블록 ── */
+            .m-row {{ table-layout: fixed; border-spacing: 4px; border-collapse: separate; }}
+            .m-block {{
+                background: #fff; border: 1px solid #e5e7eb;
+                padding: 12px 6px; text-align: center; vertical-align: top;
+            }}
+            .m-cat {{ font-size: 8.5pt; font-weight: bold; color: #6b7280; margin-bottom: 6px; }}
+            .m-count {{ font-size: 22pt; font-weight: 800; color: #1e3a5f; line-height: 1; margin-bottom: 6px; }}
+            .badge-up {{
+                display: inline-block; background: #fee2e2; color: #dc2626;
+                font-size: 9pt; font-weight: bold; padding: 2px 8px;
+            }}
+            .badge-dn {{
+                display: inline-block; background: #dcfce7; color: #16a34a;
+                font-size: 9pt; font-weight: bold; padding: 2px 8px;
+            }}
+            .badge-eq {{
+                display: inline-block; background: #f3f4f6; color: #6b7280;
+                font-size: 9pt; font-weight: bold; padding: 2px 8px;
+            }}
+            .m-note {{ font-size: 7.5pt; color: #9ca3af; margin-top: 4px; }}
+
+            /* ── 급증·위험 ── */
+            .sr-table {{ table-layout: fixed; border-spacing: 6px; border-collapse: separate; }}
+            .sr-col {{
+                width: 50%; background: #fff; border: 1px solid #e5e7eb;
+                padding: 12px 14px; vertical-align: top;
+            }}
+            .sr-badge {{
+                display: inline-block; font-size: 8.5pt; font-weight: bold;
+                padding: 2px 8px; margin-bottom: 7px;
+            }}
+            .sr-spike {{ background: #fff3cd; color: #b45309; }}
+            .sr-sub {{ font-size: 8.5pt; color: #6b7280; margin-bottom: 8px; }}
+            .heat-label {{ font-size: 8.5pt; font-weight: bold; color: #6b7280; margin: 8px 0 4px; }}
+            .summary-box {{
+                font-size: 9pt; color: #555; line-height: 1.8;
+                padding: 9px 11px; background: #fffbf0;
+                border-left: 3px solid #b45309; margin-top: 10px;
+            }}
+            .no-data {{ font-size: 9pt; color: #9ca3af; padding: 8px 0; }}
+            .fb-table td {{ padding: 4px 6px; border-bottom: 1px solid #f3f4f6; font-size: 9pt; }}
+
+            /* ── Top 5 ── */
+            .improve-table {{ table-layout: fixed; border-spacing: 6px; border-collapse: separate; }}
+            .improve-head {{
+                font-size: 9.5pt; font-weight: bold; padding: 7px 10px;
+                border-bottom: 2px solid;
+            }}
+            .design-head {{ color: #dc2626; border-color: #dc2626; background: #fff5f5; }}
+            .ux-head {{ color: #2563eb; border-color: #2563eb; background: #eff6ff; }}
+            .improve-col {{ width: 50%; background: #fff; border: 1px solid #e5e7eb; padding: 10px; vertical-align: top; }}
+            .improve-list {{ list-style: none; padding: 0; margin: 0; }}
+            .improve-list li {{
+                display: block; padding: 5px 0;
+                border-bottom: 1px solid #f3f4f6; font-size: 9pt; color: #374151;
+            }}
+            .improve-list li:last-child {{ border-bottom: none; }}
+            .rank {{
+                display: inline-block; width: 18px; height: 18px; line-height: 18px;
+                text-align: center; font-size: 8pt; font-weight: bold;
+                margin-right: 6px; vertical-align: middle;
+            }}
+            .rank-design {{ background: #fee2e2; color: #dc2626; }}
+            .rank-ux {{ background: #dbeafe; color: #2563eb; }}
+            .item-body {{ display: inline; }}
+            .item-cat {{ display: inline; font-weight: bold; }}
+            .item-kw {{ display: inline; font-size: 8pt; color: #9ca3af; margin-left: 4px; }}
+            .item-cnt {{ float: right; font-size: 8.5pt; color: #9ca3af; }}
+            .criteria-box {{
+                font-size: 8pt; color: #9ca3af; line-height: 1.7;
+                padding: 7px 10px; background: #f8f9fb;
+                border: 1px solid #e5e7eb; margin-top: 8px;
+            }}
+
+            /* ── 푸터 ── */
+            .footer {{ text-align: center; font-size: 8pt; color: #bbb; margin-top: 12px; }}
         </style>
     </head>
     <body>
-        <div class="hero">
-            <div class="eyebrow">WEEKLY OPERATIONS REPORT</div>
-            <div class="title">{escape(title)}</div>
-            <div class="subtitle">
-                생성 시각 {escape(generated_at)}<br/>
-                이번 기간 {escape(_text(window.get("window_start")))} ~ {escape(_text(window.get("window_end")))}<br/>
-                비교 기간 {escape(_text(previous_window.get("window_start")))} ~ {escape(_text(previous_window.get("window_end")))}
-            </div>
-        </div>
 
-        <div class="section">
-            <div class="section-title">주간 지표 요약</div>
-            <table>
-                <tr>{_build_metric_cards(summary, comparisons)}</tr>
-            </table>
-        </div>
-
-        <div class="section">
-            <div class="section-title">AI 종합 해석</div>
-            <div class="interpretation-box">
-                <div class="interpretation-headline">{escape(_text(interpretation.get("headline"), "이번 주 운영 해석"))}</div>
-            </div>
-            <div class="column-title">기획팀 권장 액션</div>
-            {_build_actions(interpretation.get("actions", []))}
-        </div>
-
-        <div class="section">
-            <div class="section-title">핵심 비율과 진행 현황</div>
-            <table>{_build_summary_table(summary)}</table>
-        </div>
-
-        <div class="section">
-            <div class="section-title">주간 분포 차트</div>
-            {_build_chart_gallery(report)}
-        </div>
-
-        <div class="section">
-            <div class="section-title">우선 확인이 필요한 문의</div>
-            {_build_review_cards(report.get("review_rows", []))}
-        </div>
-
-        <div class="section">
-            <div class="section-title">분석 원본 미리보기</div>
-            <div class="analysis-note">탭 화면과 동일하게 상위 {ANALYSIS_PREVIEW_LIMIT}건만 먼저 정리했습니다.</div>
-            <table class="analysis-table">
+        <!-- 헤더 -->
+        <div class="header">
+            <table class="header-inner">
                 <tr>
-                    <th>분석 번호</th>
-                    <th>문의 번호</th>
-                    <th>문의 제목</th>
-                    <th>문의 분류</th>
-                    <th>위험도</th>
-                    <th>다음 처리</th>
+                    <td>
+                        <div class="eyebrow">WEEKLY OPERATIONS REPORT</div>
+                        <div class="h-title">{escape(title)}</div>
+                    </td>
+                    <td style="text-align:right;vertical-align:middle;">
+                        <div class="gen-date">생성 일자&nbsp;&nbsp;<strong>{escape(gen_at)}</strong></div>
+                        <div class="period">분석 기간&nbsp;&nbsp;{escape(w_start)} ~ {escape(w_end)}</div>
+                    </td>
                 </tr>
-                {_build_analysis_table(report.get("analysis_rows", []))}
             </table>
         </div>
+
+        <!-- AI 요약 -->
+        <div class="sec-title">AI 요약</div>
+        <div class="card ai-card">
+            {_build_ai_section(report)}
+        </div>
+
+        <!-- 주간 지표 -->
+        <div class="sec-title">주간 지표 — 총 응대 건수</div>
+        <div style="margin-bottom:10px;">
+            {_build_category_blocks(report)}
+        </div>
+
+        <!-- 급증·위험 문의 현황 -->
+        <div class="sec-title">급증·위험 문의 현황</div>
+        {_build_spike_section(spike)}
+
+        <!-- 유저 개선 요청 Top 5 -->
+        <div class="sec-title">유저 개선 요청 Top 5</div>
+        {_build_top5_section(top_requests)}
+
+        <div class="footer">
+            자동 생성 · {escape(gen_at)} &nbsp;|&nbsp; 분석 기준: {escape(w_start)} 00:00 ~ {escape(w_end)} 23:59
+        </div>
+
     </body>
     </html>
     """
 
 
 def render_report_pdf(report: dict[str, Any]) -> bytes:
-    """주간 보고서 페이로드를 PDF 바이트로 렌더링한다.
-
-    xhtml2pdf(pisa)로 HTML → PDF를 변환하며,
-    link_callback으로 로컬 폰트·이미지 경로를 OS 경로로 변환한다.
-    렌더링 오류 시 result.err가 True가 되므로 즉시 RuntimeError를 발생시킨다.
-    """
     html = _build_html(report)
     buffer = io.BytesIO()
     result = pisa.CreatePDF(src=html, dest=buffer, encoding="utf-8", link_callback=_resolve_resource_path)

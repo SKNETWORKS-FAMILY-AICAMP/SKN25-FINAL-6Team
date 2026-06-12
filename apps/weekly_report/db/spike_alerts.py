@@ -182,27 +182,37 @@ def _calculate_wow_by_day(window: dict[str, Any]) -> list[dict[str, Any]]:
     current_by_dow = {int(r["dow"]): (r["day_name"].strip(), int(r["cnt"])) for r in current_rows}
     prev_by_dow = {int(r["dow"]): int(r["cnt"]) for r in prev_rows}
 
+    # DOW 1(월)~7(일) 전체를 순서대로 반환 — 데이터 없는 요일도 0건으로 포함해 7일 바차트에 사용.
     results = []
-    for dow, (day_name, this_cnt) in current_by_dow.items():
+    for dow in range(1, 8):
+        if dow in current_by_dow:
+            day_name, this_cnt = current_by_dow[dow]
+        else:
+            day_name = _DOW_NAMES_KO[dow]
+            this_cnt = 0
+
         prev_cnt = prev_by_dow.get(dow, 0)
         if prev_cnt == 0:
-            # 전주 해당 요일 데이터가 없으면 이번 주 건수 전체를 증가로 처리한다.
             pct_change = float(this_cnt) if this_cnt > 0 else 0.0
         else:
             pct_change = (this_cnt - prev_cnt) / prev_cnt
 
-        level = _wow_level(pct_change)
-        if level != "normal":
-            results.append({
-                "day": day_name,
-                "this_week": this_cnt,
-                "prev_week": prev_cnt,
-                "pct_change": round(pct_change, 4),
-                "level": level,
-            })
+        results.append({
+            "dow": dow,
+            "day": day_name,
+            "this_week": this_cnt,
+            "prev_week": prev_cnt,
+            "pct_change": round(pct_change, 4),
+            "level": _wow_level(pct_change),
+        })
 
-    return sorted(results, key=lambda x: -x["pct_change"])
+    return results
 
+
+_DOW_NAMES_KO: dict[int, str] = {
+    1: "월요일", 2: "화요일", 3: "수요일",
+    4: "목요일", 5: "금요일", 6: "토요일", 7: "일요일",
+}
 
 # week_offset → 한국어 레이블 (0=이번 주, -1=1주 전, ...)
 _WEEK_LABELS = {0: "이번 주", -1: "1주 전", -2: "2주 전", -3: "3주 전"}
@@ -298,9 +308,10 @@ def build_spike_slack_blocks(alerts: dict[str, Any]) -> list[dict]:
             {"type": "section", "text": {"type": "mrkdwn", "text": "\n".join(lines)}}
         )
 
-    if daily:
+    anomaly_daily = [d for d in daily if d.get("level") != "normal"]
+    if anomaly_daily:
         lines = ["*[일별 폭증 감지]*"]
-        for item in daily:
+        for item in anomaly_daily:
             pct = item["pct_change"] * 100
             lines.append(f"{item['day']}  {pct:+.1f}%  ({item['level']})")
         blocks.append(
