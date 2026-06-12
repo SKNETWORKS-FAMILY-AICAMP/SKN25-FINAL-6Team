@@ -3,8 +3,10 @@
 venv
 env
 __pycache__
+**/__pycache__
 *.pyc
 .pytest_cache
+**/.pytest_cache
 .mypy_cache
 .ruff_cache
 logs
@@ -12,4 +14,4 @@ notebooks
 .env
 .env.*
 !.env.example
-
+htmlcov
