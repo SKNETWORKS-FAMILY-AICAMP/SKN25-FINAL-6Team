@@ -270,12 +270,14 @@ def get_cs_auto_api_contract() -> dict[str, object]:
         "detail_payload_sections": ["ticket", "evidence", "safety", "history", "operationLogs"],
         "draft_update_side_effects": [
             "answer_draft.draft_text overwrite",
-            "admin_event_logs event_type = draft_updated",
+            # admin_event_logs 테이블 사용 중단으로 이벤트 로그 적재 설명은 비활성화한다.
+            # "admin_event_logs event_type = draft_updated",
         ],
         "approval_side_effects": [
             "final_response insert",
             "qa_ticket.status = resolved",
-            "admin_event_logs event_type = draft_approved",
+            # admin_event_logs 테이블 사용 중단으로 이벤트 로그 적재 설명은 비활성화한다.
+            # "admin_event_logs event_type = draft_approved",
         ],
         "frontend_detail_visibility": {
             "batch_draft_visible": True,

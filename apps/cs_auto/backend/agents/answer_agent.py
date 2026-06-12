@@ -8,6 +8,7 @@ through docsearch, while answer composition happens in this module.
 from __future__ import annotations
 
 import json
+import logging
 from datetime import datetime
 import os
 from typing import Any, Literal
@@ -19,7 +20,7 @@ from psycopg.rows import dict_row
 from pydantic import BaseModel, ConfigDict, Field
 
 # backend 작업 디렉터리 기준으로 에이전트 모듈 경로를 맞춘다.
-from agents.tool.dbsearch import DbSearchRouter, EvidenceItem
+from agents.tool.dbsearch import DbSearchRouter
 from agents.tool.docsearch import DocumentRetriever
 from common.db.connection import db_connection
 from common.llm.client import get_chat_llm
@@ -27,6 +28,8 @@ from common.observability.langsmith import configure_langsmith
 
 
 configure_langsmith("operation")
+
+logger = logging.getLogger(__name__)
 
 
 RoutingTarget = Literal["DB_only", "doc_only", "DB&DOC", "fixed_answer"]
@@ -171,6 +174,59 @@ def _next_integer_id(cur: Any, table_name: str, id_column: str) -> int:
     cur.execute(f"SELECT COALESCE(MAX({id_column}), 0) + 1 AS next_id FROM {table_name}")
     row = cur.fetchone()
     return int(row[0])
+
+
+# varchar(n) 컬럼 길이를 스키마에서 읽어서 저장 직전 문자열을 공통 정규화한다.
+def _load_bounded_varchar_limits(
+    cur: Any,
+    table_name: str,
+    schema_name: str = "public",
+) -> dict[str, int]:
+    cur.execute(
+        """
+        SELECT
+            column_name,
+            character_maximum_length
+        FROM information_schema.columns
+        WHERE table_schema = %s
+          AND table_name = %s
+          AND data_type = 'character varying'
+          AND character_maximum_length IS NOT NULL
+        """,
+        (schema_name, table_name),
+    )
+    rows = cur.fetchall()
+    return {
+        str(column_name): int(max_length)
+        for column_name, max_length in rows
+        if column_name and max_length
+    }
+
+
+# None 은 그대로 두고, 문자열 제한이 있는 컬럼만 문자열 변환 및 길이 방어를 적용한다.
+def _normalize_bounded_varchar_payload(
+    payload: dict[str, object],
+    varchar_limits: dict[str, int],
+    table_name: str,
+) -> dict[str, object]:
+    normalized_payload = dict(payload)
+    for column_name, max_length in varchar_limits.items():
+        raw_value = normalized_payload.get(column_name)
+        if raw_value is None:
+            continue
+
+        string_value = str(raw_value)
+        if len(string_value) > max_length:
+            logger.warning(
+                "answer_agent truncating oversized varchar value before insert: table=%s column=%s max_length=%s original_length=%s",
+                table_name,
+                column_name,
+                max_length,
+                len(string_value),
+            )
+            string_value = string_value[:max_length]
+        normalized_payload[column_name] = string_value
+    return normalized_payload
 
 
 class AnswerTargetRepository:
@@ -517,6 +573,16 @@ class AnswerDraftRepository:
         with db_connection() as conn:
             with conn.cursor() as cur:
                 safety_id = _next_integer_id(cur, "safety_results", "safety_id")
+                varchar_limits = _load_bounded_varchar_limits(cur, "safety_results")
+                # safety_results 의 문자열 컬럼은 스키마 기준으로 길이를 맞춘 뒤 저장한다.
+                insert_payload = _normalize_bounded_varchar_payload(
+                    payload={
+                        "safety_action": safety.safety_action,
+                        "safety_reason": safety.safety_reason,
+                    },
+                    varchar_limits=varchar_limits,
+                    table_name="safety_results",
+                )
                 cur.execute(
                     """
                     INSERT INTO safety_results (
@@ -534,6 +600,17 @@ class AnswerDraftRepository:
                     VALUES (%s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, %s, %s, %s)
                     RETURNING safety_id
                     """,
+                    # (
+                    #     safety_id,
+                    #     draft_id,
+                    #     safety.hallucination_score,
+                    #     safety.toxicity_score,
+                    #     safety.policy_violation_score,
+                    #     safety.factuality_score,
+                    #     safety.safety_action,
+                    #     safety.safety_reason,
+                    #     safety.retry_count,
+                    # )
                     (
                         safety_id,
                         draft_id,
@@ -541,8 +618,8 @@ class AnswerDraftRepository:
                         safety.toxicity_score,
                         safety.policy_violation_score,
                         safety.factuality_score,
-                        safety.safety_action,
-                        safety.safety_reason,
+                        insert_payload.get("safety_action"),
+                        insert_payload.get("safety_reason"),
                         safety.retry_count,
                     ),
                 )

@@ -37,6 +37,34 @@ docker-compose --env-file .\.env up -d --build
 docker compose --env-file .\.env ps
 ```
 
+## Split Deploy
+
+If web/API and Airflow run on different EC2 instances, use separate compose files.
+Use separate env files such as `.env.web` and `.env.airflow`. They are still ignored by git because the repo ignores `.env.*`.
+
+### Web/API server
+
+```bash
+cd apps/cs_auto/deploy
+copy .env.web.example .env.web
+docker compose -f docker-compose.web.yml --env-file .\.env.web up -d --build
+docker compose -f docker-compose.web.yml --env-file .\.env.web ps
+```
+
+### Airflow server
+
+```bash
+cd apps/cs_auto/deploy
+copy .env.airflow.example .env.airflow
+docker compose -f docker-compose.airflow.yml --env-file .\.env.airflow up -d --build
+docker compose -f docker-compose.airflow.yml --env-file .\.env.airflow ps
+```
+
+Recommended env file names:
+
+- Web/API server: `.env.web`
+- Airflow server: `.env.airflow`
+
 Airflow 컨테이너는 `apps/cs_auto/backend/airflow`의 DAG를 읽고, 이미지에 포함된 `data/keywords`와 LLM 환경변수로 분석 agent를 실행한다. `cs-auto` 컨테이너는 nginx가 정적 HTML을 제공하면서 FastAPI/Uvicorn으로 `/api/cs-auto/*`를 프록시한다.
 
 ## Airflow DAG Deploy
@@ -77,5 +105,26 @@ powershell -ExecutionPolicy Bypass -File .\scripts\verify-airflow-deploy.ps1
 2. Airflow UI(`http://<EC2_HOST>:18080`)에서 `cs_auto_analysis_agent_daily`가 보이는지 확인
 3. DAG를 수동 실행하거나 스케줄 시각 이후 run log에서 `run_analysis_agent` task 성공 여부 확인
 
+
+## Airflow old run 정리
+
+`queued` 또는 `running` 상태로 남아 있는 예전 run 이 새 검증을 방해하면, Airflow 컨테이너 안에서 대상 DAG run 상태를 먼저 확인한 뒤 정리한다.
+
+```powershell
+docker compose --env-file .\.env exec airflow airflow dags list-runs -d cs_auto_answer_agent_daily
+docker compose --env-file .\.env exec airflow airflow dags state cs_auto_answer_agent_daily <run_id> failed
+```
+
+특정 실행일 기준으로 task instance 를 다시 비워야 하면 아래처럼 정리한다.
+
+```powershell
+docker compose --env-file .\.env exec airflow airflow tasks clear cs_auto_answer_agent_daily --start-date <YYYY-MM-DDTHH:MM:SS+09:00> --end-date <YYYY-MM-DDTHH:MM:SS+09:00> --yes
+```
+
+재검증 순서는 다음 기준으로 맞춘다.
+
+1. old run 을 `failed` 처리하거나 필요한 범위만 `clear` 한다.
+2. `cs_auto_answer_agent_daily` 를 다시 trigger 한다.
+3. `run_answer_agent` task log 에서 `draft`, `evidence`, `safety_results` 저장 완료 여부와 `StringDataRightTruncation` 재발 여부를 확인한다.
 
 http://localhost/cs-auto/cs_automation.html

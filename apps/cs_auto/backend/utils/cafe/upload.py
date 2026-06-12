@@ -8,8 +8,6 @@ from __future__ import annotations
 import os
 
 from psycopg.rows import dict_row
-from psycopg.types.json import Json
-
 from common.db.connection import db_connection
 
 
@@ -107,7 +105,7 @@ def record_cafe_upload_result(
     네이버 카페 댓글 업로드 결과를 운영 로그에 기록한다.
 
     예상 내용:
-    - 성공 또는 실패 결과를 notification_logs나 admin_event_logs에 남긴다.
+    - 성공 또는 실패 결과를 notification_logs에 남긴다.
     - ticket_id, response_id, 업로드 대상, status, error_message를 추적 가능하게 저장한다.
     - 프론트엔드가 업로드 완료 또는 재시도 필요 상태를 표시할 수 있는 payload를 반환한다.
     """
@@ -139,25 +137,26 @@ def record_cafe_upload_result(
                 ),
             )
             notification = cur.fetchone()
-            cur.execute(
-                """
-                INSERT INTO admin_event_logs (
-                    ticket_id,
-                    node_name,
-                    event_type,
-                    status,
-                    metadata
-                )
-                VALUES (%s, %s, %s, %s, %s)
-                """,
-                (
-                    ticket_id,
-                    "cs_auto_cafe_upload",
-                    "cafe_comment_upload",
-                    status,
-                    Json({"response_id": response_id, "upload_result": upload_result}),
-                ),
-            )
+            # admin_event_logs 테이블 사용 중단으로 카페 업로드 이벤트 적재는 비활성화한다.
+            # cur.execute(
+            #     """
+            #     INSERT INTO admin_event_logs (
+            #         ticket_id,
+            #         node_name,
+            #         event_type,
+            #         status,
+            #         metadata
+            #     )
+            #     VALUES (%s, %s, %s, %s, %s)
+            #     """,
+            #     (
+            #         ticket_id,
+            #         "cs_auto_cafe_upload",
+            #         "cafe_comment_upload",
+            #         status,
+            #         Json({"response_id": response_id, "upload_result": upload_result}),
+            #     ),
+            # )
 
     return {
         "ticket_id": ticket_id,

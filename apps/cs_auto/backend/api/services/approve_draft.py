@@ -3,7 +3,6 @@ from __future__ import annotations
 from datetime import datetime
 
 from psycopg.rows import dict_row
-from psycopg.types.json import Json
 
 from common.db.connection import db_connection
 
@@ -81,35 +80,36 @@ def approve_answer_draft(
                 (RESOLVED_TICKET_STATUS, ticket_id),
             )
 
-            cur.execute(
-                """
-                INSERT INTO admin_event_logs (
-                    ticket_id,
-                    node_name,
-                    event_type,
-                    status,
-                    metadata,
-                    actor_admin_id
-                )
-                VALUES (%s, %s, %s, %s, %s, %s)
-                """,
-                (
-                    ticket_id,
-                    REVIEW_API_NODE_NAME,
-                    DRAFT_APPROVED_EVENT_TYPE,
-                    SUCCESS_STATUS,
-                    Json(
-                        {
-                            "draft_id": draft_id,
-                            "response_id": response_row["response_id"] if response_row else None,
-                            "edit_reason": str(edit_reason or ""),
-                            "final_text_length": len(cleaned_text),
-                            "approved_at": datetime.utcnow().isoformat(),
-                        }
-                    ),
-                    admin_id,
-                ),
-            )
+            # admin_event_logs 테이블 사용 중단으로 승인 이벤트 적재는 비활성화한다.
+            # cur.execute(
+            #     """
+            #     INSERT INTO admin_event_logs (
+            #         ticket_id,
+            #         node_name,
+            #         event_type,
+            #         status,
+            #         metadata,
+            #         actor_admin_id
+            #     )
+            #     VALUES (%s, %s, %s, %s, %s, %s)
+            #     """,
+            #     (
+            #         ticket_id,
+            #         REVIEW_API_NODE_NAME,
+            #         DRAFT_APPROVED_EVENT_TYPE,
+            #         SUCCESS_STATUS,
+            #         Json(
+            #             {
+            #                 "draft_id": draft_id,
+            #                 "response_id": response_row["response_id"] if response_row else None,
+            #                 "edit_reason": str(edit_reason or ""),
+            #                 "final_text_length": len(cleaned_text),
+            #                 "approved_at": datetime.utcnow().isoformat(),
+            #             }
+            #         ),
+            #         admin_id,
+            #     ),
+            # )
 
     ticket = fetch_ticket_detail(ticket_id)
     if ticket is None:

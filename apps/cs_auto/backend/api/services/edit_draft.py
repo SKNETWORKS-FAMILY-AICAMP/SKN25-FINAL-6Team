@@ -3,7 +3,6 @@ from __future__ import annotations
 from datetime import datetime
 
 from psycopg.rows import dict_row
-from psycopg.types.json import Json
 
 from common.db.connection import db_connection
 
@@ -44,34 +43,35 @@ def update_answer_draft(
                 """,
                 (cleaned_text, draft_id, ticket_id),
             )
-            cur.execute(
-                """
-                INSERT INTO admin_event_logs (
-                    ticket_id,
-                    node_name,
-                    event_type,
-                    status,
-                    metadata,
-                    actor_admin_id
-                )
-                VALUES (%s, %s, %s, %s, %s, %s)
-                """,
-                (
-                    ticket_id,
-                    "cs_auto_review_api",
-                    "draft_updated",
-                    "success",
-                    Json(
-                        {
-                            "draft_id": draft_id,
-                            "edit_reason": str(edit_reason or ""),
-                            "edited_text_length": len(cleaned_text),
-                            "edited_at": datetime.utcnow().isoformat(),
-                        }
-                    ),
-                    admin_id,
-                ),
-            )
+            # admin_event_logs 테이블 사용 중단으로 초안 수정 이벤트 적재는 비활성화한다.
+            # cur.execute(
+            #     """
+            #     INSERT INTO admin_event_logs (
+            #         ticket_id,
+            #         node_name,
+            #         event_type,
+            #         status,
+            #         metadata,
+            #         actor_admin_id
+            #     )
+            #     VALUES (%s, %s, %s, %s, %s, %s)
+            #     """,
+            #     (
+            #         ticket_id,
+            #         "cs_auto_review_api",
+            #         "draft_updated",
+            #         "success",
+            #         Json(
+            #             {
+            #                 "draft_id": draft_id,
+            #                 "edit_reason": str(edit_reason or ""),
+            #                 "edited_text_length": len(cleaned_text),
+            #                 "edited_at": datetime.utcnow().isoformat(),
+            #             }
+            #         ),
+            #         admin_id,
+            #     ),
+            # )
 
     ticket = fetch_ticket_detail(ticket_id)
     if ticket is None:

@@ -1,0 +1,27 @@
+services:
+  cs-auto:
+    build:
+      context: ../../..
+      dockerfile: apps/cs_auto/deploy/docker/cs-auto.Dockerfile
+    image: skn25-cs-auto:latest
+    container_name: cs-auto
+    restart: unless-stopped
+    environment:
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      DB_CONNECT_TIMEOUT: ${DB_CONNECT_TIMEOUT:-15}
+      LLM_API_KEY: ${LLM_API_KEY}
+      LLM_MODEL: ${LLM_MODEL}
+      CS_AUTO_ROUTING_MODEL: ${CS_AUTO_ROUTING_MODEL:-}
+      LLM_TIMEOUT_SECONDS: ${LLM_TIMEOUT_SECONDS:-60}
+      CS_AUTO_REGENERATION_LIMIT: ${CS_AUTO_REGENERATION_LIMIT:-3}
+      CS_AUTO_CORS_ORIGINS: ${CS_AUTO_CORS_ORIGINS:-*}
+      NAVER_CAFE_COMMENT_ENDPOINT: ${NAVER_CAFE_COMMENT_ENDPOINT:-}
+      OPERATION_LANGSMITH_TRACING: ${OPERATION_LANGSMITH_TRACING:-}
+      OPERATION_LANGSMITH_API_KEY: ${OPERATION_LANGSMITH_API_KEY:-}
+      OPERATION_LANGSMITH_PROJECT: ${OPERATION_LANGSMITH_PROJECT:-}
+    ports:
+      - "${CS_AUTO_HTTP_PORT:-80}:80"

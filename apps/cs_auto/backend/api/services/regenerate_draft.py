@@ -3,7 +3,6 @@ from __future__ import annotations
 from datetime import datetime
 
 from psycopg.rows import dict_row
-from psycopg.types.json import Json
 
 from agents.answer_agent import (
     AnswerAgent,
@@ -83,36 +82,38 @@ def regenerate_answer_draft(
 
         with db_connection() as conn:
             with conn.cursor() as cur:
-                cur.execute(
-                    """
-                    INSERT INTO admin_event_logs (
-                        ticket_id,
-                        node_name,
-                        event_type,
-                        status,
-                        metadata,
-                        actor_admin_id
-                    )
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                    """,
-                    (
-                        ticket_id,
-                        "cs_auto_review_api",
-                        "draft_regenerated",
-                        "success",
-                        Json(
-                            {
-                                "previous_draft_id": draft_id,
-                                "new_draft_id": new_draft_id,
-                                "safety_id": safety_id,
-                                "retry_count": safety_result.retry_count,
-                                "regeneration_reason": cleaned_reason,
-                                "regenerated_at": datetime.utcnow().isoformat(),
-                            }
-                        ),
-                        admin_id,
-                    ),
-                )
+                # admin_event_logs 테이블 사용 중단으로 재생성 이벤트 적재는 비활성화한다.
+                # cur.execute(
+                #     """
+                #     INSERT INTO admin_event_logs (
+                #         ticket_id,
+                #         node_name,
+                #         event_type,
+                #         status,
+                #         metadata,
+                #         actor_admin_id
+                #     )
+                #     VALUES (%s, %s, %s, %s, %s, %s)
+                #     """,
+                #     (
+                #         ticket_id,
+                #         "cs_auto_review_api",
+                #         "draft_regenerated",
+                #         "success",
+                #         Json(
+                #             {
+                #                 "previous_draft_id": draft_id,
+                #                 "new_draft_id": new_draft_id,
+                #                 "safety_id": safety_id,
+                #                 "retry_count": safety_result.retry_count,
+                #                 "regeneration_reason": cleaned_reason,
+                #                 "regenerated_at": datetime.utcnow().isoformat(),
+                #             }
+                #         ),
+                #         admin_id,
+                #     ),
+                # )
+                pass
 
         ticket = fetch_ticket_detail(ticket_id)
         if ticket is None:

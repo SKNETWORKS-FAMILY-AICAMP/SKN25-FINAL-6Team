@@ -329,6 +329,46 @@ def test_answer_target_model_accepts_live_shape() -> None:
     assert target.routing_target == "DB&DOC"
 
 
+def test_normalize_bounded_varchar_payload_truncates_and_stringifies() -> None:
+    payload = {
+        "safety_action": "approved",
+        "safety_reason": "a" * 300,
+        "retry_count": 2,
+    }
+
+    normalized = answer_agent._normalize_bounded_varchar_payload(
+        payload=payload,
+        varchar_limits={
+            "safety_action": 100,
+            "safety_reason": 255,
+        },
+        table_name="safety_results",
+    )
+
+    assert normalized["safety_action"] == "approved"
+    assert normalized["safety_reason"] == "a" * 255
+    assert normalized["retry_count"] == 2
+
+
+def test_normalize_bounded_varchar_payload_keeps_none_and_converts_non_string() -> None:
+    payload = {
+        "safety_action": None,
+        "safety_reason": 12345,
+    }
+
+    normalized = answer_agent._normalize_bounded_varchar_payload(
+        payload=payload,
+        varchar_limits={
+            "safety_action": 100,
+            "safety_reason": 255,
+        },
+        table_name="safety_results",
+    )
+
+    assert normalized["safety_action"] is None
+    assert normalized["safety_reason"] == "12345"
+
+
 def test_answer_safety_router_uses_fixed_answer_when_safety_fails() -> None:
     target = answer_agent.AnswerTarget.model_validate(
         {

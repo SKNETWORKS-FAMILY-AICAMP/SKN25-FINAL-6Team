@@ -9,7 +9,6 @@ import uuid
 
 import bcrypt
 from psycopg.rows import dict_row
-from psycopg.types.json import Json
 
 from common.db.connection import db_connection
 
@@ -63,25 +62,26 @@ def verify_admin_user_credentials(login_id: str, password: str) -> dict[str, obj
                 """,
                 (admin_user["admin_id"],),
             )
-            cur.execute(
-                """
-                INSERT INTO admin_event_logs (
-                    node_name,
-                    event_type,
-                    status,
-                    metadata,
-                    actor_admin_id
-                )
-                VALUES (%s, %s, %s, %s, %s)
-                """,
-                (
-                    "cs_auto_auth",
-                    "login",
-                    "success",
-                    Json({"login_id": admin_user["login_id"], "role": admin_user["role"]}),
-                    admin_user["admin_id"],
-                ),
-            )
+            # admin_event_logs 테이블 사용 중단으로 로그인 이벤트 적재는 비활성화한다.
+            # cur.execute(
+            #     """
+            #     INSERT INTO admin_event_logs (
+            #         node_name,
+            #         event_type,
+            #         status,
+            #         metadata,
+            #         actor_admin_id
+            #     )
+            #     VALUES (%s, %s, %s, %s, %s)
+            #     """,
+            #     (
+            #         "cs_auto_auth",
+            #         "login",
+            #         "success",
+            #         Json({"login_id": admin_user["login_id"], "role": admin_user["role"]}),
+            #         admin_user["admin_id"],
+            #     ),
+            # )
 
     return {
         "authenticated": True,
@@ -100,7 +100,7 @@ def create_admin_session(admin_user: dict[str, object]) -> dict[str, object]:
     예상 내용:
     - admin_id와 role을 기준으로 API 접근 범위를 정한다.
     - 세션 토큰 또는 쿠키 기반 인증 정보를 발급한다.
-    - last_login_at 갱신과 admin_event_logs 로그인 이벤트 기록에 필요한 값을 준비한다.
+    - last_login_at 갱신에 필요한 값을 준비한다.
     """
 
     session_id = uuid.uuid4().hex
@@ -120,30 +120,32 @@ def revoke_admin_session(session_id: str | None, admin_id: int | None = None) ->
     예상 내용:
     - api.main.api_logout_operator에서 호출한다.
     - 세션 저장소나 토큰 블랙리스트 정책에 따라 현재 로그인 상태를 종료한다.
-    - admin_event_logs에 logout 이벤트를 기록할 수 있는 결과를 반환한다.
+    - 로그아웃 처리 결과를 반환한다.
     """
 
     if admin_id is not None:
         with db_connection() as conn:
             with conn.cursor() as cur:
-                cur.execute(
-                    """
-                    INSERT INTO admin_event_logs (
-                        node_name,
-                        event_type,
-                        status,
-                        metadata,
-                        actor_admin_id
-                    )
-                    VALUES (%s, %s, %s, %s, %s)
-                    """,
-                    (
-                        "cs_auto_auth",
-                        "logout",
-                        "success",
-                        Json({"session_id": session_id}),
-                        admin_id,
-                    ),
-                )
+                # admin_event_logs 테이블 사용 중단으로 로그아웃 이벤트 적재는 비활성화한다.
+                # cur.execute(
+                #     """
+                #     INSERT INTO admin_event_logs (
+                #         node_name,
+                #         event_type,
+                #         status,
+                #         metadata,
+                #         actor_admin_id
+                #     )
+                #     VALUES (%s, %s, %s, %s, %s)
+                #     """,
+                #     (
+                #         "cs_auto_auth",
+                #         "logout",
+                #         "success",
+                #         Json({"session_id": session_id}),
+                #         admin_id,
+                #     ),
+                # )
+                pass
 
     return {"revoked": True, "session_id": session_id, "admin_id": admin_id}
