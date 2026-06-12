@@ -7,4 +7,5 @@ class SlackReportError(RuntimeError):
     """Slack 전송이 거부되거나 업로드에 실패했을 때 발생한다.
 
     설정 오류(토큰 없음, 채널 없음)와 API 오류(채널 미초대, 파일 오류) 모두 이 예외로 통일한다.
+    RuntimeError를 상속하는 이유: 호출부(Airflow DAG, CLI)가 단일 타입으로 catch할 수 있게 하기 위함.
     """

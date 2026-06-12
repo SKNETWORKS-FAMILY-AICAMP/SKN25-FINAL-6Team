@@ -1,9 +1,15 @@
-"""컬럼·값·섹션 레이블 한국어 매핑."""
+"""컬럼·값·섹션 레이블 한국어 매핑.
+
+PDF·Slack 렌더러가 DB 컬럼명이나 enum 값을 운영자가 읽기 좋은 한국어로 변환할 때 사용한다.
+새 컬럼이나 값이 추가되면 여기에도 항목을 추가해야 translate_* 함수에서 원문이 그대로 노출되지 않는다.
+"""
 
 from __future__ import annotations
 
 from typing import Any
 
+# DB 컬럼명 → 한국어 레이블 매핑.
+# 키는 소문자 snake_case DB 컬럼명 또는 페이로드 dict 키와 일치해야 한다.
 COLUMN_LABELS: dict[str, str] = {
     "account_id": "계정 번호",
     "account_status": "계정 상태",
@@ -117,6 +123,8 @@ COLUMN_LABELS: dict[str, str] = {
     "voc_type": "VOC 유형",
 }
 
+# DB/API enum 값 → 한국어 레이블 매핑.
+# 키는 소문자로 정규화한 값이어야 한다 (translate_value 내부에서 .lower() 처리).
 VALUE_LABELS: dict[str, str] = {
     "all": "전체",
     "analysis": "분석",
@@ -185,6 +193,7 @@ VALUE_LABELS: dict[str, str] = {
     "web": "웹 문의",
 }
 
+# 보고서 섹션 식별자 → 한국어 제목 매핑.
 SECTION_LABELS: dict[str, str] = {
     "admin_event_logs": "운영 처리 이력",
     "failed_queries": "조회 실패 기록",
@@ -194,6 +203,8 @@ SECTION_LABELS: dict[str, str] = {
     "refunds": "환불 기록",
 }
 
+# 이 키들의 값은 항상 VALUE_LABELS를 통해 번역한다.
+# 여기 포함되지 않은 키의 값은 VALUE_LABELS에 정확히 일치할 때만 번역된다.
 TRANSLATABLE_KEYS = {
     "severity",
     "status",
@@ -216,17 +227,30 @@ TRANSLATABLE_KEYS = {
 
 
 def translate_label(label: str) -> str:
+    """DB 컬럼명을 한국어 레이블로 변환한다. 매핑이 없으면 원문을 그대로 반환한다."""
     return COLUMN_LABELS.get(label, label)
 
 
 def translate_value(value: Any, *, key: str | None = None) -> Any:
+    """값을 한국어로 변환한다.
+
+    변환 우선순위:
+    1. None/빈 문자열 → "-"
+    2. bool → "예"/"아니오"
+    3. key == "column" → translate_label (컬럼명 자체가 값인 경우)
+    4. key가 TRANSLATABLE_KEYS에 포함 → 쉼표 구분 값 각각 VALUE_LABELS 변환
+    5. str이고 VALUE_LABELS에 정확히 존재 → 번역
+    6. 나머지 → 원문 반환
+    """
     if value is None or value == "":
         return "-"
     if isinstance(value, bool):
         return "예" if value else "아니오"
+    # "column" 키의 값은 컬럼명이므로 COLUMN_LABELS로 변환한다.
     if key == "column" and isinstance(value, str):
         return translate_label(value)
     if key in TRANSLATABLE_KEYS and isinstance(value, str):
+        # "high, critical" 처럼 쉼표로 구분된 복합 값도 각각 번역한다.
         parts = [part.strip().lower() for part in value.split(",")]
         translated = [VALUE_LABELS.get(part, part if part else "-") for part in parts]
         return ", ".join(translated)
@@ -238,6 +262,10 @@ def translate_value(value: Any, *, key: str | None = None) -> Any:
 
 
 def localized_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """행 리스트의 모든 키·값을 한국어로 변환한 새 리스트를 반환한다.
+
+    원본 rows는 변경되지 않는다.
+    """
     return [
         {translate_label(key): translate_value(value, key=key) for key, value in row.items()}
         for row in rows

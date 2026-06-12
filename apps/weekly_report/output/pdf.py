@@ -15,14 +15,18 @@ from xhtml2pdf import pisa
 from utils.labels import translate_value
 
 
+# PDF 섹션별 미리보기 행 수 상한 — 너무 많으면 페이지가 넘쳐 레이아웃이 깨진다.
 REVIEW_PREVIEW_LIMIT = 5
 ANALYSIS_PREVIEW_LIMIT = 8
+# CSS @font-face에서 참조하는 폰트 패밀리 이름 (임의의 식별자).
 FONT_FAMILY_NAME = "DashboardKorean"
+# 운영자가 폰트 경로를 직접 지정할 때 사용하는 환경변수 이름.
 FONT_REGULAR_ENV = "DASHBOARD_WEEKLY_REPORT_FONT_REGULAR"
 FONT_BOLD_ENV = "DASHBOARD_WEEKLY_REPORT_FONT_BOLD"
 
 
 def _existing_font_path(value: str | None) -> Path | None:
+    """경로 문자열이 실제로 존재하면 Path 객체를 반환하고, 없으면 None을 반환한다."""
     if not value:
         return None
     candidate = Path(value).expanduser()
@@ -30,7 +34,18 @@ def _existing_font_path(value: str | None) -> Path | None:
 
 
 def _resolve_pdf_fonts() -> dict[str, Path] | None:
-    """주간 PDF에 사용할 실제 한글 폰트 파일을 찾는다."""
+    """주간 PDF에 사용할 실제 한글 폰트 파일을 찾는다.
+
+    우선순위:
+    1. 환경변수(DASHBOARD_WEEKLY_REPORT_FONT_*)로 명시된 경로
+    2. Windows 맑은 고딕 (bold 우선, 없으면 slim으로 대체)
+    3. Linux NanumGothic
+    4. Linux NotoSansCJK (truetype)
+    5. Linux NotoSansCJK (opentype)
+
+    Regular 폰트를 찾지 못하면 None을 반환해 @font-face CSS 없이 렌더링한다.
+    Bold만 없으면 Regular로 대체한다.
+    """
     candidate_pairs = [
         (
             os.environ.get(FONT_REGULAR_ENV),
@@ -62,15 +77,18 @@ def _resolve_pdf_fonts() -> dict[str, Path] | None:
         regular_path = _existing_font_path(regular_candidate)
         if regular_path is None:
             continue
+        # Bold 폰트가 없으면 Regular로 대체해 CSS에서 font-weight: bold가 무시되지 않게 한다.
         bold_path = _existing_font_path(bold_candidate) or regular_path
         return {"regular": regular_path, "bold": bold_path}
     return None
 
 
 def _font_face_css() -> str:
+    """사용 가능한 한글 폰트의 @font-face CSS를 반환한다. 폰트가 없으면 빈 문자열을 반환한다."""
     fonts = _resolve_pdf_fonts()
     if fonts is None:
         return ""
+    # xhtml2pdf는 file:// URI로 로컬 폰트를 로드하므로 as_uri()를 사용한다.
     regular_uri = fonts["regular"].resolve().as_uri()
     bold_uri = fonts["bold"].resolve().as_uri()
     return f"""
@@ -88,11 +106,16 @@ def _font_face_css() -> str:
 
 
 def _resolve_resource_path(uri: str, rel: str | None = None) -> str:
-    """xhtml2pdf가 로컬 파일을 읽을 때 사용할 경로를 정리한다."""
-    del rel
+    """xhtml2pdf link_callback — 로컬 파일 URI를 OS 경로로 변환한다.
+
+    xhtml2pdf가 img src나 @font-face src를 읽을 때 이 함수를 호출한다.
+    Windows에서 file:///C:/... 형식의 경로 앞에 붙는 '/'를 제거해야 정상 접근이 가능하다.
+    """
+    del rel  # xhtml2pdf가 넘겨주지만 여기서는 사용하지 않는다.
     parsed = urlparse(uri)
     if parsed.scheme == "file":
         path = unquote(parsed.path or "")
+        # Windows: "/C:/Windows/..." → "C:/Windows/..."
         if os.name == "nt" and path.startswith("/") and len(path) > 2 and path[2] == ":":
             path = path.lstrip("/")
         return path
@@ -104,11 +127,13 @@ def _resolve_resource_path(uri: str, rel: str | None = None) -> str:
 
 
 def _text(value: object, fallback: str = "-") -> str:
+    """None·빈 문자열을 fallback으로 치환해 HTML escape 전에 항상 문자열을 보장한다."""
     raw = str(value or "").strip()
     return raw if raw else fallback
 
 
 def _percent(value: object) -> str:
+    """float을 "12.3%" 형식으로 변환한다. 변환 불가 시 "-"를 반환한다."""
     try:
         return f"{float(value):.1%}"
     except (TypeError, ValueError):
@@ -116,6 +141,7 @@ def _percent(value: object) -> str:
 
 
 def _number(value: object) -> str:
+    """float을 천단위 구분 정수 문자열로 변환한다. 변환 불가 시 "-"를 반환한다."""
     try:
         return f"{float(value):,.0f}"
     except (TypeError, ValueError):
@@ -123,6 +149,7 @@ def _number(value: object) -> str:
 
 
 def _change_text(value: object) -> str:
+    """전주 대비 변화율 문자열을 운영자 친화적 텍스트로 변환한다."""
     text = _text(value)
     if text == "-":
         return "이전 주 비교 정보 없음"
@@ -132,14 +159,17 @@ def _change_text(value: object) -> str:
 
 
 def _translate_chart_label(value: object) -> str:
+    """차트 레이블 값을 한국어로 변환한다."""
     return str(translate_value(value, key="label"))
 
 
 def _limit_rows(rows: list[dict[str, Any]], limit: int) -> list[dict[str, Any]]:
+    """rows의 앞 limit개만 반환한다. PDF 섹션 길이를 제한하기 위해 사용한다."""
     return rows[:limit]
 
 
 def _build_metric_cards(summary: dict[str, Any], comparisons: dict[str, Any]) -> str:
+    """상단 4개 핵심 지표 카드의 HTML <td> 목록을 반환한다."""
     cards = [
         ("분석 건수", _number(summary.get("analysis_count")), _change_text(comparisons.get("analysis_count", {}).get("change_rate"))),
         ("고위험 문의", _number(summary.get("high_risk_count")), _change_text(comparisons.get("high_risk_count", {}).get("change_rate"))),
@@ -159,6 +189,7 @@ def _build_metric_cards(summary: dict[str, Any], comparisons: dict[str, Any]) ->
 
 
 def _build_summary_table(summary: dict[str, Any]) -> str:
+    """핵심 비율 8개를 레이블-값 2열 테이블 HTML로 반환한다."""
     rows = [
         ("응답률", _percent(summary.get("response_rate"))),
         ("분석 커버리지", _percent(summary.get("analysis_coverage_rate"))),
@@ -181,6 +212,11 @@ def _build_summary_table(summary: dict[str, Any]) -> str:
 
 
 def _build_actions(actions: list) -> str:
+    """AI 권장 액션 리스트를 번호 뱃지가 붙은 카드 HTML로 반환한다.
+
+    actions가 비어있으면 안내 문구를 반환해 섹션이 빈 채로 표시되지 않게 한다.
+    actions 항목이 dict가 아닌 경우(구버전 포맷)도 단순 텍스트로 렌더링한다.
+    """
     if not actions:
         return "<p class='muted'>이번 주에 바로 조치할 권장 항목이 없습니다.</p>"
     parts: list[str] = []
@@ -214,6 +250,7 @@ def _build_actions(actions: list) -> str:
 
 
 def _build_review_cards(rows: list[dict[str, Any]]) -> str:
+    """우선 확인 행을 카드 형태의 HTML로 반환한다. REVIEW_PREVIEW_LIMIT개까지만 표시한다."""
     if not rows:
         return "<p class='muted'>우선 확인이 필요한 문의가 없습니다.</p>"
 
@@ -242,6 +279,7 @@ def _build_review_cards(rows: list[dict[str, Any]]) -> str:
 
 
 def _build_analysis_table(rows: list[dict[str, Any]]) -> str:
+    """분석 원본 행을 6열 테이블의 <tr> HTML로 반환한다. ANALYSIS_PREVIEW_LIMIT개까지만 표시한다."""
     if not rows:
         return "<tr><td colspan='6' class='muted'>표시할 분석 원본이 없습니다.</td></tr>"
 
@@ -261,6 +299,11 @@ def _build_analysis_table(rows: list[dict[str, Any]]) -> str:
 
 
 def _chart_specs(report: dict[str, Any]) -> list[dict[str, Any]]:
+    """PDF에 렌더링할 차트 명세 리스트를 반환한다.
+
+    각 항목: {"title": str, "rows": list, "kind": "pie"|"bar"}
+    "처리 단계 비율"만 bar 차트이고 나머지는 파이 차트다.
+    """
     summary = report.get("summary", {})
     return [
         {"title": "문의 분류", "rows": report.get("category_distribution", []), "kind": "pie"},
@@ -282,6 +325,13 @@ def _chart_specs(report: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _build_plotly_chart_data_uri(title: str, rows: list[dict[str, Any]], *, kind: str) -> str | None:
+    """Plotly로 차트를 PNG로 렌더링한 뒤 data URI 문자열로 반환한다.
+
+    plotly가 설치되어 있지 않거나 이미지 생성에 실패하면 None을 반환한다.
+    None이 반환되면 _build_chart_gallery가 fallback 테이블로 대체 렌더링한다.
+    data URI 형식(data:image/png;base64,...)을 사용하는 이유는 xhtml2pdf가
+    외부 파일 경로 없이 인라인 이미지를 지원하기 때문이다.
+    """
     usable_rows = [row for row in rows if row.get("label") not in {None, ""} and row.get("value") not in {None, ""}]
     if not usable_rows:
         return None
@@ -294,6 +344,7 @@ def _build_plotly_chart_data_uri(title: str, rows: list[dict[str, Any]], *, kind
 
     labels = [_translate_chart_label(row.get("label")) for row in usable_rows]
     values = [float(row.get("value") or 0) for row in usable_rows]
+    # 고정 색상 팔레트 — 브랜드 컬러(teal/orange/blue 계열)와 구별이 쉬운 조합.
     colors = ["#0f766e", "#f97316", "#2563eb", "#e11d48", "#7c3aed", "#059669", "#d97706", "#475569"]
 
     if kind == "bar":
@@ -308,6 +359,7 @@ def _build_plotly_chart_data_uri(title: str, rows: list[dict[str, Any]], *, kind
                 )
             ]
         )
+        # Y축을 0~1(100%)로 고정해 비율 차트임을 명확히 한다.
         figure.update_yaxes(range=[0, 1], tickformat=".0%")
     else:
         figure = go.Figure(
@@ -315,7 +367,7 @@ def _build_plotly_chart_data_uri(title: str, rows: list[dict[str, Any]], *, kind
                 go.Pie(
                     labels=labels,
                     values=values,
-                    hole=0.45,
+                    hole=0.45,  # 도넛 차트 — 파이보다 중앙 공간이 있어 가독성이 좋다.
                     marker={"colors": colors[: len(values)]},
                     textinfo="percent+label",
                 )
@@ -333,6 +385,7 @@ def _build_plotly_chart_data_uri(title: str, rows: list[dict[str, Any]], *, kind
     )
 
     try:
+        # scale=2로 2배 해상도 PNG를 생성해 PDF에서 선명하게 보이게 한다.
         image_bytes = pio.to_image(figure, format="png", width=900, height=540, scale=2)
     except Exception:
         return None
@@ -341,10 +394,15 @@ def _build_plotly_chart_data_uri(title: str, rows: list[dict[str, Any]], *, kind
 
 
 def _build_chart_fallback_table(rows: list[dict[str, Any]], *, kind: str) -> str:
+    """Plotly 렌더링 실패 시 차트 데이터를 수치 테이블로 대체 표시한다.
+
+    bar 차트는 비율 형식, 파이 차트는 건수+비율 형식으로 표시한다.
+    """
     usable = [r for r in rows if r.get("label") not in {None, ""} and r.get("value") not in {None, ""}]
     if not usable:
         return "<div class='chart-empty'>표시할 데이터가 없습니다.</div>"
 
+    # 파이 차트 비율 계산용 합계. 0 방지를 위해 `or 1` 처리.
     total = sum(float(r.get("value") or 0) for r in usable) or 1
     table_rows = ""
     for row in usable[:8]:
@@ -361,6 +419,11 @@ def _build_chart_fallback_table(rows: list[dict[str, Any]], *, kind: str) -> str
 
 
 def _build_chart_gallery(report: dict[str, Any]) -> str:
+    """모든 차트를 2열 그리드 HTML 테이블로 조립한다.
+
+    각 차트는 Plotly 이미지 → fallback 테이블 → 빈 카드 순으로 대체된다.
+    셀 수가 홀수이면 마지막 행에 빈 <td>를 추가해 레이아웃을 맞춘다.
+    """
     cells: list[str] = []
     for spec in _chart_specs(report):
         image_data = _build_plotly_chart_data_uri(spec["title"], spec["rows"], kind=spec["kind"])
@@ -403,6 +466,7 @@ def _build_chart_gallery(report: dict[str, Any]) -> str:
     rows: list[str] = []
     for index in range(0, len(cells), 2):
         pair = cells[index : index + 2]
+        # 홀수 번째 셀이면 오른쪽 빈 셀로 채운다.
         if len(pair) == 1:
             pair.append("<td class='chart-cell'></td>")
         rows.append(f"<tr>{''.join(pair)}</tr>")
@@ -410,6 +474,7 @@ def _build_chart_gallery(report: dict[str, Any]) -> str:
 
 
 def _build_html(report: dict[str, Any]) -> str:
+    """report 페이로드 전체를 A4 PDF용 HTML 문자열로 변환한다."""
     summary = report.get("summary", {})
     comparisons = report.get("comparisons", {})
     interpretation = report.get("ai_interpretation", {}) or {}
@@ -744,7 +809,12 @@ def _build_html(report: dict[str, Any]) -> str:
 
 
 def render_report_pdf(report: dict[str, Any]) -> bytes:
-    """주간 보고서 페이로드를 PDF 바이트로 렌더링한다."""
+    """주간 보고서 페이로드를 PDF 바이트로 렌더링한다.
+
+    xhtml2pdf(pisa)로 HTML → PDF를 변환하며,
+    link_callback으로 로컬 폰트·이미지 경로를 OS 경로로 변환한다.
+    렌더링 오류 시 result.err가 True가 되므로 즉시 RuntimeError를 발생시킨다.
+    """
     html = _build_html(report)
     buffer = io.BytesIO()
     result = pisa.CreatePDF(src=html, dest=buffer, encoding="utf-8", link_callback=_resolve_resource_path)

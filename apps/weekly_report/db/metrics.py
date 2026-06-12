@@ -17,12 +17,19 @@ from utils.stats import rate
 
 
 def fetch(window: dict[str, Any]) -> dict[str, Any]:
-    """window 기간의 7개 핵심 KPI + 카테고리별 집계를 반환한다."""
+    """window 기간의 7개 핵심 KPI + 카테고리별 집계를 반환한다.
+
+    단일 커넥션 안에서 5개 쿼리를 순차 실행해 커넥션 오버헤드를 줄인다.
+    각 쿼리가 None을 반환할 수 있으므로 `or {}` 패턴으로 KeyError를 방지한다.
+    """
     start: datetime = window["window_start"]
     end: datetime = window["window_end"]
 
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
+            # [쿼리 1] 티켓별 커버리지 집계
+            # LATERAL + LIMIT 1로 각 티켓의 최신 응답/초안/분석 존재 여부를 확인한다.
+            # COUNT(DISTINCT ...) FILTER 를 써서 서브쿼리 없이 단일 스캔으로 집계한다.
             coverage = _fetch_one(
                 cur,
                 """
@@ -59,6 +66,9 @@ def fetch(window: dict[str, Any]) -> dict[str, Any]:
                 (start, end),
             ) or {}
 
+            # [쿼리 2] 초안 건수 집계
+            # draft_count: 초안 총 개수 (1 티켓에 여러 초안 가능)
+            # draft_ticket_count: 초안이 1개 이상 있는 티켓 수
             draft = _fetch_one(
                 cur,
                 """
@@ -73,6 +83,8 @@ def fetch(window: dict[str, Any]) -> dict[str, Any]:
                 (start, end),
             ) or {}
 
+            # [쿼리 3] 최종 응답 완료 티켓 수
+            # final_response 테이블에 한 건이라도 있으면 '최종 응답 완료'로 집계한다.
             final_resp = _fetch_one(
                 cur,
                 """
@@ -85,6 +97,9 @@ def fetch(window: dict[str, Any]) -> dict[str, Any]:
                 (start, end),
             ) or {}
 
+            # [쿼리 4] 안전 점검 실행 수
+            # safety_results → answer_draft → qa_ticket 순으로 조인해
+            # 해당 기간 문의에 대해 실행된 안전 점검 횟수를 센다.
             safety = _fetch_one(
                 cur,
                 """
@@ -98,6 +113,8 @@ def fetch(window: dict[str, Any]) -> dict[str, Any]:
                 (start, end),
             ) or {}
 
+            # [쿼리 5] 카테고리별 티켓 수
+            # 티켓별 최신 분석 결과의 category를 사용하며, 분석이 없으면 'unknown'으로 분류한다.
             category_rows = _fetch_all(
                 cur,
                 """
@@ -120,6 +137,7 @@ def fetch(window: dict[str, Any]) -> dict[str, Any]:
                 (start, end),
             )
 
+    # DB 값이 None일 경우를 대비해 int()로 강제 변환하기 전에 `or 0`으로 기본값을 설정한다.
     total = int(coverage.get("total_tickets") or 0)
     responded = int(coverage.get("responded_tickets") or 0)
     draft_tickets = int(coverage.get("draft_tickets") or 0)
@@ -128,6 +146,7 @@ def fetch(window: dict[str, Any]) -> dict[str, Any]:
     final_ticket_count = int(final_resp.get("final_response_ticket_count") or 0)
 
     return {
+        # 비율(rate)은 분모가 0이면 0.0을 반환하도록 utils.stats.rate()가 처리한다.
         "response_rate": rate(responded, total),
         "analysis_coverage_rate": rate(analyzed, total),
         "draft_coverage_rate": rate(draft_tickets, total),
