@@ -13,7 +13,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from db import _fetch_all, db_connection, dict_row
+from db.connection import _fetch_all, db_connection, dict_row
 
 _NIELSEN_GRADE: dict[str, int] = {
     "critical": 4,
@@ -134,18 +134,6 @@ def calculate_priority_score(window: dict[str, Any]) -> list[dict[str, Any]]:
     return sorted(result, key=lambda x: (-x["priority_score"], x["category"]))
 
 
-def get_top5_improvements(window: dict[str, Any]) -> list[dict[str, Any]]:
-    scored = calculate_priority_score(window)
-    return [
-        {
-            "rank": i + 1,
-            **item,
-            "improvement_type": classify_improvement_type(item),
-        }
-        for i, item in enumerate(scored[:TOP_N])
-    ]
-
-
 def build_top5_slack_blocks(top5: list[dict]) -> list[dict]:
     blocks: list[dict] = []
     for item in top5:
@@ -173,4 +161,12 @@ def build_top5_slack_blocks(top5: list[dict]) -> list[dict]:
 
 
 def fetch(window: dict[str, Any]) -> list[dict[str, Any]]:
-    return get_top5_improvements(window)
+    scored = calculate_priority_score(window)
+    return [
+        {
+            "rank": i + 1,
+            **item,
+            "improvement_type": classify_improvement_type(item),
+        }
+        for i, item in enumerate(scored[:TOP_N])
+    ]

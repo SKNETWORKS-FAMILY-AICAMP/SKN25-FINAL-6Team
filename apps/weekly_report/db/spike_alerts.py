@@ -20,13 +20,13 @@ import math
 from datetime import datetime, timedelta
 from typing import Any
 
-from db import _fetch_all, db_connection, dict_row
+from db.connection import _fetch_all, db_connection, dict_row
 
 _ZSCORE_WARNING = 2.0
 _ZSCORE_CRITICAL = 3.0
 _WOW_WARNING = 0.5
 _WOW_CRITICAL = 1.0
-_PAST_WEEKS = 4  # Z-Score 기준 과거 주 수
+_PAST_WEEKS = 4
 
 
 def _zscore_level(zscore: float) -> str:
@@ -46,18 +46,13 @@ def _wow_level(pct_change: float) -> str:
 
 
 def _calculate_zscore_by_hour(window: dict[str, Any]) -> list[dict[str, Any]]:
-    """시간대별 Z-Score 계산 (방법론 1).
-
-    이번 주 각 시간대 건수와 과거 4주 동일 시간대 평균/표준편차를 비교한다.
-    """
+    """시간대별 Z-Score 계산 (방법론 1)."""
     current_start: datetime = window["window_start"]
     current_end: datetime = window["window_end"]
-    # 과거 4주 기간
     past_start = current_start - timedelta(weeks=_PAST_WEEKS)
 
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
-            # 이번 주 시간대별 건수
             current_rows = _fetch_all(
                 cur,
                 """
@@ -71,7 +66,6 @@ def _calculate_zscore_by_hour(window: dict[str, Any]) -> list[dict[str, Any]]:
                 """,
                 (current_start, current_end),
             )
-            # 과거 4주 시간대별 주별 건수
             past_rows = _fetch_all(
                 cur,
                 """
@@ -87,7 +81,6 @@ def _calculate_zscore_by_hour(window: dict[str, Any]) -> list[dict[str, Any]]:
                 (past_start, current_start),
             )
 
-    # 과거 시간대별 주별 건수 집계
     past_by_hour: dict[int, list[float]] = {}
     for row in past_rows:
         h = int(row["hour"])
@@ -101,17 +94,13 @@ def _calculate_zscore_by_hour(window: dict[str, Any]) -> list[dict[str, Any]]:
         past_counts = past_by_hour.get(hour, [])
 
         if len(past_counts) < 2:
-            # 기준 데이터 부족 → 계산 생략
             continue
 
         avg = sum(past_counts) / len(past_counts)
         variance = sum((x - avg) ** 2 for x in past_counts) / len(past_counts)
         std = math.sqrt(variance)
 
-        if std == 0:
-            zscore = 0.0
-        else:
-            zscore = (current_cnt - avg) / std
+        zscore = 0.0 if std == 0 else (current_cnt - avg) / std
 
         level = _zscore_level(zscore)
         if level != "normal":
@@ -128,10 +117,7 @@ def _calculate_zscore_by_hour(window: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _calculate_wow_by_day(window: dict[str, Any]) -> list[dict[str, Any]]:
-    """일별 WoW 증가율 계산 (방법론 2).
-
-    이번 주 요일별 건수와 전주 동일 요일 건수를 비교한다.
-    """
+    """일별 WoW 증가율 계산 (방법론 2)."""
     current_start: datetime = window["window_start"]
     current_end: datetime = window["window_end"]
     days = int(window.get("days", 7))
@@ -199,17 +185,13 @@ _WEEK_LABELS = {0: "이번 주", -1: "1주 전", -2: "2주 전", -3: "3주 전"}
 
 
 def _calculate_monthly_trend(window: dict[str, Any]) -> list[dict[str, Any]]:
-    """직전 4주 총 건수 집계 (방법론 3).
-
-    임계값 없음 — 추세 시각화 목적.
-    """
+    """직전 4주 총 건수 집계 (방법론 3) — 추세 시각화 목적."""
     current_start: datetime = window["window_start"]
     current_end: datetime = window["window_end"]
     days = int(window.get("days", 7))
 
     w_starts = [current_start - timedelta(days=days * i) for i in range(4)]
     w_ends = [current_start - timedelta(days=days * i) + timedelta(days=days) for i in range(4)]
-    # w_ends[0] = current_end (이번 주 끝)
     w_ends[0] = current_end
     four_weeks_start = w_starts[3]
 
@@ -292,15 +274,7 @@ def build_spike_slack_blocks(alerts: dict[str, Any]) -> list[dict]:
 
 
 def detect(window: dict[str, Any]) -> dict[str, Any]:
-    """세 가지 방법론으로 폭증·위험 현황을 감지해 반환한다.
-
-    Returns:
-        {
-            "hourly":  [{"hour", "avg", "std", "current", "zscore", "level"}],  # Z-Score
-            "daily":   [{"day", "this_week", "prev_week", "pct_change", "level"}],  # WoW
-            "monthly": [{"week_offset", "label", "count"}],  # 4주 추세
-        }
-    """
+    """세 가지 방법론으로 폭증·위험 현황을 감지해 반환한다."""
     return {
         "hourly": _calculate_zscore_by_hour(window),
         "daily": _calculate_wow_by_day(window),

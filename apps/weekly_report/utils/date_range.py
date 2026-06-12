@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Any
 
-from util import build_window, clamp_days
+from utils.stats import build_window, clamp_days
 
 
 def get_window(days: int = 7, *, now: datetime | None = None) -> dict[str, Any]:
@@ -22,6 +22,3 @@ def get_previous_window(window: dict[str, Any]) -> dict[str, Any]:
         "window_start": start - timedelta(days=days),
         "window_end": start,
     }
-
-
-__all__ = ["build_window", "clamp_days", "get_window", "get_previous_window"]

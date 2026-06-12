@@ -1,4 +1,4 @@
-"""HTML/CSS-based PDF rendering helpers for the weekly dashboard report."""
+"""HTML/CSS 기반 주간 리포트 PDF 렌더링."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from typing import Any
 
 from xhtml2pdf import pisa
 
-from util import translate_value
+from utils.labels import translate_value
 
 
 REVIEW_PREVIEW_LIMIT = 5
@@ -31,7 +31,6 @@ def _existing_font_path(value: str | None) -> Path | None:
 
 def _resolve_pdf_fonts() -> dict[str, Path] | None:
     """주간 PDF에 사용할 실제 한글 폰트 파일을 찾는다."""
-
     candidate_pairs = [
         (
             os.environ.get(FONT_REGULAR_ENV),
@@ -90,7 +89,6 @@ def _font_face_css() -> str:
 
 def _resolve_resource_path(uri: str, rel: str | None = None) -> str:
     """xhtml2pdf가 로컬 파일을 읽을 때 사용할 경로를 정리한다."""
-
     del rel
     parsed = urlparse(uri)
     if parsed.scheme == "file":
@@ -103,32 +101,6 @@ def _resolve_resource_path(uri: str, rel: str | None = None) -> str:
         if candidate.exists():
             return str(candidate.resolve())
     return uri
-
-
-def _metric_rows(summary: dict[str, Any], comparisons: dict[str, Any]) -> list[tuple[str, str, str]]:
-    return [
-        ("분석 건수", _number(summary.get("analysis_count")), _change_text(comparisons.get("analysis_count", {}).get("change_rate"))),
-        ("고위험 문의", _number(summary.get("high_risk_count")), _change_text(comparisons.get("high_risk_count", {}).get("change_rate"))),
-        ("부정 반응 문의", _number(summary.get("negative_sentiment_count")), _change_text(comparisons.get("negative_sentiment_count", {}).get("change_rate"))),
-        ("사람 검토 필요", _number(summary.get("human_review_count")), _change_text(comparisons.get("human_review_count", {}).get("change_rate"))),
-    ]
-
-
-def _summary_rows(summary: dict[str, Any]) -> list[tuple[str, str]]:
-    return [
-        ("응답률", _percent(summary.get("response_rate"))),
-        ("분석 커버리지", _percent(summary.get("analysis_coverage_rate"))),
-        ("초안 커버리지", _percent(summary.get("draft_coverage_rate"))),
-        ("최종 답변 전환", _percent(summary.get("final_response_ticket_rate"))),
-        ("고위험 문의 비율", _percent(summary.get("high_risk_rate"))),
-        ("부정 반응 문의 비율", _percent(summary.get("negative_sentiment_rate"))),
-        ("사람 검토 필요 비율", _percent(summary.get("human_review_rate"))),
-        ("즉시 알림 필요 비율", _percent(summary.get("urgent_alert_rate"))),
-    ]
-
-
-def _distribution_rows(report: dict[str, Any], key: str) -> list[dict[str, Any]]:
-    return [row for row in report.get(key, []) if row.get("label") not in {None, ""}]
 
 
 def _text(value: object, fallback: str = "-") -> str:
@@ -209,7 +181,6 @@ def _build_summary_table(summary: dict[str, Any]) -> str:
 
 
 def _build_actions(actions: list) -> str:
-    """actions: [{"rank", "category", "action", "reason"}] 형식을 HTML로 변환한다."""
     if not actions:
         return "<p class='muted'>이번 주에 바로 조치할 권장 항목이 없습니다.</p>"
     parts: list[str] = []
@@ -370,11 +341,6 @@ def _build_plotly_chart_data_uri(title: str, rows: list[dict[str, Any]], *, kind
 
 
 def _build_chart_fallback_table(rows: list[dict[str, Any]], *, kind: str) -> str:
-    """Plotly 렌더링이 실패했을 때 데이터를 라벨+값 표로 대체 표시한다.
-
-    차트 이미지가 없어도 수치를 읽을 수 있도록 정보를 보존하는 것이 목적이다.
-    kind='bar'이면 값을 퍼센트로, 'pie'이면 개수와 비율을 함께 표시한다.
-    """
     usable = [r for r in rows if r.get("label") not in {None, ""} and r.get("value") not in {None, ""}]
     if not usable:
         return "<div class='chart-empty'>표시할 데이터가 없습니다.</div>"
@@ -704,15 +670,13 @@ def _build_html(report: dict[str, Any]) -> str:
                 padding: 7px;
                 border: 1px solid #dbe3ef;
                 text-align: left;
+                word-break: break-word;
             }}
             .analysis-table td {{
                 padding: 7px;
                 border: 1px solid #e5e7eb;
                 font-size: 8.6pt;
                 vertical-align: top;
-                word-break: break-word;
-            }}
-            .analysis-table th {{
                 word-break: break-word;
             }}
         </style>
@@ -780,8 +744,7 @@ def _build_html(report: dict[str, Any]) -> str:
 
 
 def render_report_pdf(report: dict[str, Any]) -> bytes:
-    """Render the weekly report payload into a styled PDF byte stream."""
-
+    """주간 보고서 페이로드를 PDF 바이트로 렌더링한다."""
     html = _build_html(report)
     buffer = io.BytesIO()
     result = pisa.CreatePDF(src=html, dest=buffer, encoding="utf-8", link_callback=_resolve_resource_path)

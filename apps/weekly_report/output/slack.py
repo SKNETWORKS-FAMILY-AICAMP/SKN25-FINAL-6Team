@@ -17,7 +17,6 @@ from common.db.connection import db_connection
 
 from errors import SlackReportError
 
-# 재시도 대상 Slack 오류 코드 — 일시적인 서버/네트워크 문제만 재시도한다.
 _RETRYABLE_SLACK_ERRORS = {"ratelimited", "server_error", "fatal_error", "request_timeout", "service_unavailable"}
 
 _MAX_UPLOAD_RETRIES = 3
@@ -45,10 +44,7 @@ def _log_weekly_report_slack_event(
     error_category: str | None = None,
     slack_response: dict[str, Any] | None = None,
 ) -> None:
-    """Slack 전송 결과(성공·실패 모두)를 admin_event_logs에 기록한다.
-
-    이 함수 자체가 실패해도 전송 오류를 덮어쓰지 않도록 예외를 내부에서 흡수한다.
-    """
+    """Slack 전송 결과를 admin_event_logs에 기록한다. 실패해도 예외를 흡수한다."""
     metadata = {
         "channel": channel,
         "channel_id": channel_id,
@@ -65,29 +61,11 @@ def _log_weekly_report_slack_event(
                 cur.execute(
                     """
                     INSERT INTO admin_event_logs (
-                        ticket_id,
-                        node_name,
-                        event_type,
-                        category,
-                        routing_target,
-                        tool_name,
-                        status,
-                        error_message,
-                        error_category,
-                        metadata
+                        ticket_id, node_name, event_type, category,
+                        routing_target, tool_name, status,
+                        error_message, error_category, metadata
                     )
-                    VALUES (
-                        NULL,
-                        %s,
-                        %s,
-                        %s,
-                        %s,
-                        %s,
-                        %s,
-                        %s,
-                        %s,
-                        %s::json
-                    )
+                    VALUES (NULL, %s, %s, %s, %s, %s, %s, %s, %s, %s::json)
                     """,
                     (
                         LOGGER_EVENT_NODE,
@@ -106,7 +84,7 @@ def _log_weekly_report_slack_event(
 
 
 def _resolve_channel_id(client: WebClient, channel: str) -> str:
-    """채널 이름(#이름 또는 이름) 또는 이미 ID 형식이면 그대로 반환한다."""
+    """채널 이름 또는 ID를 채널 ID로 변환한다."""
     raw = (channel or "").strip()
     if not raw:
         raise SlackReportError("Slack 채널이 필요합니다")
@@ -150,8 +128,7 @@ def _validate_channel_access(client: WebClient, channel_id: str) -> None:
 
     info = client.conversations_info(channel=channel_id)
     channel = info.get("channel") or {}
-    is_member = bool(channel.get("is_member"))
-    if not is_member:
+    if not bool(channel.get("is_member")):
         raise SlackReportError(
             f"봇이 대상 채널에 포함되어 있지 않습니다: {channel_id}. 전송 전에 봇을 채널에 초대하세요"
         )
@@ -165,7 +142,7 @@ def _upload_with_retry(
     title: str,
     comment: str | None,
 ) -> Any:
-    """files_upload_v2를 호출하고, 일시적 오류에 한해 지수 백오프로 재시도한다."""
+    """files_upload_v2를 호출하고 일시적 오류에 한해 지수 백오프로 재시도한다."""
     last_exc: SlackApiError | None = None
     for attempt in range(_MAX_UPLOAD_RETRIES):
         try:

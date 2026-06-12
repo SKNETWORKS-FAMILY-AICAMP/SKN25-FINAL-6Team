@@ -1,8 +1,5 @@
 """카테고리별 주간 지표 + 7개 핵심값 직접 쿼리.
 
-run_dashboard_workflow("all", days) 의존을 제거하고
-qa_ticket / answer_draft / final_response / safety_results 를 직접 집계한다.
-
 SQL 출처: (삭제 전) workflow/service.py
   - response_rate 등: _overview_summary() response_metrics 쿼리 (L141-183)
   - draft_count, draft_ticket_rate: _quality_summary() draft_summary 쿼리 (L493-513)
@@ -15,36 +12,17 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from db import _fetch_one, _fetch_all, db_connection, dict_row
-from util import rate
+from db.connection import _fetch_one, _fetch_all, db_connection, dict_row
+from utils.stats import rate
 
 
 def fetch(window: dict[str, Any]) -> dict[str, Any]:
-    """window 기간의 7개 핵심 KPI + 카테고리별 집계를 반환한다.
-
-    Args:
-        window: {"window_start": datetime, "window_end": datetime, "days": int}
-
-    Returns:
-        {
-            "response_rate": float,
-            "analysis_coverage_rate": float,
-            "draft_coverage_rate": float,
-            "draft_ticket_rate": float,
-            "final_response_ticket_rate": float,
-            "draft_count": int,
-            "safety_check_count": int,
-            "total_tickets": int,
-            "category_counts": [{"category": str, "count": int}],
-        }
-    """
+    """window 기간의 7개 핵심 KPI + 카테고리별 집계를 반환한다."""
     start: datetime = window["window_start"]
     end: datetime = window["window_end"]
 
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
-            # ── 응답률 / 분석 커버리지 / 초안 커버리지 ────────────────────
-            # 출처: workflow/service.py _overview_summary() response_metrics 쿼리
             coverage = _fetch_one(
                 cur,
                 """
@@ -81,8 +59,6 @@ def fetch(window: dict[str, Any]) -> dict[str, Any]:
                 (start, end),
             ) or {}
 
-            # ── 초안 건수 / 초안 티켓 건수 ───────────────────────────────
-            # 출처: workflow/service.py _quality_summary() draft_summary 쿼리 (L493-513)
             draft = _fetch_one(
                 cur,
                 """
@@ -97,8 +73,6 @@ def fetch(window: dict[str, Any]) -> dict[str, Any]:
                 (start, end),
             ) or {}
 
-            # ── 최종 응답 티켓 건수 ───────────────────────────────────────
-            # 출처: workflow/service.py _quality_summary() final_response_summary 쿼리 (L544-560)
             final_resp = _fetch_one(
                 cur,
                 """
@@ -111,8 +85,6 @@ def fetch(window: dict[str, Any]) -> dict[str, Any]:
                 (start, end),
             ) or {}
 
-            # ── 안전 점검 건수 ────────────────────────────────────────────
-            # 출처: workflow/service.py _risk_summary() safety_score_summary 쿼리 (L347-362)
             safety = _fetch_one(
                 cur,
                 """
@@ -126,7 +98,6 @@ def fetch(window: dict[str, Any]) -> dict[str, Any]:
                 (start, end),
             ) or {}
 
-            # ── 카테고리별 문의 건수 ──────────────────────────────────────
             category_rows = _fetch_all(
                 cur,
                 """

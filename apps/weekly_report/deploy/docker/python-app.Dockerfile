@@ -9,10 +9,10 @@ FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
-    # 대시보드 백엔드 모듈과 공통 패키지를 모두 import할 수 있도록 두 경로를 추가한다.
-    PYTHONPATH=/app/packages/common-python/src:/app/apps/dashboard/backend
+    # 주간 리포트 모듈과 공통 패키지를 모두 import할 수 있도록 두 경로를 추가한다.
+    PYTHONPATH=/app/packages/common-python/src:/app/apps/weekly_report
 
-WORKDIR /app/apps/dashboard/backend
+WORKDIR /app/apps/weekly_report
 
 # ── 시스템 패키지 ─────────────────────────────────────────────────────────────
 # fonts-nanum    : NanumGothic 한글 폰트 (pdf.py가 /usr/share/fonts/truetype/nanum/ 탐색)
@@ -37,7 +37,7 @@ RUN apt-get update \
 # 공통 패키지와 대시보드 백엔드 코드를 복사한다.
 # requirements.txt는 WORKDIR(/app/apps/dashboard/backend) 기준으로 읽힌다.
 COPY packages/ /app/packages/
-COPY apps/dashboard/backend/ /app/apps/dashboard/backend/
+COPY apps/weekly_report/ /app/apps/weekly_report/
 
 # pip 설치 완료 후 빌드 도구만 제거해 이미지 크기를 줄인다.
 # libcairo2는 pycairo 런타임에 필요하므로 남긴다.

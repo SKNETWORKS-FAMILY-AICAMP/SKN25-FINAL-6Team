@@ -1,4 +1,4 @@
-"""DB 연결 및 공통 쿼리 헬퍼."""
+"""DB 쿼리 실행 헬퍼."""
 
 from __future__ import annotations
 

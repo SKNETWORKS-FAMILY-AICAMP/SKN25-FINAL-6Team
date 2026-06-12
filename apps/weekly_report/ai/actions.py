@@ -59,7 +59,6 @@ def _build_user_prompt(report_payload: dict[str, Any]) -> str:
     prev_total = summary.get("prev_total", 0) or 0
     pct_change = (total_count - prev_total) / prev_total if prev_total > 0 else 0.0
 
-    # 폭증 감지 요약
     anomaly = report_payload.get("anomaly_section", {})
     spike_alerts_raw = report_payload.get("spike_alerts", {})
     critical_hours: list = anomaly.get("critical_hours") or [
@@ -82,7 +81,6 @@ def _build_user_prompt(report_payload: dict[str, Any]) -> str:
     else:
         critical_items = "없음"
 
-    # 카테고리 분포
     cat_dist_raw = report_payload.get("category_distribution", {})
     if isinstance(cat_dist_raw, list):
         cat_dist_str = ", ".join(
@@ -91,7 +89,6 @@ def _build_user_prompt(report_payload: dict[str, Any]) -> str:
     else:
         cat_dist_str = ", ".join(f"{k} {v}건" for k, v in list(cat_dist_raw.items())[:5])
 
-    # Top 3 개선 요청
     top5: list = report_payload.get("top5_improvements", [])
     top3 = top5[:3]
     if top3 and isinstance(top3[0], dict):
@@ -117,10 +114,7 @@ def _build_user_prompt(report_payload: dict[str, Any]) -> str:
 
 
 def generate_ai_actions(report_payload: dict[str, Any]) -> dict[str, Any]:
-    """report_payload 를 받아 기획팀용 AI 권장 액션을 반환한다.
-
-    LLM을 사용할 수 없으면 fallback 텍스트를 반환한다.
-    """
+    """report_payload 를 받아 기획팀용 AI 권장 액션을 반환한다."""
     if not _llm_available():
         return _fallback("현재 환경에 LLM 모델 설정이 없어 AI 권장 액션을 생략했습니다.")
 
