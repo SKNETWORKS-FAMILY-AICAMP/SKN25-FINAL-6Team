@@ -71,6 +71,74 @@ def _mask_sensitive_text(text: str) -> tuple[str, list[str]]:
     return masked, applied
 
 
+MASK_PATTERNS = (
+    ("email", r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b", "[이메일]"),
+    ("phone", r"\b01[016789]-?\d{3,4}-?\d{4}\b", "[전화번호]"),
+    ("url", r"\b(?:https?://|www\.)[^\s<>()\[\]{}\"']+", "[홈페이지]"),
+    ("card_number", r"\b(?:\d[ -]?){13,19}\b", "[카드번호]"),
+    ("api_key", r"\b(?:sk|rk|pk|sess|token|key)-[A-Za-z0-9_-]{16,}\b", "[인증정보]"),
+    ("account_id", r"\b(?:account_id|user_id|uid|회원번호|계정번호)\s*[:=]\s*[A-Za-z0-9_-]{4,}\b", "[계정정보]"),
+)
+DOCUMENT_GROUNDED_CONTACT_LABELS = {"email", "phone", "url"}
+
+
+def _normalize_contact_value(label: str, value: str) -> str:
+    cleaned = value.strip().strip(".,;:!?)]}>'\"")
+    if label == "phone":
+        return re.sub(r"\D", "", cleaned)
+    return cleaned.lower()
+
+
+def _document_grounded_contact_values(documents: list[dict[str, Any]]) -> dict[str, set[str]]:
+    evidence = _evidence_text(documents)
+    grounded = {label: set() for label in DOCUMENT_GROUNDED_CONTACT_LABELS}
+    if not evidence.strip():
+        return grounded
+
+    for label, pattern, _ in MASK_PATTERNS:
+        if label not in DOCUMENT_GROUNDED_CONTACT_LABELS:
+            continue
+        for match in re.finditer(pattern, evidence, flags=re.IGNORECASE):
+            grounded[label].add(_normalize_contact_value(label, match.group(0)))
+    return grounded
+
+
+def _is_document_grounded_contact(
+    *,
+    label: str,
+    value: str,
+    grounded_contacts: dict[str, set[str]],
+) -> bool:
+    if label not in DOCUMENT_GROUNDED_CONTACT_LABELS:
+        return False
+    return _normalize_contact_value(label, value) in grounded_contacts.get(label, set())
+
+
+def _mask_sensitive_text(
+    text: str,
+    documents: list[dict[str, Any]] | None = None,
+) -> tuple[str, list[str]]:
+    masked = text
+    applied: list[str] = []
+    grounded_contacts = _document_grounded_contact_values(documents or [])
+
+    for label, pattern, replacement in MASK_PATTERNS:
+        def replace(match: re.Match[str]) -> str:
+            value = match.group(0)
+            if _is_document_grounded_contact(
+                label=label,
+                value=value,
+                grounded_contacts=grounded_contacts,
+            ):
+                return value
+            if label not in applied:
+                applied.append(label)
+            return replacement
+
+        masked = re.sub(pattern, replace, masked, flags=re.IGNORECASE)
+    return masked, applied
+
+
 def _evidence_grounding_scores(text: str, documents: list[dict[str, Any]]) -> tuple[float, float, str]:
     # 런타임 경량 검사: 답변 토큰이 검색/DB 근거에 얼마나 포함되는지로 grounding을 추정한다.
     normalized_text = " ".join(text.split())
@@ -363,7 +431,7 @@ def safety_layer_node(state: ChatbotState) -> dict:
     draft_id = state.get("draft_id")
     ticket_id = state["ticket_id"]
     documents = state.get("retrieved_documents") or []
-    masked_text, mask_labels = _mask_sensitive_text(draft_text)
+    masked_text, mask_labels = _mask_sensitive_text(draft_text, documents)
     evaluation_text = masked_text if mask_labels else draft_text
     requires_grounding = _requires_document_grounding(state, documents)
     grounding_documents = documents if requires_grounding else [{"chunk_text": evaluation_text}]
