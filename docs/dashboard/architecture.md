@@ -7,11 +7,13 @@ Streamlit 화면, DB 조회 책임을 정의한다. 별도 `docs/dashboard/merma
 
 ## 목표
 
+- 게임기획팀은 주 1회 자동 생성된 주간 운영 리포트를 Slack으로 수신하여 유의미한 마케팅·운영 시사점을 확인한다.
 - 운영자는 최근 문의 수, pending backlog, closed 건수, 오늘 접수 건수, 답변율과 평균 지연을 빠르게 확인한다.
 - 리스크 담당자는 HIGH/critical 문의, 부정 감성 증가, safety threshold 위반 후보를 우선 검토한다.
-- 답변 품질 관리자는 초안, 근거 문서, safety 검사, 최종 답변, 알림 발송 상태를 한 화면에서 확인한다.
-- 상담 검토자는 `human_review`, `urgent_alert`, 검증 미달 문의의 상세 맥락과 후속 조치 근거를 확인한다.
+- 답변 품질 관리자는 초안, 근거 문서, safety 검사, 최종 답변, 알림 발송 상태를 확인한다.
 - 시스템 관리자는 API health, DB 조회 실패, Slack/Discord 알림 실패를 추적한다.
+
+> **[변경사항]** 프론트엔드(Streamlit)는 삭제되었다. 주간 리포트 트리거·스케줄링은 Apache Airflow가 담당하며, 결과는 PDF로 렌더링되어 Slack으로 전송된다.
 
 ## 범위
 
@@ -26,11 +28,20 @@ Dashboard는 읽기 전용 운영 도구다. 결제, 환불, 아이템 지급, �
 | Workflow state | `src/dashboard/workflow/state.py` | summary pipeline 상태 모델과 section 정의 |
 | Workflow nodes | `src/dashboard/workflow/nodes.py` | DB 조회, 최신 레코드 선택, metric 계산, threshold 판정 |
 | Workflow runner | `src/dashboard/workflow/graph.py` | section별 pipeline 실행 orchestration |
-| Visualization | `src/dashboard/visualization/charts.py` | Streamlit chart 입력 구조 변환 |
-| Tables | `src/dashboard/visualization/tables.py` | 목록/상세 테이블 렌더링용 데이터 정리 |
-| Frontend | `src/dashboard/frontend/app.py` | Streamlit wide layout, 공통 navigation, API client |
-| Pages | `src/dashboard/frontend/pages/` | 운영 현황, 리스크 분석, 답변 품질, 티켓 상세 화면 |
-| Runner | `src/dashboard/run.py` | API와 Streamlit 실행 진입점 |
+| Weekly report | `src/dashboard/workflow/weekly_report/service.py` | 주간 리포트 데이터 조합, 이상 감지, AI 액션 추천, PDF 렌더링 |
+| Weekly report Slack | `src/dashboard/workflow/weekly_report/slack.py` | PDF 첨부 Slack 전송 |
+| Airflow DAG | `apps/dashboard/backend/airflow/dashboard_weekly_report_dag.py` | 주간 리포트 자동 실행 스케줄 (매주 월요일 09:00 KST) |
+
+> **[삭제됨]** Visualization(`charts.py`, `tables.py`), Frontend(`app.py`), Pages, Runner(`run.py`)는 프론트엔드 제거로 삭제되었다.
+
+## 방법론 참조 파일
+
+| 보고서 섹션 | 참조 파일 |
+| --- | --- |
+| 유저 개선 요청 Top 5 (우선순위 산정) | `docs/dashboard/report_user_top5.md` |
+| AI 제안 권장 액션 | `docs/dashboard/report_ai_recommended.md` |
+| 급증·위험 > 전주 대비 폭증 (일별/시간별) | `docs/dashboard/report_anomaliy.md` |
+| 급증·위험 > 월별 폭증 (4주 바차트) | `docs/dashboard/report_anomaly.md` |
 
 ## 사용 DB
 
@@ -53,21 +64,23 @@ Dashboard 문서와 구현은 기존 테이블과 충돌하는 신규 테이블�
 
 ```mermaid
 flowchart TB
-    UI["Streamlit frontend<br/>src/dashboard/frontend"]
+    AF["Airflow DAG<br/>dashboard_weekly_report<br/>매주 월요일 09:00 KST"]
     API["FastAPI API<br/>src/dashboard/api/main.py"]
     WF["Summary pipeline<br/>src/dashboard/workflow"]
-    VIS["Visualization helpers<br/>charts.py / tables.py"]
+    WR["Weekly report service<br/>weekly_report/service.py"]
     DB["PostgreSQL public schema"]
     LOG["failed_queries / admin_event_logs"]
     NOTI["notification_logs"]
+    SLACK["Slack<br/>(기획팀 채널)"]
 
-    UI -->|"GET /summary/*"| API
-    UI -->|"GET /tickets<br/>GET /tickets/{ticket_id}"| API
+    AF -->|"trigger"| WR
+    WR -->|"GET /summary/all"| API
     API --> WF
     WF -->|"read-only SQL"| DB
     WF -->|"computed metrics"| API
-    API --> UI
-    VIS --> UI
+    API -->|"dashboard_summary"| WR
+    WR -->|"anomaly detection SQL"| DB
+    WR -->|"PDF render + send"| SLACK
     API -->|"errors"| LOG
     WF -->|"notification status"| NOTI
 ```
@@ -214,6 +227,27 @@ flowchart TB
     OBS --> M5
     OBS --> M6
 ```
+
+## 주간 리포트 Airflow Pipeline
+
+매주 월요일 09:00 KST, Airflow가 다음 순서로 실행한다.
+
+```
+Task 1: fetch_report_data      → fetch_weekly_report_data(days=7)
+Task 2: detect_anomalies       → calculate_zscore_by_hour()
+                                  calculate_wow_by_day()
+                                  calculate_wow_by_category()
+                                  calculate_monthly_trend()
+Task 3: build_top5             → get_top5_improvements()
+Task 4: compose_report         → build_weekly_report_payload()
+                                  generate_ai_actions()
+Task 5: render_pdf             → render_report_pdf()
+Task 6: send_slack             → send_weekly_report_pdf()
+```
+
+날짜 자동 반영:
+- Python `datetime`: 생성일자, 분석 단위 기간 계산
+- Airflow `{{ ds }}` (Jinja2): DAG run date를 태스크에 주입
 
 ## Security and Privacy
 

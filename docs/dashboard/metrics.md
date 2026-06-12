@@ -1,6 +1,8 @@
 # Dashboard Metrics
 
-이 문서는 `docs/dashboard/prd.md`를 기준으로 운영 대시보드에서 계산해 운영자에게 보여줄 지표와 Slack 알림 조건을 정의한다.
+이 문서는 `docs/dashboard/prd.md`를 기준으로 운영 대시보드 및 **주간 운영 리포트**에서 계산할 지표와 Slack 전송 조건을 정의한다.
+
+> **[변경사항]** 프론트엔드(Streamlit)가 삭제되었다. "화면 표시" 컬럼은 주간 리포트 Slack 블록 위치로 해석한다.
 
 모든 테이블과 컬럼은 `docs/DB/descriptions.md`의 실제 PostgreSQL `public` 스키마를 기준으로 한다. 대시보드는 원칙적으로 읽기 전용이며, 지표 계산은 PostgreSQL 조회와 `src/dashboard/workflow/nodes.py`의 compute 노드에서 수행한다.
 
@@ -184,12 +186,90 @@ Slack 메시지는 운영자가 바로 판단할 수 있게 원인, 규모, 바�
 - 기준: {trigger_rule}
 - 대상: ticket_id={ticket_id or count}, account_id={masked_account_id}
 - 요약: {summary}
-- 확인: /dashboard/tickets/{ticket_id} 또는 /dashboard/{section}
 ```
+
+### 주간 운영 리포트 Slack 메시지 포맷 (기획팀 수신)
+
+```text
+📊 주간 운영 리포트 — {생성날짜}
+분석 기간: {window_start} ~ {window_end}
+
+[유저 개선 요청 Top 5]
+1위. {category} | {topic_keywords} | {improvement_type} | 건수: {count} | 전주 대비 {pct_change}
+...
+
+[AI 제안 권장 액션]
+{headline}
+• {action_1}
+• {action_2}
+
+[주간지표]
+결제   {this_week}건  (전주 대비 {change_rate})
+지급   {this_week}건  (전주 대비 {change_rate})
+뽑기   {this_week}건  (전주 대비 {change_rate})
+계정   {this_week}건  (전주 대비 {change_rate})
+인게임버그 {this_week}건 (전주 대비 {change_rate})
+
+[급증·위험 문의]
+전주 대비 폭증: {wow_summary}
+월별 추세:     {monthly_summary}
+```
+
+## 주간 운영 리포트 전용 지표
+
+주간 리포트는 기획팀 수신 전제로 작성된다. 아래 지표는 `weekly_report/service.py`에서 계산하며
+Slack PDF 리포트의 각 섹션에 매핑된다.
+
+### 리포트 헤더
+
+| 항목 | 계산 방법 | Python |
+| --- | --- | --- |
+| 생성날짜 | 리포트 실행 시각 | `datetime.now()` |
+| 분석 단위기간 시작 | 실행 시각 - 7일 | `window_start` |
+| 분석 단위기간 종료 | 실행 시각 | `window_end` |
+| Airflow run date | DAG 실행일 | `{{ ds }}` (Jinja2) |
+
+### 주간지표 블록 (카테고리별 전주 대비 증감)
+
+집계 단위: `ticket_analysis.category` × 이번 주 / 전주 건수 비교
+
+| 카테고리 | 이번 주 집계 | 전주 집계 | 표시 형식 |
+| --- | --- | --- | --- |
+| 결제 | `COUNT(*) WHERE category='결제' AND 이번 주` | `COUNT(*) WHERE category='결제' AND 전주` | 전주 대비 ±X% |
+| 지급 | 동일 | 동일 | 전주 대비 ±X% |
+| 뽑기 | 동일 | 동일 | 전주 대비 ±X% |
+| 계정 | 동일 | 동일 | 전주 대비 ±X% |
+| 인게임버그 | 동일 | 동일 | 전주 대비 ±X% |
+
+증감 표시 규칙: `_format_change(current, previous)` 함수 재사용 (`weekly_report/service.py`에 기존 구현됨).
+
+### 급증·위험 문의 현황 지표
+
+| 항목 | 참조 파일 | 함수 |
+| --- | --- | --- |
+| 전주 대비 폭증 (일별 7일 바차트) | `docs/dashboard/report_anomaliy.md` | `calculate_wow_by_day()` |
+| 시간별 히트맵 (운영 인력 배치) | `docs/dashboard/report_anomaliy.md` | `calculate_zscore_by_hour()` |
+| 월별 폭증 (4주 바차트) | `docs/dashboard/report_anomaly.md` | `calculate_monthly_trend()` |
+| 월별 요약 텍스트 | `docs/dashboard/report_anomaly.md` | `summarize_monthly_anomaly()` |
+
+### 유저 개선 요청 Top 5
+
+| 항목 | 참조 파일 | 함수 |
+| --- | --- | --- |
+| Top 5 우선순위 산정 | `docs/dashboard/report_user_top5.md` | `get_top5_improvements()` |
+| 설계 결함 / 편의 개선 분류 | `docs/dashboard/report_user_top5.md` | `classify_improvement_type()` |
+
+### AI 요약 및 권장 액션
+
+| 항목 | 참조 파일 | 함수 |
+| --- | --- | --- |
+| 주간지표 요약 + AI 권장 액션 | `docs/dashboard/report_ai_recommended.md` | `generate_ai_actions()` |
+
+---
 
 ## API 응답 권장 필드
 
-`/summary/*` 응답에는 화면 표시와 알림 판단에 필요한 값을 함께 포함한다.
+`/summary/*` 응답에는 알림 판단에 필요한 값을 함께 포함한다.
 
 | Endpoint | 권장 필드 |
 | --- | --- |

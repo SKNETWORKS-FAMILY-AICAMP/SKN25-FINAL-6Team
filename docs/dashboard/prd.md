@@ -2,9 +2,11 @@
 
 ## 1. 문서 목적
 
-이 문서는 `docs/chatbot/prd.md`와 `docs/operation/prd.md`를 바탕으로 운영자, 상담원, 품질 관리자, 리스크 담당자가 확인하는 운영 대시보드의 요구사항을 정의한다.
+이 문서는 `docs/chatbot/prd.md`와 `docs/operation/prd.md`를 바탕으로 운영자, 상담원, 품질 관리자, 리스크 담당자, **게임기획팀**이 활용하는 운영 대시보드 및 **주간 운영 리포트**의 요구사항을 정의한다.
 
-대시보드는 챗봇과 운영배치가 생성한 문의, 분석, 답변 초안, 근거 문서, 안전성 검증, 최종 응답, 알림, VOC 데이터를 통합 조회한다. DB와 용어는 `docs/DB/descriptions.md`의 PostgreSQL `public` 스키마를 기준으로 하며, 기존 테이블과 충돌하는 신규 테이블명이나 컬럼명을 정의하지 않는다.
+> **[변경사항]** 프론트엔드(Streamlit)는 삭제되었다. 기획팀 대상 주간 운영 리포트는 Apache Airflow로 자동 생성하여 Slack으로 전송한다. Streamlit 의존 요구사항(FR-DASH-API-003, NFR-DASH-UX-*)은 폐기 처리한다.
+
+대시보드 API는 챗봇과 운영배치가 생성한 문의, 분석, 답변 초안, 근거 문서, 안전성 검증, 최종 응답, 알림, VOC 데이터를 통합 조회한다. DB와 용어는 `docs/DB/descriptions.md`의 PostgreSQL `public` 스키마를 기준으로 하며, 기존 테이블과 충돌하는 신규 테이블명이나 컬럼명을 정의하지 않는다.
 
 ## 2. 참조 문서
 
@@ -42,6 +44,7 @@
 
 | 사용자 | 주요 목적 | 권한 기준 |
 | --- | --- | --- |
+| **게임기획팀** | 주간 운영 리포트 수신 (Slack) — 카테고리별 문의 증감, 유저 개선 요청 Top 5, AI 권장 액션 확인 | Slack 채널 수신, 민감정보 미포함 |
 | 운영 관리자 | 전체 문의량, 처리 상태, 장애성 증가 여부 확인 | 전체 운영 지표 조회 |
 | 상담원/검수자 | `human_review` 문의와 답변 초안 검토 | 담당 범위 티켓 상세 조회, 민감정보 제한 표시 |
 | 리스크 담당자 | HIGH/critical 문의, 부정 감성, 정책 위반 위험 확인 | 리스크 요약과 고위험 후보 조회 |
@@ -110,7 +113,12 @@
 | 기능 | Observability | API Health 조회 | FR-DASH-OBS-003 | 시스템은 대시보드 API 상태를 확인할 수 있는 Health endpoint를 제공해야 한다. | `GET /health` |
 | 기능 | API | 요약 API 제공 | FR-DASH-API-001 | 시스템은 운영 현황, 리스크, 응답 품질 요약 API를 제공해야 한다. | `/summary/overview`, `/summary/risk`, `/summary/quality`, `/summary/all` |
 | 기능 | API | 티켓 API 제공 | FR-DASH-API-002 | 시스템은 티켓 목록과 상세 조회 API를 제공해야 한다. | `/tickets`, `/tickets/{ticket_id}` |
-| 기능 | API | Streamlit 렌더링 친화 응답 | FR-DASH-API-003 | API는 Streamlit에서 바로 렌더링 가능한 숫자, 비율, 분포 배열, 목록 데이터를 반환해야 한다. | 날짜, 비율, 점수 포맷은 프론트엔드에서 일관되게 처리한다. |
+| 기능 | API | 주간 리포트 친화 응답 | FR-DASH-API-003 | ~~[폐기] Streamlit 렌더링 친화 응답~~ API는 weekly_report/service.py가 바로 사용할 수 있는 숫자, 비율, 분포 배열, 목록 데이터를 반환해야 한다. | Airflow 파이프라인에서 직접 소비. |
+| 기능 | 주간 리포트 | 자동 생성 및 Slack 전송 | FR-DASH-WR-001 | 시스템은 매주 월요일 09:00 KST에 주간 운영 리포트를 자동 생성하여 기획팀 Slack 채널로 전송해야 한다. | Airflow DAG `dashboard_weekly_report` 스케줄 기반 |
+| 기능 | 주간 리포트 | 카테고리별 전주 대비 증감 | FR-DASH-WR-002 | 리포트는 결제/지급/뽑기/계정/인게임버그 카테고리별 이번 주 건수와 전주 대비 증감률을 블록 형태로 포함해야 한다. | `ticket_analysis.category` 기준 |
+| 기능 | 주간 리포트 | 유저 개선 요청 Top 5 | FR-DASH-WR-003 | 리포트는 Nielsen Severity Rating 기반 우선순위 점수로 산정한 유저 개선 요청 Top 5를 설계 결함/편의 개선으로 분류하여 포함해야 한다. | `docs/dashboard/report_user_top5.md` 기준 |
+| 기능 | 주간 리포트 | AI 제안 권장 액션 | FR-DASH-WR-004 | 리포트는 주간 지표와 폭증 감지 결과를 종합한 LLM 기반 권장 액션을 포함해야 한다. | `docs/dashboard/report_ai_recommended.md` 기준 |
+| 기능 | 주간 리포트 | 폭증 감지 | FR-DASH-WR-005 | 리포트는 전주 대비 폭증(일별/시간별)과 월별 폭증(4주 바차트)을 포함해야 한다. | `docs/dashboard/report_anomaliy.md`, `report_anomaly.md` 기준 |
 
 ## 8. 비기능 요구사항
 
@@ -134,9 +142,10 @@
 | 비기능 | 데이터 정합성 | 조인 기준 준수 | NFR-DASH-DQ-003 | 시스템은 DB 관계 문서에 정의된 키 기준으로 조인해야 한다. | `ticket_id`, `draft_id`, `analysis_id`, `account_id`, `payment_id` 기준 |
 | 비기능 | 관측성 | API 호출 실패 추적 | NFR-DASH-OBS-001 | 시스템은 대시보드 API 호출 실패와 DB 조회 실패를 운영자가 확인할 수 있게 해야 한다. | `failed_queries`, `admin_event_logs` 또는 애플리케이션 로그와 연계 |
 | 비기능 | 관측성 | 알림 이력 추적 | NFR-DASH-OBS-002 | 시스템은 알림 발송 성공/실패를 대시보드에서 추적할 수 있어야 한다. | `notification_logs` 기준 |
-| 비기능 | 사용성 | 업무용 화면 밀도 | NFR-DASH-UX-001 | 대시보드는 운영자가 반복적으로 사용하는 업무 도구로서 KPI, 차트, 표를 밀도 있게 배치해야 한다. | 마케팅형 랜딩 화면이 아니라 모니터링과 탐색 중심 |
-| 비기능 | 사용성 | 위험도 가독성 | NFR-DASH-UX-002 | 시스템은 위험도를 색상과 텍스트로 함께 표시해야 한다. | `critical`, `high`, `medium`, `low` 원본 값 유지 |
-| 비기능 | 사용성 | 반응형 표시 | NFR-DASH-UX-003 | 시스템은 데스크톱과 좁은 화면에서 KPI와 표가 겹치지 않도록 표시해야 한다. | Streamlit wide layout과 자연스러운 컬럼 줄바꿈 허용 |
+| 비기능 | 사용성 | ~~[폐기] 업무용 화면 밀도~~ | NFR-DASH-UX-001 | Streamlit 프론트엔드 삭제로 폐기. 주간 리포트는 Slack PDF 전송으로 대체. | — |
+| 비기능 | 사용성 | ~~[폐기] 위험도 가독성~~ | NFR-DASH-UX-002 | Streamlit 프론트엔드 삭제로 폐기. | — |
+| 비기능 | 사용성 | ~~[폐기] 반응형 표시~~ | NFR-DASH-UX-003 | Streamlit 프론트엔드 삭제로 폐기. | — |
+| 비기능 | 사용성 | Slack 리포트 가독성 | NFR-DASH-UX-004 | 주간 리포트는 기획팀이 Slack에서 빠르게 읽을 수 있도록 간결한 블록 구조와 텍스트 차트를 사용해야 한다. | PDF 첨부 + 텍스트 요약 블록 병행 |
 | 비기능 | 유지보수성 | 문서 체계 유지 | NFR-DASH-MNT-001 | Dashboard 요구사항 ID는 `FR-DASH-*`, `NFR-DASH-*` 형식을 따라야 한다. | 챗봇 `FR-CBOT-*`, 운영배치 `FR-BATCH-*`와 구분한다. |
 | 비기능 | 유지보수성 | 모듈 단위 관리 | NFR-DASH-MNT-002 | 시스템은 API, workflow, visualization, frontend를 분리해 유지보수해야 한다. | `docs/dashboard/architecture.md`의 런타임 구성을 따른다. |
 | 비기능 | 유지보수성 | 신규 지표 확장성 | NFR-DASH-MNT-003 | 시스템은 신규 운영 지표가 추가되어도 기존 화면과 API를 크게 변경하지 않고 확장할 수 있어야 한다. | summary 응답에 신규 섹션을 추가 가능한 구조 유지 |

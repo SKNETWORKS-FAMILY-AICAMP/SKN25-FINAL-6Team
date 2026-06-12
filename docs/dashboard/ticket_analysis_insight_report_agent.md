@@ -83,9 +83,12 @@
 
 ### 4.1 목적
 
-이 에이전트는 1주일에 한 번 자동 실행되어 게임기획 담당자와 운영자가 읽을 수 있는
-운영상황 보고서를 생성한다. 보고서는 단순 지표 나열이 아니라,
-`ticket_analysis`의 10개 컬럼을 해석한 서술형 인사이트를 포함해야 한다.
+이 에이전트는 1주일에 한 번 **Apache Airflow DAG**(`dashboard_weekly_report`)으로 자동 실행되어
+게임기획팀에 Slack으로 주간 운영 리포트를 전송한다.
+보고서는 단순 지표 나열이 아니라, `ticket_analysis`의 10개 컬럼을 해석한 서술형 인사이트를 포함해야 한다.
+
+> 수신 대상: 게임기획팀 (CS 담당자가 아님). 마케팅·운영 시사점 중심으로 간결하게 작성한다.
+> 프론트엔드(Streamlit)는 삭제되었으며, 보고서는 PDF 첨부 + Slack 텍스트 블록으로 제공된다.
 
 ### 4.2 실행 주기
 
@@ -110,39 +113,37 @@
 
 ```mermaid
 flowchart LR
-    S["Scheduler"] --> L["Load 7-day ticket_analysis data"]
-    L --> F["Aggregate by category / risk / sentiment / routing"]
-    F --> Q["Detect notable changes and anomalies"]
-    Q --> W["Write weekly report draft"]
-    W --> R["Human review by operator or game planner"]
-    R --> P["Publish report to dashboard / Slack / email"]
+    S["Airflow DAG<br/>dashboard_weekly_report<br/>매주 월요일 09:00 KST"] --> L["Task 1: fetch_report_data<br/>Load 7-day ticket_analysis data"]
+    L --> F["Task 2: detect_anomalies<br/>Aggregate by category / risk / sentiment<br/>Z-Score · WoW · Monthly trend"]
+    F --> T["Task 3: build_top5<br/>Top 5 improvements (Nielsen scoring)"]
+    T --> Q["Task 4: compose_report<br/>build_weekly_report_payload()<br/>generate_ai_actions()"]
+    Q --> W["Task 5: render_pdf<br/>render_report_pdf()"]
+    W --> P["Task 6: send_slack<br/>PDF → 기획팀 Slack 채널"]
 ```
 
 ### 4.5 단계별 책임
 
-| Step | Responsibility |
-| --- | --- |
-| Load | 최근 7일간 `ticket_analysis`와 연결 테이블을 읽는다. |
-| Aggregate | 카테고리, 위험도, 감성, 라우팅, 응답 대상 기준으로 통계를 만든다. |
-| Compare | 지난주 대비 증가/감소와 특이 패턴을 비교한다. |
-| Explain | `enriched_query`와 `summary`로 왜 그런 분류가 나왔는지 설명한다. |
-| Draft | 운영 보고서 초안을 생성한다. |
-| Review | 게임기획 또는 운영 담당자가 최종 검토한다. |
-| Publish | 대시보드 아카이브, Slack 요약, 이메일 본문으로 배포한다. |
+| Step | Airflow Task | Responsibility |
+| --- | --- | --- |
+| Load | `fetch_report_data` | 최근 7일간 `ticket_analysis`와 연결 테이블을 읽는다. `fetch_weekly_report_data(days=7)` |
+| Aggregate | `detect_anomalies` | 카테고리, 위험도, 감성, 라우팅 통계. Z-Score·WoW·월별 폭증 감지 (`report_anomaliy.md`, `report_anomaly.md`) |
+| Top 5 | `build_top5` | Nielsen Severity 기반 유저 개선 요청 Top 5 산정 (`report_user_top5.md`) |
+| Compose | `compose_report` | 보고서 페이로드 조합 + LLM AI 권장 액션 생성 (`report_ai_recommended.md`) |
+| Render | `render_pdf` | PDF 렌더링 (`render_report_pdf()`) |
+| Publish | `send_slack` | 기획팀 Slack 채널 PDF 전송. ~~대시보드 카드·이메일 배포 폐기.~~ |
 
 ### 4.6 보고서 목차
 
-주간 보고서는 다음 항목을 포함한다.
+주간 보고서는 다음 항목을 포함한다. 수신 대상은 **게임기획팀**이며 마케팅·운영 시사점 중심으로 간결하게 작성한다.
 
-1. 이번 주 문의 총량과 전주 대비 변화
-2. `category`별 주요 증가 항목
-3. `risk_level`별 고위험 문의 추세
-4. `sentiment` 악화 구간과 원인 후보
-5. `routing_target` 분포와 human_review 비율
-6. `responder_type` 별 처리 부담
-7. `enriched_query` 품질과 분류 해석 이슈
-8. `summary` 기반 대표 사례 3건
-9. 다음 주 대응 액션
+| 순서 | 섹션 | 참조 |
+| --- | --- | --- |
+| 1 | 리포트 헤더 (생성날짜, 분석 단위기간) | `datetime` / `{{ ds }}` |
+| 2 | 유저 개선 요청 Top 5 (설계 결함 / 편의 개선, 블록형 좌우배치) | `report_user_top5.md` |
+| 3 | AI 요약 + AI 제안 권장 액션 | `report_ai_recommended.md` |
+| 4 | 주간지표 (결제·지급·뽑기·계정·인게임버그, 전주 대비 증감, 블록형) | `ticket_analysis.category` |
+| 5 | 급증·위험 — 전주 대비 폭증 (일별 7일 바차트, 시간별 히트맵) | `report_anomaliy.md` |
+| 6 | 급증·위험 — 월별 폭증 (4주 바차트, 요약 텍스트) | `report_anomaly.md` |
 
 ### 4.7 보고서 작성 규칙
 
@@ -154,21 +155,33 @@ flowchart LR
 
 ### 4.8 결과물 형태
 
-에이전트의 결과물은 다음 3종으로 저장한다.
+> **[변경사항]** 프론트엔드 삭제 및 기획팀 대상으로 변경됨에 따라 결과물을 단순화한다.
 
-- 대시보드 보고서 카드
-- Slack/Discord용 짧은 요약
-- 이메일 또는 문서 아카이브용 전체 보고서
+에이전트의 결과물은 다음 2종이다.
+
+- ~~대시보드 보고서 카드~~ **[폐기]** (Streamlit 삭제)
+- Slack PDF 첨부 + 텍스트 블록 요약 (기획팀 채널)
+- ~~이메일 배포~~ **[폐기]** (추후 필요 시 재추가)
 
 ## 5. 구현 가이드
 
 ### 5.1 추천 구조
 
-- `src/dashboard/agents/weekly_report/`
-- `src/dashboard/agents/weekly_report/graph.py`
-- `src/dashboard/agents/weekly_report/nodes.py`
-- `src/dashboard/agents/weekly_report/prompts.py`
-- `src/dashboard/agents/weekly_report/scheduler.py`
+```
+apps/dashboard/backend/
+  airflow/
+    dashboard_weekly_report_dag.py   ← Airflow DAG (스케줄: 매주 월 09:00 KST)
+  workflow/
+    weekly_report/
+      service.py     ← fetch, detect_anomalies, build_top5, compose, render 함수
+      slack.py       ← Slack PDF 전송
+      pdf.py         ← PDF 렌더링
+      state.py       ← WeeklyReportState
+      errors.py      ← 에러 처리
+```
+
+> `scheduler.py`는 Airflow DAG으로 대체되어 삭제된다.
+> 방법론 상세는 `docs/dashboard/report_anomaliy.md`, `report_anomaly.md`, `report_user_top5.md`, `report_ai_recommended.md` 참조.
 
 ### 5.2 체인 선택
 
@@ -199,7 +212,9 @@ flowchart LR
 
 ## 7. 권장 후속 작업
 
-1. 이 문서를 기준으로 `src/dashboard`에 주간 보고서 에이전트 모듈을 추가한다.
-2. `ticket_analysis` 기반 집계 API를 별도 endpoint로 분리한다.
-3. 대시보드 화면에 "주간 보고서" 탭을 추가한다.
-4. 주간 보고서 결과를 `admin_event_logs` 또는 별도 아카이브 테이블에 저장한다.
+1. `apps/dashboard/backend/airflow/dashboard_weekly_report_dag.py` 생성 (Airflow DAG).
+2. `apps/dashboard/backend/workflow/weekly_report/service.py`에 이상 감지·Top 5·AI 액션 함수 추가.
+3. `ticket_analysis` 기반 집계 API를 별도 endpoint로 분리 (선택적).
+4. ~~대시보드 화면에 "주간 보고서" 탭 추가~~ **[폐기]** (프론트엔드 삭제).
+5. 주간 보고서 결과를 `admin_event_logs` 또는 별도 아카이브 테이블에 저장 (선택적).
+6. CS 자동화(`apps/cs_auto`)와 Airflow 통합 시 `cs_auto_agent_dags.py`에 병합 예정.

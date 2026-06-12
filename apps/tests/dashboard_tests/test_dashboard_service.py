@@ -10,7 +10,6 @@ from psycopg.errors import UndefinedTable
 from common.db.connection import db_connection
 from api import main as dashboard_api_main
 from workflow import DashboardWorkflowService, run_dashboard_workflow, run_weekly_report_workflow
-from workflow import service as dashboard_service
 from workflow.weekly_report import service as weekly_report_service
 
 
