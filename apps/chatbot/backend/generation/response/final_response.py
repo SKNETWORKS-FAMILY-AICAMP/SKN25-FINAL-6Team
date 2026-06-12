@@ -11,9 +11,9 @@ from chatbot.repository.ticket_repository import update_qa_ticket_raw_query
 from chatbot.schemas import ChatbotState
 
 
-def _ticket_status_for_decision(decision: str) -> str:
+def _ticket_status_for_decision(decision: str, review_required: bool | None = None) -> str:
     # 안전성 결정에 따라 QA 티켓을 해결 완료 또는 검토 대기로 갱신한다.
-    if decision == "REVIEW_QUEUE":
+    if decision == "REVIEW_QUEUE" or review_required is True:
         return "pending"
     return "resolved"
 
@@ -28,7 +28,7 @@ def final_response_node(state: ChatbotState) -> dict:
     elif decision in ("SAFE_FALLBACK", "MASKING"):
         final_text = fallback_response_for_category(state.get("category"))
     elif decision == "REVIEW_QUEUE":
-        final_text = REVIEW_QUEUE_RESPONSE
+        final_text = draft_text or REVIEW_QUEUE_RESPONSE
     else:
         final_text = draft_text
 
@@ -42,7 +42,7 @@ def final_response_node(state: ChatbotState) -> dict:
             "ticket_id": state["ticket_id"],
             "raw_query": f"User: {raw_query}\nAI: {final_text}",
             "safety_action": decision,
-            "status": _ticket_status_for_decision(decision),
+            "status": _ticket_status_for_decision(decision, state.get("review_required")),
         }
     )
 

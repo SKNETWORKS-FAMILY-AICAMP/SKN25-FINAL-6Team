@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from langsmith import traceable
-
 from chatbot.observability.logger import log_event
 from chatbot.repository.account_repository import read_server_regions, verify_user_login
 
@@ -50,13 +48,6 @@ def get_server_regions() -> list[str]:
     return regions or DEFAULT_SERVER_REGIONS
 
 
-@traceable(
-    run_type="tool",
-    name="game_account_login",
-    tags=["chatbot", "login", "game_account"],
-    process_inputs=_login_inputs,
-    process_outputs=_login_outputs,
-)
 def login_with_credentials(email: str, password: str, server_region: str) -> dict[str, Any]:
     # 1단계: 입력값을 정리하고 필수값이 비어 있으면 DB 조회 전에 실패 응답을 만든다.
     normalized_email = email.strip()

@@ -316,12 +316,99 @@ def _requires_document_grounding(state: ChatbotState, documents: list[dict[str, 
     )
 
 
+def _status_text(value: Any) -> str:
+    return str(value or "").strip().lower()
+
+
+def _has_any_status(rows: list[dict[str, Any]], field: str, statuses: set[str]) -> bool:
+    return any(_status_text(row.get(field)) in statuses for row in rows)
+
+
+def _payment_context_requires_review(state: ChatbotState) -> tuple[bool, str | None]:
+    context = state.get("payment_context")
+    if not isinstance(context, dict):
+        return False, None
+
+    data = context.get("data")
+    if not isinstance(data, dict):
+        return False, None
+
+    refunds = data.get("refunds") if isinstance(data.get("refunds"), list) else []
+    deliveries = data.get("item_delivery_logs") if isinstance(data.get("item_delivery_logs"), list) else []
+    payments = data.get("payments") if isinstance(data.get("payments"), list) else []
+    user_text = " ".join(
+        str(state.get(key) or "")
+        for key in ("raw_query", "masked_content", "normalized_query", "sub_category")
+    )
+
+    if _has_any_status(refunds, "refund_status", {"requested", "pending", "reviewing", "in_progress", "processing"}):
+        return True, "refund_status_requires_operator_review"
+
+    asks_delivery_or_reward = bool(re.search(r"지급|미지급|아이템|보상|언제|안\s*들어|못\s*받|반영", user_text))
+    has_completed_payment = _has_any_status(
+        payments,
+        "payment_status",
+        {"completed", "complete", "success", "succeeded", "paid", "완료", "성공"},
+    )
+    has_delivered_item = _has_any_status(
+        deliveries,
+        "delivery_status",
+        {"delivered", "completed", "complete", "success", "완료", "지급완료"},
+    )
+    has_pending_or_failed_delivery = _has_any_status(
+        deliveries,
+        "delivery_status",
+        {"pending", "failed", "processing", "requested", "미지급", "대기", "실패"},
+    )
+    if asks_delivery_or_reward and has_completed_payment and (has_pending_or_failed_delivery or not has_delivered_item):
+        return True, "paid_item_delivery_requires_operator_review"
+
+    return False, None
+
+
+def _operator_review_signal(state: ChatbotState, draft_text: str) -> tuple[bool, str | None]:
+    if state.get("review_required") is True or state.get("routing_target") == "urgent_alert":
+        return True, "review_already_requested"
+
+    context_required, context_reason = _payment_context_requires_review(state)
+    if context_required:
+        return True, context_reason
+
+    combined_text = " ".join(
+        str(value or "")
+        for value in (
+            state.get("raw_query"),
+            state.get("masked_content"),
+            state.get("normalized_query"),
+            state.get("sub_category"),
+            draft_text,
+        )
+    )
+    strong_review_patterns = (
+        r"담당자.{0,12}(확인|검토|처리|안내)",
+        r"운영자.{0,12}(확인|검토|처리|안내)",
+        r"티켓.{0,12}(검토|접수|처리)",
+        r"별도.{0,8}안내",
+        r"(수동|직접).{0,8}(지급|보상|환불|복구|처리)",
+        r"(환불|결제\s*취소).{0,12}(승인|처리|검토|진행\s*중)",
+        r"(계정\s*복구|제재\s*해제|연동\s*해제).{0,12}(필요|요청|검토|처리)",
+        r"(로그|재현|증빙|영수증).{0,12}(확인|검토).{0,12}(필요|대상)",
+        r"(자동|AI).{0,8}(처리|확답|판단).{0,8}(어렵|불가)",
+    )
+    for pattern in strong_review_patterns:
+        if re.search(pattern, combined_text, flags=re.IGNORECASE):
+            return True, f"operator_review_signal:{pattern}"
+
+    return False, None
+
+
 def _decide_safety_action(
     *,
     moderation_blocked: bool,
     scores: dict[str, float],
     draft_text: str,
     documents: list[dict[str, Any]],
+    state: ChatbotState,
     requires_grounding: bool = True,
 ) -> tuple[bool, str, bool]:
     # safety 점수와 grounding 결과를 AUTO_RESPONSE/SAFE_FALLBACK/BLOCK/REVIEW로 변환한다.
@@ -330,6 +417,10 @@ def _decide_safety_action(
 
     if "policy_violation_score" in scores and scores["policy_violation_score"] >= TOXICITY_THRESHOLD:
         return False, "BLOCK_RESPONSE", False
+
+    operator_review_required, _ = _operator_review_signal(state, draft_text)
+    if operator_review_required:
+        return True, "REVIEW_QUEUE", True
 
     normalized_text = " ".join(draft_text.split())
     if not requires_grounding:
@@ -483,8 +574,12 @@ def safety_layer_node(state: ChatbotState) -> dict:
         scores=scores,
         draft_text=draft_text,
         documents=documents,
+        state=state,
         requires_grounding=requires_grounding,
     )
+    operator_review_required, operator_review_reason = _operator_review_signal(state, draft_text)
+    if operator_review_required:
+        safety_reason = f"{safety_reason}; review={operator_review_reason}"
 
     safety_result = _write_safety_results(
         {

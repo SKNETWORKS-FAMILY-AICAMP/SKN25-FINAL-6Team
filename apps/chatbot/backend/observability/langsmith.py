@@ -12,26 +12,40 @@ TRACE_METADATA_FIELDS = (
     "sub_category",
     "category",
     "routing_target",
-    "fallback_routing_target",
-    "should_use_rag",
+    "normalized_query",
+    "retrieval_query",
+    "retrieval_cache_enabled",
+    "retrieval_cache_hit",
+    "retrieval_cache_backend",
+    "retrieved_count",
     "draft_id",
-    "input_masked",
-    "input_detected_labels",
+    "safety_action",
+    "safety_passed",
+    "factuality_score",
+    "hallucination_score",
+    "review_required",
 )
 
 
-# LangSmith trace에 ticket/session/category 같은 운영 식별자를 metadata로 붙인다.
 def build_trace_metadata(state: dict[str, Any], **extra: Any) -> dict[str, Any]:
+    """Expose only the operational fields we want to scan in LangSmith."""
     metadata = {
         field: state.get(field)
         for field in TRACE_METADATA_FIELDS
         if state.get(field) is not None
     }
+
+    query = state.get("normalized_query") or state.get("raw_query")
+    if query is not None:
+        metadata["normalized_query"] = query
+
+    if "retrieved_count" not in metadata:
+        metadata["retrieved_count"] = len(state.get("retrieved_documents") or [])
+
     metadata.update({key: value for key, value in extra.items() if value is not None})
     return metadata
 
 
-# LangGraph 실행 시 LangSmith run_name/tags/metadata를 함께 넘기기 위한 config를 만든다.
 def build_runnable_config(state: dict[str, Any], *, run_name: str) -> dict[str, Any]:
     ticket_id = state.get("ticket_id")
     session_id = state.get("session_id")

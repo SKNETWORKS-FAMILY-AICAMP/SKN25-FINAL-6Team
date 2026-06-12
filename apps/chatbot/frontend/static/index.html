@@ -2417,24 +2417,7 @@
     function inferCategoryInfoForMessage(message) {
       const primaryCategory = clientState.selectedPrimaryCategory;
       if (!primaryCategory) return clientState.selectedCategoryInfo;
-      const text = String(message || "").toLowerCase();
-
-      if (primaryCategory === "payment") {
-        if (/결제\s*방법|웹페이지|홈페이지|충전|결제\s*수단|어떻게.*결제|결제.*어떻게/.test(text)) {
-          return getCategoryInfo("payment", "payment_method") || clientState.selectedCategoryInfo;
-        }
-        if (/환불|취소|청약\s*철회/.test(text)) {
-          return getCategoryInfo("payment", "refund_policy") || clientState.selectedCategoryInfo;
-        }
-        if (/미지급|안\s*들어|못\s*받|지급되지|반영되지/.test(text)) {
-          return getCategoryInfo("payment", "missing_item") || clientState.selectedCategoryInfo;
-        }
-        if (/중복/.test(text)) {
-          return getCategoryInfo("payment", "duplicate_payment") || clientState.selectedCategoryInfo;
-        }
-      }
-
-      return clientState.selectedCategoryInfo;
+      return clientState.selectedCategoryInfo || getDefaultCategoryInfo(primaryCategory);
     }
 
     function buildWelcomeMessage(timeLabel = "새 대화 시작") {

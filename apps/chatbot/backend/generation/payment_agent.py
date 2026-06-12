@@ -61,6 +61,10 @@ def _payment_context_message(context: dict[str, Any]) -> dict[str, str]:
     }
 
 
+def _status_text(value: Any) -> str:
+    return str(value or "").strip().lower()
+
+
 def _summarize_payment_context_inputs(inputs: dict[str, Any]) -> dict[str, Any]:
     state = inputs.get("state") or {}
     return {
@@ -129,10 +133,11 @@ def payment_agent_node(state: ChatbotState) -> dict:
     agent_state = dict(state)
     agent_state["payment_context"] = payment_context
     agent_state["retrieved_documents"] = payment_evidence
-    agent_state["messages"] = [
+    messages = [
         *list(state.get("messages") or []),
         _payment_context_message(payment_context),
     ]
+    agent_state["messages"] = messages
     result = invoke_payment_agent(agent_state)
     update = build_draft_update(state, result, PAYMENT_POLICY.name)
     update["payment_context"] = payment_context

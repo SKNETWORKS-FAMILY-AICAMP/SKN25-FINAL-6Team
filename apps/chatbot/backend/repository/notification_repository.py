@@ -52,7 +52,7 @@ def save_notification_log(payload: dict[str, Any]) -> dict[str, Any]:
                     """,
                     (
                         payload["ticket_id"],
-                        payload.get("channel") or "slack",
+                        payload.get("channel") or "github_issue",
                         payload.get("status"),
                         payload.get("message"),
                         payload.get("error_message"),
@@ -65,7 +65,7 @@ def save_notification_log(payload: dict[str, Any]) -> dict[str, Any]:
             "stored": True,
             "notification_id": notification_id,
             "ticket_id": payload["ticket_id"],
-            "channel": payload.get("channel") or "slack",
+            "channel": payload.get("channel") or "github_issue",
         }
 
     return safe_write(operation="write_notification_log", payload=payload, writer=_write)

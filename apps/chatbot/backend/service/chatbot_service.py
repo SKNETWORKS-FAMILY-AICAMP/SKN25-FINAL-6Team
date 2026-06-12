@@ -3,6 +3,8 @@ from __future__ import annotations
 import os
 from typing import Any
 
+from langsmith import traceable
+
 from chatbot.observability.langsmith import build_runnable_config, build_trace_metadata
 from chatbot.observability.logger import EVENT_NODE_COMPLETED, log_event
 from chatbot.utils.input_preprocessing import preprocess_user_input
@@ -146,6 +148,25 @@ def _print_node_summary(summary: dict[str, Any]) -> None:
     print(f"  - updated: {', '.join(summary['updated_keys'])}")
 
 
+def _chat_trace_inputs(inputs: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "inquiry": inputs.get("user_message"),
+    }
+
+
+def _chat_trace_outputs(output: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "answer": output.get("answer"),
+    }
+
+
+@traceable(
+    run_type="chain",
+    name="chatbot_request",
+    tags=["chatbot", "request"],
+    process_inputs=_chat_trace_inputs,
+    process_outputs=_chat_trace_outputs,
+)
 def run_chatbot(
     ticket_id: int,
     user_message: str,
@@ -181,7 +202,7 @@ def run_chatbot(
         previous_messages=previous_messages,
         conversation_summary=conversation_summary,
     )
-    result = graph.invoke(state, config=build_runnable_config(state, run_name="chatbot_request"))
+    result = graph.invoke(state, config=build_runnable_config(state, run_name="chatbot_graph"))
     log_event(
         "langsmith_trace_metadata_linked",
         ticket_id=ticket_id,

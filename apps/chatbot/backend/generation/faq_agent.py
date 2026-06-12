@@ -112,6 +112,24 @@ def _retrieval_cache_hash(
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
 
 
+def _set_retrieval_cache_state(
+    state: ChatbotState | None,
+    *,
+    enabled: bool,
+    hit: bool,
+    key_hash: str,
+    backend: str | None = None,
+    ttl: int | None = None,
+) -> None:
+    if state is None:
+        return
+    state["retrieval_cache_enabled"] = enabled
+    state["retrieval_cache_hit"] = hit
+    state["retrieval_cache_key_hash"] = key_hash
+    state["retrieval_cache_backend"] = backend
+    state["retrieval_cache_ttl"] = ttl
+
+
 def _is_low_evidence(documents: list[dict[str, Any]]) -> tuple[bool, str | None]:
     if not documents:
         return True, "no_retrieved_documents"
@@ -169,6 +187,13 @@ def _retrieve_documents(
         cached = get_cached_retrieval(cache_hash)
         if cached.get("hit"):
             documents = list(cached.get("documents") or [])
+            _set_retrieval_cache_state(
+                state,
+                enabled=True,
+                hit=True,
+                key_hash=cache_hash,
+                backend="redis_or_memory",
+            )
             log_event(
                 EVENT_TOOL_COMPLETED,
                 ticket_id=state.get("ticket_id") if state else None,
@@ -199,6 +224,14 @@ def _retrieve_documents(
     if cache_enabled:
         ttl = int(os.environ.get("FAQ_RETRIEVAL_CACHE_TTL", "3600"))
         cache_result = set_cached_retrieval(cache_hash, retrieved_documents, ttl=ttl)
+        _set_retrieval_cache_state(
+            state,
+            enabled=True,
+            hit=False,
+            key_hash=cache_hash,
+            backend=str(cache_result.get("backend") or ""),
+            ttl=ttl,
+        )
         log_event(
             EVENT_TOOL_COMPLETED,
             ticket_id=state.get("ticket_id") if state else None,
@@ -218,6 +251,12 @@ def _retrieve_documents(
             },
         )
     else:
+        _set_retrieval_cache_state(
+            state,
+            enabled=False,
+            hit=False,
+            key_hash=cache_hash,
+        )
         log_event(
             EVENT_TOOL_COMPLETED,
             ticket_id=state.get("ticket_id") if state else None,
@@ -550,6 +589,12 @@ def faq_agent_node(state: ChatbotState) -> dict:
         "retrieval_query": rag_result["retrieval_query"],
         "retrieval_enrichment": rag_result.get("retrieval_enrichment"),
         "retrieved_documents": rag_result["retrieved_documents"],
+        "retrieved_count": len(rag_result["retrieved_documents"] or []),
+        "retrieval_cache_enabled": state.get("retrieval_cache_enabled"),
+        "retrieval_cache_hit": state.get("retrieval_cache_hit"),
+        "retrieval_cache_backend": state.get("retrieval_cache_backend"),
+        "retrieval_cache_key_hash": state.get("retrieval_cache_key_hash"),
+        "retrieval_cache_ttl": state.get("retrieval_cache_ttl"),
         "faq_failure_reason": rag_result["faq_failure_reason"],
     }
     log_event(
