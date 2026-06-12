@@ -15,8 +15,6 @@ def _ticket_status_for_decision(decision: str) -> str:
     # 안전성 결정에 따라 QA 티켓을 해결 완료 또는 검토 대기로 갱신한다.
     if decision == "REVIEW_QUEUE":
         return "pending"
-    if decision == "BLOCK_RESPONSE":
-        return "pending"
     return "resolved"
 
 

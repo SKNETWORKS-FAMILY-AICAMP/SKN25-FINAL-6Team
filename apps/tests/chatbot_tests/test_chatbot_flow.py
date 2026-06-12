@@ -536,10 +536,11 @@ def test_final_response_uses_category_fallbacks(monkeypatch) -> None:
 
 
 def test_final_response_uses_fixed_block_and_review_responses(monkeypatch) -> None:
-    _patch_final_response_writes(monkeypatch)
+    payloads = _patch_final_response_writes(monkeypatch)
 
     assert final_response_node(_final_state("FAQ", "BLOCK_RESPONSE"))["final_text"] == BLOCK_RESPONSE
     assert final_response_node(_final_state("FAQ", "REVIEW_QUEUE"))["final_text"] == REVIEW_QUEUE_RESPONSE
+    assert [payload["status"] for payload in payloads] == ["resolved", "pending"]
 
 
 def test_final_response_does_not_write_chatbot_insight(monkeypatch) -> None:

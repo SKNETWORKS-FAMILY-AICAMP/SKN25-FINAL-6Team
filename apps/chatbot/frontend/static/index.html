@@ -225,19 +225,27 @@
 
     .bot-loading-card {
       display: grid;
-      grid-template-columns: 58px 1fr;
-      gap: 14px;
-      align-items: center;
+      gap: 8px;
       min-width: 280px;
       color: #153958;
       letter-spacing: 0;
     }
 
-    .bot-loading-character {
+    .bot-loading-runway {
       position: relative;
-      width: 58px;
-      height: 58px;
-      animation: botBounce 0.72s ease-in-out infinite;
+      height: 54px;
+      margin-top: 4px;
+      padding-top: 34px;
+    }
+
+    .bot-loading-character {
+      position: absolute;
+      left: 0;
+      bottom: 8px;
+      width: 46px;
+      height: 46px;
+      animation: loadingCharacterRun 4.2s ease-in-out infinite;
+      z-index: 1;
     }
 
     .bot-loading-character img {
@@ -247,14 +255,7 @@
       height: 100%;
       object-fit: contain;
       filter: drop-shadow(0 10px 14px rgba(16, 47, 74, 0.12));
-    }
-
-    .bot-loading-character .loading-stand {
-      animation: loadingStandSwap 0.72s steps(1, end) infinite;
-    }
-
-    .bot-loading-character .loading-jump {
-      animation: loadingJumpSwap 0.72s steps(1, end) infinite;
+      animation: loadingTinyHop 0.82s ease-in-out infinite;
     }
 
     .bot-loading-title {
@@ -275,7 +276,6 @@
       position: relative;
       overflow: hidden;
       height: 8px;
-      margin-top: 12px;
       border-radius: 999px;
       background: rgba(96, 150, 180, 0.16);
     }
@@ -292,33 +292,24 @@
       animation: loadingBarSlide 1.05s ease-in-out infinite;
     }
 
-    @keyframes botBounce {
-      0%, 100% {
-        transform: translateY(0) scaleY(1);
+    @keyframes loadingCharacterRun {
+      0% {
+        left: 0;
       }
-      42% {
-        transform: translateY(-10px) scaleY(1.02);
+      100% {
+        left: calc(100% - 46px);
+      }
+    }
+
+    @keyframes loadingTinyHop {
+      0%, 100% {
+        transform: translateY(0) scale(1);
+      }
+      45% {
+        transform: translateY(-4px) scale(1.01);
       }
       72% {
-        transform: translateY(2px) scaleY(0.96);
-      }
-    }
-
-    @keyframes loadingStandSwap {
-      0%, 49% {
-        opacity: 1;
-      }
-      50%, 100% {
-        opacity: 0;
-      }
-    }
-
-    @keyframes loadingJumpSwap {
-      0%, 49% {
-        opacity: 0;
-      }
-      50%, 100% {
-        opacity: 1;
+        transform: translateY(1px) scale(0.99);
       }
     }
 
@@ -2210,18 +2201,19 @@
       row.className = "flex items-start gap-4";
       row.innerHTML = `
         <div class="h-[44px] w-[44px] shrink-0 overflow-hidden rounded-full bg-white/80 shadow-[0_10px_24px_rgba(16,47,74,0.08)] ring-2 ring-white/80">
-          <img class="h-full w-full object-cover" src="assets/stand.png" alt="일상이" />
+          <img class="h-full w-full object-cover" src="assets/일상이.png" alt="일상이" />
         </div>
         <article class="max-w-[520px] rounded-2xl rounded-tl-md bg-white/86 px-5 py-4 text-[15px] font-semibold leading-7 text-[#153958] shadow-[0_12px_30px_rgba(16,47,74,0.08)]">
           <div class="bot-loading-card" role="status" aria-live="polite">
-            <div class="bot-loading-character" aria-hidden="true">
-              <img class="loading-stand" src="assets/stand.png" alt="" />
-              <img class="loading-jump" src="assets/jump.png" alt="" />
-            </div>
             <div>
               <div class="bot-loading-title">답변이 생성중입니다</div>
               <div class="bot-loading-subtitle">문의 내용을 확인하고 있어요.</div>
-              <div class="bot-loading-bar"></div>
+              <div class="bot-loading-runway">
+                <div class="bot-loading-character" aria-hidden="true">
+                  <img class="loading-stand" src="assets/stand.png?v=cutout" alt="" />
+                </div>
+                <div class="bot-loading-bar"></div>
+              </div>
             </div>
           </div>
         </article>
