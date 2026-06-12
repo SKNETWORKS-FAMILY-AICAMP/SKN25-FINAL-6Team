@@ -61,10 +61,6 @@ def _payment_context_message(context: dict[str, Any]) -> dict[str, str]:
     }
 
 
-def _status_text(value: Any) -> str:
-    return str(value or "").strip().lower()
-
-
 def _summarize_payment_context_inputs(inputs: dict[str, Any]) -> dict[str, Any]:
     state = inputs.get("state") or {}
     return {

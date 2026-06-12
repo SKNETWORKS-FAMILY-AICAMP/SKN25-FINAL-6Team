@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from chatbot.repository.base import read_response, safe_read
+from chatbot.repository.base import safe_read
 
 
 # operation log 조회는 여러 함수에서 같은 DB connection/cursor 패턴을 사용한다.
@@ -11,64 +11,6 @@ def _db_context() -> tuple[Any, Any]:
     from common.db.connection import db_connection
 
     return db_connection, dict_row
-
-
-# 특정 게임 계정의 결제 이력을 조회한다.
-def read_payments_by_account(account_id: int) -> dict[str, Any]:
-    def _read() -> dict[str, Any]:
-        db_connection, dict_row = _db_context()
-        with db_connection() as conn:
-            with conn.cursor(row_factory=dict_row) as cur:
-                cur.execute(
-                    """
-                    SELECT
-                        payment_id,
-                        account_id,
-                        product_name,
-                        product_type,
-                        amount,
-                        currency,
-                        payment_method,
-                        payment_status,
-                        transaction_id,
-                        paid_at
-                    FROM payments
-                    WHERE account_id = %s
-                    ORDER BY paid_at DESC NULLS LAST
-                    LIMIT 10
-                    """,
-                    (account_id,),
-                )
-                return read_response([dict(row) for row in cur.fetchall()])
-
-    return safe_read(operation="read_payments", reader=_read)
-
-
-# payment_id 기준으로 연결된 환불 이력을 조회한다.
-def read_refunds_by_payment(payment_id: int) -> dict[str, Any]:
-    def _read() -> dict[str, Any]:
-        db_connection, dict_row = _db_context()
-        with db_connection() as conn:
-            with conn.cursor(row_factory=dict_row) as cur:
-                cur.execute(
-                    """
-                    SELECT
-                        refund_id,
-                        payment_id,
-                        refund_status,
-                        refund_reason,
-                        requested_at,
-                        processed_at
-                    FROM refunds
-                    WHERE payment_id = %s
-                    ORDER BY requested_at DESC NULLS LAST
-                    LIMIT 10
-                    """,
-                    (payment_id,),
-                )
-                return read_response([dict(row) for row in cur.fetchall()])
-
-    return safe_read(operation="read_refunds", reader=_read)
 
 
 # 특정 게임 계정의 아이템 지급 로그를 조회한다.

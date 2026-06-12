@@ -8,28 +8,6 @@ from chatbot.repository.account_repository import read_server_regions, verify_us
 DEFAULT_SERVER_REGIONS = ["ASIA", "KR", "EU", "NA"]
 
 
-def _login_inputs(inputs: dict[str, Any]) -> dict[str, Any]:
-    # LangSmith trace에는 비밀번호 원문이 남지 않도록 입력을 마스킹한다.
-    return {
-        "email": inputs.get("email"),
-        "server_region": inputs.get("server_region"),
-        "password": "***",
-    }
-
-
-def _login_outputs(output: dict[str, Any]) -> dict[str, Any]:
-    # 로그인 결과 trace에는 성공 여부와 계정 식별 정보만 남긴다.
-    return {
-        "login_success": output.get("login_success"),
-        "user_id": output.get("user_id"),
-        "account_id": output.get("account_id"),
-        "game_id": output.get("game_id"),
-        "email": output.get("email"),
-        "server_region": output.get("server_region"),
-        "message": output.get("message"),
-    }
-
-
 def get_server_regions() -> list[str]:
     # DB에서 서버 목록을 읽되, 실패하면 프론트가 깨지지 않도록 기본 서버를 반환한다.
     result = read_server_regions()

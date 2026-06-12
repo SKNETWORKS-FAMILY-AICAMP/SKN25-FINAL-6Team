@@ -7,6 +7,7 @@ from chatbot.generation.response.fixed_responses import (
 )
 from chatbot.notifications.dispatcher import dispatch_urgent_alert
 from chatbot.observability.logger import EVENT_FINAL_RESPONSE_CREATED, log_event
+from chatbot.repository.failed_query_repository import save_failed_query
 from chatbot.repository.ticket_repository import update_qa_ticket_raw_query
 from chatbot.schemas import ChatbotState
 
@@ -16,6 +17,34 @@ def _ticket_status_for_decision(decision: str, review_required: bool | None = No
     if decision == "REVIEW_QUEUE" or review_required is True:
         return "pending"
     return "resolved"
+
+
+def _is_faq_state(state: ChatbotState) -> bool:
+    return (
+        str(state.get("category") or "").strip().lower() == "faq"
+        or state.get("reasoning_node") == "faq_agent"
+        or state.get("should_use_rag") is True
+    )
+
+
+def _record_faq_safe_fallback_query(state: ChatbotState, decision: str) -> dict | None:
+    if decision != "SAFE_FALLBACK" or not _is_faq_state(state):
+        return None
+    if state.get("faq_failure_reason"):
+        return None
+    ticket_id = state.get("ticket_id")
+    if ticket_id is None:
+        return None
+
+    query = state.get("retrieval_query") or state.get("normalized_query") or state.get("raw_query") or ""
+    return save_failed_query(
+        {
+            "ticket_id": ticket_id,
+            "query": str(query),
+            "category": state.get("category") or "faq",
+            "reason": "safety_safe_fallback",
+        }
+    )
 
 
 def final_response_node(state: ChatbotState) -> dict:
@@ -34,6 +63,7 @@ def final_response_node(state: ChatbotState) -> dict:
 
     # 2단계: 긴급 알림 대상이면 외부 알림을 보내고, 아니면 skipped 상태로 남긴다.
     notification_result = dispatch_urgent_alert({**state, "final_text": final_text})
+    failed_query_result = _record_faq_safe_fallback_query(state, decision)
 
     # 3단계: 챗봇 최종 응답은 qa_ticket에 직접 저장한다.
     raw_query = state.get("raw_query") or ""
@@ -58,6 +88,7 @@ def final_response_node(state: ChatbotState) -> dict:
         metadata={
             "safety_action": decision,
             "notification_status": notification_result.get("status"),
+            "failed_query_result": failed_query_result,
             "ticket_status_result": ticket_status_result,
         },
     )
@@ -65,5 +96,6 @@ def final_response_node(state: ChatbotState) -> dict:
     return {
         "final_text": final_text,
         "notification_result": notification_result,
+        "failed_query_result": failed_query_result,
         "ticket_status_result": ticket_status_result,
     }
