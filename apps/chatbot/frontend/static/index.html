@@ -117,83 +117,91 @@
 
     .answer-card {
       display: grid;
-      gap: 14px;
-      color: #153958;
+      max-width: 680px;
+      gap: 12px;
+      color: #1f3b4d;
       letter-spacing: 0;
+      line-height: 1.75;
+      font-size: 15px;
+      font-weight: 400;
     }
 
     .answer-title {
-      font-size: 16px;
-      font-weight: 900;
+      font-size: 17px;
+      font-weight: 700;
       line-height: 1.55;
-      color: #102f4a;
+      color: #17364a;
     }
 
     .answer-summary {
       font-size: 15px;
-      font-weight: 700;
-      line-height: 1.8;
-      color: #244762;
+      font-weight: 400;
+      line-height: 1.7;
+      color: #2d4a5c;
       white-space: pre-line;
     }
 
     .answer-section {
       display: grid;
-      gap: 8px;
+      gap: 7px;
       border-radius: 8px;
-      border: 1px solid rgba(96, 150, 180, 0.14);
-      background: rgba(255, 250, 240, 0.5);
+      border: 1px solid rgba(96, 150, 180, 0.16);
+      background: rgba(255, 255, 255, 0.26);
       padding: 12px 14px;
     }
 
     .answer-section-title {
-      font-size: 14px;
-      font-weight: 900;
+      font-size: 14.5px;
+      font-weight: 700;
       line-height: 1.55;
-      color: #153958;
+      color: #2f6f91;
     }
 
     .answer-section-content {
-      font-size: 14px;
-      font-weight: 650;
-      line-height: 1.8;
-      color: #244762;
+      font-size: 14.5px;
+      font-weight: 400;
+      line-height: 1.7;
+      color: #1f3b4d;
       white-space: pre-line;
     }
 
     .answer-list {
       display: grid;
-      gap: 7px;
+      gap: 5px;
       margin: 0;
       padding-left: 18px;
-      font-size: 14px;
-      font-weight: 650;
-      line-height: 1.75;
-      color: #244762;
+      font-size: 14.5px;
+      font-weight: 400;
+      line-height: 1.65;
+      color: #1f3b4d;
     }
 
     .answer-note {
       border-left: 3px solid rgba(96, 150, 180, 0.75);
-      padding: 10px 12px;
+      padding: 11px 13px;
       border-radius: 8px;
-      background: rgba(220, 235, 243, 0.55);
+      background: rgba(147, 191, 207, 0.16);
       font-size: 14px;
-      font-weight: 750;
-      line-height: 1.75;
-      color: #1d4f73;
+      font-weight: 400;
+      line-height: 1.65;
+      color: #2d4a5c;
       white-space: pre-line;
     }
 
     .answer-time {
-      margin-top: 2px;
+      margin-top: 4px;
       font-size: 12px;
-      font-weight: 800;
-      color: #6c8799;
+      font-weight: 400;
+      color: #8aa1ad;
     }
 
     .answer-card strong {
-      font-weight: 900;
-      color: #0f3f63;
+      font-weight: 700;
+      color: #17364a;
+    }
+
+    .answer-note strong {
+      font-weight: 700;
     }
 
     .answer-link {
@@ -749,9 +757,9 @@
                 <li>결제, 환불, 계정, 아이템 지급 여부 확인</li>
                 <li>운영자 검토 대상 문의 분류</li>
                 <li>상담 이력 관리</li>
-                <li>반복 문의 및 장애성 이슈 분석</li>
+                <li>오류 및 장애성 이슈 분석</li>
                 <li>서비스 품질 개선</li>
-                <li>악성 문의, 도배, 비정상 이용 탐지</li>
+                <li>개인정보, 욕설, 프롬프트 인젝션 등 안전하지 않은 입력 탐지</li>
                 <li>챗봇 답변 정확도 및 안정성 개선</li>
               </ol>
               <p class="mt-3">수집된 정보는 위 목적 외의 용도로 이용되지 않으며, 이용 목적이 변경되는 경우 필요한 절차를 거쳐 안내합니다.</p>
@@ -846,7 +854,7 @@
               <ul class="mt-2 list-disc space-y-1 pl-5">
                 <li>개인정보 문의 담당: GameOps 운영팀</li>
                 <li>문의 이메일: privacy@gameops.example</li>
-                <li>고객센터: 일상 챗봇 내 ‘운영자에게 문의하기’</li>
+                <li>고객센터: 일상 챗봇 문의 접수 및 운영자 검토 전환</li>
               </ul>
             </section>
 
@@ -879,8 +887,8 @@
                 <li>관련 도움말 문서 검색</li>
                 <li>운영자 검토 대상 문의 분류</li>
                 <li>상담 이력 저장</li>
-                <li>반복 문의 및 장애성 이슈 감지</li>
-                <li>운영자 상담 연결</li>
+                <li>오류 및 장애성 이슈 감지</li>
+                <li>운영자 검토 대상 분류</li>
               </ol>
             </section>
 
@@ -1120,8 +1128,8 @@
               <ol class="mt-2 list-decimal space-y-1 pl-5">
                 <li>환불 승인 요청</li>
                 <li>결제 취소 요청</li>
-                <li>결제 내역 확인이 필요한 문의</li>
-                <li>아이템 또는 상품 미지급 확인이 필요한 문의</li>
+                <li>환불 승인이나 결제 취소처럼 최종 처리가 필요한 문의</li>
+                <li>아이템 또는 상품 미지급에 대해 운영자 확인이 필요한 문의</li>
                 <li>계정 복구 또는 계정 도용이 의심되는 문의</li>
                 <li>버그 재현 정보가 부족한 문의</li>
                 <li>개인정보가 포함된 문의</li>
@@ -1265,7 +1273,7 @@
             </section>
 
             <section>
-              <h3 class="mb-3 text-lg font-black text-[#153958]">운영자에게 문의하기</h3>
+              <h3 class="mb-3 text-lg font-black text-[#153958]">운영자 검토 전환</h3>
               <p class="mt-3">챗봇 답변으로 문제가 해결되지 않거나 자동응답이 어려운 문의는 운영자 검토 대상으로 전환될 수 있습니다.</p>
               <p class="mt-3">운영자 검토가 필요한 경우 문의 내용, 카테고리, 채팅 기록, 관련 처리 결과가 상담 처리를 위해 저장될 수 있습니다.</p>
               <p class="mt-3">운영자 검토 대상 문의는 접수 순서와 긴급도에 따라 처리됩니다.</p>
@@ -1273,14 +1281,11 @@
 
             <section>
               <h3 class="mb-3 text-lg font-black text-[#153958]">문의 상태 안내</h3>
-              <p class="mt-3">문의 상태는 다음과 같이 표시될 수 있습니다.</p>
+              <p class="mt-3">문의 상태는 현재 처리 흐름에 따라 다음과 같이 표시될 수 있습니다.</p>
               <ul class="mt-2 list-disc space-y-1 pl-5">
                 <li>접수 완료: 문의가 정상적으로 등록된 상태</li>
-                <li>자동응답 완료: 챗봇이 답변을 제공한 상태</li>
-                <li>운영자 검토 중: 운영자가 문의를 확인 중인 상태</li>
-                <li>추가 정보 필요: 처리를 위해 추가 정보가 필요한 상태</li>
-                <li>처리 완료: 문의 처리가 완료된 상태</li>
-                <li>처리 불가: 제공된 정보만으로 처리가 어려운 상태</li>
+                <li>처리 완료: 챗봇 답변 또는 최종 응답이 저장된 상태</li>
+                <li>검토 대기: 자동응답이 어렵거나 운영자 확인이 필요한 상태</li>
               </ul>
             </section>
 
@@ -1495,11 +1500,11 @@
                 },
                 {
                       "question": "직접 승인하지 않은 결제에 대한 환불은 어떻게 신청하나요?",
-                      "answer": "직접 승인하지 않은 결제에 대한 환불은 결제를 진행한 플랫폼에 따라 절차가 다릅니다.\n\nApp Store, Google Play 등 제삼자 플랫폼에서 결제한 경우 해당 플랫폼 고객센터에 환불 문의를 해 주세요.\n기타 제삼자 앱스토어의 경우에도 해당 앱스토어 고객센터로 문의해야 합니다.\n\nPC 클라이언트, 공식 홈페이지, PlayStation™Store 또는 기타 경로를 통해 결제한 경우에는 고객센터로 문의하거나 이메일로 연락해 주세요.\n\n일상: [이메일]\n\n환불 정책은 이용자의 소재지, 연령, 결제 플랫폼 정책에 따라 다르게 적용될 수 있습니다."
+                      "answer": "직접 승인하지 않은 결제에 대한 환불은 결제를 진행한 플랫폼에 따라 절차가 다릅니다.\n\nApp Store, Google Play 등 제삼자 플랫폼에서 결제한 경우 해당 플랫폼 고객센터에 환불 문의를 해 주세요.\n기타 제삼자 앱스토어의 경우에도 해당 앱스토어 고객센터로 문의해야 합니다.\n\nPC 클라이언트, 공식 홈페이지, PlayStation™Store 또는 기타 경로를 통해 결제한 경우에는 고객센터로 문의하거나 이메일로 연락해 주세요.\n\n일상: support@ilsang-game.com\n\n환불 정책은 이용자의 소재지, 연령, 결제 플랫폼 정책에 따라 다르게 적용될 수 있습니다."
                 },
                 {
                       "question": "웹페이지에서 결제를 하려면 어떻게 해야 하나요?",
-                      "answer": "아래 충전 페이지에서 본인의 계정으로 로그인하면 결제를 진행할 수 있습니다.\n\n결제 시 올바른 서버와 계정을 선택했는지 확인해 주세요.\n\n일상: [홈페이지]\n\n궁금한 점이 있으면 고객센터로 문의해 주세요."
+                      "answer": "아래 충전 페이지에서 본인의 계정으로 로그인하면 결제를 진행할 수 있습니다.\n\n결제 시 올바른 서버와 계정을 선택했는지 확인해 주세요.\n\n일상: https://support.ilsang-game.com\n\n궁금한 점이 있으면 고객센터로 문의해 주세요."
                 }
           ],
           "account": [
@@ -1533,7 +1538,7 @@
           "bug": [
                 {
                       "question": "버그, 튕김 관련 FAQ",
-                      "answer": "버그나 튕김 문제가 발생한 경우 다음 방법을 시도해 주세요.\n\n1. 게임 튕김 문제\n\n* 사용 중인 디바이스가 게임을 지원하는지 확인해 주세요.\n* 안정적인 네트워크 환경에서 게임 설치 파일을 다시 다운로드해 주세요.\n* 모바일 버전의 경우 공식 배포된 정식 운영체제를 사용 중인지 확인해 주세요.\n* PC 버전의 경우 그래픽카드 드라이버를 최신 버전으로 업데이트해 주세요.\n\n2. 로그 파일 제출\n\n* output_log.txt 및 output_log.txt.last 파일은 `%USERPROFILE%\\AppData\\LocalLow\\miHoYo\\Genshin Impact` 경로에 저장됩니다.\n* DriverError.log 파일은 게임 설치 목록의 `Genshin Impact\\Genshin Impact Game` 폴더에서 찾을 수 있습니다.\n\n문제가 지속될 경우 PC 버전 사용자는 output_log.txt 및 DriverError.log 파일을 첨부하고, 정확한 문제 발생 시간을 명시하여 고객센터로 문의해 주세요.\n모바일 버전 사용자는 문제가 발생한 디바이스를 사용해 고객센터로 문의해 주세요."
+                      "answer": "버그나 튕김 문제가 발생한 경우 다음 방법을 시도해 주세요.\n\n1. 게임 튕김 문제\n\n* 사용 중인 디바이스가 게임을 지원하는지 확인해 주세요.\n* 안정적인 네트워크 환경에서 게임 설치 파일을 다시 다운로드해 주세요.\n* 모바일 버전의 경우 공식 배포된 정식 운영체제를 사용 중인지 확인해 주세요.\n* PC 버전의 경우 그래픽카드 드라이버를 최신 버전으로 업데이트해 주세요.\n\n2. 로그 파일 제출\n\n* output_log.txt 및 output_log.txt.last 파일은 `%USERPROFILE%\\AppData\\LocalLow\\miHoYo\\ilsang-game` 경로에 저장됩니다.\n* DriverError.log 파일은 게임 설치 목록의 `ilsang-game\\ilsang` 폴더에서 찾을 수 있습니다.\n\n문제가 지속될 경우 PC 버전 사용자는 output_log.txt 및 DriverError.log 파일을 첨부하고, 정확한 문제 발생 시간을 명시하여 고객센터로 문의해 주세요.\n모바일 버전 사용자는 문제가 발생한 디바이스를 사용해 고객센터로 문의해 주세요."
                 },
                 {
                       "question": "왜 접속이 끊기나요?",
@@ -1613,24 +1618,63 @@
       return escapeHtml(value);
     }
 
-    function applyInlineEmphasis(escapedText) {
+    function applyInlineEmphasis(escapedText, emphasisState = { counts: {} }) {
       const emphasisTerms = [
+        "Windows 10 64-bit",
+        "다시 변경할 수 없음",
         "결제를 다시 진행하지 마세요",
         "계정 확인 필요",
+        "이벤트 페이지",
+        "결제 내역",
+        "공월 축복",
+        "계정 연동",
+        "월드 레벨",
+        "모험 등급",
         "환불 불가",
         "복구 불가",
-        "주문서 번호",
-        "고객센터",
-        "비밀번호",
+        "수령 불가",
+        "설정 메뉴",
+        "기간 내",
+        "우편함",
+        "영수증",
+        "환불",
+        "보상",
+        "서버",
+        "만료",
         "24시간",
+        "48시간",
+        "7일",
+        "14일",
+        "30일",
+        "Lv.30",
+        "Lv.60",
+        "1단계",
+        "10GB",
+        "RAM",
+        "그래픽카드",
+        "DirectX 11",
+        "DirectX",
+        "저장 공간",
+        "주문서 번호",
         "UID",
-      ];
+      ].sort((a, b) => b.length - a.length);
       let result = escapedText.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+      let lineEmphasisCount = 0;
       emphasisTerms.forEach((term) => {
+        if (lineEmphasisCount >= 3) return;
+        const previousCount = emphasisState.counts[term] || 0;
+        if (previousCount >= 2) return;
         const escapedTerm = escapeHTML(term);
         result = result
           .split(/(<strong>.*?<\/strong>)/g)
-          .map((part) => part.startsWith("<strong>") ? part : part.replaceAll(escapedTerm, `<strong>${escapedTerm}</strong>`))
+          .map((part) => {
+            if (part.startsWith("<strong>") || lineEmphasisCount >= 3) return part;
+            const index = part.indexOf(escapedTerm);
+            if (index < 0) return part;
+            lineEmphasisCount += 1;
+            emphasisState.counts[term] = (emphasisState.counts[term] || 0) + 1;
+            return `${part.slice(0, index)}<strong>${escapedTerm}</strong>${part.slice(index + escapedTerm.length)}`;
+          })
           .join("");
       });
       return result;
@@ -1645,15 +1689,56 @@
       });
     }
 
+    function formatAnswerLine(line, emphasisState) {
+      return applyInlineEmphasis(applyAnswerLinks(escapeHTML(line)), emphasisState);
+    }
+
+    function formatAnswerHeading(line) {
+      return applyAnswerLinks(escapeHTML(line));
+    }
+
+    function splitKoreanSentences(text) {
+      return String(text ?? "")
+        .replace(/\s+/g, " ")
+        .split(/(?<=[.!?。！？])\s+|(?<=입니다\.)\s+|(?<=습니다\.)\s+|(?<=합니다\.)\s+|(?<=됩니다\.)\s+|(?<=있습니다\.)\s+|(?<=주세요\.)\s+|(?<=가능합니다\.)\s+|(?<=어렵습니다\.)\s+/)
+        .map((sentence) => sentence.trim())
+        .filter(Boolean);
+    }
+
+    const answerSectionTitleRules = [
+      { title: "확인 대상", keywords: ["확인", "플랫폼", "대상", "항목"] },
+      { title: "설치 및 실행 조건", keywords: ["설치", "실행", "성능", "저장 공간", "RAM", "그래픽카드", "DirectX", "Windows"] },
+      { title: "결제 확인", keywords: ["결제", "영수증", "승인", "청구", "구매"] },
+      { title: "환불 안내", keywords: ["환불", "취소", "환급", "환불 불가"] },
+      { title: "계정 확인", keywords: ["계정", "로그인", "UID", "서버", "연동"] },
+      { title: "보상 확인", keywords: ["보상", "우편함", "수령", "지급", "아이템"] },
+      { title: "오류 확인", keywords: ["오류", "버그", "문제", "접속", "실패", "불가"] },
+      { title: "이벤트 안내", keywords: ["이벤트", "기간", "참여", "보상", "수령"] },
+      { title: "진행 방법", keywords: ["방법", "절차", "진행", "설정", "변경"] },
+    ];
+
     function isAnswerNoteLine(line) {
       return (
-        /^(참고|주의|주의사항|추가 안내|안내|Note)\s*[:：]?/i.test(line)
-        || /(추가적인 주의|주의하세요|반드시 확인)/.test(line)
+        /^(참고|참고사항|주의|주의사항|유의사항|추가 안내|권장|Note)\s*[:：]?/i.test(line)
+        || /(보다 원활한|주의해 주세요|주의해주시기|권장합니다|좋습니다|어려울 수 있습니다|복구가 어려울 수 있습니다)/.test(line)
       );
     }
 
-    function formatAnswerLine(line) {
-      return applyInlineEmphasis(applyAnswerLinks(escapeHTML(line)));
+    function sectionTitleForSentence(sentence) {
+      const matched = answerSectionTitleRules.find((rule) =>
+        rule.keywords.some((keyword) => sentence.includes(keyword))
+      );
+      return matched?.title || "확인 사항";
+    }
+
+    function isShortHeadingLine(line, nextLine = "") {
+      const text = String(line ?? "").trim();
+      if (!text || text.length > 24) return false;
+      if (/[:：]$/.test(text)) return true;
+      if (/^(참고|참고사항|주의|주의사항|유의사항|추가 안내|권장)$/i.test(text)) return true;
+      if (/[.!?。！？]$/.test(text)) return false;
+      if (/(입니다|습니다|합니다|됩니다|있습니다|주세요|마세요|하세요)$/.test(text)) return false;
+      return Boolean(nextLine);
     }
 
     function isNumberedListItem(text) {
@@ -1661,6 +1746,62 @@
         text.length > 26
         || /(주세요|마세요|하세요|합니다|됩니다|않습니다|있습니다|권장합니다|가능합니다)[.!?。]?$/i.test(text)
       );
+    }
+
+    function createAnswerSection(heading = "") {
+      return {
+        heading,
+        content: "",
+        items: [],
+      };
+    }
+
+    function addSectionLine(section, text) {
+      const sentences = splitKoreanSentences(text);
+      const parts = sentences.length ? sentences : [text];
+      parts.forEach((part) => {
+        if (!section.content) {
+          section.content = part;
+        } else {
+          section.items.push(part);
+        }
+      });
+    }
+
+    function pushFallbackSentence(result, sentence) {
+      const heading = sectionTitleForSentence(sentence);
+      let section = result.sections.find((item) => item.heading === heading);
+      if (!section) {
+        section = createAnswerSection(heading);
+        result.sections.push(section);
+      }
+      section.items.push(sentence);
+    }
+
+    function fallbackFormattedAnswer(raw) {
+      const sentences = splitKoreanSentences(raw);
+      const summary = sentences.shift() || raw;
+      const result = {
+        title: "답변 안내",
+        summary,
+        sections: [],
+        note: "",
+      };
+
+      sentences.forEach((sentence) => {
+        if (isAnswerNoteLine(sentence)) {
+          result.note = [result.note, sentence].filter(Boolean).join("\n");
+        } else {
+          pushFallbackSentence(result, sentence);
+        }
+      });
+
+      if (!result.sections.length && !result.note && raw && raw !== summary) {
+        const section = createAnswerSection("확인 사항");
+        section.content = raw;
+        result.sections.push(section);
+      }
+      return result;
     }
 
     function formatBotAnswer(answerText) {
@@ -1674,102 +1815,130 @@
         };
       }
 
-      const lines = raw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-      const result = {
-        title: "답변 안내",
-        summary: "",
-        sections: [],
-        outro: [],
-        note: "",
-      };
-      const noteLines = [];
-      let currentSection = null;
+      try {
+        const lines = raw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+        const result = {
+          title: "답변 안내",
+          summary: "",
+          sections: [],
+          note: "",
+        };
+        const noteLines = [];
+        let currentSection = null;
+        let skipNextLine = false;
 
-      lines.forEach((line) => {
-        if (isAnswerNoteLine(line)) {
-          noteLines.push(line);
-          return;
-        }
-
-        const numbered = line.match(/^(\d+)[.)]\s*(.+)$/);
-        if (numbered) {
-          const numberedText = numbered[2].trim();
-          if (isNumberedListItem(numberedText)) {
-            if (!currentSection || currentSection.title) {
-              currentSection = { title: "", items: [], content: [] };
-              result.sections.push(currentSection);
-            }
-            currentSection.items.push(numberedText);
+        lines.forEach((line, index) => {
+          if (skipNextLine) {
+            skipNextLine = false;
             return;
           }
-          currentSection = {
-            title: numberedText,
-            items: [],
-            content: [],
-          };
-          result.sections.push(currentSection);
-          return;
-        }
+          const nextLine = lines[index + 1] || "";
 
-        const bullet = line.match(/^[-*•]\s+(.+)$/);
-        if (bullet) {
-          if (!currentSection) {
-            currentSection = { title: "", items: [], content: [] };
-            result.sections.push(currentSection);
+          if (isAnswerNoteLine(line)) {
+            noteLines.push(line);
+            return;
           }
-          currentSection.items.push(bullet[1].trim());
-          return;
-        }
 
-        if (!result.summary) {
-          result.summary = line;
-          return;
-        }
+          const numbered = line.match(/^(\d+)[.)]\s*(.+)$/);
+          if (numbered) {
+            const numberedText = numbered[2].trim();
+            if (isNumberedListItem(numberedText)) {
+              if (!currentSection) {
+                currentSection = createAnswerSection(sectionTitleForSentence(numberedText));
+                result.sections.push(currentSection);
+              }
+              currentSection.items.push(numberedText);
+              return;
+            }
+            currentSection = createAnswerSection(numberedText);
+            result.sections.push(currentSection);
+            return;
+          }
 
-        if (!currentSection) {
-          currentSection = { title: "", items: [], content: [] };
+          const bullet = line.match(/^[-*•]\s+(.+)$/);
+          if (bullet) {
+            if (!currentSection) {
+              currentSection = createAnswerSection("확인 사항");
+              result.sections.push(currentSection);
+            }
+            currentSection.items.push(bullet[1].trim());
+            return;
+          }
+
+          const colonHeading = line.match(/^(.{1,24})[:：]$/);
+          if (colonHeading || isShortHeadingLine(line, nextLine)) {
+            const heading = colonHeading ? colonHeading[1].trim() : line;
+            if (/^(참고|참고사항|주의|주의사항|유의사항|추가 안내|권장)$/i.test(heading)) {
+              noteLines.push(nextLine || heading);
+              skipNextLine = Boolean(nextLine);
+              return;
+            }
+            currentSection = createAnswerSection(heading);
+            result.sections.push(currentSection);
+            return;
+          }
+
+          if (currentSection) {
+            addSectionLine(currentSection, line);
+            return;
+          }
+
+          if (!result.summary) {
+            result.summary = line;
+            return;
+          }
+
+          currentSection = createAnswerSection(sectionTitleForSentence(line));
           result.sections.push(currentSection);
-        }
+          addSectionLine(currentSection, line);
+        });
 
-        if (currentSection.title) {
-          result.outro.push(line);
-        } else {
-          currentSection.content.push(line);
-        }
-      });
+        result.note = noteLines.join("\n");
+        result.sections = result.sections.filter((section) =>
+          section && (section.content || (section.items && section.items.length > 0))
+        );
 
-      result.note = noteLines.join("\n");
-      if (!result.summary && raw) {
-        result.summary = raw;
+        if (!result.summary && result.sections.length) {
+          result.summary = "문의하신 내용에 대한 안내입니다.";
+        }
+        if (!result.summary) {
+          return fallbackFormattedAnswer(raw);
+        }
+        if (!result.sections.length && !result.note) {
+          return fallbackFormattedAnswer(raw);
+        }
+        return result;
+      } catch (error) {
+        console.warn("failed to format bot answer", error);
+        return fallbackFormattedAnswer(raw);
       }
-      return result;
     }
 
     function createAnswerHTML(answerText, createdAtText = "방금 전") {
       const formatted = formatBotAnswer(answerText);
+      const emphasisState = { counts: {} };
       const titleHtml = formatted.title
-        ? `<div class="answer-title">${formatAnswerLine(formatted.title)}</div>`
+        ? `<div class="answer-title">${formatAnswerHeading(formatted.title)}</div>`
         : "";
       const summaryHtml = formatted.summary
-        ? `<div class="answer-summary">${formatAnswerLine(formatted.summary)}</div>`
+        ? `<div class="answer-summary">${formatAnswerLine(formatted.summary, emphasisState)}</div>`
         : "";
-      const sectionsHtml = formatted.sections.map((section) => {
-        const sectionTitleHtml = section.title
-          ? `<div class="answer-section-title">${formatAnswerLine(section.title)}</div>`
+      const sectionsHtml = formatted.sections.filter((section) =>
+        section && (section.heading || section.content || (section.items && section.items.length > 0))
+      ).map((section) => {
+        const sectionTitleHtml = section.heading
+          ? `<div class="answer-section-title">${formatAnswerHeading(section.heading)}</div>`
           : "";
-        const sectionContentHtml = section.content.length
-          ? `<div class="answer-section-content">${section.content.map(formatAnswerLine).join("\n")}</div>`
+        const sectionContentHtml = section.content
+          ? `<div class="answer-section-content">${formatAnswerLine(section.content, emphasisState)}</div>`
           : "";
         const listHtml = section.items.length
-          ? `<ul class="answer-list">${section.items.map((item) => `<li>${formatAnswerLine(item)}</li>`).join("")}</ul>`
+          ? `<ul class="answer-list">${section.items.map((item) => `<li>${formatAnswerLine(item, emphasisState)}</li>`).join("")}</ul>`
           : "";
         return `<div class="answer-section">${sectionTitleHtml}${sectionContentHtml}${listHtml}</div>`;
       }).join("");
-      const outroHtml = formatted.outro.length
-        ? `<div class="answer-summary">${formatted.outro.map(formatAnswerLine).join("\n")}</div>`
-        : "";
       const noteHtml = formatted.note
-        ? `<div class="answer-note">${formatAnswerLine(formatted.note)}</div>`
+        ? `<div class="answer-note">${formatAnswerLine(formatted.note, emphasisState)}</div>`
         : "";
 
       return `
@@ -1777,7 +1946,6 @@
           ${titleHtml}
           ${summaryHtml}
           ${sectionsHtml}
-          ${outroHtml}
           ${noteHtml}
           <div class="answer-time">${escapeHTML(createdAtText)}</div>
         </div>
@@ -1844,14 +2012,43 @@
       return ticket.source_type || ticket.status || "inquiry";
     }
 
+    function stripChatSpeakerPrefix(value) {
+      return String(value ?? "")
+        .replace(/^\s*(User|사용자)\s*:\s*/i, "")
+        .replace(/^\s*(AI|Assistant|챗봇)\s*:\s*/i, "")
+        .trim();
+    }
+
+    function splitStoredConversation(value) {
+      const text = String(value ?? "").replace(/\\n/g, "\n").trim();
+      if (!text) return { user: "", ai: "" };
+
+      const userAiMatch = text.match(/^\s*(?:User|사용자)\s*:\s*([\s\S]*?)\s+(?:AI|Assistant|챗봇)\s*:\s*([\s\S]*)$/i);
+      if (userAiMatch) {
+        return {
+          user: userAiMatch[1].trim(),
+          ai: userAiMatch[2].trim(),
+        };
+      }
+
+      const aiOnlyMatch = text.match(/^\s*(?:AI|Assistant|챗봇)\s*:\s*([\s\S]*)$/i);
+      if (aiOnlyMatch) {
+        return { user: "", ai: aiOnlyMatch[1].trim() };
+      }
+
+      return { user: stripChatSpeakerPrefix(text), ai: "" };
+    }
+
     function normalizeInquiry(ticket) {
-      const userQuery = ticket.raw_query || ticket.title || `Ticket ${ticket.ticket_id}`;
+      const storedConversation = splitStoredConversation(ticket.raw_query);
+      const userQuery = storedConversation.user || stripChatSpeakerPrefix(ticket.title) || `Ticket ${ticket.ticket_id}`;
+      const answerText = storedConversation.ai || stripChatSpeakerPrefix(ticket.final_text) || "";
       return {
         id: `#${ticket.ticket_id}`,
         ticketId: ticket.ticket_id,
         type: ticketTypeLabel(ticket),
         title: userQuery,
-        content: ticket.final_text || "",
+        content: answerText,
         status: ticket.status || "-",
         createdAt: ticket.inquiry_created_at,
       };
