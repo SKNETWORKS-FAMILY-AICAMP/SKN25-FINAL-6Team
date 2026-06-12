@@ -12,7 +12,7 @@ from chatbot.repository.notification_repository import notification_log_exists, 
 
 
 GITHUB_API_BASE_URL = "https://api.github.com"
-BUG_CATEGORY_VALUES = {"bug", "인게임 버그", "인게임버그"}
+BUG_CATEGORY_VALUES = {"bug", "버그", "인게임 버그", "오류"}
 
 
 def _inquiry_content(state: dict[str, Any]) -> str:
@@ -20,11 +20,12 @@ def _inquiry_content(state: dict[str, Any]) -> str:
 
 
 def _is_in_game_bug_alert(state: dict[str, Any]) -> bool:
+    # 긴급 알림은 urgent_alert로 라우팅된 버그성 문의에만 생성한다.
     return (
         state.get("routing_target") == "urgent_alert"
         and (
             state.get("reasoning_node") == "bug_agent"
-            or str(state.get("category") or "") in BUG_CATEGORY_VALUES
+            or str(state.get("category") or "").strip().lower() in BUG_CATEGORY_VALUES
         )
     )
 
@@ -42,6 +43,7 @@ def _github_issue_title(state: dict[str, Any]) -> str:
 
 
 def _github_issue_body(state: dict[str, Any]) -> str:
+    # 운영자가 GitHub issue만 보고도 티켓과 답변 상태를 추적할 수 있게 핵심 상태만 담는다.
     return (
         "## Ticket\n"
         f"- ticket_id: {state.get('ticket_id')}\n"
@@ -140,6 +142,7 @@ def _dispatch_github_issue_for_bug(state: dict[str, Any]) -> dict[str, Any]:
 
 
 def dispatch_urgent_alert(state: dict[str, Any]) -> dict[str, Any]:
+    # final_response 단계에서 호출되며, 대상이 아니면 skipped로 남겨 흐름을 단순하게 유지한다.
     if state.get("routing_target") != "urgent_alert":
         return {"status": "skipped", "reason": "routing_target is not urgent_alert"}
 

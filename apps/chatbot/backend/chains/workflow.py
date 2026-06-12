@@ -2,21 +2,21 @@ from __future__ import annotations
 
 from langgraph.graph import END, StateGraph
 
+from chatbot.chains.persistence import draft_persistence_node
+from chatbot.chains.routing import route_after_draft_persistence, route_after_preprocess, route_after_safety
 from chatbot.generation.bug_agent import bug_agent_node
 from chatbot.generation.faq_agent import faq_agent_node
 from chatbot.generation.payment_agent import payment_agent_node
+from chatbot.generation.response.final_response import final_response_node
 from chatbot.generation.ticket_preprocess import ticket_preprocess_node
 from chatbot.generation.voc_agent import voc_agent_node
-from chatbot.chains.persistence import draft_persistence_node
-from chatbot.chains.routing import route_after_draft_persistence, route_after_preprocess, route_after_safety
-from chatbot.generation.response.final_response import final_response_node
 from chatbot.safety.safety_layer import safety_layer_node
 from chatbot.schemas import ChatbotState
 
 
 workflow = StateGraph(ChatbotState)
 
-# 노드 등록: 문의 전처리, 카테고리별 답변 생성, 초안 저장, 안전성 검사, 최종 응답 저장 노드를 등록한다.
+# 노드 등록: 문의 접수부터 최종 응답 저장까지 챗봇의 전체 처리 단계를 등록한다.
 workflow.add_node("ticket_preprocess", ticket_preprocess_node)
 workflow.add_node("payment_agent", payment_agent_node)
 workflow.add_node("bug_agent", bug_agent_node)
@@ -26,10 +26,11 @@ workflow.add_node("draft_persistence", draft_persistence_node)
 workflow.add_node("safety_layer", safety_layer_node)
 workflow.add_node("final_response", final_response_node)
 
-# 1단계: 사용자 문의를 전처리하고 qa_ticket을 저장한 뒤 category 기반 라우팅 준비를 한다.
+# 1단계: 사용자 문의를 전처리하고 qa_ticket에 최초 저장한다.
 workflow.set_entry_point("ticket_preprocess")
 
-# 2단계: 사용자가 선택한 category에 따라 결제/버그/FAQ/VOC agent 노드로 분기한다.
+# 2단계: 전처리 결과와 선택 카테고리에 따라 담당 agent로 분기한다.
+# prompt injection처럼 즉시 차단해야 하는 입력은 agent를 거치지 않고 final_response로 이동한다.
 workflow.add_conditional_edges(
     "ticket_preprocess",
     route_after_preprocess,
@@ -42,11 +43,12 @@ workflow.add_conditional_edges(
     },
 )
 
-# 3단계: 각 category agent가 draft_text를 만든 뒤 공통 초안 저장 노드로 합류한다.
+# 3단계: 각 agent가 만든 draft_text를 공통 저장 노드로 보낸다.
 for node_name in ("payment_agent", "bug_agent", "faq_agent", "voc_agent"):
     workflow.add_edge(node_name, "draft_persistence")
 
-# 4단계: answer_draft와 evidence_docs를 저장한 뒤, VOC는 최종 응답으로 바로 가고 나머지는 safety_layer로 간다.
+# 4단계: answer_draft/evidence_docs 저장 후 safety 검사 여부를 결정한다.
+# VOC는 고정 응답이라 바로 final_response로 가고, 나머지는 safety_layer에서 검증한다.
 workflow.add_conditional_edges(
     "draft_persistence",
     route_after_draft_persistence,
@@ -69,7 +71,7 @@ workflow.add_conditional_edges(
     },
 )
 
-# 6단계: final_response를 저장하고 qa_ticket 상태를 갱신한 뒤 workflow를 종료한다.
+# 6단계: 최종 응답과 티켓 상태를 저장한 뒤 workflow를 종료한다.
 workflow.add_edge("final_response", END)
 
 graph = workflow.compile()

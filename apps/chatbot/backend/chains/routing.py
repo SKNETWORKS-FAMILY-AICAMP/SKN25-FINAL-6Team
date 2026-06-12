@@ -32,14 +32,14 @@ def _is_voc_state(state: ChatbotState) -> bool:
 
 
 def route_after_draft_persistence(state: ChatbotState) -> str:
-    # 1단계: VOC는 고정 응답이라 safety 검사를 생략하고, 나머지 category는 safety_layer로 보낸다.
+    # VOC는 고정 감사 응답이므로 safety 검사를 생략하고, 나머지 답변은 safety_layer로 보낸다.
     if _is_voc_state(state):
         return "final_response"
     return "safety_layer"
 
 
 def route_after_safety(state: ChatbotState) -> str:
-    # 2단계: safety 결과에 따라 마스킹 재저장, fallback/review/block, 재생성, 최종 응답을 결정한다.
+    # safety 결과에 따라 재저장, 재생성, fallback/review/block, 최종 응답 경로를 결정한다.
     if _is_voc_state(state):
         return "final_response"
     if state.get("safety_action") == "MASKING":
@@ -91,14 +91,16 @@ def _trace_category_dispatch(state: ChatbotState, *, started_at: float) -> dict[
         "latency_ms": round((perf_counter() - started_at) * 1000, 3),
     }
 
+
 def route_after_preprocess(state: ChatbotState) -> str:
+    # prompt injection은 agent에 넘기지 않고 전처리 단계의 block 응답으로 바로 마무리한다.
     if "prompt_injection" in (state.get("input_detected_labels") or []):
         return "final_response"
     return route_by_category(state)
 
 
 def route_by_category(state: ChatbotState) -> str:
-    # 3단계: category를 실제 agent 노드 이름으로 변환하고 LangSmith에 dispatch latency를 남긴다.
+    # UI/전처리에서 정해진 category 또는 routing_target을 실제 agent 노드명으로 변환한다.
     started_at = perf_counter()
     dispatch = _trace_category_dispatch(state, started_at=started_at)
 

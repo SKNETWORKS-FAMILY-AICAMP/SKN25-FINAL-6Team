@@ -8,8 +8,8 @@ from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from common.observability.langsmith import configure_langsmith
 from common.db.connection import db_connection
+from common.observability.langsmith import configure_langsmith
 
 configure_langsmith("chatbot")
 
@@ -110,6 +110,7 @@ def _new_numeric_id() -> int:
 
 
 def _new_ticket_id() -> int:
+    # 프론트가 ticket_id를 만들지 않도록, 서버에서 충돌 가능성이 낮은 숫자 ID를 생성한다.
     for _ in range(8):
         ticket_id = _new_numeric_id()
         try:
@@ -124,6 +125,7 @@ def _new_ticket_id() -> int:
 
 
 def _next_session_turn_id(previous_session_id: str | int | None) -> str:
+    # 같은 상담 흐름은 session base를 유지하고, 새 문의 turn마다 뒤 번호만 증가시킨다.
     if not previous_session_id:
         return f"{_new_numeric_id()}-1"
 
@@ -139,19 +141,19 @@ def _next_session_turn_id(previous_session_id: str | int | None) -> str:
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    # 배포/헬스체크용: API 프로세스가 살아 있는지만 빠르게 확인한다.
+    # 배포/헬스체크에서 API 프로세스가 살아 있는지만 빠르게 확인한다.
     return {"status": "ok"}
 
 
 @app.get("/server-regions")
 def server_regions() -> dict[str, list[str]]:
-    # 로그인 화면에서 선택할 수 있는 서버 목록을 DB에서 읽어온다.
+    # 로그인 화면의 서버 선택 목록은 DB 값을 우선 사용하고, 실패 시 service 계층에서 기본값으로 보정한다.
     return {"items": get_server_regions()}
 
 
 @app.post("/login", response_model=LoginResponse)
 def login(request: LoginRequest) -> LoginResponse:
-    # 1단계: 이메일/비밀번호/서버로 게임 계정을 확인하고 user_id/account_id를 반환한다.
+    # 이메일/비밀번호/서버로 게임 계정을 검증하고 user_id/account_id를 프론트에 돌려준다.
     result = login_with_credentials(request.email, request.password, request.server_region)
     return LoginResponse(**result)
 
@@ -162,7 +164,7 @@ def list_tickets(
     account_id: int | None = Query(default=None, ge=1),
     limit: int = Query(default=20, ge=1, le=100),
 ) -> list[InquiryHistoryItem]:
-    # 1단계: 로그인 사용자의 최근 문의와 최신 final_response를 함께 조회한다.
+    # 문의 내역 화면은 qa_ticket의 최신 chatbot 문의를 읽고, raw_query 안의 AI 답변을 분리해 표시한다.
     params: list[Any] = [user_id]
     account_filter = ""
     if account_id is not None:
@@ -211,7 +213,7 @@ def chat(request: ChatRequest) -> ChatResponse:
     ticket_id = _new_ticket_id()
     session_id = _next_session_turn_id(request.session_id)
 
-    # 1단계: 요청에 이전 대화가 없으면 DB에서 최근 멀티턴 context를 구성한다.
+    # 이전 대화가 요청에 없으면 DB에서 같은 session base의 최근 turn을 가져와 멀티턴 context로 사용한다.
     previous_messages = request.previous_messages
     conversation_summary = request.conversation_summary
     if previous_messages is None:
@@ -225,7 +227,7 @@ def chat(request: ChatRequest) -> ChatResponse:
         previous_messages = context.previous_messages
         conversation_summary = conversation_summary or context.conversation_summary
 
-    # 2단계: chatbot_service가 LangGraph workflow를 실행하고 최종 답변/state를 반환한다.
+    # chatbot_service가 LangGraph workflow를 실행하고 최종 답변과 state를 반환한다.
     output: dict[str, Any] = run_chatbot(
         ticket_id=ticket_id,
         user_message=request.user_message,
@@ -244,7 +246,7 @@ def chat(request: ChatRequest) -> ChatResponse:
     )
     state = output["state"]
 
-    # 3단계: 프론트엔드에 필요한 최소 결과만 응답 스키마로 정리한다.
+    # 프론트에는 화면 갱신에 필요한 최소 결과만 응답한다.
     return ChatResponse(
         answer=output["answer"],
         ticket_id=ticket_id,

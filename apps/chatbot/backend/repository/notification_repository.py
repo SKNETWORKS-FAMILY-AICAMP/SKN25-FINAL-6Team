@@ -31,7 +31,7 @@ def notification_log_exists(ticket_id: int | None, channel: str) -> dict[str, An
     return safe_read(operation="read_notification_log_exists", reader=_read, ticket_id=ticket_id)
 
 
-# Slack/GitHub 알림 발송 결과를 notification_log에 저장한다.
+# GitHub issue 알림 발송 결과를 notification_log에 저장한다.
 def save_notification_log(payload: dict[str, Any]) -> dict[str, Any]:
     def _write() -> dict[str, Any]:
         with db_connection() as conn:
