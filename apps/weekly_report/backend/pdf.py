@@ -12,7 +12,7 @@ from typing import Any
 
 from xhtml2pdf import pisa
 
-from util.text import translate_value
+from util import translate_value
 
 
 REVIEW_PREVIEW_LIMIT = 5
@@ -105,7 +105,6 @@ def _resolve_resource_path(uri: str, rel: str | None = None) -> str:
     return uri
 
 
-
 def _metric_rows(summary: dict[str, Any], comparisons: dict[str, Any]) -> list[tuple[str, str, str]]:
     return [
         ("분석 건수", _number(summary.get("analysis_count")), _change_text(comparisons.get("analysis_count", {}).get("change_rate"))),
@@ -130,8 +129,6 @@ def _summary_rows(summary: dict[str, Any]) -> list[tuple[str, str]]:
 
 def _distribution_rows(report: dict[str, Any], key: str) -> list[dict[str, Any]]:
     return [row for row in report.get(key, []) if row.get("label") not in {None, ""}]
-
-
 
 
 def _text(value: object, fallback: str = "-") -> str:
@@ -370,7 +367,7 @@ def _build_chart_fallback_table(rows: list[dict[str, Any]], *, kind: str) -> str
 
     total = sum(float(r.get("value") or 0) for r in usable) or 1
     table_rows = ""
-    for row in usable[:8]:  # 최대 8행 — 카드 높이 유지
+    for row in usable[:8]:
         label = escape(_translate_chart_label(row.get("label")))
         value = float(row.get("value") or 0)
         if kind == "bar":
@@ -389,7 +386,6 @@ def _build_chart_gallery(report: dict[str, Any]) -> str:
         image_data = _build_plotly_chart_data_uri(spec["title"], spec["rows"], kind=spec["kind"])
 
         if image_data is not None:
-            # Plotly 이미지 정상 렌더링
             cells.append(
                 f"""
                 <td class="chart-cell">
@@ -401,7 +397,6 @@ def _build_chart_gallery(report: dict[str, Any]) -> str:
                 """
             )
         elif spec["rows"]:
-            # Plotly 실패 + 데이터 있음 → 표로 대체 (정보 보존)
             cells.append(
                 f"""
                 <td class="chart-cell">
@@ -414,7 +409,6 @@ def _build_chart_gallery(report: dict[str, Any]) -> str:
                 """
             )
         else:
-            # 데이터 자체가 없음
             cells.append(
                 f"""
                 <td class="chart-cell">
