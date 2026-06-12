@@ -879,8 +879,15 @@ async function sendResponseEmail() {
   appState.isSendingResponseEmail = true;
   render();
   try {
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    pushAlert("고객 답변 메일 발송 요청을 접수했습니다.", "success");
+    const result = await window.CSAutoApi.sendAnswerEmail(
+      ticket.ticketId,
+      appState.currentReviewerId
+    );
+    if (result.ok === false) {
+      pushAlert(result.message || "메일 발송에 실패했습니다.", "error");
+      return;
+    }
+    pushAlert("고객 답변 메일을 발송했습니다.", "success");
   } finally {
     appState.isSendingResponseEmail = false;
   }

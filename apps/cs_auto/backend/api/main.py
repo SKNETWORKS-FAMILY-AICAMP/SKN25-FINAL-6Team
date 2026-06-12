@@ -16,6 +16,7 @@ from common.observability.langsmith import configure_langsmith
 from api.services.load_ticket import get_review_tickets, get_ticket_detail
 from api.services.approve_draft import approve_answer_draft as approve_answer_draft_service
 from apps.cs_auto.backend.api.services.edit_draft import update_answer_draft as update_answer_draft_service
+from utils.email.send_answer_email import send_answer_email as send_answer_email_service
 from api.services.regenerate_draft import regenerate_answer_draft as regenerate_answer_draft_service
 
 configure_langsmith("operation")
@@ -77,6 +78,10 @@ class DraftApproveRequest(BaseModel):
     final_text: str
     admin_id: int
     edit_reason: str | None = None
+
+
+class TicketEmailSendRequest(BaseModel):
+    admin_id: int | None = None
 
 
 
@@ -190,6 +195,11 @@ def api_approve_answer_draft(ticket_id: int, payload: DraftApproveRequest) -> di
     if result.get("ok") is False:
         return result
     return {"ok": True, "ticket": build_frontend_ticket_payload(result.get("ticket"))}
+
+
+@app.post(f"{API_PREFIX}/tickets/{{ticket_id}}/send-email")
+def api_send_answer_email(ticket_id: int, payload: TicketEmailSendRequest) -> dict[str, object]:
+    return send_answer_email_service(ticket_id=ticket_id, admin_id=payload.admin_id)
 
 # ---------------------------------------------------------------------------
 # 
