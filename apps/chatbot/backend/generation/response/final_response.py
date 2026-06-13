@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from chatbot.generation.response.fixed_responses import (
     BLOCK_RESPONSE,
-    REVIEW_QUEUE_RESPONSE,
+    REVIEW_REQUIRED_RESPONSE,
     fallback_response_for_category,
 )
-from chatbot.notifications.github_issue import dispatch_urgent_alert
+from chatbot.notifications.github_issue import dispatch_github_issue_notification
 from chatbot.observability.logger import EVENT_FINAL_RESPONSE_CREATED, log_event
 from chatbot.repository.failed_query_repository import save_failed_query
 from chatbot.repository.ticket_repository import update_qa_ticket_raw_query
@@ -13,8 +13,8 @@ from chatbot.schemas import ChatbotState
 
 
 def _ticket_status_for_decision(decision: str, review_required: bool | None = None) -> str:
-    # 운영자 확인이 필요한 답변은 pending으로 남기고, 자동 처리된 답변은 resolved로 닫는다.
-    if decision == "REVIEW_QUEUE" or review_required is True:
+    # 운영자 검토가 필요한 문의는 pending으로 남기고, 자동 처리된 문의는 resolved로 닫는다.
+    if decision == "REVIEW_REQUIRED" or review_required is True:
         return "pending"
     return "resolved"
 
@@ -57,13 +57,13 @@ def final_response_node(state: ChatbotState) -> dict:
         final_text = BLOCK_RESPONSE
     elif decision in ("SAFE_FALLBACK", "MASKING"):
         final_text = fallback_response_for_category(state.get("category"))
-    elif decision == "REVIEW_QUEUE":
-        final_text = draft_text or REVIEW_QUEUE_RESPONSE
+    elif decision == "REVIEW_REQUIRED":
+        final_text = draft_text or REVIEW_REQUIRED_RESPONSE
     else:
         final_text = draft_text
 
-    # 2단계: urgent_alert 대상이면 GitHub issue를 만들고, 아니면 skipped 결과만 남긴다.
-    notification_result = dispatch_urgent_alert({**state, "final_text": final_text})
+    # 2단계: 검토가 필요한 버그성 문의면 GitHub issue를 만들고, 아니면 skipped 결과만 남긴다.
+    notification_result = dispatch_github_issue_notification({**state, "final_text": final_text})
     failed_query_result = _record_faq_safe_fallback_query(state, decision)
 
     # 3단계: 문의 내역 화면에서 볼 수 있도록 User/AI 최종 대화를 qa_ticket에 반영한다.

@@ -37,7 +37,7 @@ def ticket_preprocess_node(state: ChatbotState) -> dict:
     masked_content = state.get("masked_content") or raw_query
     category = _category_from_user_selection(state.get("category"))
     normalized_query = normalize_query_text(masked_content)
-    routing_target = state.get("routing_target") or ("urgent_alert" if category == "bug" else "rag_reply")
+    routing_target = state.get("routing_target") or ("bug_agent" if category == "bug" else "rag_reply")
     should_use_rag = state.get("should_use_rag")
     if should_use_rag is None:
         should_use_rag = category == "faq"

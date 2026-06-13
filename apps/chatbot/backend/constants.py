@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-# workflow와 safety layer가 함께 쓰는 공통 기준값이다.
-# category/route 이름을 바꿀 때는 라우팅 코드보다 이 상수를 먼저 확인한다.
+# workflow와 safety layer가 공유하는 기준값이다.
 MAX_SAFETY_RETRY = 2
 MAX_MASKING_RETRY = 2
 
-ROUTING_TARGET = ["rag_reply", "urgent_alert"]
+ROUTING_TARGET = ["rag_reply", "payment_agent", "bug_agent", "faq_agent", "voc_agent"]
 CATEGORY = ["payment", "bug", "faq", "voc"]
 
 FACTUALITY_THRESHOLD = 0.8

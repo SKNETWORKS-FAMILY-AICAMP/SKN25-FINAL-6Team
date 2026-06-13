@@ -5,7 +5,7 @@ from chatbot.constants import VOC_FIXED_RESPONSE
 
 SAFE_FALLBACK_RESPONSE = (
     "현재 문의 내용만으로는 정확한 안내를 드리기 어렵습니다. "
-    "담당자가 확인한 뒤 다시 안내드리겠습니다."
+    "필요한 경우 담당자가 확인 후 다시 안내드리겠습니다."
 )
 PAYMENT_FALLBACK_RESPONSE = (
     "결제 관련 문의는 계정 및 결제 내역 확인이 필요합니다. "
@@ -20,7 +20,7 @@ BLOCK_RESPONSE = (
     "안전한 상담을 위해 해당 문의에는 자동 답변을 제공하기 어렵습니다. "
     "필요한 경우 담당자가 확인 후 안내드리겠습니다."
 )
-REVIEW_QUEUE_RESPONSE = "문의가 접수되었습니다. 담당자가 확인 후 안내드리겠습니다."
+REVIEW_REQUIRED_RESPONSE = "문의가 접수되었습니다. 담당자가 확인 후 안내드리겠습니다."
 
 CATEGORY_FALLBACK_RESPONSES = {
     "payment": PAYMENT_FALLBACK_RESPONSE,
@@ -28,8 +28,8 @@ CATEGORY_FALLBACK_RESPONSES = {
     "faq": FAQ_FALLBACK_RESPONSE,
     "voc": VOC_FIXED_RESPONSE,
     "결제": PAYMENT_FALLBACK_RESPONSE,
-    "인게임/버그": BUG_FALLBACK_RESPONSE,
-    "인게임버그": BUG_FALLBACK_RESPONSE,
+    "버그": BUG_FALLBACK_RESPONSE,
+    "인게임 버그": BUG_FALLBACK_RESPONSE,
     "FAQ": FAQ_FALLBACK_RESPONSE,
     "VOC": VOC_FIXED_RESPONSE,
 }
@@ -45,7 +45,7 @@ __all__ = [
     "CATEGORY_FALLBACK_RESPONSES",
     "FAQ_FALLBACK_RESPONSE",
     "PAYMENT_FALLBACK_RESPONSE",
-    "REVIEW_QUEUE_RESPONSE",
+    "REVIEW_REQUIRED_RESPONSE",
     "SAFE_FALLBACK_RESPONSE",
     "VOC_FIXED_RESPONSE",
     "fallback_response_for_category",

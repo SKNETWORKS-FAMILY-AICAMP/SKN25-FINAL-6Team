@@ -22,7 +22,6 @@ ROUTING_NODE_BY_TARGET = {
     "faq_agent": "faq_agent",
     "voc_agent": "voc_agent",
     "rag_reply": "faq_agent",
-    "urgent_alert": "bug_agent",
 }
 
 
@@ -46,7 +45,7 @@ def route_after_safety(state: ChatbotState) -> str:
         if state.get("retry_count", 0) <= MAX_MASKING_RETRY:
             return "draft_persistence"
         return "final_response"
-    if state.get("safety_action") in {"BLOCK_RESPONSE", "SAFE_FALLBACK", "REVIEW_QUEUE"}:
+    if state.get("safety_action") in {"BLOCK_RESPONSE", "SAFE_FALLBACK", "REVIEW_REQUIRED"}:
         return "final_response"
     if state["safety_passed"]:
         return "final_response"

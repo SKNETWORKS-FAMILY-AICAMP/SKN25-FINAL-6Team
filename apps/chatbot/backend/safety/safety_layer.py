@@ -290,7 +290,7 @@ def _requires_second_pass_safety(
     ):
         return True, "sensitive_keyword"
 
-    if state.get("review_required") is True or state.get("routing_target") == "urgent_alert":
+    if state.get("review_required") is True:
         return True, "review_candidate"
 
     if not evaluation_text.strip() or len(evaluation_text.strip()) < 10:
@@ -367,7 +367,7 @@ def _payment_context_requires_review(state: ChatbotState) -> tuple[bool, str | N
 
 
 def _operator_review_signal(state: ChatbotState, draft_text: str) -> tuple[bool, str | None]:
-    if state.get("review_required") is True or state.get("routing_target") == "urgent_alert":
+    if state.get("review_required") is True:
         return True, "review_already_requested"
 
     context_required, context_reason = _payment_context_requires_review(state)
@@ -411,7 +411,7 @@ def _decide_safety_action(
     state: ChatbotState,
     requires_grounding: bool = True,
 ) -> tuple[bool, str, bool]:
-    # safety 점수와 grounding 결과를 AUTO_RESPONSE/SAFE_FALLBACK/BLOCK/REVIEW로 변환한다.
+    # safety 점수와 grounding 결과를 AUTO_RESPONSE/SAFE_FALLBACK/BLOCK/REVIEW_REQUIRED로 변환한다.
     if moderation_blocked or scores["toxicity_score"] >= TOXICITY_THRESHOLD:
         return False, "BLOCK_RESPONSE", False
 
@@ -420,7 +420,7 @@ def _decide_safety_action(
 
     operator_review_required, _ = _operator_review_signal(state, draft_text)
     if operator_review_required:
-        return True, "REVIEW_QUEUE", True
+        return True, "REVIEW_REQUIRED", True
 
     normalized_text = " ".join(draft_text.split())
     if not requires_grounding:

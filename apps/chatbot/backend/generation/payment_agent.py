@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 from langsmith import traceable
@@ -59,6 +60,119 @@ def _payment_context_message(context: dict[str, Any]) -> dict[str, str]:
             f"{json.dumps(context, ensure_ascii=False, default=str)}"
         ),
     }
+
+
+ITEM_MATCH_STOPWORDS = {
+    "아이템",
+    "보상",
+    "상자",
+    "상품",
+    "패키지",
+    "지급",
+    "미지급",
+    "확인",
+    "로그",
+    "인벤토리",
+    "알림",
+    "실제",
+    "어제",
+    "오늘",
+    "언제",
+    "들어오",
+    "들어온",
+    "받았",
+    "받은",
+    "봐주",
+    "해주세요",
+}
+
+
+def _normalize_match_text(value: Any) -> str:
+    return re.sub(r"[^0-9a-zA-Z가-힣]+", " ", str(value or "").lower()).strip()
+
+
+def _query_text_for_matching(state: ChatbotState) -> str:
+    previous_messages = state.get("previous_messages") or []
+    previous_text = " ".join(
+        str(message.get("content") or "")
+        for message in previous_messages[-4:]
+        if isinstance(message, dict) and message.get("role") == "user"
+    )
+    return " ".join(
+        str(state.get(key) or "")
+        for key in ("raw_query", "masked_content", "normalized_query", "sub_category")
+    ) + " " + previous_text
+
+
+def _match_terms(query_text: str) -> list[str]:
+    normalized = _normalize_match_text(query_text)
+    terms = []
+    for token in normalized.split():
+        if len(token) < 2 or token in ITEM_MATCH_STOPWORDS:
+            continue
+        if token.endswith(("해요", "줘요", "나요", "어요")):
+            continue
+        terms.append(token)
+    return sorted(set(terms), key=len, reverse=True)
+
+
+def _is_specific_item_query(terms: list[str], query_text: str) -> bool:
+    normalized = _normalize_match_text(query_text)
+    has_item_signal = any(word in normalized for word in ("아이템", "보상", "상자", "패키지", "우편", "인벤토리"))
+    return has_item_signal and bool(terms)
+
+
+def _delivery_matches_query(row: dict[str, Any], terms: list[str], query_text: str) -> bool:
+    item_name = _normalize_match_text(row.get("item_name"))
+    if not item_name or not terms:
+        return False
+
+    normalized_query = _normalize_match_text(query_text)
+    if item_name and item_name in normalized_query:
+        return True
+
+    item_terms = [term for term in item_name.split() if len(term) >= 2 and term not in ITEM_MATCH_STOPWORDS]
+    overlap = {term for term in terms if term in item_terms or term in item_name}
+    return len(overlap) >= 1 and any(len(term) >= 3 for term in overlap)
+
+
+def _annotate_item_delivery_relevance(context: dict[str, Any], state: ChatbotState) -> dict[str, Any]:
+    data = context.get("data")
+    if not isinstance(data, dict):
+        return context
+
+    deliveries = data.get("item_delivery_logs")
+    if not isinstance(deliveries, list):
+        return context
+
+    query_text = _query_text_for_matching(state)
+    terms = _match_terms(query_text)
+    specific_item_query = _is_specific_item_query(terms, query_text)
+
+    relevant = []
+    other = []
+    for row in deliveries:
+        if isinstance(row, dict) and _delivery_matches_query(row, terms, query_text):
+            relevant.append(row)
+        else:
+            other.append(row)
+
+    annotated = dict(context)
+    annotated_data = dict(data)
+    annotated_data["relevant_item_delivery_logs"] = relevant
+    annotated_data["other_item_delivery_logs"] = other
+    annotated["data"] = annotated_data
+    annotated["item_delivery_match"] = {
+        "specific_item_query": specific_item_query,
+        "query_terms": terms,
+        "relevant_count": len(relevant),
+        "other_count": len(other),
+        "instruction": (
+            "If specific_item_query is true and relevant_count is 0, do not treat records in "
+            "other_item_delivery_logs as the user's requested item."
+        ),
+    }
+    return annotated
 
 
 def _summarize_payment_context_inputs(inputs: dict[str, Any]) -> dict[str, Any]:
@@ -122,7 +236,7 @@ def payment_agent_node(state: ChatbotState) -> dict:
         category=state.get("category"),
         routing_target=state.get("routing_target"),
     )
-    payment_context = _collect_payment_context(state)
+    payment_context = _annotate_item_delivery_relevance(_collect_payment_context(state), state)
     payment_evidence = _payment_context_to_evidence(payment_context)
 
     # 2단계: DB context를 message와 retrieved_documents에 추가해 agent와 safety가 같은 근거를 보게 한다.

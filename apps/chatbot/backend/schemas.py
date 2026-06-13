@@ -7,13 +7,13 @@ from typing_extensions import NotRequired
 
 
 Category = Literal["payment", "bug", "faq", "voc"]
-RoutingTarget = Literal["rag_reply", "urgent_alert"]
+RoutingTarget = Literal["rag_reply", "payment_agent", "bug_agent", "faq_agent", "voc_agent"]
 SafetyAction = Literal[
     "AUTO_RESPONSE",
     "MASKING",
     "SAFE_FALLBACK",
     "BLOCK_RESPONSE",
-    "REVIEW_QUEUE",
+    "REVIEW_REQUIRED",
 ]
 
 

@@ -40,7 +40,7 @@ retry
 cache check
 DB write
 safety branching
-HITL / review queue
+HITL / review required
 observability
 ```
 

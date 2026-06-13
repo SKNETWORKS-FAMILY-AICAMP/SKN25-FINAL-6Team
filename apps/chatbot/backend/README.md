@@ -114,7 +114,7 @@ retry
 cache check
 DB write
 safety branching
-HITL / review queue
+HITL / review required
 observability
 ```
 
@@ -211,14 +211,14 @@ turn_count
 
 ```text
 category: 결제 / 인게임버그 / FAQ / VOC
-routing_target: rag_reply / urgent_alert
+routing_target: rag_reply / payment_agent / bug_agent / faq_agent / voc_agent
 ```
 
 기본 규칙:
 
 ```text
 rag_reply: 단순 FAQ, 일반 안내, 단순 게임 플레이 문의, 낮은 위험의 VOC
-urgent_alert: 결제 분쟁, 환불, 유료 아이템 미지급, 복잡 버그, 정책 민감 이슈, 운영자 검토 필요 케이스
+GitHub issue: review_required=True인 버그성 문의만 생성
 ```
 
 관련 tools:
@@ -278,7 +278,7 @@ PII 포함 여부
 write_safety_results
 ```
 
-현재 safety는 LangGraph의 `safety_layer` 노드에서 처리합니다. `AUTO_RESPONSE`, `MASKING`, `SAFE_FALLBACK`, `BLOCK_RESPONSE`, `REVIEW_QUEUE` 같은 분기 값은 `final_response_node`가 최종 사용자 응답으로 변환합니다.
+현재 safety는 LangGraph의 `safety_layer` 노드에서 처리합니다. `AUTO_RESPONSE`, `MASKING`, `SAFE_FALLBACK`, `BLOCK_RESPONSE`, `REVIEW_REQUIRED` 같은 분기 값은 `final_response_node`가 최종 사용자 응답으로 변환합니다.
 
 ## State
 
@@ -295,7 +295,7 @@ write_safety_results
 | `enriched_query` | 정규화된 문의 내용 |
 | `ticket_id` | QA 티켓 ID |
 | `category` | 문의 카테고리 |
-| `routing_target` | `rag_reply` 또는 `urgent_alert` |
+| `routing_target` | `rag_reply` 또는 실제 agent 라우팅 대상 |
 | `draft_id` | 답변 초안 ID |
 | `draft_text` | 답변 초안 |
 | `safety_passed` | safety 통과 여부 |
@@ -440,7 +440,7 @@ DB_PASSWORD=
 
 ```text
 1. Orchestration, Intelligence, Safety를 LangGraph node로 분리
-2. routing_target 기반 urgent_alert 처리 경로 추가
+2. review_required 기반 GitHub issue 알림 경로 정리
 3. SafetyAction 기반 conditional branching 구현
 4. Operator Dashboard 연동
 5. 실제 DB access layer 연결
