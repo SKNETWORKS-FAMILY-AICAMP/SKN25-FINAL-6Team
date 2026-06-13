@@ -42,9 +42,10 @@ def log_event(
     tool_name: str | None = None,
     status: str = "ok",
     error_message: str | None = None,
+    error_category: str | None = None,
     metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Print a structured admin log event as JSON and return it for tests."""
+    """Print and persist a structured admin log event."""
     event = build_log_event(
         event_type,
         ticket_id=ticket_id,
@@ -56,7 +57,14 @@ def log_event(
         tool_name=tool_name,
         status=status,
         error_message=error_message,
+        error_category=error_category,
         metadata=metadata or {},
     )
     print(json.dumps(event, ensure_ascii=False, default=str))
+    try:
+        from chatbot.repository.admin_log_repository import save_admin_event_log
+
+        save_admin_event_log(event)
+    except Exception:
+        pass
     return event

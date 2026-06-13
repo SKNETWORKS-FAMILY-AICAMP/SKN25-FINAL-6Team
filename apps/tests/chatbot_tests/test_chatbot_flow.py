@@ -1,13 +1,13 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 
 import pytest
 
-from tests.chatbot._orchestrator_routing_cases import *  # noqa: F403
+from chatbot.chains.routing import route_after_draft_persistence, route_after_safety, route_by_category
 
 from chatbot.constants import VOC_FIXED_RESPONSE
-from chatbot.generation import voc_agent
+from chatbot.generation import ticket_preprocess, voc_agent
 from chatbot.generation.response.final_response import final_response_node
 from chatbot.generation.response.fixed_responses import (
     BLOCK_RESPONSE,
@@ -17,18 +17,73 @@ from chatbot.generation.response.fixed_responses import (
     REVIEW_QUEUE_RESPONSE,
     SAFE_FALLBACK_RESPONSE,
 )
+from chatbot.notifications import dispatcher
+from chatbot.observability.logger import log_event
 from chatbot.safety import safety_layer
 from chatbot.service.chatbot_service import build_state, last_message_text
+from chatbot.utils.input_preprocessing import preprocess_user_input
 
 
 def test_build_state_keeps_conversation_summary() -> None:
     state = build_state(
         ticket_id=1,
-        user_message="게임 진행도 리셋 어캐함?",
-        conversation_summary="이전 문의는 계정 진행도 관련 질문이었다.",
+        user_message="게임 진행을 초기화하고 싶어요.",
+        conversation_summary="이전 문의는 계정 진행도 초기화 관련 질문이었습니다.",
     )
 
-    assert state["conversation_summary"] == "이전 문의는 계정 진행도 관련 질문이었다."
+    assert state["conversation_summary"] == "이전 문의는 계정 진행도 초기화 관련 질문이었습니다."
+
+
+def test_preprocess_user_input_masks_sensitive_values_without_dropping_question() -> None:
+    result = preprocess_user_input(
+        "결제 문의입니다. email test@example.com phone 010-1234-5678 비밀번호: qwer1234"
+    )
+
+    assert result["raw_content"].startswith("결제 문의입니다.")
+    assert "test@example.com" not in result["masked_content"]
+    assert "010-1234-5678" not in result["masked_content"]
+    assert "qwer1234" not in result["masked_content"]
+    assert "결제 문의입니다." in result["masked_content"]
+    assert result["masked"] is True
+    assert result["detected_labels"] == ["email", "phone", "password"]
+
+
+def test_build_state_uses_masked_content_for_runtime_message_but_keeps_raw_query() -> None:
+    user_message = "아이템 미지급입니다. test@example.com 010-1234-5678"
+
+    state = build_state(ticket_id=1, user_message=user_message, category="payment")
+
+    assert state["raw_query"] == user_message
+    assert state["masked_content"] != user_message
+    assert "test@example.com" not in state["masked_content"]
+    assert "010-1234-5678" not in state["messages"][-1]["content"]
+    assert state["input_masked"] is True
+    assert state["input_detected_labels"] == ["email", "phone"]
+
+
+def test_ticket_preprocess_persists_raw_query_and_normalizes_masked_content(monkeypatch) -> None:
+    saved_payloads = []
+
+    class FakeWriteQaTicket:
+        @staticmethod
+        def invoke(args):
+            saved_payloads.append(args["payload"])
+            return {"stored": True}
+
+    monkeypatch.setattr(ticket_preprocess, "write_qa_ticket", FakeWriteQaTicket)
+
+    state = build_state(
+        ticket_id=1,
+        user_message="아이템 미지급입니다. test@example.com",
+        category="faq",
+        user_id=7,
+        account_id=101,
+    )
+    update = ticket_preprocess.ticket_preprocess_node(state)
+
+    assert saved_payloads[0]["raw_query"] == "아이템 미지급입니다. test@example.com"
+    assert update["normalized_query"] == "아이템 미지급입니다. [EMAIL]"
+    assert update["category"] == "faq"
 
 
 def test_last_message_text_requires_final_text() -> None:
@@ -41,6 +96,19 @@ def test_last_message_text_requires_final_text() -> None:
 
 def test_last_message_text_returns_final_text() -> None:
     assert last_message_text({"final_text": "final answer", "draft_text": "draft"}) == "final answer"
+
+
+def test_log_event_accepts_error_category_for_failed_operations() -> None:
+    event = log_event(
+        "db_write_failed",
+        ticket_id=1,
+        tool_name="write_answer_draft",
+        status="error",
+        error_message="not null violation",
+        error_category="database_constraint",
+    )
+
+    assert event["error_category"] == "database_constraint"
 
 
 def test_evidence_grounding_scores_use_retrieved_documents() -> None:
@@ -235,8 +303,8 @@ def test_safety_layer_marks_faq_answer_with_medium_overlap_for_review(monkeypatc
         {
             "ticket_id": 1,
             "draft_id": 2,
-            "draft_text": "갤럭시 스토어 결제는 스토어 앱에서 결제 수단을 선택해 진행할 수 있습니다.",
-            "retrieved_documents": [{"chunk_text": "갤럭시 스토어 결제 방법 안내 문서"}],
+            "draft_text": "payment item delivery can be checked from purchase history and logs",
+            "retrieved_documents": [{"chunk_text": "payment item delivery purchase history"}],
             "retry_count": 0,
             "category": "FAQ",
             "routing_target": "rag_reply",
@@ -259,7 +327,7 @@ def test_safety_action_allows_non_rag_agent_without_retrieved_documents() -> Non
             "factuality_score": 0.0,
             "hallucination_score": 1.0,
         },
-        draft_text="결제 내역을 확인한 뒤 안내드리겠습니다.",
+        draft_text="결제 이력을 확인한 뒤 안내드리겠습니다.",
         documents=[],
         requires_grounding=False,
     )
@@ -319,7 +387,7 @@ def test_safety_layer_does_not_ground_non_faq_payment_context_documents(monkeypa
         {
             "ticket_id": 1,
             "draft_id": 2,
-            "draft_text": "결제 내역을 확인한 뒤 담당자가 지급 여부를 안내드리겠습니다.",
+            "draft_text": "결제 이력을 확인한 뒤 해당 아이템 지급 여부를 안내드리겠습니다.",
             "retrieved_documents": [
                 {
                     "source_type": "payments",
@@ -372,8 +440,8 @@ def test_safety_layer_masks_and_rechecks_only_masked_text(monkeypatch) -> None:
         {
             "ticket_id": 1,
             "draft_id": 2,
-            "draft_text": "문의 결과는 test@example.com 으로 안내됩니다.",
-            "retrieved_documents": [{"chunk_text": "문의 결과는 이메일로 안내됩니다."}],
+            "draft_text": "문의 결과를 test@example.com 으로 안내합니다.",
+            "retrieved_documents": [{"chunk_text": "문의 결과는 이메일로 안내합니다."}],
             "retry_count": 0,
             "category": "FAQ",
             "routing_target": "rag_reply",
@@ -406,8 +474,8 @@ def test_safety_layer_fallbacks_after_masking_retry_exhausted(monkeypatch) -> No
         {
             "ticket_id": 1,
             "draft_id": 2,
-            "draft_text": "문의 결과는 test@example.com 으로 안내됩니다.",
-            "retrieved_documents": [{"chunk_text": "문의 결과는 이메일로 안내됩니다."}],
+            "draft_text": "문의 결과를 test@example.com 으로 안내합니다.",
+            "retrieved_documents": [{"chunk_text": "문의 결과는 이메일로 안내합니다."}],
             "retry_count": 2,
             "category": "FAQ",
             "routing_target": "rag_reply",
@@ -435,15 +503,13 @@ def _final_state(category: str, safety_action: str = "SAFE_FALLBACK") -> dict:
 def _patch_final_response_writes(monkeypatch) -> list[dict]:
     payloads = []
 
-    class FakeWriteFinalResponse:
-        @staticmethod
-        def invoke(args):
-            payloads.append(args["payload"])
-            return json.dumps({"stored": True, "response_id": 123})
+    def fake_update_raw_query(payload):
+        payloads.append(payload)
+        return {"stored": True, "ticket_id": payload["ticket_id"]}
 
     monkeypatch.setattr(
-        "chatbot.generation.response.final_response.write_final_response",
-        FakeWriteFinalResponse,
+        "chatbot.generation.response.final_response.update_qa_ticket_raw_query",
+        fake_update_raw_query,
     )
     monkeypatch.setattr(
         "chatbot.generation.response.final_response.dispatch_urgent_alert",
@@ -466,53 +532,148 @@ def test_final_response_uses_category_fallbacks(monkeypatch) -> None:
         result = final_response_node(_final_state(category))
         assert result["final_text"] == expected
 
-    assert [payload["final_text"] for payload in payloads] == [expected for _, expected in cases]
+    assert [payload["raw_query"] for payload in payloads] == [f"User: \nAI: {expected}" for _, expected in cases]
 
 
 def test_final_response_uses_fixed_block_and_review_responses(monkeypatch) -> None:
-    _patch_final_response_writes(monkeypatch)
+    payloads = _patch_final_response_writes(monkeypatch)
 
     assert final_response_node(_final_state("FAQ", "BLOCK_RESPONSE"))["final_text"] == BLOCK_RESPONSE
     assert final_response_node(_final_state("FAQ", "REVIEW_QUEUE"))["final_text"] == REVIEW_QUEUE_RESPONSE
+    assert [payload["status"] for payload in payloads] == ["resolved", "pending"]
+
+
+def test_final_response_does_not_write_chatbot_insight(monkeypatch) -> None:
+    _patch_final_response_writes(monkeypatch)
+
+    result = final_response_node({
+        **_final_state("payment"),
+        "user_id": 1,
+        "account_id": 101,
+        "raw_query": "결제 문의입니다.",
+    })
+
+    assert "insight_result" not in result
+
+
+def test_dispatch_urgent_alert_creates_github_issue_for_bug_agent(monkeypatch) -> None:
+    github_calls = []
+    notification_logs = []
+
+    monkeypatch.setattr(dispatcher, "send_slack_alert", lambda message: {"status": "ok"})
+    monkeypatch.setattr(
+        dispatcher,
+        "create_github_issue",
+        lambda title, body: github_calls.append((title, body))
+        or {"status": "ok", "issue_url": "https://github.com/acme/game/issues/1"},
+    )
+    monkeypatch.setattr(
+        dispatcher,
+        "save_notification_log",
+        lambda payload: notification_logs.append(payload) or {"status": "ok", "stored": True},
+    )
+    monkeypatch.setattr(dispatcher, "log_event", lambda *args, **kwargs: {})
+
+    result = dispatcher.dispatch_urgent_alert(
+        {
+            "ticket_id": 1,
+            "session_id": 2,
+            "user_id": 3,
+            "account_id": 4,
+            "category": "in-game-bug",
+            "routing_target": "urgent_alert",
+            "reasoning_node": "bug_agent",
+            "normalized_query": "game closes after loading",
+            "final_text": "operator will review",
+        }
+    )
+
+    assert result["status"] == "skipped"
+    assert result["github_issue_result"]["status"] == "ok"
+    assert github_calls
+    assert github_calls[0][0] == "[인게임 버그] game closes after loading"
+    assert [payload["channel"] for payload in notification_logs] == ["github_issue"]
+
+
+def test_dispatch_urgent_alert_skips_github_issue_for_non_bug(monkeypatch) -> None:
+    github_calls = []
+
+    monkeypatch.setattr(dispatcher, "send_slack_alert", lambda message: {"status": "ok"})
+    monkeypatch.setattr(
+        dispatcher,
+        "create_github_issue",
+        lambda title, body: github_calls.append((title, body)) or {"status": "ok"},
+    )
+    monkeypatch.setattr(dispatcher, "save_notification_log", lambda payload: {"status": "ok", "stored": True})
+    monkeypatch.setattr(dispatcher, "log_event", lambda *args, **kwargs: {})
+
+    result = dispatcher.dispatch_urgent_alert(
+        {
+            "ticket_id": 1,
+            "category": "payment",
+            "routing_target": "urgent_alert",
+            "reasoning_node": "payment_agent",
+            "normalized_query": "paid item was not delivered",
+        }
+    )
+
+    assert result["github_issue_result"]["status"] == "skipped"
+    assert not github_calls
+
+
+def test_dispatch_urgent_alert_sends_slack_only_for_review_queue_once(monkeypatch) -> None:
+    slack_calls = []
+    notification_logs = []
+
+    monkeypatch.setattr(dispatcher, "send_slack_alert", lambda message: slack_calls.append(message) or {"status": "ok"})
+    monkeypatch.setattr(dispatcher, "create_github_issue", lambda title, body: {"status": "skipped"})
+    monkeypatch.setattr(dispatcher, "notification_log_exists", lambda ticket_id, channel: {"exists": False})
+    monkeypatch.setattr(
+        dispatcher,
+        "save_notification_log",
+        lambda payload: notification_logs.append(payload) or {"status": "ok", "stored": True},
+    )
+    monkeypatch.setattr(dispatcher, "log_event", lambda *args, **kwargs: {})
+
+    result = dispatcher.dispatch_urgent_alert(
+        {
+            "ticket_id": 1,
+            "category": "FAQ",
+            "routing_target": "urgent_alert",
+            "reasoning_node": "faq_agent",
+            "safety_action": "REVIEW_QUEUE",
+            "normalized_query": "needs human review",
+        }
+    )
+
+    assert result["status"] == "ok"
+    assert len(slack_calls) == 1
+    assert [payload["channel"] for payload in notification_logs] == ["slack"]
+
+    monkeypatch.setattr(dispatcher, "notification_log_exists", lambda ticket_id, channel: {"exists": True})
+    result = dispatcher.dispatch_urgent_alert(
+        {
+            "ticket_id": 1,
+            "category": "FAQ",
+            "routing_target": "urgent_alert",
+            "reasoning_node": "faq_agent",
+            "safety_action": "REVIEW_QUEUE",
+            "normalized_query": "needs human review again",
+        }
+    )
+
+    assert result["status"] == "skipped"
+    assert result["reason"] == "slack alert already sent for ticket_id"
+    assert len(slack_calls) == 1
 
 
 def test_voc_agent_uses_fallback_for_non_actionable_non_rag_intent(monkeypatch) -> None:
-    voc_payloads = []
-    evidence_payloads = []
-
-    class FakeWriteVocFeedback:
-        @staticmethod
-        def invoke(args):
-            voc_payloads.append(args["payload"])
-            return json.dumps({"stored": True})
-
-    class FakeWriteAnswerDraft:
-        @staticmethod
-        def invoke(args):
-            return json.dumps({"stored": True, "draft_id": 55})
-
-    class FakeWriteEvidenceDocs:
-        @staticmethod
-        def invoke(args):
-            evidence_payloads.append(args["payload"])
-            return json.dumps({"stored": True, "evidence_id": 77})
-
-    monkeypatch.setattr(voc_agent, "write_voc_feedback", FakeWriteVocFeedback)
-    monkeypatch.setattr(voc_agent, "write_answer_draft", FakeWriteAnswerDraft)
-    monkeypatch.setattr(voc_agent, "write_evidence_docs", FakeWriteEvidenceDocs)
-    monkeypatch.setattr(
-        voc_agent,
-        "_classify_voc",
-        lambda text: (_ for _ in ()).throw(AssertionError("Non-actionable VOC should not need another LLM call")),
-    )
-
     result = voc_agent.voc_agent_node(
         {
             "ticket_id": 1,
-            "analysis_id": 10,
             "user_id": 1,
             "account_id": 101,
-            "enriched_query": "게임 이용 불만",
+            "normalized_query": "게임 이용 불만",
             "routing_target": "rag_reply",
             "retry_count": 0,
             "is_actionable": False,
@@ -523,7 +684,28 @@ def test_voc_agent_uses_fallback_for_non_actionable_non_rag_intent(monkeypatch) 
 
     assert result["draft_text"] == VOC_FIXED_RESPONSE
     assert result["safety_action"] == "AUTO_RESPONSE"
-    assert result["safety_reason"] == "low_information_complaint"
-    assert voc_payloads[0]["voc_type"] == "other"
-    assert voc_payloads[0]["sentiment"] == "negative"
-    assert evidence_payloads
+    assert result["safety_reason"] == "VOC fixed response."
+
+def test_route_by_user_selected_categories() -> None:
+    assert route_by_category({"category": "payment"}) == "payment_agent"
+    assert route_by_category({"category": "bug"}) == "bug_agent"
+    assert route_by_category({"category": "faq"}) == "faq_agent"
+    assert route_by_category({"category": "voc"}) == "voc_agent"
+
+def test_voc_skips_safety_and_never_retries_from_safety() -> None:
+    voc_state = {
+        "category": "VOC",
+        "reasoning_node": "voc_agent",
+        "safety_passed": False,
+        "safety_action": "AUTO_RESPONSE",
+        "retry_count": 0,
+    }
+
+    assert route_after_draft_persistence(voc_state) == "final_response"
+    assert route_after_safety(voc_state) == "final_response"
+
+
+def test_route_after_draft_persistence_skips_safety_for_voc() -> None:
+    assert route_after_draft_persistence({"category": "voc"}) == "final_response"
+    assert route_after_draft_persistence({"category": "faq"}) == "safety_layer"
+

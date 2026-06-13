@@ -9,6 +9,7 @@ from typing import Any
 
 from langchain_core.tools import tool
 from langchain_openai import OpenAIEmbeddings
+from langsmith import traceable
 from psycopg.rows import dict_row
 from pydantic import BaseModel, Field
 
@@ -31,7 +32,6 @@ SOURCE_PRIORITY = {
     "naver_cafe_guide": 3,
     "naver_cafe_notice": 1,
 }
-
 
 class RetrievalQuery(BaseModel):
     """Normalized retrieval-query enrichment output."""
@@ -57,6 +57,10 @@ def _embedding_model_name() -> str:
     """Resolve EMBEDDING_MODEL, supporting openai:<model> shorthand."""
     raw = os.environ.get("EMBEDDING_MODEL", "text-embedding-3-small")
     return raw.split(":", 1)[1] if raw.startswith("openai:") else raw
+
+
+def _db_side_vector_search_enabled() -> bool:
+    return os.environ.get("RETRIEVAL_DB_SIDE_VECTOR", "true").strip().lower() not in {"0", "false", "no", "off"}
 
 
 def _cosine(a: list[float], b: list[float]) -> float:
@@ -98,18 +102,30 @@ def _query_patterns(query: str, max_tokens: int = 8) -> list[str]:
     return [f"%{token}%" for token in tokens[:max_tokens]]
 
 
+_RULE_POLICY_KEYWORDS = frozenset(["개인정보", "처리방침", "이용약관", "약관"])
+
+
+def _is_policy_query(text: str) -> bool:
+    return any(kw in text for kw in _RULE_POLICY_KEYWORDS)
+
+
+def _rule_source_types(text: str) -> list[str]:
+    """Return broad FAQ source preferences without excluding candidates."""
+    return list(FAQ_SOURCE_TYPES)
+
+
 def _fallback_enrich_query(text: str) -> RetrievalQuery:
     """Fallback enrichment when the LLM enrichment step is unavailable."""
     query_text = refine_query_text(text)
     return RetrievalQuery(
         query_text=query_text,
-        preferred_source_types=list(FAQ_SOURCE_TYPES),
+        preferred_source_types=_rule_source_types(text),
         preferred_categories=[],
     )
 
 
 def enrich_retrieval_query(text: str) -> RetrievalQuery:
-    """Use the LLM to normalize retrieval intent and optional source/category preferences."""
+    """Use the LLM to normalize retrieval intent; source types are rule-determined."""
     api_key = os.environ.get("LLM_API_KEY")
     model = os.environ.get("QUERY_ENRICHMENT_MODEL") or os.environ.get("LLM_MODEL")
     if not api_key or not model:
@@ -129,12 +145,7 @@ def enrich_retrieval_query(text: str) -> RetrievalQuery:
                 (
                     "system",
                     "You enrich Korean game CS FAQ/RAG search queries. "
-                    "Extract a concise Korean query_text, preferred document source types, and categories. "
-                    "Use only source types from: "
-                    f"{', '.join(FAQ_SOURCE_TYPES)}. "
-                    "For privacy policy questions prefer hoyoverse_policy and category privacy. "
-                    "For terms-of-service questions prefer hoyoverse_policy and category terms. "
-                    "For payment/account/client troubleshooting prefer hoyoverse_qna_common or hoyoverse_qna_onlygenshin. "
+                    "Extract a concise Korean query_text and optional category hints. "
                     "Normalize slang, typos, and equivalent phrases into the same canonical Korean FAQ search query. "
                     "For example, similar phrasings about resetting game progress should become one canonical query. "
                     "Do not preserve vague slang when a clearer FAQ title-style query is possible. "
@@ -143,12 +154,10 @@ def enrich_retrieval_query(text: str) -> RetrievalQuery:
                 ("user", text),
             ]
         )
-        allowed_sources = set(FAQ_SOURCE_TYPES)
-        source_types = [source for source in result.preferred_source_types if source in allowed_sources]
         query_text = refine_query_text(result.query_text or text)
         return RetrievalQuery(
             query_text=query_text,
-            preferred_source_types=source_types or list(FAQ_SOURCE_TYPES),
+            preferred_source_types=_rule_source_types(text),
             preferred_categories=list(dict.fromkeys(result.preferred_categories))[:8],
         )
     except Exception:
@@ -339,6 +348,8 @@ def _rrf_fuse(
         source_boost = SOURCE_PRIORITY.get(str(chunk.get("source_type") or ""), 0) * float(
             os.environ.get("RETRIEVAL_SOURCE_PRIORITY_WEIGHT", "0.003")
         )
+        if _is_policy_query(query_text) and str(chunk.get("source_type") or "") == "hoyoverse_policy":
+            source_boost += float(os.environ.get("RETRIEVAL_POLICY_SOURCE_BOOST", "0.012"))
         field_boost = _field_match_boost(query_text, chunk)
         rrf = (
             1 / (k + cosine_rank.get(cid, len(cosine_rank)) + 1)
@@ -366,9 +377,14 @@ def hybrid_rank_documents(
     enriched_rows: list[dict[str, Any]] = []
     for row in rows:
         row = dict(row)
-        raw_vector = str(row.pop("embedding_vector", "")).strip("[]")
-        db_vector = [float(value) for value in raw_vector.split(",") if value.strip()]
-        cosine_score = _cosine(query_vector, db_vector) if db_vector else 0.0
+        if "cosine_score" in row and row["cosine_score"] is not None:
+            # pre-computed by DB via pgvector <=> — skip Python cosine
+            cosine_score = float(row["cosine_score"])
+            row.pop("embedding_vector", None)
+        else:
+            raw_vector = str(row.pop("embedding_vector", "")).strip("[]")
+            db_vector = [float(value) for value in raw_vector.split(",") if value.strip()]
+            cosine_score = _cosine(query_vector, db_vector) if db_vector else 0.0
         bm25_score = bm25_by_id.get(row["chunk_id"], 0.0)
         row["cosine_score"] = cosine_score
         row["bm25_score"] = bm25_score
@@ -435,8 +451,16 @@ def _fetch_candidate_rows(
     faq_only: bool,
     enrichment: RetrievalQuery | None = None,
     use_query_filter: bool = True,
+    query_vector: list[float] | None = None,
 ) -> list[dict[str, Any]]:
-    """Fetch candidate document chunks and embeddings from Postgres."""
+    """Fetch candidate document chunks from Postgres.
+
+    When query_vector is provided, vector similarity is computed inside the DB
+    using pgvector's <=> operator and only the top candidate_limit rows by
+    cosine distance are returned — avoiding transferring raw embedding vectors
+    over the network. Without query_vector the legacy path returns raw vectors
+    for Python-side cosine scoring.
+    """
     faq_clause = ""
     faq_params: list[str] = []
     if faq_only:
@@ -475,9 +499,22 @@ def _fetch_candidate_rows(
         f"WHEN d.source_type = '{source_type}' THEN {priority}"
         for source_type, priority in SOURCE_PRIORITY.items()
     ) + " ELSE 0 END"
-    order_clause = "c.created_at DESC NULLS LAST"
-    if not use_query_filter and faq_only:
-        order_clause = f"{source_priority_sql} DESC, c.created_at DESC NULLS LAST"
+
+    if query_vector is not None:
+        vector_literal = "[" + ",".join(str(v) for v in query_vector) + "]"
+        order_clause = f"e.embedding_vector <=> '{vector_literal}'::vector"
+        cosine_select = f"1 - (e.embedding_vector <=> '{vector_literal}'::vector) AS cosine_score"
+        embedding_select = ""
+    else:
+        order_clause = "c.created_at DESC NULLS LAST"
+        if not use_query_filter and faq_only:
+            order_clause = f"{source_priority_sql} DESC, c.created_at DESC NULLS LAST"
+        cosine_select = ""
+        embedding_select = "e.embedding_vector::text AS embedding_vector,"
+
+    extra_select = ", ".join(filter(None, [cosine_select]))
+    if extra_select:
+        extra_select = ", " + extra_select
 
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
@@ -490,7 +527,9 @@ def _fetch_candidate_rows(
                     d.category,
                     d.title,
                     c.chunk_text,
-                    e.embedding_vector::text AS embedding_vector
+                    {embedding_select}
+                    c.created_at
+                    {extra_select}
                 FROM documents_chunks c
                 JOIN documents d ON d.documents_id = c.document_id
                 JOIN documents_embeddings e ON e.chunk_id = c.chunk_id
@@ -511,6 +550,52 @@ def _fetch_candidate_rows(
             return [dict(row) for row in cur.fetchall()]
 
 
+def _summarize_retrieval_inputs(inputs: dict[str, Any]) -> dict[str, Any]:
+    embedding_json = str(inputs.get("embedding_json") or "")
+    enrichment = inputs.get("enrichment")
+    if hasattr(enrichment, "model_dump"):
+        enrichment = enrichment.model_dump()
+    try:
+        embedding_dimensions = len(json.loads(embedding_json))
+    except Exception:
+        embedding_dimensions = None
+    return {
+        "query_text": inputs.get("query_text"),
+        "top_k": inputs.get("top_k"),
+        "prefer_faq": inputs.get("prefer_faq"),
+        "embedding_dimensions": embedding_dimensions,
+        "enrichment": enrichment,
+    }
+
+
+def _summarize_retrieval_outputs(outputs: list[dict[str, Any]]) -> dict[str, Any]:
+    return {
+        "result_count": len(outputs),
+        "candidate_scope": outputs[0].get("candidate_scope") if outputs else "none",
+        "results": [
+            {
+                "chunk_id": result.get("chunk_id"),
+                "document_id": result.get("document_id"),
+                "source_type": result.get("source_type"),
+                "category": result.get("category"),
+                "title": result.get("title"),
+                "score": result.get("score"),
+                "cosine_score": result.get("cosine_score"),
+                "bm25_score": result.get("bm25_score"),
+                "field_match_score": result.get("field_match_score"),
+            }
+            for result in outputs
+        ],
+    }
+
+
+@traceable(
+    name="search_document_chunks",
+    run_type="retriever",
+    tags=["rag", "vector_search", "postgres"],
+    process_inputs=_summarize_retrieval_inputs,
+    process_outputs=_summarize_retrieval_outputs,
+)
 def search_document_chunks(
     *,
     embedding_json: str,
@@ -528,6 +613,7 @@ def search_document_chunks(
     retrieval_query = refine_query_text(query_text)
     if isinstance(enrichment, dict):
         enrichment = RetrievalQuery.model_validate(enrichment)
+    db_side_query_vec = query_vec if _db_side_vector_search_enabled() else None
 
     rows = _fetch_candidate_rows(
         retrieval_query=retrieval_query,
@@ -535,6 +621,7 @@ def search_document_chunks(
         faq_only=prefer_faq,
         enrichment=enrichment,
         use_query_filter=True,
+        query_vector=db_side_query_vec,
     )
     candidate_scope = "faq"
 
@@ -545,6 +632,7 @@ def search_document_chunks(
             faq_only=True,
             enrichment=None,
             use_query_filter=False,
+            query_vector=db_side_query_vec,
         )
         rows_by_id = {row["chunk_id"]: row for row in rows}
         for row in broad_rows:
@@ -559,6 +647,7 @@ def search_document_chunks(
             faq_only=False,
             enrichment=enrichment,
             use_query_filter=True,
+            query_vector=db_side_query_vec,
         )
         candidate_scope = "all"
 
