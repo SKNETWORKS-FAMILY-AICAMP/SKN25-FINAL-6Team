@@ -1,7 +1,9 @@
+name: skn25-airflow
+
 services:
   cs-auto-airflow:
     build:
-      context: ../../..
+      context: ..
       dockerfile: apps/cs_auto/deploy/docker/airflow.Dockerfile
     image: skn25-cs-auto-airflow:latest
     container_name: cs-auto-airflow

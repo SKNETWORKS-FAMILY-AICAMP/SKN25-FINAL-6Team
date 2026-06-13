@@ -1,0 +1,26 @@
+name: skn25-chatbot
+
+services:
+  chatbot:
+    build:
+      context: ..
+      dockerfile: apps/chatbot/deploy/docker/chatbot.Dockerfile
+    image: skn25-chatbot:latest
+    container_name: chatbot
+    restart: unless-stopped
+    environment:
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      DB_CONNECT_TIMEOUT: ${DB_CONNECT_TIMEOUT:-15}
+      LLM_API_KEY: ${LLM_API_KEY}
+      LLM_MODEL: ${LLM_MODEL}
+      CHATBOT_LANGSMITH_TRACING: ${CHATBOT_LANGSMITH_TRACING:-}
+      CHATBOT_LANGSMITH_API_KEY: ${CHATBOT_LANGSMITH_API_KEY:-}
+      CHATBOT_LANGSMITH_PROJECT: ${CHATBOT_LANGSMITH_PROJECT:-}
+      CHATBOT_DEBUG_ROUTING: ${CHATBOT_DEBUG_ROUTING:-false}
+      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
+    ports:
+      - "${CHATBOT_HTTP_PORT:-80}:80"

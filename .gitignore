@@ -1,7 +1,6 @@
 # Environment and secrets
 .env
-.env.airflow
-.env.web
+.env.*
 !.env.example
 
 # Python

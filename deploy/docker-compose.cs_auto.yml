@@ -1,7 +1,9 @@
+name: skn25-cs-auto
+
 services:
   cs-auto:
     build:
-      context: ../../..
+      context: ..
       dockerfile: apps/cs_auto/deploy/docker/cs-auto.Dockerfile
     image: skn25-cs-auto:latest
     container_name: cs-auto
@@ -20,7 +22,7 @@ services:
       CS_AUTO_REGENERATION_LIMIT: ${CS_AUTO_REGENERATION_LIMIT:-3}
       CS_AUTO_CORS_ORIGINS: ${CS_AUTO_CORS_ORIGINS:-*}
       NAVER_CAFE_COMMENT_ENDPOINT: ${NAVER_CAFE_COMMENT_ENDPOINT:-}
-      SMTP_APP_PASSWORD: ${SMTP_APP_PASSWORD}
+      SMTP_APP_PASSWORD: ${SMTP_APP_PASSWORD:-}
       SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
       SMTP_PORT: ${SMTP_PORT:-587}
       OPERATION_LANGSMITH_TRACING: ${OPERATION_LANGSMITH_TRACING:-}
