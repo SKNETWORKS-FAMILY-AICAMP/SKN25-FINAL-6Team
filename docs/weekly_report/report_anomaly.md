@@ -17,7 +17,7 @@
 ## 구현 위치
 
 ```
-apps/weekly_report/backend/spike_alerts.py
+apps/weekly_report/db/spike_alerts.py
 ```
 
 ## 실행 파이프라인 (Airflow)
@@ -165,10 +165,11 @@ if all(item["level"] == "normal" for item in results):
 
 | 함수명 | 반환 | 용도 |
 |--------|------|------|
-| `calculate_zscore_by_hour(db, window)` | `list[dict]` | 시간별 히트맵 |
-| `calculate_daily_counts(db, window)` | `list[dict]` | 일별 7일 바차트 |
-| `calculate_monthly_trend(db, window)` | `list[dict]` | 4주 바차트 |
-| `build_spike_slack_blocks(...)` | `list[dict]` | Slack Block Kit 변환 |
+| `_calculate_zscore_by_hour(window)` | `list[dict]` | 시간별 히트맵 |
+| `_calculate_wow_by_day(window)` | `list[dict]` | 일별 7일 바차트 |
+| `_calculate_monthly_trend(window)` | `list[dict]` | 4주 바차트 |
+| `build_spike_slack_blocks(alerts)` | `list[dict]` | Slack Block Kit 변환 |
+| `detect(window)` | `dict` | 세 방법론 통합 실행 진입점 |
 
 ### 반환 형식
 

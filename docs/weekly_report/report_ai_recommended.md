@@ -14,7 +14,7 @@ LLM에 주입하여 기획팀이 **다음 주 운영에서 즉시 실행할 수 
 ## 구현 위치
 
 ```
-apps/weekly_report/backend/ai_summary.py
+apps/weekly_report/ai/actions.py
 ```
 
 ---

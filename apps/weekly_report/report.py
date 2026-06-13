@@ -99,6 +99,10 @@ def run(
         generated_at=generated_at,
     )
 
+    # Slack 전송에 필요한 채널을 PDF 생성 전에 검증해 불필요한 렌더링을 방지한다.
+    if send_to_slack and not slack_channel:
+        raise ValueError("send_to_slack=True 이면 slack_channel 이 필요합니다")
+
     # send_to_slack=True이면 PDF가 반드시 필요하므로 render_pdf를 자동 활성화한다.
     pdf_bytes: bytes | None = None
     if render_pdf or send_to_slack:
@@ -106,8 +110,6 @@ def run(
 
     slack_result: dict[str, Any] | None = None
     if send_to_slack:
-        if not slack_channel:
-            raise ValueError("send_to_slack=True 이면 slack_channel 이 필요합니다")
         # 파일명에 날짜를 포함해 Slack에서 다운로드할 때 기간을 바로 알 수 있게 한다.
         filename = f"weekly_report_{days}d_{generated_at.date().isoformat()}.pdf"
         slack_result = send_weekly_report_pdf(

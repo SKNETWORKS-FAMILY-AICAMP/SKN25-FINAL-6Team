@@ -14,7 +14,7 @@
 ## 구현 위치
 
 ```
-apps/weekly_report/backend/top_requests.py
+apps/weekly_report/db/top_requests.py
 ```
 
 ---
@@ -106,7 +106,7 @@ Nielsen(1994) 원문의 등급별 대응 조치를 기준으로 분류.
 
 ```python
 def classify_improvement_type(row: dict) -> str:
-    if row["risk_level"] in ("critical", "high"):
+    if row.get("level") in ("critical", "high"):
         return "설계 결함"
     return "편의 개선"
 ```
@@ -143,9 +143,9 @@ def build_top5_slack_blocks(top5: list[dict]) -> list[dict]:
 | 함수명 | 반환 | 용도 |
 |--------|------|------|
 | `get_risk_level_score(risk_level)` | `int` | Nielsen 등급 변환 |
-| `calculate_priority_score(db, window)` | `list[dict]` | 가중합 점수 산정 |
+| `calculate_priority_score(window)` | `list[dict]` | 가중합 점수 산정 |
 | `classify_improvement_type(row)` | `str` | 설계결함/편의개선 분류 |
-| `get_top5_improvements(db, window)` | `list[dict]` | Top 5 추출 |
+| `fetch(window)` | `list[dict]` | Top 5 추출 진입점 |
 | `build_top5_slack_blocks(top5)` | `list[dict]` | Slack Block Kit 변환 |
 
 ### 반환 형식

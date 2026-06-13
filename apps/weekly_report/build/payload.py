@@ -125,6 +125,22 @@ def build_report_payload(
         },
     }
 
+    # ── 카테고리별 전주 대비 증감 ─────────────────────────────────────────────────
+    # PDF 주간지표 블록에서 "전주 대비 00% 증감하였습니다" 표시에 사용한다.
+    prev_cat_map = {
+        row["category"]: int(row["count"])
+        for row in previous_metrics.get("category_counts", [])
+    }
+    category_comparisons = [
+        {
+            "category": row["category"],
+            "current": int(row["count"]),
+            "previous": prev_cat_map.get(row["category"], 0),
+            "change_rate": format_change(int(row["count"]), prev_cat_map.get(row["category"], 0)),
+        }
+        for row in current_metrics.get("category_counts", [])
+    ]
+
     # ── 우선 확인 행 + AI 해석 ────────────────────────────────────────────────
     # 최대 12개 행을 선별한 뒤 LLM으로 각 행의 한 줄 해석을 생성한다.
     review_rows = pick_review_rows(current_rows, limit=12)
@@ -174,6 +190,7 @@ def build_report_payload(
         "review_rows": review_rows,
         "category_counts_current": current_metrics.get("category_counts", []),
         "category_counts_previous": previous_metrics.get("category_counts", []),
+        "category_comparisons": category_comparisons,
         "top_requests": requests,
         "spike_alerts": alerts,
         "ai_interpretation": ai_interp,
