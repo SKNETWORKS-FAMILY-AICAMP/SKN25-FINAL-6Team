@@ -17,8 +17,6 @@ if patched != text:
     main_py.write_text(patched, encoding="utf-8")
 PY
 
-python -m uvicorn api.main:app \
+exec python -m uvicorn api.main:app \
   --host "${CS_AUTO_UVICORN_HOST}" \
-  --port "${CS_AUTO_UVICORN_PORT}" &
-
-exec nginx -g "daemon off;"
+  --port "${CS_AUTO_UVICORN_PORT}"

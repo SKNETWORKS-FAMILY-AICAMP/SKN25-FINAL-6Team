@@ -1,54 +1,88 @@
 # Deploy
 
-루트 `deploy/` 아래에 서비스별 Compose 파일을 분리했다.
+AWS 서버에서 `deploy/` 디렉터리 기준으로 공통 `nginx`와 `chatbot`, `cs_auto`, `airflow`를 각각 독립적으로 올리는 배포 구조입니다.
 
 ## Files
 
-- `docker-compose.cs_auto.yml`: `cs_auto` 웹/API 배포
-- `docker-compose.chatbot.yml`: `chatbot` 웹/API 배포
-- `docker-compose.airflow.yml`: `cs_auto` Airflow 배포
-- `.env.example`: 공통 환경변수 예시
+- `docker-compose.nginx.yml`: 공통 `nginx`
+- `docker-compose.chatbot.yml`: `chatbot-backend`
+- `docker-compose.cs-auto.yml`: `cs-auto-backend`
+- `docker-compose.airflow.yml`: `cs_auto` Airflow
+- `docker-compose.web_0614.yml`: 이전 묶음 실행 방식 백업
+- `.env.example`: 공통 환경 변수 예시
+- `init-shared-network.sh`: 공통 Docker network 생성 스크립트
 
-## Usage
+## First Run
 
-프로젝트 루트에서:
-
-```powershell
-copy .\deploy\.env.example .\.env
-docker-compose -f .\deploy\docker-compose.cs_auto.yml --env-file .\.env up -d --build
-docker-compose -f .\deploy\docker-compose.chatbot.yml --env-file .\.env up -d --build
-docker-compose -f .\deploy\docker-compose.airflow.yml --env-file .\.env up -d --build
+```sh
+cd deploy
+cp .env.example .env
+sh ./init-shared-network.sh
 ```
 
-Linux에서는 한 번에 올리는 스크립트를 사용할 수 있다.
+`.env`에서 최소한 아래 값들은 채워야 합니다.
 
-```bash
-cp deploy/.env.example .env
-chmod +x deploy/manage-all.sh
-./deploy/manage-all.sh up
-./deploy/manage-all.sh ps
+- `DB_HOST`
+- `DB_PASSWORD`
+- `LLM_API_KEY`
+
+## Start
+
+공통 `nginx`:
+
+```sh
+docker-compose --env-file .env -f docker-compose.nginx.yml up -d --build
 ```
 
-기본 포트는 동시에 올려도 충돌하지 않게 분리되어 있다.
+`chatbot`:
 
-- `cs_auto`: `http://<HOST>:8081`
-- `chatbot`: `http://<HOST>:8082/chatbot/`
-- `airflow`: `http://<HOST>:18080`
-
-각 서비스 상태 확인:
-
-```powershell
-docker-compose -f .\deploy\docker-compose.cs_auto.yml --env-file .\.env ps
-docker-compose -f .\deploy\docker-compose.chatbot.yml --env-file .\.env ps
-docker-compose -f .\deploy\docker-compose.airflow.yml --env-file .\.env ps
+```sh
+docker-compose --env-file .env -f docker-compose.chatbot.yml up -d --build
 ```
 
-같은 EC2에서 여러 서비스를 동시에 띄우는 기본값:
+`cs_auto`:
 
-```env
-CS_AUTO_HTTP_PORT=8081
-CHATBOT_HTTP_PORT=8082
-CS_AUTO_AIRFLOW_PORT=18080
+```sh
+docker-compose --env-file .env -f docker-compose.cs-auto.yml up -d --build
 ```
 
-80/443 앞단 도메인 라우팅이 필요하면 이후 공용 nginx 또는 ALB를 별도로 두는 편이 낫다.
+`airflow`:
+
+```sh
+docker-compose --env-file .env -f docker-compose.airflow.yml up -d --build
+```
+
+필요한 서비스만 따로 올려도 되고, 네 개를 순서대로 모두 올려도 됩니다.
+
+## Status
+
+```sh
+docker-compose --env-file .env -f docker-compose.nginx.yml ps
+docker-compose --env-file .env -f docker-compose.chatbot.yml ps
+docker-compose --env-file .env -f docker-compose.cs-auto.yml ps
+docker-compose --env-file .env -f docker-compose.airflow.yml ps
+```
+
+## Stop
+
+```sh
+docker-compose --env-file .env -f docker-compose.nginx.yml down
+docker-compose --env-file .env -f docker-compose.chatbot.yml down
+docker-compose --env-file .env -f docker-compose.cs-auto.yml down
+docker-compose --env-file .env -f docker-compose.airflow.yml down
+```
+
+## Runtime Paths
+
+- `http://<HOST>:<WEB_HTTP_PORT>/chatbot/`
+- `http://<HOST>:<WEB_HTTP_PORT>/chatbot/api/health`
+- `http://<HOST>:<WEB_HTTP_PORT>/cs-auto/`
+- `http://<HOST>:<WEB_HTTP_PORT>/cs-auto/api/health`
+- `http://<HOST>:<CS_AUTO_AIRFLOW_PORT>/`
+
+## Notes
+
+- `nginx`는 공통 정적 파일과 라우팅만 담당합니다.
+- `chatbot-backend`와 `cs-auto-backend`는 공통 외부 network(`DEPLOY_SHARED_NETWORK`)를 통해 연결됩니다.
+- `nginx`는 백엔드가 아직 떠 있지 않아도 먼저 실행되도록 설정했습니다.
+- 컨테이너 안에서 `DB_HOST=localhost`는 컨테이너 자기 자신이므로, 외부 DB를 쓰는 경우 실제 DB 호스트를 넣어야 합니다.

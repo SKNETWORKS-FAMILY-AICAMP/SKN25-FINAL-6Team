@@ -4,7 +4,7 @@
 
 - `apps/chatbot`: 사용자 문의 접수와 답변 초안 생성
 - `apps/cs_auto`: 운영자 검수와 초안 승인/반려
-- `apps/dashboard`: 운영 현황, 리스크, 응답 품질, 주간 보고서
+- `apps/weekly_report`: 주간 운영 리포트 생성 및 Slack 발송
 - `packages/common-python`: DB 연결, 문서 처리, 공용 유틸
 
 ## Current Layout
@@ -20,9 +20,9 @@ C:\SKN25-FINAL-6Team
 |  |  |- backend
 |  |  |- frontend
 |  |  `- deploy
-|  `- dashboard
-|     |- backend
-|     |- frontend
+|  `- weekly_report
+|     |- airflow
+|     |- api
 |     `- deploy
 |- packages
 |  `- common-python
@@ -95,21 +95,19 @@ $env:VITE_OPERATION_API_BASE_URL="http://127.0.0.1:8001"
 npm run dev -- --host 127.0.0.1 --port 5174
 ```
 
-### 3. Dashboard
+### 3. Weekly Report
 
 백엔드:
 
 ```powershell
-$env:PYTHONPATH="C:\SKN25-FINAL-6Team\packages\common-python\src;C:\SKN25-FINAL-6Team\apps\dashboard\backend"
+$env:PYTHONPATH="C:\SKN25-FINAL-6Team\packages\common-python\src;C:\SKN25-FINAL-6Team\apps\weekly_report"
 python -m uvicorn api.main:app --host 127.0.0.1 --port 8002
 ```
 
 프런트:
 
 ```powershell
-cd apps\dashboard\frontend
-$env:VITE_DASHBOARD_API_BASE_URL="http://127.0.0.1:8002"
-npm run dev -- --host 127.0.0.1 --port 5175
+curl http://127.0.0.1:8002/health
 ```
 
 ## Local URLs
@@ -118,8 +116,7 @@ npm run dev -- --host 127.0.0.1 --port 5175
 - `chatbot` backend: `http://127.0.0.1:8000`
 - `cs_auto` frontend: `http://127.0.0.1:5174`
 - `cs_auto` backend: `http://127.0.0.1:8001`
-- `dashboard` frontend: `http://127.0.0.1:5175`
-- `dashboard` backend: `http://127.0.0.1:8002`
+- `weekly_report` backend: `http://127.0.0.1:8002`
 
 Health check:
 
@@ -164,8 +161,7 @@ cs_auto 배치 DAG:
 - `http://localhost/chatbot/api/health`
 - `http://localhost/cs-auto/`
 - `http://localhost/cs-auto/api/health`
-- `http://localhost/dashboard/`
-- `http://localhost/dashboard/api/health`
+- `http://localhost/weekly-report/api/health`
 
 주의:
 
@@ -186,5 +182,5 @@ pytest
 ```bash
 pytest apps/tests/chatbot_tests
 pytest apps/tests/cs_auto_tests
-pytest apps/tests/dashboard_tests
+pytest apps/tests/weekly_report_tests
 ```
