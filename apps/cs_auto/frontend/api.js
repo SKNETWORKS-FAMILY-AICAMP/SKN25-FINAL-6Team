@@ -1,5 +1,5 @@
 (function attachCsAutoApi(global) {
-  const API_BASE_URL = global.CS_AUTO_API_BASE_URL || "/api/cs-auto";
+  const API_BASE_URL = global.CS_AUTO_API_BASE_URL || "/cs-auto/api";
 
   async function request(path, options = {}) {
     const response = await fetch(`${API_BASE_URL}${path}`, {

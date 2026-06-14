@@ -25,31 +25,32 @@ sh ./init-shared-network.sh
 - `DB_HOST`
 - `DB_PASSWORD`
 - `LLM_API_KEY`
+- `CS_AUTO_API_CORS_ORIGINS` (`cs_auto` API CORS, 湲곗〈 `CS_AUTO_CORS_ORIGINS`?대룄 ?섏슜)
 
 ## Start
 
 공통 `nginx`:
 
 ```sh
-docker-compose --env-file .env -f docker-compose.nginx.yml up -d --build
+docker compose --env-file .env -f docker-compose.nginx.yml up -d --build
 ```
 
 `chatbot`:
 
 ```sh
-docker-compose --env-file .env -f docker-compose.chatbot.yml up -d --build
+docker compose --env-file .env -f docker-compose.chatbot.yml up -d --build
 ```
 
 `cs_auto`:
 
 ```sh
-docker-compose --env-file .env -f docker-compose.cs-auto.yml up -d --build
+docker compose --env-file .env -f docker-compose.cs-auto.yml up -d --build
 ```
 
 `airflow`:
 
 ```sh
-docker-compose --env-file .env -f docker-compose.airflow.yml up -d --build
+docker compose --env-file .env -f docker-compose.airflow.yml up -d --build
 ```
 
 필요한 서비스만 따로 올려도 되고, 네 개를 순서대로 모두 올려도 됩니다.
@@ -57,19 +58,19 @@ docker-compose --env-file .env -f docker-compose.airflow.yml up -d --build
 ## Status
 
 ```sh
-docker-compose --env-file .env -f docker-compose.nginx.yml ps
-docker-compose --env-file .env -f docker-compose.chatbot.yml ps
-docker-compose --env-file .env -f docker-compose.cs-auto.yml ps
-docker-compose --env-file .env -f docker-compose.airflow.yml ps
+docker compose --env-file .env -f docker-compose.nginx.yml ps
+docker compose --env-file .env -f docker-compose.chatbot.yml ps
+docker compose --env-file .env -f docker-compose.cs-auto.yml ps
+docker compose --env-file .env -f docker-compose.airflow.yml ps
 ```
 
 ## Stop
 
 ```sh
-docker-compose --env-file .env -f docker-compose.nginx.yml down
-docker-compose --env-file .env -f docker-compose.chatbot.yml down
-docker-compose --env-file .env -f docker-compose.cs-auto.yml down
-docker-compose --env-file .env -f docker-compose.airflow.yml down
+docker compose --env-file .env -f docker-compose.nginx.yml down
+docker compose --env-file .env -f docker-compose.chatbot.yml down
+docker compose --env-file .env -f docker-compose.cs-auto.yml down
+docker compose --env-file .env -f docker-compose.airflow.yml down
 ```
 
 ## Runtime Paths

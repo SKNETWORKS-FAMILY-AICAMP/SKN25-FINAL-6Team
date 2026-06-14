@@ -34,7 +34,11 @@ DEFAULT_CORS_ORIGIN = "*"
 
 def _get_cors_origins() -> list[str]:
     # 프론트 실행 환경에 맞게 허용 Origin 목록을 환경변수로 받는다.
-    raw_origins = str(os.environ.get("CS_AUTO_API_CORS_ORIGINS") or DEFAULT_CORS_ORIGIN)
+    raw_origins = str(
+        os.environ.get("CS_AUTO_API_CORS_ORIGINS")
+        or os.environ.get("CS_AUTO_CORS_ORIGINS")
+        or DEFAULT_CORS_ORIGIN
+    )
     return [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
 
 

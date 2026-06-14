@@ -14,6 +14,15 @@ set -eu
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
+if docker compose version >/dev/null 2>&1; then
+  COMPOSE_CMD="docker compose"
+elif command -v docker-compose >/dev/null 2>&1; then
+  COMPOSE_CMD="docker-compose"
+else
+  echo "Error: neither 'docker compose' nor 'docker-compose' is available."
+  exit 1
+fi
+
 echo "[1/5] Ensure shared Docker network exists"
 # The nginx/chatbot/cs_auto/airflow stacks are started as separate compose
 # projects, so they need one shared external network to talk to each other.
@@ -21,20 +30,20 @@ sh ./init-shared-network.sh
 
 echo "[2/5] Start chatbot backend"
 # Starts the chatbot backend container only.
-docker-compose --env-file .env -f docker-compose.chatbot.yml up -d --build
+$COMPOSE_CMD --env-file .env -f docker-compose.chatbot.yml up -d --build
 
 echo "[3/5] Start cs_auto backend"
 # Starts the cs_auto backend container only.
-docker-compose --env-file .env -f docker-compose.cs-auto.yml up -d --build
+$COMPOSE_CMD --env-file .env -f docker-compose.cs-auto.yml up -d --build
 
 echo "[4/5] Start airflow"
 # Starts the cs_auto Airflow container only.
-docker-compose --env-file .env -f docker-compose.airflow.yml up -d --build
+$COMPOSE_CMD --env-file .env -f docker-compose.airflow.yml up -d --build
 
 echo "[5/5] Start shared nginx"
 # Starts the shared nginx that serves frontend files and proxies API requests
 # to chatbot-backend and cs-auto-backend over the shared Docker network.
-docker-compose --env-file .env -f docker-compose.nginx.yml up -d --build
+$COMPOSE_CMD --env-file .env -f docker-compose.nginx.yml up -d --build
 
 echo "Done. Current container status:"
 docker ps

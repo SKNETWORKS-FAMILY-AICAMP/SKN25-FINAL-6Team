@@ -11,18 +11,27 @@ set -eu
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
+if docker compose version >/dev/null 2>&1; then
+  COMPOSE_CMD="docker compose"
+elif command -v docker-compose >/dev/null 2>&1; then
+  COMPOSE_CMD="docker-compose"
+else
+  echo "Error: neither 'docker compose' nor 'docker-compose' is available."
+  exit 1
+fi
+
 echo "[1/5] Stop shared nginx"
 # Stop the public entrypoint first so no new requests arrive during shutdown.
-docker-compose --env-file .env -f docker-compose.nginx.yml down
+$COMPOSE_CMD --env-file .env -f docker-compose.nginx.yml down
 
 echo "[2/5] Stop airflow"
-docker-compose --env-file .env -f docker-compose.airflow.yml down
+$COMPOSE_CMD --env-file .env -f docker-compose.airflow.yml down
 
 echo "[3/5] Stop cs_auto backend"
-docker-compose --env-file .env -f docker-compose.cs-auto.yml down
+$COMPOSE_CMD --env-file .env -f docker-compose.cs-auto.yml down
 
 echo "[4/5] Stop chatbot backend"
-docker-compose --env-file .env -f docker-compose.chatbot.yml down
+$COMPOSE_CMD --env-file .env -f docker-compose.chatbot.yml down
 
 echo "[5/5] Remove shared Docker network if unused"
 # This may fail if something is still attached to the network, so keep shutdown
