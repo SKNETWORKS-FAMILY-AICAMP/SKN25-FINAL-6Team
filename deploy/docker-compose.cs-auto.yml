@@ -1,6 +1,20 @@
 name: skn25-cs-auto
 
 services:
+  cs-auto-nginx:
+    build:
+      context: ..
+      dockerfile: deploy/nginx/cs-auto.Dockerfile
+    image: skn25-cs-auto-nginx:latest
+    container_name: cs-auto-nginx
+    restart: unless-stopped
+    depends_on:
+      - cs-auto-backend
+    ports:
+      - "${CS_AUTO_HTTP_PORT:-80}:80"
+    networks:
+      - cs-auto
+
   cs-auto-backend:
     build:
       context: ..
@@ -46,9 +60,7 @@ services:
       retries: 3
       start_period: 20s
     networks:
-      - shared
+      - cs-auto
 
 networks:
-  shared:
-    name: ${DEPLOY_SHARED_NETWORK:-skn25-shared}
-    external: true
+  cs-auto:

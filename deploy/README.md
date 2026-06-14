@@ -1,64 +1,78 @@
 # Deploy
 
-AWS 서버에서 `deploy/` 디렉터리 기준으로 공통 `nginx`와 `chatbot`, `cs_auto`, `airflow`를 각각 독립적으로 올리는 배포 구조입니다.
+AWS deployment is split by service. Each machine runs its own stack:
+
+- `chatbot`: `chatbot-nginx` + `chatbot-backend`
+- `cs_auto`: `cs-auto-nginx` + `cs-auto-backend`
+- `airflow`: `cs-auto-airflow`
+
+There is no shared external Docker network and no shared `web-nginx`.
 
 ## Files
 
-- `docker-compose.nginx.yml`: 공통 `nginx`
-- `docker-compose.chatbot.yml`: `chatbot-backend`
-- `docker-compose.cs-auto.yml`: `cs-auto-backend`
-- `docker-compose.airflow.yml`: `cs_auto` Airflow
-- `docker-compose.web_0614.yml`: 이전 묶음 실행 방식 백업
-- `.env.example`: 공통 환경 변수 예시
-- `init-shared-network.sh`: 공통 Docker network 생성 스크립트
+- `docker-compose.chatbot.yml`: chatbot stack with dedicated nginx
+- `docker-compose.cs-auto.yml`: cs_auto stack with dedicated nginx
+- `docker-compose.airflow.yml`: cs_auto Airflow
+- `.env.example`: shared environment example
+- `.env.chatbot.example`: chatbot server example
+- `.env.cs-auto.example`: cs_auto server example
+- `.env.airflow.example`: airflow server example
+- `deploy-all.sh`: starts all stacks on one host
+- `deploy-down.sh`: stops all stacks on one host
 
 ## First Run
 
 ```sh
 cd deploy
 cp .env.example .env
-sh ./init-shared-network.sh
 ```
 
-`.env`에서 최소한 아래 값들은 채워야 합니다.
+Minimum required values in `.env`:
 
 - `DB_HOST`
 - `DB_PASSWORD`
 - `LLM_API_KEY`
-- `CS_AUTO_API_CORS_ORIGINS` (`cs_auto` API CORS, 湲곗〈 `CS_AUTO_CORS_ORIGINS`?대룄 ?섏슜)
+- `CS_AUTO_API_CORS_ORIGINS`
+
+When running multiple stacks on one host, do not reuse port `80`:
+
+```sh
+CHATBOT_HTTP_PORT=8080
+CS_AUTO_HTTP_PORT=8081
+CS_AUTO_AIRFLOW_PORT=18080
+```
+
+When running each stack on its own EC2 instance, keeping `80` is fine.
 
 ## Start
 
-공통 `nginx`:
-
-```sh
-docker compose --env-file .env -f docker-compose.nginx.yml up -d --build
-```
-
-`chatbot`:
+Chatbot machine:
 
 ```sh
 docker compose --env-file .env -f docker-compose.chatbot.yml up -d --build
 ```
 
-`cs_auto`:
+CS Auto machine:
 
 ```sh
 docker compose --env-file .env -f docker-compose.cs-auto.yml up -d --build
 ```
 
-`airflow`:
+Airflow machine:
 
 ```sh
 docker compose --env-file .env -f docker-compose.airflow.yml up -d --build
 ```
 
-필요한 서비스만 따로 올려도 되고, 네 개를 순서대로 모두 올려도 됩니다.
+Single-host convenience:
+
+```sh
+sh ./deploy-all.sh
+```
 
 ## Status
 
 ```sh
-docker compose --env-file .env -f docker-compose.nginx.yml ps
 docker compose --env-file .env -f docker-compose.chatbot.yml ps
 docker compose --env-file .env -f docker-compose.cs-auto.yml ps
 docker compose --env-file .env -f docker-compose.airflow.yml ps
@@ -67,7 +81,6 @@ docker compose --env-file .env -f docker-compose.airflow.yml ps
 ## Stop
 
 ```sh
-docker compose --env-file .env -f docker-compose.nginx.yml down
 docker compose --env-file .env -f docker-compose.chatbot.yml down
 docker compose --env-file .env -f docker-compose.cs-auto.yml down
 docker compose --env-file .env -f docker-compose.airflow.yml down
@@ -75,15 +88,22 @@ docker compose --env-file .env -f docker-compose.airflow.yml down
 
 ## Runtime Paths
 
-- `http://<HOST>:<WEB_HTTP_PORT>/chatbot/`
-- `http://<HOST>:<WEB_HTTP_PORT>/chatbot/api/health`
-- `http://<HOST>:<WEB_HTTP_PORT>/cs-auto/`
-- `http://<HOST>:<WEB_HTTP_PORT>/cs-auto/api/health`
+Chatbot machine:
+
+- `http://<HOST>:<CHATBOT_HTTP_PORT>/chatbot/`
+- `http://<HOST>:<CHATBOT_HTTP_PORT>/chatbot/api/health`
+
+CS Auto machine:
+
+- `http://<HOST>:<CS_AUTO_HTTP_PORT>/cs-auto/`
+- `http://<HOST>:<CS_AUTO_HTTP_PORT>/cs-auto/api/health`
+
+Airflow machine:
+
 - `http://<HOST>:<CS_AUTO_AIRFLOW_PORT>/`
 
 ## Notes
 
-- `nginx`는 공통 정적 파일과 라우팅만 담당합니다.
-- `chatbot-backend`와 `cs-auto-backend`는 공통 외부 network(`DEPLOY_SHARED_NETWORK`)를 통해 연결됩니다.
-- `nginx`는 백엔드가 아직 떠 있지 않아도 먼저 실행되도록 설정했습니다.
-- 컨테이너 안에서 `DB_HOST=localhost`는 컨테이너 자기 자신이므로, 외부 DB를 쓰는 경우 실제 DB 호스트를 넣어야 합니다.
+- `chatbot` and `cs_auto` now build separate nginx images, so each machine only carries the frontend assets it serves.
+- `chatbot` and `cs_auto` no longer depend on cross-compose networking.
+- Do not set `DB_HOST=localhost` unless the DB is inside the same container.

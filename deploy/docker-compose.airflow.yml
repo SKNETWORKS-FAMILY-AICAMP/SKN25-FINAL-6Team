@@ -40,13 +40,5 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
-    networks:
-      - shared
-
 volumes:
   cs_auto_airflow_logs:
-
-networks:
-  shared:
-    name: ${DEPLOY_SHARED_NETWORK:-skn25-shared}
-    external: true
