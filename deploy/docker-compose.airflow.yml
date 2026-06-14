@@ -22,10 +22,13 @@ services:
       CS_AUTO_SQL_DIR: /opt/airflow/data/sql
       LLM_TIMEOUT_SECONDS: ${LLM_TIMEOUT_SECONDS:-60}
       AIRFLOW__CORE__LOAD_EXAMPLES: "False"
-      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/cs_auto_backend/airflow
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
       AIRFLOW__CORE__DEFAULT_TIMEZONE: Asia/Seoul
       AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "True"
-      PYTHONPATH: /opt/airflow/packages/common-python/src:/opt/airflow/cs_auto_backend
+      PYTHONPATH: /opt/airflow/dags/packages/common-python/src:/opt/airflow/dags/apps/cs_auto/backend:/opt/airflow/dags/apps/weekly_report
+      DASHBOARD_WEEKLY_REPORT_CHANNEL: ${DASHBOARD_WEEKLY_REPORT_CHANNEL:-}
+      DASHBOARD_WEEKLY_REPORT_COMMENT: ${DASHBOARD_WEEKLY_REPORT_COMMENT:-}
+      DASHBOARD_SLACK_BOT_TOKEN: ${DASHBOARD_SLACK_BOT_TOKEN:-}
       OPERATION_LANGSMITH_TRACING: ${OPERATION_LANGSMITH_TRACING:-}
       OPERATION_LANGSMITH_API_KEY: ${OPERATION_LANGSMITH_API_KEY:-}
       OPERATION_LANGSMITH_PROJECT: ${OPERATION_LANGSMITH_PROJECT:-}

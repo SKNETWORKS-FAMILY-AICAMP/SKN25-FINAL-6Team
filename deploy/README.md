@@ -64,6 +64,13 @@ Airflow machine:
 docker compose --env-file .env -f docker-compose.airflow.yml up -d --build
 ```
 
+If you want the weekly report DAG to send Slack messages, also set:
+
+```sh
+DASHBOARD_WEEKLY_REPORT_CHANNEL=<channel id or name>
+DASHBOARD_SLACK_BOT_TOKEN=<bot token>
+```
+
 Single-host convenience:
 
 ```sh
