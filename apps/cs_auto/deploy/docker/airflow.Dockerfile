@@ -6,6 +6,19 @@ ENV PYTHONPATH=/opt/airflow/dags/packages/common-python/src:/opt/airflow/dags/ap
     CS_AUTO_KEYWORD_DIR=/opt/airflow/data/keywords \
     CS_AUTO_SQL_DIR=/opt/airflow/data/sql
 
+USER root
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        build-essential \
+        fontconfig \
+        fonts-nanum \
+        libcairo2-dev \
+        pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+USER airflow
+
 COPY --chown=airflow:root packages/common-python/src /opt/airflow/dags/packages/common-python/src
 COPY --chown=airflow:root packages/common-python/pyproject.toml /opt/airflow/dags/packages/common-python/pyproject.toml
 COPY --chown=airflow:root apps/cs_auto/backend /opt/airflow/dags/apps/cs_auto/backend

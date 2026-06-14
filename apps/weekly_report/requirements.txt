@@ -6,4 +6,8 @@ psycopg[binary]>=3.1
 plotly==6.1.1
 kaleido==0.2.1
 slack-sdk==3.37.0
+cryptography<45
+cffi<2
+pyHanko==0.24.0
+pyhanko-certvalidator==0.26.3
 xhtml2pdf==0.2.17
