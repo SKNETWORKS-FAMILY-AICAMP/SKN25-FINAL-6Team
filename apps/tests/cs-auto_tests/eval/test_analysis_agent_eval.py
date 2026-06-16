@@ -44,6 +44,7 @@ GOLD_TO_PRED = {
     "gold_sentiment": "sentiment",
     "gold_routing_target": "routing_target",
 }
+PROGRESS_EVERY = 10
 
 
 def _load_root_env() -> None:
@@ -80,7 +81,17 @@ def _ticket_payload(row: dict[str, str]) -> dict[str, object]:
     }
 
 
-def _evaluate_dataset() -> dict[str, Any]:
+def _print_progress(index: int, total: int, row: dict[str, str], *, error: str | None = None) -> None:
+    title = row["title"].replace("\n", " ").strip()
+    title = title[:60] + ("..." if len(title) > 60 else "")
+    prefix = f"[{index}/{total}] ticket_id={row['ticket_id']} source={row['source_type']}"
+    if error is not None:
+        print(f"{prefix} ERROR: {error} | {title}", flush=True)
+        return
+    print(f"{prefix} evaluating | {title}", flush=True)
+
+
+def _evaluate_dataset(*, show_progress: bool = False) -> dict[str, Any]:
     tickets = _load_eval_tickets()
     report: dict[str, Any] = {
         "dataset_path": str(DATASET_PATH),
@@ -96,11 +107,16 @@ def _evaluate_dataset() -> dict[str, Any]:
         field: defaultdict(Counter) for field in LABEL_FIELDS
     }
 
-    for row in tickets:
+    total_tickets = len(tickets)
+    for index, row in enumerate(tickets, start=1):
+        if show_progress and (index == 1 or index % PROGRESS_EVERY == 0 or index == total_tickets):
+            _print_progress(index, total_tickets, row)
         payload = _ticket_payload(row)
         try:
             result = agent.build_analysis_result(payload).model_dump()
         except Exception as exc:
+            if show_progress:
+                _print_progress(index, total_tickets, row, error=f"{type(exc).__name__}: {exc}")
             report["errors"].append(
                 {
                     "ticket_id": row["ticket_id"],
@@ -283,7 +299,9 @@ def test_analysis_agent_accuracy_on_manual_gold_set() -> None:
 
 if __name__ == "__main__":
     _load_root_env()
-    report = _evaluate_dataset()
+    print(f"[start] dataset={DATASET_PATH}", flush=True)
+    report = _evaluate_dataset(show_progress=True)
     output_dir = _build_output_dir()
     _save_artifacts(report, output_dir)
     _print_report(report, output_dir)
+    print("[done] evaluation finished", flush=True)
