@@ -1,0 +1,5 @@
+﻿axis,correct,total,accuracy
+category,126,143,0.8811
+risk_level,132,143,0.9231
+sentiment,111,143,0.7762
+routing_target,81,143,0.5664

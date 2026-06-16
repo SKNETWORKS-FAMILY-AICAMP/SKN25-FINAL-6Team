@@ -42,5 +42,4 @@ def analysis_agent_daily_dag() -> None:
     run_scheduled_analysis_agent()
 
 
-# Airflow가 모듈을 import할 때 DAG 객체를 발견할 수 있도록 인스턴스화한다.
 analysis_agent_daily = analysis_agent_daily_dag()
