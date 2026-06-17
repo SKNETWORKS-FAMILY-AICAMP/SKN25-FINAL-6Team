@@ -409,9 +409,36 @@ def render_fixed_sql(
 
 # text_to_sql 계획 객체를 실제 파라미터 바인딩 SQL로 바꾸는 함수다.
 # 모델은 구조만 정하고 SQL 문자열 조립은 서버 코드가 맡도록 하는 안전 장치다.
+def _table_name_from_ref(ref: str) -> str:
+    return str(ref or "").split(".", 1)[0]
+
+
+def _join_condition_for_tables(
+    left_table: str,
+    right_table: str,
+    schema_context: dict[str, object] | None,
+) -> tuple[str, str] | None:
+    if not schema_context:
+        return None
+    join_paths = schema_context.get("join_paths") or []
+    for path in join_paths:
+        if not isinstance(path, list) or len(path) != 2:
+            continue
+        left_ref = str(path[0])
+        right_ref = str(path[1])
+        left_ref_table = _table_name_from_ref(left_ref)
+        right_ref_table = _table_name_from_ref(right_ref)
+        if left_ref_table == left_table and right_ref_table == right_table:
+            return left_ref, right_ref
+        if left_ref_table == right_table and right_ref_table == left_table:
+            return right_ref, left_ref
+    return None
+
+
 def render_text_to_sql(
     plan: TextToSqlPlan,
     ticket: dict[str, object],
+    schema_context: dict[str, object] | None = None,
 ) -> tuple[str, tuple[object, ...]]:
     if not plan.tables:
         return "", ()
@@ -420,9 +447,35 @@ def render_text_to_sql(
     columns = ", ".join(plan.columns) if plan.columns else "*"
     sql_parts = [f"SELECT {columns}", f"FROM {base_table}"]
     params: list[object] = []
+    joined_tables: set[str] = {base_table}
 
     for join in plan.joins:
-        sql_parts.append(f"JOIN {join.right.split('.')[0]} ON {join.left} = {join.right}")
+        right_table = _table_name_from_ref(join.right)
+        if right_table in joined_tables:
+            continue
+        sql_parts.append(f"JOIN {right_table} ON {join.left} = {join.right}")
+        joined_tables.add(right_table)
+
+    referenced_tables = {base_table}
+    referenced_tables.update(_table_name_from_ref(column) for column in plan.columns if "." in column)
+    for raw_filter in plan.filters:
+        referenced_tables.add(_table_name_from_ref(raw_filter.column))
+    referenced_tables.update(str(table) for table in plan.tables[1:])
+
+    for target_table in sorted(referenced_tables):
+        if target_table in joined_tables:
+            continue
+        join_condition = _join_condition_for_tables(base_table, target_table, schema_context)
+        if join_condition is None:
+            for joined_table in sorted(joined_tables):
+                join_condition = _join_condition_for_tables(joined_table, target_table, schema_context)
+                if join_condition is not None:
+                    break
+        if join_condition is None:
+            continue
+        left_ref, right_ref = join_condition
+        sql_parts.append(f"JOIN {target_table} ON {left_ref} = {right_ref}")
+        joined_tables.add(target_table)
 
     where_clauses: list[str] = []
     for raw_filter in plan.filters:
@@ -565,7 +618,7 @@ class TextToSqlSearcher:
         question = str(analysis.get("enriched_query") or ticket.get("raw_query") or ticket.get("title") or "")
         schema_context = self.build_schema_context(category)
         plan = self.build_plan(question, analysis, schema_context)
-        sql, params = render_text_to_sql(plan, ticket)
+        sql, params = render_text_to_sql(plan, ticket, schema_context)
 
         if not sql:
             return {
@@ -578,8 +631,24 @@ class TextToSqlSearcher:
                 "evidence": [],
             }
 
-        validate_sql_query(sql, params, schema_context)
-        rows = _execute_sql(sql, params)
+        try:
+            validate_sql_query(sql, params, schema_context)
+            rows = _execute_sql(sql, params)
+        except Exception as exc:  # pragma: no cover - live DB plan failures are dataset noise, not code paths.
+            return {
+                "decision": {
+                    "query_type": "text_to_sql",
+                    "reason": f"text_to_sql execution failed: {type(exc).__name__}",
+                    "confidence": plan.confidence,
+                },
+                "query_type": "text_to_sql",
+                "plan": plan.model_dump(),
+                "sql": sql,
+                "params": params,
+                "rows": [],
+                "evidence": [],
+                "error": f"{type(exc).__name__}: {exc}",
+            }
         return {
             "decision": None,
             "query_type": "text_to_sql",

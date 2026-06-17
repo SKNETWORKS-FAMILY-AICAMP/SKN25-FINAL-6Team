@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import datetime, date
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -92,6 +93,18 @@ class DocumentQueryBuilder:
 class DocumentsHybridSearcher:
     """Run BM25 + dense hybrid retrieval on documents-family tables."""
 
+    @staticmethod
+    def _json_safe(value: Any) -> Any:
+        if isinstance(value, dict):
+            return {str(key): DocumentsHybridSearcher._json_safe(item) for key, item in value.items()}
+        if isinstance(value, list):
+            return [DocumentsHybridSearcher._json_safe(item) for item in value]
+        if isinstance(value, tuple):
+            return [DocumentsHybridSearcher._json_safe(item) for item in value]
+        if isinstance(value, (datetime, date)):
+            return value.isoformat()
+        return value
+
     def embed(self, retrieval_query: str) -> str:
         return embed_query.invoke({"text": retrieval_query})
 
@@ -107,7 +120,7 @@ class DocumentsHybridSearcher:
     def rerank(self, documents: list[dict[str, Any]], retrieval_query: str) -> list[dict[str, Any]]:
         reranked_json = rerank_documents.invoke(
             {
-                "docs_json": json.dumps(documents, ensure_ascii=False),
+                "docs_json": json.dumps(self._json_safe(documents), ensure_ascii=False),
                 "query": retrieval_query,
             }
         )

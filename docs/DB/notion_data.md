@@ -1,6 +1,6 @@
 # Notion-Friendly DB Summary
 
-This document summarizes `db_info.md` and `descriptions.md` for Notion. It reflects the live DB state verified on **2026-06-06**.
+This document summarizes `db_info.md` and `descriptions.md` for Notion. It reflects the live DB state verified on **2026-06-17**.
 
 ## 1. Current State
 
@@ -14,10 +14,9 @@ This document summarizes `db_info.md` and `descriptions.md` for Notion. It refle
 | User | `game_cs_user` |
 | Schema | `public` |
 | Extensions | `plpgsql 1.0`, `vector 0.6.0` |
-| Public tables | 39 |
-| Public columns | 323 |
-| Main tables | 20 |
-| `_ex` tables | 19 |
+| Public tables | 20 |
+| Public columns | 158 |
+| `_ex` tables | 0 |
 
 ## 2. System Scope
 
@@ -26,98 +25,71 @@ This document summarizes `db_info.md` and `descriptions.md` for Notion. It refle
 - Customer inquiries: `qa_ticket`
 - Operation evidence data: `payments`, `refunds`, `item_delivery_logs`, `gacha_logs`
 - Answer workflow outputs: `ticket_analysis`, `answer_draft`, `evidence_docs`, `safety_results`, `final_response`
-- Operation/monitoring: `failed_queries`, `notification_logs`, `admin_event_logs`, `insight`
-- Document/RAG store: `documents`, `documents_chunks`, `documents_embeddings`
-- Template/source-scale tables: `_ex` versions for most main tables
+- Operation/monitoring: `failed_queries`, `notification_logs`, `insight`
+- Document/RAG store: `sj_documents`, `test_documents_chunks`, `test_documents_embeddings_large`, `test_documents_embeddings_small`
 
 ## 3. Operating Interpretation
 
-The live DB currently has **20 main tables + 19 `_ex` template tables**.
+The live DB currently has **20 public tables and no `_ex` mirror tables**.
 
-- Main tables represent the current reduced dataset and workflow output state.
-- `_ex` tables preserve source-scale or example rows used as regeneration references.
-- `admin_users` is a live auth table with no `_ex` mirror.
-- `voc_feedback` and `voc_feedback_ex` are not present in the live public schema.
+- The live schema differs from older reduced-dataset docs that described `_ex` tables.
+- The active RAG corpus tables are `sj_documents -> test_documents_chunks -> test_documents_embeddings_large/small`.
+- Older docs and some code still reference `documents`, `documents_chunks`, and `documents_embeddings`; those table names are absent from the live `public` schema at this verification point.
 
-## 4. Main Table Counts
+## 4. Live Table Counts
 
-These counts are exact `COUNT(*)` results from the live DB on 2026-06-06.
+These counts are exact `COUNT(*)` results from the live DB on 2026-06-17.
 
 | Table | Rows | Purpose |
 | --- | ---: | --- |
-| `admin_event_logs` | 942 | Operation/admin workflow event and error logs |
-| `admin_users` | 1 | Administrator/operator login accounts and auth metadata |
-| `answer_draft` | 263 | Generated answer drafts for tickets |
-| `community_users` | 630 | Community user profile data |
-| `documents` | 1,201 | Source documents for policy, notice, guide, incident, and RAG retrieval |
-| `documents_chunks` | 2,151 | Searchable chunks split from source documents |
-| `documents_embeddings` | 2,151 | Vector embeddings for document chunks |
-| `evidence_docs` | 792 | Retrieved evidence saved for answer drafts |
+| `admin_users` | 10 | Administrator/operator login accounts and auth metadata |
+| `community_users` | 1,500 | Community user profile data |
+| `game_accounts` | 1,500 | Game account data linked to community users |
+| `qa_ticket` | 9,228 | Customer inquiry/QA tickets |
+| `payments` | 5,000 | Payment transaction history |
+| `refunds` | 300 | Refund request and processing history |
+| `item_delivery_logs` | 10,000 | Paid or reward item delivery history |
+| `gacha_logs` | 25,000 | Gacha pull history per game account |
+| `ticket_analysis` | 0 | Ticket classification, risk, sentiment, and routing analysis |
+| `answer_draft` | 4 | Generated answer drafts for tickets |
+| `evidence_docs` | 16 | Retrieved evidence saved for answer drafts |
+| `safety_results` | 4 | Safety and grounding check results for drafts |
+| `final_response` | 0 | Final customer-facing responses |
 | `failed_queries` | 0 | Failed ticket/query processing logs |
-| `final_response` | 493 | Final customer-facing responses |
-| `gacha_logs` | 180 | Gacha pull history per game account |
-| `game_accounts` | 630 | Game account data linked to community users |
-| `insight` | 4 | Ticket/user/account-level insight analysis data |
-| `item_delivery_logs` | 140 | Paid or reward item delivery history |
-| `notification_logs` | 5 | Notification send results and errors |
-| `payments` | 320 | Payment transaction history |
-| `qa_ticket` | 1,472 | Customer inquiry/QA tickets |
-| `refunds` | 55 | Refund request and processing history |
-| `safety_results` | 2 | Safety and grounding check results for drafts |
-| `ticket_analysis` | 967 | Ticket classification, risk, sentiment, and routing analysis |
+| `notification_logs` | 0 | Notification send results and errors |
+| `insight` | 0 | Ticket/user/account-level insight analysis data |
+| `sj_documents` | 1,068 | Source documents used by the current RAG corpus |
+| `test_documents_chunks` | 5,068 | Searchable chunks for the current RAG corpus |
+| `test_documents_embeddings_large` | 5,068 | Large-model vector embeddings for document chunks |
+| `test_documents_embeddings_small` | 5,068 | Small-model vector embeddings for document chunks |
 
-## 5. `_ex` Table Counts
-
-| Table | Rows | Purpose |
-| --- | ---: | --- |
-| `admin_event_logs_ex` | 3 | Template/example copy of `admin_event_logs` |
-| `answer_draft_ex` | 329 | Template/example copy of `answer_draft` |
-| `community_users_ex` | 6,288 | Template/source-scale copy of `community_users` |
-| `documents_chunks_ex` | 3,864 | Template/example copy of `documents_chunks` |
-| `documents_embeddings_ex` | 3,864 | Template/example copy of `documents_embeddings` |
-| `documents_ex` | 1,201 | Template/example copy of `documents` |
-| `evidence_docs_ex` | 837 | Template/example copy of `evidence_docs` |
-| `failed_queries_ex` | 11 | Template/example copy of `failed_queries` |
-| `final_response_ex` | 311 | Template/example copy of `final_response` |
-| `gacha_logs_ex` | 5 | Template/example copy of `gacha_logs` |
-| `game_accounts_ex` | 6,288 | Template/source-scale copy of `game_accounts` |
-| `insight_ex` | 5 | Template/example copy of `insight` |
-| `item_delivery_logs_ex` | 5 | Template/example copy of `item_delivery_logs` |
-| `notification_logs_ex` | 2 | Template/example copy of `notification_logs` |
-| `payments_ex` | 11 | Template/example copy of `payments` |
-| `qa_ticket_ex` | 9,349 | Template/source-scale copy of `qa_ticket` |
-| `refunds_ex` | 5 | Template/example copy of `refunds` |
-| `safety_results_ex` | 287 | Template/example copy of `safety_results` |
-| `ticket_analysis_ex` | 351 | Template/example copy of `ticket_analysis` |
-
-## 6. Core Reduced Dataset Tables
+## 5. Core Operational Tables
 
 | Table | Rows | Role |
 | --- | ---: | --- |
-| `community_users` | 630 | User master data for inquiry owners |
-| `game_accounts` | 630 | Game account master data |
-| `qa_ticket` | 1,472 | Primary inquiry/post table |
-| `payments` | 320 | Operation evidence for payment-related inquiries |
-| `refunds` | 55 | Operation evidence for refund-related inquiries |
-| `item_delivery_logs` | 140 | Operation evidence for missing or delayed item delivery |
-| `gacha_logs` | 180 | Operation evidence for gacha/probability inquiries |
+| `community_users` | 1,500 | User master data for inquiry owners |
+| `game_accounts` | 1,500 | Game account master data |
+| `qa_ticket` | 9,228 | Primary inquiry/post table |
+| `payments` | 5,000 | Operation evidence for payment-related inquiries |
+| `refunds` | 300 | Operation evidence for refund-related inquiries |
+| `item_delivery_logs` | 10,000 | Operation evidence for missing or delayed item delivery |
+| `gacha_logs` | 25,000 | Operation evidence for gacha/probability inquiries |
 
 Interpretation:
 
 - `qa_ticket` is the primary inquiry table.
-- The other six core tables explain why an inquiry may have occurred.
-- Workflow output tables grow as batch jobs and API workflows run.
+- The payment/refund/item/gacha tables provide operation evidence used to answer or investigate tickets.
+- Workflow output tables are currently sparse compared with the ticket corpus and appear to reflect only a small portion of completed runs.
 
-## 7. Relationship Summary
+## 6. Relationship Summary
 
 - `community_users.user_id` parents `game_accounts`, `qa_ticket`, and `insight`.
-- `game_accounts.account_id` connects to `payments`, `gacha_logs`, `item_delivery_logs`, and `qa_ticket.account_id`.
+- `game_accounts.account_id` connects to `payments`, `gacha_logs`, `item_delivery_logs`, `qa_ticket.account_id`, and `insight.account_id`.
 - `payments.payment_id` connects to `refunds.payment_id` and `item_delivery_logs.payment_id`.
 - The answer workflow follows `qa_ticket -> ticket_analysis -> answer_draft -> safety_results/final_response`.
-- The document store follows `documents -> documents_chunks -> documents_embeddings`.
-- Admin assignment and event actor references point to `admin_users.admin_id`.
+- The live document store follows `sj_documents -> test_documents_chunks -> test_documents_embeddings_large/small`.
 
-## 8. Workflow Read/Write Map
+## 7. Workflow Read/Write Map
 
 | Phase | Live Tables |
 | --- | --- |
@@ -125,102 +97,107 @@ Interpretation:
 | Ticket load | `qa_ticket`, `community_users`, `game_accounts` |
 | Payment context | `payments`, `game_accounts` |
 | Refund context | `refunds`, `payments`, `game_accounts` |
-| Item delivery context | `item_delivery_logs`, `game_accounts` |
+| Item delivery context | `item_delivery_logs`, `payments`, `game_accounts` |
 | Gacha context | `gacha_logs`, `game_accounts` |
 | Abuse/VOC context | `insight` |
-| Policy/outage context | `documents` |
-| RAG retrieval | `documents`, `documents_chunks`, `documents_embeddings` |
-| Workflow writes | `ticket_analysis`, `answer_draft`, `evidence_docs`, `safety_results`, `final_response`, `notification_logs`, `failed_queries`, `admin_event_logs` |
+| RAG source | `sj_documents` |
+| RAG retrieval | `test_documents_chunks`, `test_documents_embeddings_large`, `test_documents_embeddings_small` |
+| Workflow writes | `ticket_analysis`, `answer_draft`, `evidence_docs`, `safety_results`, `final_response`, `notification_logs`, `failed_queries` |
 
-## 9. Current Caveats
+## 8. Current Caveats
 
-### 9.1 Main RAG Store
+### 8.1 RAG Store
 
-- `documents`: 1,201 rows
-- `documents_chunks`: 2,151 rows
-- `documents_embeddings`: 2,151 rows
+- `sj_documents`: 1,068 rows
+- `test_documents_chunks`: 5,068 rows
+- `test_documents_embeddings_large`: 5,068 rows
+- `test_documents_embeddings_small`: 5,068 rows
 
-### 9.2 Workflow Output State
+### 8.2 Workflow Output State
 
 | Table | Rows |
 | --- | ---: |
-| `ticket_analysis` | 967 |
-| `answer_draft` | 263 |
-| `evidence_docs` | 792 |
-| `safety_results` | 2 |
-| `final_response` | 493 |
+| `ticket_analysis` | 0 |
+| `answer_draft` | 4 |
+| `evidence_docs` | 16 |
+| `safety_results` | 4 |
+| `final_response` | 0 |
 | `failed_queries` | 0 |
-| `admin_event_logs` | 942 |
-| `notification_logs` | 5 |
-| `insight` | 4 |
+| `notification_logs` | 0 |
+| `insight` | 0 |
 
-### 9.3 `_ex` Tables Are Templates
+### 8.3 Historical Reference Gap
 
-- `_ex` tables are not the active operation target.
-- Analysis and demos should not mix main table rows with `_ex` rows unless explicitly comparing live vs template data.
-- `voc_feedback` appears in some older docs, but it is not a live public table at this verification point.
+- The repo still contains `docs/data_generation/*` and older DB docs that describe `_ex` tables and `documents*` tables.
+- Those references remain useful as project history, but they should not be treated as live-schema facts without re-checking PostgreSQL.
 
-## 10. Data Generation References
-
-- `docs/data_generation/plan.md`: reduced scope, target counts, hard-case quota, and table policies
-- `docs/data_generation/paper_description.md`: methodology rationale, seed expansion, hard-case supplementation, and privacy/style considerations
-- `docs/data_generation/repopulate_reduced_dataset.py`: repopulates the seven core reduced tables from `_ex` templates
-- `docs/data_generation/ppt_data_generation_narrative.md`: presentation-facing methodology summary
-
-## 11. Main Schema ERD
+## 9. Main Schema ERD
 
 ```smalltalk
-Table admin_users {
-  admin_id integer [pk]
-  login_id varchar(100)
-  password_hash text
-  display_name varchar(100)
-  role varchar(30)
-  status varchar(30)
-  last_login_at timestamp [null]
-  password_updated_at timestamp
-  created_at timestamp
-}
-
 Table community_users {
   user_id integer [pk]
-  email varchar [null]
-  nickname varchar [null]
-  created_at timestamp [null]
-  user_status varchar [null]
-  last_login_at timestamp [null]
-  password_hash text [null]
-  password_updated_at timestamp [null]
 }
 
 Table game_accounts {
   account_id integer [pk]
   user_id integer [ref: > community_users.user_id]
-  game_name varchar [null]
-  uid varchar [null]
-  server_region varchar [null]
-  progression_level integer [null]
-  account_status varchar [null]
-  created_at timestamp [null]
 }
 
 Table qa_ticket {
   ticket_id integer [pk]
   account_id integer [ref: > game_accounts.account_id, null]
   user_id integer [ref: > community_users.user_id]
-  title varchar [null]
-  raw_query text [null]
-  source_type varchar [null]
-  status varchar [null]
-  inquiry_created_at timestamp [null]
-  session_id integer [null]
-  responder_type varchar(100) [null]
-  assignee_id varchar [null]
   assignee_admin_id integer [ref: > admin_users.admin_id, null]
+}
+
+Table ticket_analysis {
+  analysis_id integer [pk]
+  ticket_id integer [ref: > qa_ticket.ticket_id]
+}
+
+Table answer_draft {
+  draft_id integer [pk]
+  ticket_id integer [ref: > qa_ticket.ticket_id]
+  analysis_id integer [ref: > ticket_analysis.analysis_id, null]
+}
+
+Table evidence_docs {
+  evidence_id integer [pk]
+  draft_id integer [ref: > answer_draft.draft_id]
+}
+
+Table safety_results {
+  safety_id integer [pk]
+  draft_id integer [ref: > answer_draft.draft_id]
+}
+
+Table final_response {
+  response_id integer [pk]
+  ticket_id integer [ref: > qa_ticket.ticket_id]
+  draft_id integer [ref: > answer_draft.draft_id, null]
+}
+
+Table sj_documents {
+  document_id varchar [pk]
+}
+
+Table test_documents_chunks {
+  chunk_id varchar [pk]
+  document_id varchar [ref: > sj_documents.document_id]
+}
+
+Table test_documents_embeddings_large {
+  embedding_id varchar [pk]
+  chunk_id varchar [ref: > test_documents_chunks.chunk_id]
+}
+
+Table test_documents_embeddings_small {
+  embedding_id varchar [pk]
+  chunk_id varchar [ref: > test_documents_chunks.chunk_id]
 }
 ```
 
-## 12. Workflow/RAG Schema Notes
+## 10. Workflow/RAG Schema Notes
 
 - `ticket_analysis.ticket_id` references `qa_ticket.ticket_id`.
 - `answer_draft.ticket_id` references `qa_ticket.ticket_id`.
@@ -228,16 +205,13 @@ Table qa_ticket {
 - `evidence_docs.draft_id` and `safety_results.draft_id` reference `answer_draft.draft_id`.
 - `final_response.ticket_id` references `qa_ticket.ticket_id`.
 - `final_response.draft_id` optionally references `answer_draft.draft_id`.
-- `admin_event_logs.actor_admin_id` references `admin_users.admin_id`.
-- `documents_chunks.document_id` references `documents.documents_id`.
-- `documents_embeddings.chunk_id` references `documents_chunks.chunk_id`.
+- `test_documents_chunks.document_id` references `sj_documents.document_id`.
+- `test_documents_embeddings_large.chunk_id` and `test_documents_embeddings_small.chunk_id` reference `test_documents_chunks.chunk_id`.
 
-## 13. Data Source Notes
+## 11. Data Source Notes
 
-| Source | Target Tables | Notes |
-| --- | --- | --- |
-| `data/processed/community_users.csv` | `community_users` | User seed data |
-| `data/processed/qa_ticket.csv` | `qa_ticket` | Inquiry/post seed data |
-| `notebooks/insert_processed_data.ipynb` | `community_users`, `game_accounts`, `qa_ticket` | Historical ingestion notebook |
-| `notebooks/generate_operation_workflow_sample_data.ipynb` | `payments`, `refunds`, `item_delivery_logs`, `gacha_logs`, `insight` | Historical operation context sample generation; older notes may mention `voc_feedback`, which is not present in the live schema. |
-| `docs/data_generation/repopulate_reduced_dataset.py` | `community_users`, `game_accounts`, `qa_ticket`, `payments`, `refunds`, `item_delivery_logs`, `gacha_logs` | Rebuilds the reduced dataset from `_ex` template tables |
+| Source | Notes |
+| --- | --- |
+| Live PostgreSQL `public` schema | Source of truth for this document. |
+| `docs/data_generation/*` | Historical/research references; does not match the current live schema one-to-one. |
+| Repo code under `apps/` and `packages/` | Some modules still reference older `documents*` names and should be validated separately against the live DB. |

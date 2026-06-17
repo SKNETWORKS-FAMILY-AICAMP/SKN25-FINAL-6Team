@@ -1,6 +1,6 @@
 # DB Info
 
-Last verified from the live database on 2026-06-06.
+Last verified from the live database on 2026-06-17.
 
 ## Connection
 
@@ -16,10 +16,10 @@ Last verified from the live database on 2026-06-06.
 | Password | `DB_PASSWORD` environment variable |
 | Schema | `public` |
 | Extensions | `plpgsql 1.0`, `vector 0.6.0` |
-| Public Tables | 39 |
-| Public Columns | 323 |
-| Main Tables | 20 |
-| `_ex` Tables | 19 |
+| Public Tables | 20 |
+| Public Columns | 158 |
+| Workflow Write Tables | 7 |
+| RAG Tables | 4 |
 
 ## Test Connection
 
@@ -34,22 +34,28 @@ If `DB_PASSWORD` is not set, the DB smoke test is skipped.
 
 ## Schema Reference
 
-See `docs/DB/descriptions.md` for exact table counts, data types, nullability, defaults, primary keys, primary-key defaults, foreign keys, indexes, relationships, and operation workflow usage.
+See `docs/DB/descriptions.md` for exact table counts, data types, nullability, defaults, primary keys, foreign keys, indexes, and per-table column layouts.
 
-See `docs/DB/notion_data.md` for a Notion-friendly summary of the same schema, current row counts, workflow-oriented table grouping, and ERD snippets.
+See `docs/DB/notion_data.md` for a shorter summary oriented toward Notion and project handoff.
+
+## Current Live-Schema Notes
+
+- The live `public` schema currently has 20 tables and no `_ex` mirror tables.
+- The document/RAG store in the live DB is `sj_documents -> test_documents_chunks -> test_documents_embeddings_large/small`.
+- Older docs and some code still reference `documents`, `documents_chunks`, and `documents_embeddings`; those table names are not present in the live `public` schema at this verification point.
+- Workflow write tables with no database-side PK default remain: `answer_draft`, `evidence_docs`, `failed_queries`, `final_response`, `safety_results`, `ticket_analysis`.
 
 ## Data Generation Reference
 
-For reduced dataset generation and presentation-facing rationale, use the companion documents under `docs/data_generation/`.
+The local references under `docs/data_generation/` still exist in the repo, but they describe an earlier reduced-dataset workflow and do not match the current live `public` schema one-to-one.
 
-- `docs/data_generation/plan.md`: reduced dataset scope, target counts, hard-case quota, and generation policy
-- `docs/data_generation/paper_description.md`: research-grounded rationale for seed-based generation, hard-case supplementation, and privacy/style considerations
-- `docs/data_generation/repopulate_reduced_dataset.py`: reproducible script that repopulates the reduced dataset tables
-- `docs/data_generation/ppt_data_generation_narrative.md`: presentation narrative for methodology and game-domain considerations
+- `docs/data_generation/plan.md`
+- `docs/data_generation/paper_description.md`
+- `docs/data_generation/repopulate_reduced_dataset.py`
+- `docs/data_generation/ppt_data_generation_narrative.md`
 
 ## Verification Scope
 
-- Live metadata checked: PostgreSQL version, current database/user/schema, extensions, public tables, columns, constraints, primary-key defaults, foreign-key rules, and indexes.
-- Current public schema includes 20 main tables and 19 `_ex` template/mirror tables.
+- Live metadata checked: PostgreSQL version, current database/user/schema, extensions, public tables, columns, primary keys, primary-key defaults, foreign-key rules, and indexes.
 - Row counts are exact `COUNT(*)` results at verification time.
-- Local load and generation references checked by path only; live schema and row counts come directly from PostgreSQL.
+- This document reflects the live DB only; repo-local notebooks and generation notes may describe older schema variants.

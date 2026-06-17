@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from typing import Any, TypeVar
+from typing import TypeVar
 
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -28,38 +28,6 @@ def _disable_tracing_without_langsmith_key() -> None:
 _disable_tracing_without_langsmith_key()
 
 
-def _first_env(*names: str) -> str | None:
-    for name in names:
-        value = os.environ.get(name, "").strip()
-        if value:
-            return value
-    return None
-
-
-def _resolve_chat_api_key(*, base_url: str | None) -> str:
-    api_key = _first_env("CS_AUTO_LLM_API_KEY", "LLM_API_KEY", "OPENAI_API_KEY")
-    if api_key:
-        return api_key
-    if base_url:
-        return "vllm"
-    raise KeyError("LLM_API_KEY")
-
-
-def build_chat_openai_kwargs(*, model: str | None = None) -> dict[str, Any]:
-    """Build shared ChatOpenAI kwargs, including optional OpenAI-compatible base_url."""
-
-    base_url = _first_env("CS_AUTO_LLM_BASE_URL", "LLM_BASE_URL", "OPENAI_BASE_URL")
-    kwargs: dict[str, Any] = {
-        "model": model or os.environ["LLM_MODEL"],
-        "api_key": _resolve_chat_api_key(base_url=base_url),
-        "temperature": 0,
-        "timeout": float(os.environ.get("LLM_TIMEOUT_SECONDS", "60")),
-    }
-    if base_url:
-        kwargs["base_url"] = base_url.rstrip("/")
-    return kwargs
-
-
 def get_query_embedding(query: str) -> list[float] | None:
     """쿼리 텍스트의 임베딩 벡터를 반환합니다. 실패 시 None을 반환합니다.
 
@@ -77,7 +45,12 @@ def get_query_embedding(query: str) -> list[float] | None:
 def get_chat_llm(*, model: str | None = None) -> ChatOpenAI:
     """Build the shared ChatOpenAI client with common timeout and tracing config."""
 
-    return ChatOpenAI(**build_chat_openai_kwargs(model=model))
+    return ChatOpenAI(
+        model=model or os.environ["LLM_MODEL"],
+        api_key=os.environ["LLM_API_KEY"],
+        temperature=0,
+        timeout=float(os.environ.get("LLM_TIMEOUT_SECONDS", "60")),
+    )
 
 
 def invoke_structured_llm(

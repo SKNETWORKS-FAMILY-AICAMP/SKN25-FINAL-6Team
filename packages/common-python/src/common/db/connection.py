@@ -24,6 +24,7 @@ class DatabaseSettings(BaseModel):
     user: str = Field(default_factory=lambda: os.environ["DB_USER"])
     password: str = Field(default_factory=lambda: os.environ["DB_PASSWORD"])
     dbname: str = Field(default_factory=lambda: os.environ["DB_NAME"])
+    sslmode: str = Field(default_factory=lambda: os.environ.get("DB_SSLMODE", "prefer"))
     connect_timeout: int = Field(default_factory=lambda: int(os.environ.get("DB_CONNECT_TIMEOUT", "15")))
 
 
@@ -38,6 +39,7 @@ def db_connection(settings: DatabaseSettings | None = None) -> Iterator[psycopg.
         user=db_settings.user,
         password=db_settings.password,
         dbname=db_settings.dbname,
+        sslmode=db_settings.sslmode,
         connect_timeout=db_settings.connect_timeout,
     ) as conn:
         yield conn

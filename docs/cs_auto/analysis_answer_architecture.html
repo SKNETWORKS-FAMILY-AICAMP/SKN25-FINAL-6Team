@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CS Auto Agent Architecture</title>
+  <style>
+    :root {
+      --bg: #f4efe7;
+      --surface: #fffdf8;
+      --surface-strong: #fff7ea;
+      --text: #1f2937;
+      --muted: #5f6b7a;
+      --line: #d8ccb9;
+      --accent: #c56a2d;
+      --accent-soft: #f0d4bf;
+      --ok: #2f7d4a;
+      --warn: #b45a3c;
+      --shadow: 0 16px 40px rgba(60, 42, 22, 0.08);
+      --radius: 20px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, #fff9ef 0, #fff9ef 15%, transparent 45%),
+        linear-gradient(180deg, #f8f2e8 0%, #f3ede4 100%);
+      line-height: 1.6;
+    }
+
+    .page {
+      width: min(1180px, calc(100% - 32px));
+      margin: 32px auto 56px;
+    }
+
+    .hero,
+    .card,
+    .matrix,
+    .flow-step,
+    .note {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .hero {
+      padding: 36px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: auto -40px -40px auto;
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(197, 106, 45, 0.18) 0%, rgba(197, 106, 45, 0.04) 55%, transparent 70%);
+    }
+
+    h1, h2, h3 {
+      margin: 0;
+      line-height: 1.2;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 4vw, 3.2rem);
+      letter-spacing: -0.03em;
+      max-width: 900px;
+    }
+
+    h2 {
+      font-size: 1.5rem;
+      margin-bottom: 16px;
+      letter-spacing: -0.02em;
+    }
+
+    h3 {
+      font-size: 1.05rem;
+      margin-bottom: 10px;
+    }
+
+    p {
+      margin: 0;
+    }
+
+    .hero p {
+      max-width: 860px;
+      margin-top: 16px;
+      color: var(--muted);
+      font-size: 1.02rem;
+    }
+
+    .badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 14px;
+      border-radius: 999px;
+      background: var(--surface-strong);
+      border: 1px solid var(--accent-soft);
+      color: #7d441c;
+      font-size: 0.93rem;
+      font-weight: 600;
+    }
+
+    .section {
+      margin-top: 26px;
+    }
+
+    .grid-2,
+    .grid-3 {
+      display: grid;
+      gap: 18px;
+    }
+
+    .grid-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .grid-3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .card {
+      padding: 24px;
+    }
+
+    .eyebrow {
+      display: inline-block;
+      margin-bottom: 12px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+
+    ul {
+      margin: 12px 0 0;
+      padding-left: 18px;
+    }
+
+    li + li {
+      margin-top: 8px;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    .flow-step {
+      padding: 22px;
+      position: relative;
+      min-height: 220px;
+    }
+
+    .flow-step::after {
+      content: "→";
+      position: absolute;
+      right: -12px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 1.4rem;
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .flow-step:last-child::after {
+      display: none;
+    }
+
+    .step-no {
+      display: inline-flex;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      align-items: center;
+      justify-content: center;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .mini {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .matrix {
+      overflow: hidden;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--surface);
+    }
+
+    th, td {
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #fbf4ea;
+      font-size: 0.92rem;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    code {
+      padding: 2px 6px;
+      border-radius: 8px;
+      background: #f8efe3;
+      border: 1px solid #ead8c2;
+      font-size: 0.92em;
+    }
+
+    .note {
+      padding: 22px 24px;
+      background: linear-gradient(180deg, #fffaf2 0%, #fffdf8 100%);
+    }
+
+    .note strong {
+      color: var(--warn);
+    }
+
+    .ok {
+      color: var(--ok);
+      font-weight: 700;
+    }
+
+    .warn {
+      color: var(--warn);
+      font-weight: 700;
+    }
+
+    .footer {
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    @media (max-width: 980px) {
+      .grid-2,
+      .grid-3,
+      .flow {
+        grid-template-columns: 1fr;
+      }
+
+      .flow-step::after {
+        right: 50%;
+        top: auto;
+        bottom: -18px;
+        transform: translateX(50%);
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <div class="eyebrow">CS Auto Architecture</div>
+      <h1>analysis agent와 answer agent를 분리한 현재 구조는 성능 최적화와 운영 통제라는 두 목적에 맞는 시스템 설계다</h1>
+      <p>
+        <code>apps/cs_auto</code> 기준으로 보면, 시스템은 문의를 먼저 분석하고
+        (<code>ticket_analysis</code>), 그 결과를 바탕으로 필요한 근거만 조회해
+        답변 초안(<code>answer_draft</code>)을 생성한다. 이 분리는 단순한 역할 분담이 아니라
+        LLM 호출량, DB/문서 조회 비용, 재처리 범위, 운영자 검수 흐름을 분리해 전체 운영 난도를 낮추는 구조다.
+      </p>
+      <div class="badge-row">
+        <div class="badge">01:00 KST 분석 배치</div>
+        <div class="badge">04:00 KST 초안 생성 배치</div>
+        <div class="badge">분석 결과와 초안 이력 분리 저장</div>
+        <div class="badge">운영자 수정 · 재생성 · 승인 API 분리</div>
+      </div>
+    </section>
+
+    <section class="section flow">
+      <article class="flow-step">
+        <div class="step-no">1</div>
+        <h3>티켓 수집</h3>
+        <p><code>qa_ticket</code>에서 아직 분석되지 않은 문의를 읽는다.</p>
+        <p class="mini">구현 근거: <code>analysis_agent.fetch_unanalyzed_tickets()</code></p>
+      </article>
+      <article class="flow-step">
+        <div class="step-no">2</div>
+        <h3>분석 선행</h3>
+        <p>카테고리, 감성, 위험도, 라우팅 타깃을 산출해 <code>ticket_analysis</code>에 저장한다.</p>
+        <p class="mini">구현 근거: <code>build_analysis_result()</code>, <code>save_ticket_analysis()</code></p>
+      </article>
+      <article class="flow-step">
+        <div class="step-no">3</div>
+        <h3>답변 생성</h3>
+        <p>분석 결과의 <code>routing_target</code>에 따라 DB, 문서, 복합 조회 중 필요한 경로만 실행한다.</p>
+        <p class="mini">구현 근거: <code>AnswerEvidenceCollector.collect()</code></p>
+      </article>
+      <article class="flow-step">
+        <div class="step-no">4</div>
+        <h3>운영 검수</h3>
+        <p>초안, 근거, safety 결과를 보고 운영자가 수정, 재생성, 승인, 메일 발송을 수행한다.</p>
+        <p class="mini">구현 근거: <code>/api/cs-auto/tickets/*</code>, <code>approve_draft.py</code></p>
+      </article>
+    </section>
+
+    <section class="section grid-2">
+      <article class="card">
+        <div class="eyebrow">Performance View</div>
+        <h2>성능 관점에서 맞는 이유</h2>
+        <ul>
+          <li>모든 티켓에 무조건 DB 조회와 문서 검색을 동시에 태우지 않는다. 먼저 분석해서 <code>DB_only</code>, <code>doc_only</code>, <code>DB&amp;DOC</code>, <code>fixed_answer</code>로 좁힌 뒤 필요한 경로만 호출한다.</li>
+          <li>분석 결과를 저장해 두기 때문에 초안 재생성 시 분류를 다시 하지 않아도 된다. 운영자가 문안만 다시 뽑고 싶을 때 재처리 범위가 작다.</li>
+          <li>분석 단계는 비교적 짧고 구조화된 판단 작업이고, 답변 단계는 검색과 생성이 섞인 무거운 작업이다. 둘을 분리하면 배치 시간대를 다르게 잡아 피크를 분산할 수 있다.</li>
+          <li>근거 수집이 <code>analysis_agent</code>가 아니라 <code>answer_agent</code>에만 있으므로, 분석 배치는 대량 티켓 선별용으로 가볍게 유지된다.</li>
+          <li><code>fixed_answer</code> 경로를 두어 짧은 잡담성 문의나 컨텍스트 부족 문의에서 고비용 조회와 긴 생성 단계를 우회한다.</li>
+        </ul>
+      </article>
+      <article class="card">
+        <div class="eyebrow">Operations View</div>
+        <h2>운영 관리 관점에서 맞는 이유</h2>
+        <ul>
+          <li>운영자는 원문을 바로 읽는 대신 분석 요약, 위험도, 라우팅 판단을 먼저 본다. 대기열 우선순위 결정이 쉬워진다.</li>
+          <li><code>answer_draft</code>, <code>evidence_docs</code>, <code>safety_results</code>, <code>final_response</code>가 분리돼 있어 초안 품질, 근거 부착, 최종 승인 이력을 나눠 추적할 수 있다.</li>
+          <li>초안 승인 API는 최종 답변을 <code>final_response</code>에 저장한 뒤 티켓을 종료한다. 즉, AI 초안과 실제 발송 답변이 구분된다.</li>
+          <li>재생성 API는 <code>regeneration_reason</code>과 <code>retry_count</code>를 남기는 구조라 운영 피드백을 반복 개선 루프로 연결하기 좋다.</li>
+          <li>분석 배치와 초안 배치가 Airflow DAG로 나뉘어 있어 장애 시 어느 단계가 병목인지 구분하기 쉽고, 실패 재실행 범위도 명확하다.</li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="section">
+      <h2>역할 분리의 핵심 구조</h2>
+      <div class="matrix">
+        <table>
+          <thead>
+            <tr>
+              <th>구성 요소</th>
+              <th>주요 책임</th>
+              <th>주요 입력</th>
+              <th>주요 출력</th>
+              <th>운영상 의미</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>analysis_agent.py</code></td>
+              <td>문의 정규화, 카테고리 분류, 감성/위험도 평가, 근거 조회 전략 결정</td>
+              <td><code>qa_ticket</code></td>
+              <td><code>ticket_analysis</code></td>
+              <td>생성 이전에 “어떤 문의인가”와 “어떤 근거가 필요한가”를 먼저 고정한다.</td>
+            </tr>
+            <tr>
+              <td><code>answer_agent.py</code></td>
+              <td>근거 수집, 초안 생성, safety 평가, fallback 라우팅, 저장</td>
+              <td><code>qa_ticket</code> + 최신 <code>ticket_analysis</code></td>
+              <td><code>answer_draft</code>, <code>evidence_docs</code>, <code>safety_results</code></td>
+              <td>무거운 검색과 생성은 분석 결과를 활용해 필요한 범위로만 실행한다.</td>
+            </tr>
+            <tr>
+              <td><code>approve_draft.py</code></td>
+              <td>운영자 확정본 저장</td>
+              <td>운영자 수정 문안</td>
+              <td><code>final_response</code></td>
+              <td>AI 초안과 실제 고객 발송 문안을 분리해 책임 경계를 명확히 한다.</td>
+            </tr>
+            <tr>
+              <td><code>regenerate_draft.py</code></td>
+              <td>운영자 피드백 기반 재생성</td>
+              <td>기존 <code>draft_id</code>, 재생성 사유</td>
+              <td>새 <code>draft_id</code>, 새 <code>safety_id</code></td>
+              <td>실패 원인을 버리지 않고 다음 생성에 연결한다.</td>
+            </tr>
+            <tr>
+              <td>Airflow DAG 2종</td>
+              <td>배치 분리 실행</td>
+              <td>스케줄</td>
+              <td>단계별 자동화</td>
+              <td>분석 장애와 답변 생성 장애를 별도로 관제할 수 있다.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section grid-3">
+      <article class="card">
+        <div class="eyebrow">Why Analysis First</div>
+        <h2>analysis agent의 역할</h2>
+        <ul>
+          <li>문의 텍스트를 정규화하고 키워드 + LLM 보조로 카테고리를 분류한다.</li>
+          <li>위험도와 감성을 먼저 계산해 운영상 긴급성을 분리한다.</li>
+          <li>핵심은 답변문 생성이 아니라, 이후 단계가 어떤 자원을 써야 할지를 결정하는 것이다.</li>
+          <li>즉 이 단계는 “답을 쓰는 모델”이 아니라 “처리 전략을 정하는 모델”에 가깝다.</li>
+        </ul>
+      </article>
+      <article class="card">
+        <div class="eyebrow">Why Answer Later</div>
+        <h2>answer agent의 역할</h2>
+        <ul>
+          <li><code>routing_target</code>에 따라 DB 검색기와 문서 검색기를 선택적으로 실행한다.</li>
+          <li>수집한 근거로만 초안을 만들고, 이후 safety 평가로 다시 한 번 필터링한다.</li>
+          <li>점수가 낮으면 자동으로 <code>fixed_answer</code> 문안으로 강등한다.</li>
+          <li>즉 이 단계는 “생성”보다 “근거 기반 생성 + 안전성 게이트”에 가깝다.</li>
+        </ul>
+      </article>
+      <article class="card">
+        <div class="eyebrow">Why Human Last</div>
+        <h2>운영자 검수 단계의 의미</h2>
+        <ul>
+          <li>운영자는 초안만 보는 것이 아니라 근거와 safety 맥락까지 함께 본다.</li>
+          <li>수정 API와 재생성 API가 분리돼 있어, 문장만 다듬을지 근거 포함 재생성할지 선택 가능하다.</li>
+          <li>최종 승인 시에만 <code>final_response</code>가 생기므로, 발송 책임이 명확하다.</li>
+          <li>이 구조는 “AI 자동화”가 아니라 “AI 보조 + 운영 통제”를 목표로 한 설계다.</li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="section">
+      <h2>이 구조가 운영 KPI에 유리한 이유</h2>
+      <div class="matrix">
+        <table>
+          <thead>
+            <tr>
+              <th>운영 목표</th>
+              <th>분리 구조가 주는 효과</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>응답 속도 개선</td>
+              <td>분석을 선행해 답변 생성 대상을 좁히고, 필요 없는 검색을 줄여 평균 처리 시간을 낮춘다.</td>
+            </tr>
+            <tr>
+              <td>고위험 문의 선별</td>
+              <td><code>risk_level</code>, <code>sentiment</code>, <code>routing_target</code>이 먼저 만들어져 운영자가 우선 검토 큐를 쉽게 구성할 수 있다.</td>
+            </tr>
+            <tr>
+              <td>품질 추적</td>
+              <td>분석 결과, 근거, 초안, safety, 최종 답변이 분리 저장되므로 어느 단계에서 품질이 떨어졌는지 역추적 가능하다.</td>
+            </tr>
+            <tr>
+              <td>비용 통제</td>
+              <td>모든 티켓에 고비용 생성과 조회를 수행하지 않고, 전략형 분석 결과로 후속 자원 사용량을 제어한다.</td>
+            </tr>
+            <tr>
+              <td>실패 복구</td>
+              <td>분석 단계와 답변 단계가 독립적이라 한 단계만 재실행할 수 있고, 배치 실패 시 영향 범위를 줄일 수 있다.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section grid-2">
+      <article class="card">
+        <div class="eyebrow">Code Evidence</div>
+        <h2>현재 코드 기준의 직접 근거</h2>
+        <ul>
+          <li><code>apps/cs_auto/backend/airflow/analysis_agent_dag.py</code>: 매일 01:00 KST 분석 배치 실행</li>
+          <li><code>apps/cs_auto/backend/airflow/answer_agent_dag.py</code>: 매일 04:00 KST 초안 생성 배치 실행</li>
+          <li><code>analysis_agent.build_analysis_result()</code>: 분류, 위험도, 라우팅 결과를 한 묶음으로 생성</li>
+          <li><code>AnswerEvidenceCollector.collect()</code>: 라우팅 값에 따라 검색 경로 분기</li>
+          <li><code>AnswerSafetyEvaluator.evaluate()</code>: 초안 품질을 별도 단계에서 점수화</li>
+          <li><code>approve_answer_draft()</code>: 운영자 승인 후 <code>final_response</code> 저장 및 티켓 종료</li>
+        </ul>
+      </article>
+      <article class="note">
+        <div class="eyebrow">Current Caveat</div>
+        <h2>현재 구현 기준 보완 포인트</h2>
+        <p>
+          구조 자체는 목적에 맞다. 다만 코드 기준으로는
+          <strong>분석 완료 후 상태값이 <code>resolved</code>로 기록되는 부분</strong>과
+          문서/주석에서 설명하는 <code>analyzed</code> 개념 사이에 불일치가 보인다.
+          운영 관점에서는 상태 머신을
+          <code>pending → analyzed → draft_generated → resolved</code>
+          처럼 명확히 통일하는 편이 관제와 통계에 더 유리하다.
+        </p>
+        <p class="mini">
+          관련 위치: <code>analysis_agent.mark_ticket_analysis_completed()</code>,
+          <code>answer_agent.mark_answer_draft_completed()</code>,
+          <code>approve_draft.py</code>
+        </p>
+      </article>
+    </section>
+
+    <section class="section card">
+      <div class="eyebrow">Conclusion</div>
+      <h2>정리</h2>
+      <p>
+        <span class="ok">analysis agent</span>는 문의를 이해하고 처리 전략을 정하는 계층이고,
+        <span class="ok">answer agent</span>는 그 전략에 따라 근거를 수집해 초안을 만드는 계층이다.
+        이 둘을 분리했기 때문에 시스템은 빠르게 선별하고, 필요한 곳에만 무거운 생성을 쓰고,
+        운영자는 결과를 검수하고 재개입할 수 있다.
+      </p>
+      <p style="margin-top: 12px;">
+        따라서 <code>apps/cs_auto</code>의 현재 구조는 “LLM을 많이 쓰는 구조”가 아니라
+        “LLM을 통제 가능한 단계로 쪼개서 성능과 운영 가능성을 확보한 구조”라고 설명하는 편이 정확하다.
+      </p>
+      <div class="footer">
+        작성 기준 파일: <code>apps/cs_auto/backend/agents/analysis_agent.py</code>,
+        <code>apps/cs_auto/backend/agents/answer_agent.py</code>,
+        <code>apps/cs_auto/backend/airflow/*.py</code>,
+        <code>apps/cs_auto/backend/api/services/*.py</code>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
