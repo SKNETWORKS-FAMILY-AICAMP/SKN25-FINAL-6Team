@@ -18,8 +18,8 @@ from common.llm.client import invoke_structured_llm
 class ActionItem(BaseModel):
     rank: int = Field(description="액션 우선순위 번호 (1부터 시작)")
     category: str = Field(description="해당 액션의 대상 카테고리 또는 분야")
-    action: str = Field(description="즉시 실행 가능한 구체적 액션")
-    reason: str = Field(description="근거 수치를 포함한 한국어 이유")
+    action: str = Field(description="즉시 실행 가능한 액션명. 명사형으로 간결하게 (예: '결제 오류 대응 강화'). 이유·설명 포함 금지.")
+    reason: str = Field(description="근거 수치를 포함한 한국어 이유. 1문장 이내.")
 
 
 class AiRecommendedActions(BaseModel):
@@ -34,7 +34,9 @@ _SYSTEM_PROMPT = (
     "당신은 게임 서비스 CS 데이터를 분석하는 운영 전략 어시스턴트입니다.\n"
     "수신자는 기획팀이며, 데이터 기반으로 다음 주에 즉시 실행 가능한 액션을 제안해야 합니다.\n"
     "마케팅 시사점을 반드시 1개 이상 포함하세요.\n"
-    "반드시 제공된 수치 데이터만 근거로 사용하고, 외부 추측을 포함하지 마세요."
+    "반드시 제공된 수치 데이터만 근거로 사용하고, 외부 추측을 포함하지 마세요.\n"
+    "action 필드는 명사형 핵심 액션명만 작성하고, 이유·설명·수치를 포함하지 마세요.\n"
+    "reason 필드에만 근거를 서술하고, 1문장을 넘지 마세요."
 )
 
 

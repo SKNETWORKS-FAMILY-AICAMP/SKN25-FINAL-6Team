@@ -3,14 +3,12 @@
 from __future__ import annotations
 
 import base64
-import io
 import os
 from html import escape
 from pathlib import Path
-from urllib.parse import unquote, urlparse
 from typing import Any
 
-from xhtml2pdf import pisa
+from weasyprint import HTML
 
 
 FONT_FAMILY_NAME = "DashboardKorean"
@@ -70,20 +68,6 @@ def _font_face_css() -> str:
         }}
     """
 
-
-def _resolve_resource_path(uri: str, rel: str | None = None) -> str:
-    del rel
-    parsed = urlparse(uri)
-    if parsed.scheme == "file":
-        path = unquote(parsed.path or "")
-        if os.name == "nt" and path.startswith("/") and len(path) > 2 and path[2] == ":":
-            path = path.lstrip("/")
-        return path
-    if parsed.scheme == "":
-        candidate = Path(uri)
-        if candidate.exists():
-            return str(candidate.resolve())
-    return uri
 
 
 # ── 공통 포매터 ────────────────────────────────────────────────────────────────
@@ -157,7 +141,7 @@ def _summary_bullets(report: dict[str, Any]) -> list[str]:
             pct = (cur - prev) / prev * 100
             if abs(pct) >= 10:
                 word = "증가" if pct > 0 else "감소"
-                notable.append((abs(pct), f"{cat} 카테고리 전주 대비 {abs(pct):.0f}% {word}"))
+                notable.append((abs(pct), f"{cat} {abs(pct):.0f}% {word}"))
     for _, txt in sorted(notable, reverse=True)[:2]:
         bullets.append(txt)
 
@@ -165,14 +149,14 @@ def _summary_bullets(report: dict[str, Any]) -> list[str]:
     anomaly = [d for d in (spike.get("daily") or []) if d.get("level") != "normal"]
     if anomaly:
         w = max(anomaly, key=lambda x: x.get("pct_change", 0))
-        bullets.append(f"{w.get('day', '?')} {w.get('pct_change', 0)*100:+.0f}% 폭증 감지")
+        bullets.append(f"{w.get('day', '?')} {w.get('pct_change', 0)*100:+.0f}% 폭증")
 
     critical_h = [h for h in (spike.get("hourly") or []) if h.get("level") == "critical"]
     if critical_h:
         times = ", ".join(f"{h['hour']:02d}시" for h in critical_h[:3])
-        bullets.append(f"집중 위험 시간대: {times}")
+        bullets.append(f"위험 시간: {times}")
 
-    return bullets[:5] if bullets else ["이번 주 특이 사항 없음"]
+    return bullets[:5] if bullets else ["특이 사항 없음"]
 
 
 def _build_ai_section(report: dict[str, Any]) -> str:
@@ -189,21 +173,21 @@ def _build_ai_section(report: dict[str, Any]) -> str:
     # 오른쪽: AI 권장 액션
     if actions:
         right_items = "".join(
-            li(f"[{a.get('category','')}] {a.get('action','')} — {a.get('reason','')}")
-            for a in actions[:5]
+            li(f"{a.get('category','')} · {a.get('action','')}")
+            for a in actions[:3]
         )
     else:
-        right_items = "<li>이번 주 권장 액션이 없습니다</li>"
+        right_items = "<li>권장 액션 없음</li>"
 
     return f"""
     <div class="ai-badge">AI SUMMARY</div>
     <table class="ai-cols-table">
         <tr>
-            <td class="ai-col">
+            <td class="ai-col" style="width:42%;">
                 <div class="ai-col-title">주간 지표 요약</div>
                 <ul class="ai-list">{left_items}</ul>
             </td>
-            <td class="ai-col">
+            <td class="ai-col" style="width:58%;">
                 <div class="ai-col-title">권장 액션</div>
                 <ul class="ai-list">{right_items}</ul>
             </td>
@@ -229,19 +213,19 @@ def _build_category_blocks(report: dict[str, Any]) -> str:
             if pct > 5:
                 badge_cls = "badge-up"
                 arrow = "▲"
-                note = "전주 대비 증가하였습니다"
+                note = "전주 대비 증가"
             elif pct < -5:
                 badge_cls = "badge-dn"
                 arrow = "▼"
-                note = "전주 대비 감소하였습니다"
+                note = "전주 대비 감소"
             else:
                 badge_cls = "badge-eq"
                 arrow = "→"
-                note = "전주와 동일합니다"
+                note = "전주 동일"
             badge_html = f'<div><span class="{badge_cls}">{arrow} {abs(pct):.0f}%</span></div>'
         else:
-            badge_html = '<div><span class="badge-eq">— 비교 없음</span></div>'
-            note = "전주 비교 데이터 없음"
+            badge_html = '<div><span class="badge-eq">— </span></div>'
+            note = "비교 없음"
 
         cells.append(f"""
         <td class="m-block">
@@ -264,9 +248,9 @@ def _build_heatmap(hourly: list[dict[str, Any]]) -> str:
         level = item.get("level", "normal")
         cnt = item.get("current", "")
         if level == "critical":
-            bg, fg = "#b45309", "#ffffff"
+            bg, fg = "#dc2626", "#ffffff"
         elif level == "warning":
-            bg, fg = "#f97316", "#ffffff"
+            bg, fg = "#ef4444", "#ffffff"
         else:
             bg, fg = "#f0f2f5", "#9ca3af"
         cnt_txt = f"<br/>{cnt}" if cnt else ""
@@ -280,8 +264,8 @@ def _build_heatmap(hourly: list[dict[str, Any]]) -> str:
     pm = "".join(cell(h) for h in range(12, 24))
     legend = (
         '<div style="font-size:7pt;color:#888;margin-top:3px;">'
-        '<span style="color:#b45309;font-weight:bold;">■ 위험(Z≥3)</span>&nbsp;&nbsp;'
-        '<span style="color:#f97316;font-weight:bold;">■ 경고(Z≥2)</span>&nbsp;&nbsp;'
+        '<span style="color:#dc2626;font-weight:bold;">■ 위험(Z≥3)</span>&nbsp;&nbsp;'
+        '<span style="color:#ef4444;font-weight:bold;">■ 경고(Z≥2)</span>&nbsp;&nbsp;'
         '□ 정상</div>'
     )
     return (
@@ -305,12 +289,12 @@ def _build_spike_section(spike_alerts: dict[str, Any]) -> str:
         labels = [r.get("day", "?") for r in daily]
         values = [float(r.get("this_week", 0)) for r in daily]
         colors = [
-            "#b45309" if r.get("level") == "critical" else
-            "#f97316" if r.get("level") == "warning" else
-            "rgba(180,83,9,0.45)"
+            "#dc2626" if r.get("level") == "critical" else
+            "#ef4444" if r.get("level") == "warning" else
+            "rgba(220,38,38,0.35)"
             for r in daily
         ]
-        uri = _make_bar_chart_png(labels, values, colors, width=480, height=270)
+        uri = _make_bar_chart_png(labels, values, colors, width=440, height=195)
         left_chart = (
             f'<img style="width:100%;height:auto;" src="{uri}" />'
             if uri else
@@ -320,11 +304,11 @@ def _build_spike_section(spike_alerts: dict[str, Any]) -> str:
         )
         anomaly = [d for d in daily if d.get("level") != "normal"]
         sub = (
-            "폭증 감지: " + ", ".join(f"{d['day']} {d['pct_change']*100:+.0f}%({d['level']})" for d in anomaly)
-            if anomaly else "이번 주 일별 폭증 감지 없음 ✅"
+            "폭증: " + ", ".join(f"{d['day']} {d['pct_change']*100:+.0f}%({d['level']})" for d in anomaly)
+            if anomaly else "일별 폭증 없음"
         )
     else:
-        left_chart = "<div class='no-data'>일별 문의량 데이터가 없습니다.</div>"
+        left_chart = "<div class='no-data'>일별 데이터 없음</div>"
         sub = ""
 
     # ── 우: 4주 바차트 + 요약 ──
@@ -332,12 +316,12 @@ def _build_spike_section(spike_alerts: dict[str, Any]) -> str:
         labels_m = [r.get("label", "?") for r in monthly]
         values_m = [float(r.get("count", 0)) for r in monthly]
         colors_m = [
-            "rgba(180,83,9,0.85)",
-            "rgba(180,83,9,0.65)",
-            "rgba(180,83,9,0.45)",
-            "rgba(180,83,9,0.25)",
+            "rgba(220,38,38,0.80)",
+            "rgba(220,38,38,0.60)",
+            "rgba(220,38,38,0.40)",
+            "rgba(220,38,38,0.20)",
         ][:len(values_m)]
-        uri_m = _make_bar_chart_png(labels_m, values_m, colors_m, width=440, height=270)
+        uri_m = _make_bar_chart_png(labels_m, values_m, colors_m, width=400, height=195)
         right_chart = (
             f'<img style="width:100%;height:auto;" src="{uri_m}" />'
             if uri_m else
@@ -350,14 +334,14 @@ def _build_spike_section(spike_alerts: dict[str, Any]) -> str:
             this_w, prev_w = int(monthly[0].get("count", 0)), int(monthly[1].get("count", 0))
             if prev_w > 0:
                 pct = (this_w - prev_w) / prev_w * 100
-                trend_txt = f"이번 주 총 <strong>{this_w:,}건</strong> (전주 대비 {pct:+.1f}%)"
+                trend_txt = f"이번 주 <strong>{this_w:,}건</strong> (전주 대비 {pct:+.1f}%)"
             else:
-                trend_txt = f"이번 주 총 <strong>{this_w:,}건</strong>"
+                trend_txt = f"이번 주 <strong>{this_w:,}건</strong>"
         else:
-            trend_txt = "이번 주 데이터 집계 없음"
+            trend_txt = "데이터 없음"
         summary_box = f'<div class="summary-box">{trend_txt}</div>'
     else:
-        right_chart = "<div class='no-data'>월별 추세 데이터가 없습니다.</div>"
+        right_chart = "<div class='no-data'>월별 데이터 없음</div>"
         summary_box = ""
 
     return f"""
@@ -380,48 +364,56 @@ def _build_spike_section(spike_alerts: dict[str, Any]) -> str:
 
 
 def _build_top5_section(top_requests: list[dict[str, Any]]) -> str:
-    """유저 개선 요청 Top 5 — 설계 결함(좌) · 편의 개선(우)."""
-    if not top_requests:
-        return "<p class='no-data'>집계된 개선 요청이 없습니다.</p>"
-
-    design = [r for r in top_requests if r.get("improvement_type") == "설계 결함"]
-    ux = [r for r in top_requests if r.get("improvement_type") != "설계 결함"]
-
-    def render_col(items: list[dict], cls: str) -> str:
-        if not items:
-            return "<div class='no-data'>해당 없음</div>"
-        rows = ""
-        for item in items:
-            rank = escape(str(item.get("rank", "?")))
+    """유저 개선 요청 Top 5 — 5칸 고정 테이블."""
+    rows_html = ""
+    for i in range(5):
+        even_cls = " top5-even" if i % 2 == 1 else ""
+        if i < len(top_requests):
+            item = top_requests[i]
+            rank = i + 1
             cat = escape(str(item.get("category", "?")))
             kw = escape(" / ".join(item.get("topic_keywords") or []) or "—")
             cnt = int(item.get("count", 0))
-            rows += f"""
-            <li>
-                <span class="rank rank-{cls}">{rank}</span>
-                <div class="item-body">
-                    <div class="item-cat">{cat}</div>
-                    <div class="item-kw">{kw}</div>
-                </div>
-                <span class="item-cnt">{cnt:,}건</span>
-            </li>
+            imp_type = item.get("improvement_type", "")
+            if imp_type == "설계 결함":
+                type_cls, type_label = "type-design", "설계 결함"
+            else:
+                type_cls, type_label = "type-ux", "편의 개선"
+            rows_html += f"""
+            <tr class="top5-row{even_cls}">
+                <td class="top5-rank">{rank}</td>
+                <td class="top5-type"><span class="type-badge {type_cls}">{type_label}</span></td>
+                <td class="top5-cat">{cat}</td>
+                <td class="top5-kw">{kw}</td>
+                <td class="top5-cnt">{cnt:,}건</td>
+            </tr>
             """
-        return f"<ul class='improve-list'>{rows}</ul>"
+        else:
+            rows_html += f"""
+            <tr class="top5-row top5-empty{even_cls}">
+                <td class="top5-rank">—</td>
+                <td class="top5-type"></td>
+                <td class="top5-cat">—</td>
+                <td class="top5-kw"></td>
+                <td class="top5-cnt">—</td>
+            </tr>
+            """
 
     return f"""
-    <table class="improve-table">
-        <tr>
-            <th class="improve-head design-head">설계 결함</th>
-            <th class="improve-head ux-head">편의 개선</th>
-        </tr>
-        <tr>
-            <td class="improve-col">{render_col(design, 'design')}</td>
-            <td class="improve-col">{render_col(ux, 'ux')}</td>
-        </tr>
+    <table class="top5-table">
+        <thead>
+            <tr>
+                <th class="top5-th" style="width:6%;">순위</th>
+                <th class="top5-th" style="width:16%;">유형</th>
+                <th class="top5-th" style="width:18%;">카테고리</th>
+                <th class="top5-th">키워드</th>
+                <th class="top5-th" style="width:10%;">건수</th>
+            </tr>
+        </thead>
+        <tbody>
+            {rows_html}
+        </tbody>
     </table>
-    <div class="criteria-box">
-        기준: 건수 × 심각도 가중합 (Nielsen 1994) — critical/high = 설계 결함, medium/low = 편의 개선
-    </div>
     """
 
 
@@ -444,144 +436,160 @@ def _build_html(report: dict[str, Any]) -> str:
             {_font_face_css()}
             @page {{
                 size: A4;
-                margin: 13mm 11mm 12mm 11mm;
+                margin: 7mm 9mm 10mm 9mm;
+                @bottom-center {{
+                    content: element(page-footer);
+                }}
             }}
-            * {{ box-sizing: border-box; }}
+            * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+            html, body {{ height: 100%; }}
             body {{
                 font-family: '{FONT_FAMILY_NAME}', 'Segoe UI', Helvetica, Arial, sans-serif;
                 background: #f0f2f5;
                 color: #1a1a2e;
-                font-size: 10pt;
-                line-height: 1.45;
+                font-size: 9pt;
+                line-height: 1.35;
+                letter-spacing: 0.1px;
+                display: flex;
+                flex-direction: column;
             }}
             table {{ width: 100%; border-collapse: collapse; }}
+
+            /* ── 푸터 (페이지 끝 고정) ── */
+            .page-footer {{
+                position: running(page-footer);
+                text-align: center;
+                font-size: 7.5pt;
+                color: #bbb;
+            }}
 
             /* ── 헤더 ── */
             .header {{
                 background: #1e3a5f;
                 color: #fff;
-                padding: 16px 20px;
-                margin-bottom: 12px;
+                padding: 16px 16px;
             }}
             .header-inner {{ width: 100%; }}
-            .header-left td {{ vertical-align: middle; padding: 0; }}
-            .header-right td {{ text-align: right; vertical-align: middle; padding: 0; }}
-            .eyebrow {{ font-size: 7.5pt; opacity: .7; letter-spacing: 1px; margin-bottom: 4px; color: #cbd5e1; }}
-            .h-title {{ font-size: 17pt; font-weight: bold; color: #fff; }}
-            .gen-date {{ font-size: 9pt; color: #cbd5e1; margin-bottom: 3px; }}
-            .period {{ font-size: 11pt; font-weight: bold; color: #fff; }}
+            .eyebrow {{ font-size: 7pt; opacity: .7; letter-spacing: 1px; margin-bottom: 3px; color: #cbd5e1; }}
+            .h-title {{ font-size: 20pt; font-weight: bold; color: #fff; letter-spacing: 0.5px; }}
+            .gen-date {{ font-size: 8pt; color: #cbd5e1; margin-bottom: 2px; }}
+            .period {{ font-size: 10pt; font-weight: bold; color: #fff; }}
+
+            /* ── 메인: 위에서부터 고정 간격 ── */
+            .main-content {{
+                display: block;
+                padding: 6px 0 0;
+            }}
+            .section-block {{ margin-bottom: 9px; }}
 
             /* ── 섹션 공통 ── */
             .sec-title {{
-                font-size: 11pt; font-weight: bold; color: #1e3a5f;
-                border-left: 4px solid #2d6a9f; padding-left: 8px; margin: 10px 0 7px;
+                font-size: 9.5pt; font-weight: bold; color: #1e3a5f;
+                border-left: 3px solid #2563eb; padding-left: 6px; margin-bottom: 6px;
             }}
             .card {{
                 background: #fff;
                 border: 1px solid #e5e7eb;
-                padding: 14px 16px;
-                margin-bottom: 10px;
+                padding: 12px 12px;
                 page-break-inside: avoid;
             }}
 
             /* ── AI 요약 ── */
-            .ai-card {{ border-left: 4px solid #7c3aed; background: #faf5ff; }}
+            .ai-card {{ border-left: 3px solid #2563eb; background: #eff6ff; }}
             .ai-badge {{
-                display: inline-block; background: #7c3aed; color: #fff;
-                font-size: 8pt; font-weight: bold; padding: 2px 7px; margin-bottom: 9px;
+                display: inline-block; background: #2563eb; color: #fff;
+                font-size: 7pt; font-weight: bold; padding: 1px 6px; margin-bottom: 4px;
             }}
             .ai-cols-table {{ table-layout: fixed; }}
-            .ai-col {{ width: 50%; padding: 0 8px 0 0; vertical-align: top; }}
-            .ai-col:last-child {{ padding: 0 0 0 8px; border-left: 1px solid #ede9fe; }}
+            .ai-col {{ width: 50%; padding: 0 6px 0 0; vertical-align: top; }}
+            .ai-col:last-child {{ padding: 0 0 0 6px; border-left: 1px solid #dbeafe; }}
             .ai-col-title {{
-                font-size: 8.5pt; font-weight: bold; color: #7c3aed; margin-bottom: 7px;
+                font-size: 7.5pt; font-weight: bold; color: #2563eb; margin-bottom: 3px;
                 text-transform: uppercase; letter-spacing: 0.5px;
             }}
             .ai-list {{ list-style: none; padding: 0; margin: 0; }}
             .ai-list li {{
-                font-size: 9pt; padding: 3px 0; border-bottom: 1px solid #ede9fe;
-                color: #3b3060; line-height: 1.5;
+                font-size: 8pt; padding: 4px 0; border-bottom: 1px solid #dbeafe;
+                color: #374151; line-height: 1.35;
             }}
             .ai-list li:last-child {{ border-bottom: none; }}
-            .ai-list li::before {{ content: "· "; color: #7c3aed; font-weight: bold; }}
+            .ai-list li::before {{ content: "· "; color: #2563eb; font-weight: bold; }}
 
             /* ── 카테고리 블록 ── */
-            .m-row {{ table-layout: fixed; border-spacing: 4px; border-collapse: separate; }}
+            .m-row {{ table-layout: fixed; border-spacing: 3px; border-collapse: separate; }}
             .m-block {{
                 background: #fff; border: 1px solid #e5e7eb;
-                padding: 12px 6px; text-align: center; vertical-align: top;
+                padding: 16px 4px; text-align: center; vertical-align: middle;
             }}
-            .m-cat {{ font-size: 8.5pt; font-weight: bold; color: #6b7280; margin-bottom: 6px; }}
-            .m-count {{ font-size: 22pt; font-weight: 800; color: #1e3a5f; line-height: 1; margin-bottom: 6px; }}
+            .m-cat {{ font-size: 8pt; font-weight: bold; color: #6b7280; margin-bottom: 5px; }}
+            .m-count {{ font-size: 21pt; font-weight: 800; color: #1e3a5f; line-height: 1; margin-bottom: 5px; }}
             .badge-up {{
                 display: inline-block; background: #fee2e2; color: #dc2626;
-                font-size: 9pt; font-weight: bold; padding: 2px 8px;
+                font-size: 8pt; font-weight: bold; padding: 1px 6px;
             }}
             .badge-dn {{
-                display: inline-block; background: #dcfce7; color: #16a34a;
-                font-size: 9pt; font-weight: bold; padding: 2px 8px;
+                display: inline-block; background: #dbeafe; color: #2563eb;
+                font-size: 8pt; font-weight: bold; padding: 1px 6px;
             }}
             .badge-eq {{
                 display: inline-block; background: #f3f4f6; color: #6b7280;
-                font-size: 9pt; font-weight: bold; padding: 2px 8px;
+                font-size: 8pt; font-weight: bold; padding: 1px 6px;
             }}
-            .m-note {{ font-size: 7.5pt; color: #9ca3af; margin-top: 4px; }}
+            .m-note {{ font-size: 7pt; color: #9ca3af; margin-top: 2px; }}
 
             /* ── 급증·위험 ── */
-            .sr-table {{ table-layout: fixed; border-spacing: 6px; border-collapse: separate; }}
+            .sr-table {{ table-layout: fixed; border-spacing: 4px; border-collapse: separate; }}
             .sr-col {{
                 width: 50%; background: #fff; border: 1px solid #e5e7eb;
-                padding: 12px 14px; vertical-align: top;
+                padding: 10px 12px; vertical-align: top;
             }}
             .sr-badge {{
-                display: inline-block; font-size: 8.5pt; font-weight: bold;
-                padding: 2px 8px; margin-bottom: 7px;
+                display: inline-block; font-size: 7.5pt; font-weight: bold;
+                padding: 1px 6px; margin-bottom: 4px;
             }}
-            .sr-spike {{ background: #fff3cd; color: #b45309; }}
-            .sr-sub {{ font-size: 8.5pt; color: #6b7280; margin-bottom: 8px; }}
-            .heat-label {{ font-size: 8.5pt; font-weight: bold; color: #6b7280; margin: 8px 0 4px; }}
+            .sr-spike {{ background: #fee2e2; color: #dc2626; }}
+            .sr-sub {{ font-size: 7.5pt; color: #6b7280; margin-bottom: 4px; }}
+            .heat-label {{ font-size: 7.5pt; font-weight: bold; color: #6b7280; margin: 5px 0 2px; }}
             .summary-box {{
-                font-size: 9pt; color: #555; line-height: 1.8;
-                padding: 9px 11px; background: #fffbf0;
-                border-left: 3px solid #b45309; margin-top: 10px;
+                font-size: 8pt; color: #555; line-height: 1.5;
+                padding: 4px 8px; background: #fff5f5;
+                border-left: 3px solid #dc2626; margin-top: 5px;
             }}
-            .no-data {{ font-size: 9pt; color: #9ca3af; padding: 8px 0; }}
-            .fb-table td {{ padding: 4px 6px; border-bottom: 1px solid #f3f4f6; font-size: 9pt; }}
+            .no-data {{ font-size: 8pt; color: #9ca3af; padding: 4px 0; }}
+            .fb-table td {{ padding: 3px 5px; border-bottom: 1px solid #f3f4f6; font-size: 8pt; }}
 
             /* ── Top 5 ── */
-            .improve-table {{ table-layout: fixed; border-spacing: 6px; border-collapse: separate; }}
-            .improve-head {{
-                font-size: 9.5pt; font-weight: bold; padding: 7px 10px;
-                border-bottom: 2px solid;
+            .top5-table {{ width: 100%; border-collapse: collapse; table-layout: fixed; }}
+            .top5-th {{
+                background: #f3f4f6; color: #6b7280;
+                font-size: 7.5pt; font-weight: bold;
+                padding: 10px 10px; text-align: left;
+                border-bottom: 2px solid #e5e7eb;
+                text-transform: uppercase; letter-spacing: 0.4px;
             }}
-            .design-head {{ color: #dc2626; border-color: #dc2626; background: #fff5f5; }}
-            .ux-head {{ color: #2563eb; border-color: #2563eb; background: #eff6ff; }}
-            .improve-col {{ width: 50%; background: #fff; border: 1px solid #e5e7eb; padding: 10px; vertical-align: top; }}
-            .improve-list {{ list-style: none; padding: 0; margin: 0; }}
-            .improve-list li {{
-                display: block; padding: 5px 0;
-                border-bottom: 1px solid #f3f4f6; font-size: 9pt; color: #374151;
+            .top5-row td {{
+                padding: 7px 10px; border-bottom: 1px solid #f3f4f6;
+                vertical-align: middle; height: 30px;
+                background: #fff;
             }}
-            .improve-list li:last-child {{ border-bottom: none; }}
-            .rank {{
-                display: inline-block; width: 18px; height: 18px; line-height: 18px;
-                text-align: center; font-size: 8pt; font-weight: bold;
-                margin-right: 6px; vertical-align: middle;
+            .top5-row:last-child td {{ border-bottom: none; }}
+            .top5-even td {{ background: #fafafa; }}
+            .top5-empty td {{ color: #d1d5db; font-size: 8pt; background: #fff; }}
+            .top5-rank {{
+                font-size: 11pt; font-weight: 800; color: #1e3a5f;
+                text-align: center; width: 6%;
             }}
-            .rank-design {{ background: #fee2e2; color: #dc2626; }}
-            .rank-ux {{ background: #dbeafe; color: #2563eb; }}
-            .item-body {{ display: inline; }}
-            .item-cat {{ display: inline; font-weight: bold; }}
-            .item-kw {{ display: inline; font-size: 8pt; color: #9ca3af; margin-left: 4px; }}
-            .item-cnt {{ float: right; font-size: 8.5pt; color: #9ca3af; }}
-            .criteria-box {{
-                font-size: 8pt; color: #9ca3af; line-height: 1.7;
-                padding: 7px 10px; background: #f8f9fb;
-                border: 1px solid #e5e7eb; margin-top: 8px;
+            .top5-empty .top5-rank {{ color: #e5e7eb; font-size: 10pt; }}
+            .top5-type {{ width: 16%; }}
+            .top5-cat {{ font-size: 8pt; font-weight: bold; color: #1a1a2e; width: 18%; }}
+            .top5-kw {{ font-size: 7pt; color: #9ca3af; }}
+            .top5-cnt {{ font-size: 8pt; font-weight: bold; color: #374151; text-align: right; width: 10%; }}
+            .type-badge {{
+                display: inline-block; font-size: 7.5pt; font-weight: bold;
+                padding: 2px 8px; letter-spacing: 0.2px;
             }}
-
-            /* ── 푸터 ── */
-            .footer {{ text-align: center; font-size: 8pt; color: #bbb; margin-top: 12px; }}
+            .type-design {{ background: #fee2e2; color: #dc2626; }}
+            .type-ux {{ background: #dbeafe; color: #2563eb; }}
         </style>
     </head>
     <body>
@@ -602,27 +610,37 @@ def _build_html(report: dict[str, Any]) -> str:
             </table>
         </div>
 
-        <!-- AI 요약 -->
-        <div class="sec-title">AI 요약</div>
-        <div class="card ai-card">
-            {_build_ai_section(report)}
+        <!-- 메인: flex로 4섹션이 페이지 높이를 균등 점유 -->
+        <div class="main-content">
+
+            <div class="section-block sec-ai">
+                <div class="sec-title">AI 요약</div>
+                <div class="card ai-card">
+                    {_build_ai_section(report)}
+                </div>
+            </div>
+
+            <div class="section-block sec-metrics">
+                <div class="sec-title">주간 지표 — 총 응대 건수</div>
+                {_build_category_blocks(report)}
+            </div>
+
+            <div class="section-block sec-spike">
+                <div class="sec-title">급증·위험 문의 현황</div>
+                {_build_spike_section(spike)}
+            </div>
+
+            <div class="section-block sec-top5">
+                <div class="sec-title">유저 개선 요청 Top 5</div>
+                <div class="card">
+                    {_build_top5_section(top_requests)}
+                </div>
+            </div>
+
         </div>
 
-        <!-- 주간 지표 -->
-        <div class="sec-title">주간 지표 — 총 응대 건수</div>
-        <div style="margin-bottom:10px;">
-            {_build_category_blocks(report)}
-        </div>
-
-        <!-- 급증·위험 문의 현황 -->
-        <div class="sec-title">급증·위험 문의 현황</div>
-        {_build_spike_section(spike)}
-
-        <!-- 유저 개선 요청 Top 5 -->
-        <div class="sec-title">유저 개선 요청 Top 5</div>
-        {_build_top5_section(top_requests)}
-
-        <div class="footer">
+        <!-- 푸터: @page @bottom-center에 의해 페이지 끝에 배치 -->
+        <div class="page-footer">
             자동 생성 · {escape(gen_at)} &nbsp;|&nbsp; 분석 기준: {escape(w_start)} 00:00 ~ {escape(w_end)} 23:59
         </div>
 
@@ -633,8 +651,4 @@ def _build_html(report: dict[str, Any]) -> str:
 
 def render_report_pdf(report: dict[str, Any]) -> bytes:
     html = _build_html(report)
-    buffer = io.BytesIO()
-    result = pisa.CreatePDF(src=html, dest=buffer, encoding="utf-8", link_callback=_resolve_resource_path)
-    if result.err:
-        raise RuntimeError("주간 리포트 PDF 렌더링에 실패했습니다")
-    return buffer.getvalue()
+    return HTML(string=html).write_pdf()

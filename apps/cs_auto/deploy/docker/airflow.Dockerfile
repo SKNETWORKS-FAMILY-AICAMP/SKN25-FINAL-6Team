@@ -14,6 +14,11 @@ RUN apt-get update \
         fontconfig \
         fonts-nanum \
         libcairo2-dev \
+        libpango-1.0-0 \
+        libpangoft2-1.0-0 \
+        libpangocairo-1.0-0 \
+        libharfbuzz0b \
+        libgdk-pixbuf-2.0-0 \
         pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
