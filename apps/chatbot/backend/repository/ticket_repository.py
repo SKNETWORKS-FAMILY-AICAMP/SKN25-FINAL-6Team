@@ -99,21 +99,22 @@ def update_qa_ticket_raw_query(payload: dict[str, Any]) -> dict[str, Any]:
                     """
                     UPDATE qa_ticket
                     SET raw_query = %s,
-                        safety_action = %s,
                         status = %s
                     WHERE ticket_id = %s
                     """,
                     (
                         payload["raw_query"],
-                        payload.get("safety_action"),
                         payload.get("status"),
                         _optional_int(payload["ticket_id"]),
                     ),
                 )
+                updated_count = cur.rowcount
         return {
             "status": "ok",
             "stored": True,
             "ticket_id": payload["ticket_id"],
+            "ticket_status": payload.get("status"),
+            "updated_count": updated_count,
         }
 
     return safe_write(operation="update_qa_ticket_raw_query", payload=payload, writer=_write)

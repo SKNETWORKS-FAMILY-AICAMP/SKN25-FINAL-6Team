@@ -8,6 +8,7 @@ from chatbot.generation.response.fixed_responses import (
 from chatbot.notifications.github_issue import dispatch_github_issue_notification
 from chatbot.observability.logger import EVENT_FINAL_RESPONSE_CREATED, log_event
 from chatbot.repository.failed_query_repository import save_failed_query
+from chatbot.repository.final_response_repository import save_final_response
 from chatbot.repository.ticket_repository import update_qa_ticket_raw_query
 from chatbot.schemas import ChatbotState
 
@@ -66,18 +67,27 @@ def final_response_node(state: ChatbotState) -> dict:
     notification_result = dispatch_github_issue_notification({**state, "final_text": final_text})
     failed_query_result = _record_faq_safe_fallback_query(state, decision)
 
-    # 3단계: 문의 내역 화면에서 볼 수 있도록 User/AI 최종 대화를 qa_ticket에 반영한다.
+    # 3단계: 고객에게 실제로 보여준 최종 답변을 final_response에 저장한다.
+    final_response_result = save_final_response(
+        {
+            "ticket_id": state["ticket_id"],
+            "draft_id": state.get("draft_id"),
+            "final_text": final_text,
+            "safety_action": decision,
+        }
+    )
+
+    # 4단계: 문의 내역 화면에서 볼 수 있도록 User/AI 최종 대화를 qa_ticket에 반영한다.
     raw_query = state.get("raw_query") or ""
     ticket_status_result = update_qa_ticket_raw_query(
         {
             "ticket_id": state["ticket_id"],
             "raw_query": f"User: {raw_query}\nAI: {final_text}",
-            "safety_action": decision,
             "status": _ticket_status_for_decision(decision, state.get("review_required")),
         }
     )
 
-    # 4단계: LangSmith/admin log에서 최종 처리 결과를 추적할 수 있게 이벤트를 남긴다.
+    # 5단계: LangSmith/admin log에서 최종 처리 결과를 추적할 수 있게 이벤트를 남긴다.
     log_event(
         EVENT_FINAL_RESPONSE_CREATED,
         ticket_id=state.get("ticket_id"),
@@ -90,6 +100,7 @@ def final_response_node(state: ChatbotState) -> dict:
             "safety_action": decision,
             "notification_status": notification_result.get("status"),
             "failed_query_result": failed_query_result,
+            "final_response_result": final_response_result,
             "ticket_status_result": ticket_status_result,
         },
     )
@@ -98,5 +109,6 @@ def final_response_node(state: ChatbotState) -> dict:
         "final_text": final_text,
         "notification_result": notification_result,
         "failed_query_result": failed_query_result,
+        "final_response_result": final_response_result,
         "ticket_status_result": ticket_status_result,
     }
