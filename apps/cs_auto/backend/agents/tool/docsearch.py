@@ -74,7 +74,7 @@ class DocumentQueryBuilder:
     """Build normalized query payloads for documents retrieval."""
 
     def build(self, ticket: dict[str, object], analysis: dict[str, object]) -> DocumentSearchQuery:
-        query_text = str(analysis.get("enriched_query") or ticket.get("raw_query") or ticket.get("title") or "").strip()
+        query_text = str(analysis.get("enriched_query")).strip()
         enrichment = enrich_retrieval_query(query_text)
         candidate_top_k = int(os.environ.get("CS_AUTO_DOC_RETRIEVAL_TOP_K", "8"))
         final_top_k = int(os.environ.get("CS_AUTO_DOC_RETRIEVAL_FINAL_TOP_K", "5"))

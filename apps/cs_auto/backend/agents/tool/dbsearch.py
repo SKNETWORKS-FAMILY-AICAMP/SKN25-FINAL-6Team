@@ -35,6 +35,7 @@ from common.llm.client import invoke_structured_llm
 RoutingTarget = Literal["DB_only", "doc_only", "DB&DOC", "fixed_answer"]
 Category = Literal["payment", "refund", "account", "bug", "gacha", "policy", "general"]
 QueryType = Literal["fixed_sql", "text_to_sql"]
+DB_DISABLED_CATEGORIES = frozenset({"bug", "policy", "general"})
 
 ALLOWED_SQL_ACTION_PREFIXES = ("select", "with")
 DISALLOWED_SQL_PATTERNS = (
@@ -242,7 +243,6 @@ def build_operation_schema_context(category: str) -> dict[str, object]:
             "status",
             "inquiry_created_at",
             "session_id",
-            "responder_type",
         ],
         # admin_event_logs 테이블 사용 중단으로 스키마 컨텍스트에서 제외한다.
         # "admin_event_logs": [
@@ -389,6 +389,27 @@ def _fixed_sql_template_for_category(category: str) -> dict[str, object]:
     if not isinstance(template, dict):
         raise ValueError(f"Fixed SQL template must be a mapping: {category}")
     return template
+
+
+def _is_db_disabled_category(category: str) -> bool:
+    return str(category or "").lower() in DB_DISABLED_CATEGORIES
+
+
+def _empty_db_search_result(
+    query_type: QueryType,
+    *,
+    plan: dict[str, object] | None = None,
+    decision: dict[str, object] | None = None,
+) -> dict[str, object]:
+    return {
+        "decision": decision,
+        "query_type": query_type,
+        "plan": plan,
+        "sql": "",
+        "params": (),
+        "rows": [],
+        "evidence": [],
+    }
 
 
 # fixed_sql 경로에서 YAML 템플릿과 파라미터를 합쳐 실행 SQL을 만드는 함수다.
@@ -575,19 +596,13 @@ class FixedSqlSearcher:
 
     def run(self, ticket: dict[str, object], analysis: dict[str, object]) -> dict[str, object]:
         category = str(analysis.get("category") or "general").lower()
+        if _is_db_disabled_category(category):
+            return _empty_db_search_result("fixed_sql")
         schema_context = build_operation_schema_context(category)
         sql, params, source_type = render_fixed_sql(category, ticket)
 
         if not sql:
-            return {
-                "decision": None,
-                "query_type": "fixed_sql",
-                "plan": None,
-                "sql": "",
-                "params": (),
-                "rows": [],
-                "evidence": [],
-            }
+            return _empty_db_search_result("fixed_sql")
 
         validate_sql_query(sql, params, schema_context)
         rows = _execute_sql(sql, params)
@@ -615,21 +630,15 @@ class TextToSqlSearcher:
 
     def run(self, ticket: dict[str, object], analysis: dict[str, object]) -> dict[str, object]:
         category = str(analysis.get("category") or "general").lower()
-        question = str(analysis.get("enriched_query") or ticket.get("raw_query") or ticket.get("title") or "")
+        if _is_db_disabled_category(category):
+            return _empty_db_search_result("text_to_sql", plan=TextToSqlPlan().model_dump())
+        question = str(analysis.get("enriched_query"))
         schema_context = self.build_schema_context(category)
         plan = self.build_plan(question, analysis, schema_context)
         sql, params = render_text_to_sql(plan, ticket, schema_context)
 
         if not sql:
-            return {
-                "decision": None,
-                "query_type": "text_to_sql",
-                "plan": plan.model_dump(),
-                "sql": "",
-                "params": (),
-                "rows": [],
-                "evidence": [],
-            }
+            return _empty_db_search_result("text_to_sql", plan=plan.model_dump())
 
         try:
             validate_sql_query(sql, params, schema_context)
@@ -671,11 +680,27 @@ class DbSearchRouter:
 
     def decide_query_type(self, ticket: dict[str, object], analysis: dict[str, object]) -> QueryTypeDecision:
         category = str(analysis.get("category") or "general").lower()
-        question = str(analysis.get("enriched_query") or ticket.get("raw_query") or ticket.get("title") or "")
+        if _is_db_disabled_category(category):
+            return QueryTypeDecision(
+                query_type="fixed_sql",
+                reason=f"DB lookup disabled for category: {category}",
+                confidence=1.0,
+            )
+        question = str(analysis.get("enriched_query"))
         schema_context = self.text_to_sql.build_schema_context(category)
         return decide_query_type(question, analysis, schema_context)
 
     def run(self, ticket: dict[str, object], analysis: dict[str, object]) -> dict[str, object]:
+        category = str(analysis.get("category") or "general").lower()
+        if _is_db_disabled_category(category):
+            return _empty_db_search_result(
+                "fixed_sql",
+                decision={
+                    "query_type": "fixed_sql",
+                    "reason": f"DB lookup disabled for category: {category}",
+                    "confidence": 1.0,
+                },
+            )
         decision = self.decide_query_type(ticket, analysis)
         if decision.query_type == "fixed_sql":
             result = self.fixed_sql.run(ticket, analysis)

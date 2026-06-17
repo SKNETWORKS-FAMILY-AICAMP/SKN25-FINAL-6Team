@@ -81,25 +81,20 @@ gacha:
     - 20
 
 bug:
-  source_type: admin_event_logs
+  source_type: qa_ticket
   sql: |
     SELECT
-      log_id,
       ticket_id,
-      session_id,
-      node_name,
-      event_type,
-      category,
-      routing_target,
-      tool_name,
+      account_id,
+      user_id,
+      title,
+      raw_query,
+      source_type,
       status,
-      error_message,
-      error_category,
-      metadata,
-      created_at
-    FROM admin_event_logs
+      inquiry_created_at,
+      session_id
+    FROM qa_ticket
     WHERE ticket_id = %s
-    ORDER BY created_at DESC NULLS LAST, log_id DESC
     LIMIT %s
   params:
     - ticket.ticket_id
@@ -117,8 +112,7 @@ policy:
       source_type,
       status,
       inquiry_created_at,
-      session_id,
-      responder_type
+      session_id
     FROM qa_ticket
     WHERE ticket_id = %s
     LIMIT %s
@@ -138,8 +132,7 @@ general:
       source_type,
       status,
       inquiry_created_at,
-      session_id,
-      responder_type
+      session_id
     FROM qa_ticket
     WHERE ticket_id = %s
     LIMIT %s
