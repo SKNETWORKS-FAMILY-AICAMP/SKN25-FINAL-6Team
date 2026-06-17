@@ -1,0 +1,2 @@
+﻿test_id,profile,embedding_model,embeddings_table,question,latency_ms,keyword_recall,source_document_hit,matched_keywords,matched_source_documents,answer,reference_answer
+SJ-RET-001,large3072,text-embedding-3-large,test_documents_embeddings_large_3072,데모판 001호 | 「달」 탐구하기——「달의 신의 축복」 문서의 핵심 내용을 알려주세요.,5201.67,1.0,True,"[""데모판"", ""달"", ""달의 신의 축복""]","[""NVC-GDE-100""]",,이 문서는 「달」 탐구하기와 「달의 신의 축복」에 대한 안내입니다. 답변은 해당 문서의 제목과 본문에서 확인되는 핵심 내용만 요약해야 합니다.

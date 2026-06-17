@@ -1,0 +1,410 @@
+{
+  "dataset": {
+    "name": "sj-documents-retrievable-ragas-30-v3",
+    "description": "small embedding 기준으로 실제 top-3 검색 성공을 확인한 sj_documents 30개만 사용한 RAGAS 평가셋입니다. 답변 공백을 줄이고 small/large 검색 품질 차이를 LangSmith에서 비교하기 위한 데이터셋입니다.",
+    "version": "v3",
+    "total_examples": 30,
+    "expected_action": "AUTO_RESPONSE",
+    "paper_basis": [
+      "RAGAS: faithfulness, answer_relevancy, context_precision, context_recall 평가용 reference/context 구조",
+      "StructGPT: 문서형 질의와 정형 로그 질의를 분리하고, 본 세트는 문서형 자동응답만 포함",
+      "ChatLR: 검색 가능한 문서 제목과 본문 단서를 자연어 질의에 명시",
+      "Enhancing Few-shot Text-to-SQL Capabilities of LLMs: 질의를 모호하지 않은 검색 intent로 구성"
+    ],
+    "evaluation_note": "질문은 문서 제목을 직접 포함합니다. 이는 현재 평가 스크립트가 순수 vector search를 사용하고 있어, 실제 검색 가능한 문서만 평가하기 위한 설계입니다."
+  },
+  "profiles": {
+    "small": {
+      "embedding_model": "text-embedding-3-small",
+      "embedding_dimensions": 1536,
+      "documents_table": "sj_documents",
+      "chunks_table": "test_documents_chunks",
+      "embeddings_table": "test_documents_embeddings_small"
+    }
+  },
+  "summary": {
+    "small": {
+      "examples": 5,
+      "avg_keyword_recall": 0.8,
+      "source_document_hit_rate": 0.8,
+      "avg_latency_ms": 1347.26
+    }
+  },
+  "results": [
+    {
+      "test_id": "SJ-RET-001",
+      "profile": "small",
+      "embedding_model": "text-embedding-3-small",
+      "embeddings_table": "test_documents_embeddings_small",
+      "question": "데모판 001호 | 「달」 탐구하기——「달의 신의 축복」 문서의 핵심 내용을 알려주세요.",
+      "answer": "",
+      "reference_answer": "이 문서는 「달」 탐구하기와 「달의 신의 축복」에 대한 안내입니다. 답변은 해당 문서의 제목과 본문에서 확인되는 핵심 내용만 요약해야 합니다.",
+      "latency_ms": 4762.0,
+      "top_k": 5,
+      "top_contexts": [
+        {
+          "chunk_id": "NVC-GDE-100::chunk::0",
+          "document_id": "NVC-GDE-100",
+          "source_type": "naver_cafe_guide",
+          "category": "기타",
+          "title": "데모판 001호 | 「달」 탐구하기——「달의 신의 축복」",
+          "chunk_text": "데모판 001호 | 「달」 탐구하기——「달의 신의 축복」\n\n여기 여행자님 앞으로 온 소포가 있네요…? 함께 살펴보도록 할까요?",
+          "cosine_score": 0.7699197589641716,
+          "rank": 1
+        },
+        {
+          "chunk_id": "NVC-GDE-99::chunk::0",
+          "document_id": "NVC-GDE-99",
+          "source_type": "naver_cafe_guide",
+          "category": "기타",
+          "title": "데모판 002호 | 「로봇의 행동 수칙」——여기서 잠자면 안 돼",
+          "chunk_text": "데모판 002호 | 「로봇의 행동 수칙」——여기서 잠자면 안 돼\n\n《노드크라이에서 「쓰레기」를 줍는 여행》 제2호가 도착했어요! 함께 살펴보도록 할까요?",
+          "cosine_score": 0.4439690855775372,
+          "rank": 2
+        },
+        {
+          "chunk_id": "NVC-NOT-346::chunk::71",
+          "document_id": "NVC-NOT-346",
+          "source_type": "naver_cafe_notice",
+          "category": "공지사항",
+          "title": "「윈드블룸의 초대」 1.4 버전 업데이트 상세안내",
+          "chunk_text": "「윈드블룸의 초대」 1.4 버전 업데이트 상세안내\n\n=====축제 일화=====\n\n10. 캐릭터 「여행자(바람)」가 원소 전투 스킬 「회오리 검」을 발동하는 순간 점프 혹은 대시하면 고유 특성 「재생의 바람」이 발동되지 않는 문제 수정",
+          "cosine_score": 0.3775192624088626,
+          "rank": 3
+        },
+        {
+          "chunk_id": "NVC-NOT-346::chunk::58",
+          "document_id": "NVC-NOT-346",
+          "source_type": "naver_cafe_notice",
+          "category": "공지사항",
+          "title": "「윈드블룸의 초대」 1.4 버전 업데이트 상세안내",
+          "chunk_text": "「윈드블룸의 초대」 1.4 버전 업데이트 상세안내\n\n=====축제 일화=====\n\n1. 다인 모드에서 대형 슬라임이 점프 후 점프 시작 위치에도 피해를 주던 문제 수정",
+          "cosine_score": 0.36041213611186573,
+          "rank": 4
+        },
+        {
+          "chunk_id": "NVC-NOT-346::chunk::37",
+          "document_id": "NVC-NOT-346",
+          "source_type": "naver_cafe_notice",
+          "category": "공지사항",
+          "title": "「윈드블룸의 초대」 1.4 버전 업데이트 상세안내",
+          "chunk_text": "「윈드블룸의 초대」 1.4 버전 업데이트 상세안내\n\n=====축제 일화=====\n\n9. 일부 비경과 임무에서 카메라 초점 표현 최적화",
+          "cosine_score": 0.35728046098649346,
+          "rank": 5
+        }
+      ],
+      "keyword_hit_count": 3,
+      "keyword_total": 3,
+      "keyword_recall": 1.0,
+      "matched_keywords": [
+        "데모판",
+        "달",
+        "달의 신의 축복"
+      ],
+      "source_document_hit": true,
+      "matched_source_documents": [
+        "NVC-GDE-100"
+      ],
+      "ragas": {}
+    },
+    {
+      "test_id": "SJ-RET-002",
+      "profile": "small",
+      "embedding_model": "text-embedding-3-small",
+      "embeddings_table": "test_documents_embeddings_small",
+      "question": "꿈의 창조, 그 시작을 향해——UGC 콘텐츠 개발자 노트 문서는 어떤 내용을 다루나요?",
+      "answer": "",
+      "reference_answer": "이 문서는 UGC 콘텐츠 개발자 노트로, 대규모 콘텐츠 개발 진행 상황과 컨셉 일부를 공유하는 안내입니다. 답변은 개발자 노트 문서의 내용에 근거해야 합니다.",
+      "latency_ms": 402.4,
+      "top_k": 5,
+      "top_contexts": [
+        {
+          "chunk_id": "NVC-GDE-104::chunk::0",
+          "document_id": "NVC-GDE-104",
+          "source_type": "naver_cafe_guide",
+          "category": "이벤트 가이드",
+          "title": "꿈의 창조, 그 시작을 향해——UGC 콘텐츠 개발자 노트",
+          "chunk_text": "꿈의 창조, 그 시작을 향해——UGC 콘텐츠 개발자 노트\n\n개발자 노트 소식을 가져왔다구~!\n\n⌈여행자 여러분, 안녕하세요! 이런 방식으로 소통하는 건 정말 오랜만이네요.\n전에 미리 말씀드렸듯이, 현재 대규모 콘텐츠의 개발이 활발히 진행 중입니다. 정식 출시까지는 아직 시간이 좀 남아있기는 합니다만, 오랜 시간 매끄럽게 다듬어낸 덕분에 기본적인 얼개를 갖추게 되었지요. 그래서 오늘은 여러분께 다양한 컨셉 중 일부와 진행 상황을 공유해 드리고자 합니다.⌋",
+          "cosine_score": 0.74625853468592,
+          "rank": 1
+        },
+        {
+          "chunk_id": "NVC-GDE-370::chunk::0",
+          "document_id": "NVC-GDE-370",
+          "source_type": "naver_cafe_guide",
+          "category": "가이드",
+          "title": "「윈드블룸의 숨결」 콘텐츠 안내",
+          "chunk_text": "「윈드블룸의 숨결」 콘텐츠 안내\n\n「윈드블룸 축제」가 곧 시작될 예정이야. 「윈드블룸 축제」에는 어떤 새로운 콘텐츠가 있는지 함께 확인해 보자!\n\n내일은 「바람의 노래」 콘텐츠에 관한 팁을 전달해줄 예정이니 절대 놓치지 마!",
+          "cosine_score": 0.3905435220501863,
+          "rank": 2
+        },
+        {
+          "chunk_id": "NVC-NOT-22::chunk::87",
+          "document_id": "NVC-NOT-22",
+          "source_type": "naver_cafe_notice",
+          "category": "업데이트",
+          "title": "「『공월의 노래·도입』 눈보라와 푸른숲의 춤」 「첫 번째 달」 버전 업데이트 안내",
+          "chunk_text": "「『공월의 노래·도입』 눈보라와 푸른숲의 춤」 「첫 번째 달」 버전 업데이트 안내\n\n=====업데이트 내용=====\n\n◆ 「여행 일화집」\n각종 재미있는 일화가 기록된 노트.\n펼치면 안에 기록된 일화를 확인할 수 있다. 노트에 끼워진 「종이」로 「만남의 소원」을 빌 수 있을지도 모른다.",
+          "cosine_score": 0.3372649449545485,
+          "rank": 3
+        },
+        {
+          "chunk_id": "NVC-NOT-8::chunk::25",
+          "document_id": "NVC-NOT-8",
+          "source_type": "naver_cafe_notice",
+          "category": "업데이트",
+          "title": "「『공월의 노래·종곡』 어느 겨울밤, 한 여행자」 「네 번째 달」 버전 업데이트 안내",
+          "chunk_text": "「『공월의 노래·종곡』 어느 겨울밤, 한 여행자」 「네 번째 달」 버전 업데이트 안내\n\n=====업데이트 내용=====\n\n◆ 비경 도전 시 「샛별과 달의 여명」, 「바람이 시작되는 날」 등의 성유물을 획득할 수 있습니다.",
+          "cosine_score": 0.32380095438981416,
+          "rank": 4
+        },
+        {
+          "chunk_id": "NVC-NOT-302::chunk::3",
+          "document_id": "NVC-NOT-302",
+          "source_type": "naver_cafe_notice",
+          "category": "공지사항",
+          "title": "「달빛 속 광경, 하늘 아래 인간 세상」 2.1 버전 업데이트 공지",
+          "chunk_text": "「달빛 속 광경, 하늘 아래 인간 세상」 2.1 버전 업데이트 공지\n\n● 몬스터\n1. 보스 영구 장치 진영 분열 후, 캐릭터가 유적 기계 병사 공격 시의 고정 최적화\n2. 노부시패의 후퇴 스킬 삭제\n3. 노부시패 발도술 상대 시의 전투 체험 최적화\n4. 노부시패와 해란귀의 무게 감소\n5. 보스 무상의 불이 생성한 불기둥 스킬의 코어 노출 시간 증가\n6. 보스 무상의 불의 불길을 되살리는 스킬 지속 시간 증가. 캐릭터가 불길 되살리기 스킬 유지 기간 동안 불씨 공격 시의 고정 최적화. 불씨가 모두 꺼지면 무상의 불의 불길 되살리기 스킬 조기 종료\n\n● 오디오\n1. 캐릭터 「눈꽃의 백로·카미사토 아야카(얼음)」 일부 대기 음성 발동 빈도 최적화\n2. 캐릭터의 날씨 관련 음성 발동 메커니즘 최적화\n3. 월드에서 캐릭터의 호감도 음성 발동 메커니즘 최적화\n4. 서라운드 장치에서의 음향 효과 최적화\n5. 성유물과 무기 강화 음향 효과 최적화\n6. 일부 캐릭터의 중국어와 일본어 전투 음성 최적화 및 일부 캐릭터의 영어 전투 음성이 나오지 않던 문제 수정\n7. 일부 임무의 영어, 일본어, 한국어 음성 최적화. 일부 임무의 중국어와 일본어 음성이 나오지 않던 문제 수정\n\n● 기타\n1. 「벼락 나무」의 효과 발생 범위에 높이 제한 추가\n2. 마신 임무 제2장·제2막 「무념무상, 포영의 절멸」 중 「라이덴 쇼군」이 「안수」 단계에 진입하는 판정 조건 최적화\n3. 조준 모드의 조준점 스타일 최적화\n4. 일부 로딩 화면 메시지 신규 추가\n5. 여행 일지에 음성 자동 플레이 기능 추가\n6. 같은 구역 내 중복 배치된 장식이 차지하는 하중 감소\n7. 레시피 「고기죽순데침」의 구매 조건을 모험 등급 Lv.25 로 조정(기존 Lv.40)\n※기타 복구된 내용은 2021년 9월 1일 08:00 (한국시간)에 발표되는 후속 버전 업데이트 공지를 확인해 주세요\n※작품에 등장하는 인물, 제품 및 단체는 실제와 무관한 허구임을 밝힙니다",
+          "cosine_score": 0.3138090350552487,
+          "rank": 5
+        }
+      ],
+      "keyword_hit_count": 3,
+      "keyword_total": 3,
+      "keyword_recall": 1.0,
+      "matched_keywords": [
+        "UGC",
+        "개발자 노트",
+        "콘텐츠"
+      ],
+      "source_document_hit": true,
+      "matched_source_documents": [
+        "NVC-GDE-104"
+      ],
+      "ragas": {}
+    },
+    {
+      "test_id": "SJ-RET-003",
+      "profile": "small",
+      "embedding_model": "text-embedding-3-small",
+      "embeddings_table": "test_documents_embeddings_small",
+      "question": "느긋한 휴양촌 리뷰 칼럼! 평점부터 체크해서 후회 없는 휴가를! 문서의 안내 내용을 요약해 주세요.",
+      "answer": "",
+      "reference_answer": "이 문서는 느긋한 휴양촌 리뷰 칼럼과 히든 임무 리뷰를 소개하는 안내입니다. 스포일러와 집계 기준일에 대한 주의도 함께 안내합니다.",
+      "latency_ms": 462.74,
+      "top_k": 5,
+      "top_contexts": [
+        {
+          "chunk_id": "NVC-GDE-105::chunk::0",
+          "document_id": "NVC-GDE-105",
+          "source_type": "naver_cafe_guide",
+          "category": "이벤트 가이드",
+          "title": "느긋한 휴양촌 리뷰 칼럼! 평점부터 체크해서 후회 없는 휴가를!",
+          "chunk_text": "느긋한 휴양촌 리뷰 칼럼! 평점부터 체크해서 후회 없는 휴가를!\n\n느긋한 휴양촌에 체크인한 소감은 어때? 휴양촌을 둘러보다가 「히든 임무」도 발견했어? 「느긋한 휴양촌 리뷰 칼럼」에 온 것을 환영해! 히든 임무를 발견한 관광객들의 리뷰를 함께 확인해 보자구~\n\n* 다음 내용에는 스포일러가 포함되어 있어! 아직 관련 스토리를 플레이하지 않은 여행자는 반드시 유의할 것! 또 관련 데이터는 8월 4일까지 집계된 것이니 이 점도 참고해 줘~",
+          "cosine_score": 0.7503288213819655,
+          "rank": 1
+        },
+        {
+          "chunk_id": "NVC-NOT-210::chunk::3",
+          "document_id": "NVC-NOT-210",
+          "source_type": "naver_cafe_notice",
+          "category": "공지사항",
+          "title": "「일상 2022 여름 축제」 여행자들에게 전하는 소식",
+          "chunk_text": "「일상 2022 여름 축제」 여행자들에게 전하는 소식\n\n=====우천 코스프레 퍼레이드 취소 관련 안내=====\n7월 31일 일요일, 여행자들의 기대와 성원에 보답하기 위해 퍼레이드를 진행하고자 많이 노력했고 바랐지만, 점점 악화하는 날씨로 인해 부득이하게 퍼레이드가 취소되었어. 퍼레이드를 위해 달려와 준 많은 참관객 여행자 그리고 코스프레 여행자에게 정말 정말 고맙고 미안해\n\n우천으로 취소된 코스프레 퍼레이드 참여자에 대한 사전 등록 비용은 운영사를 통해 금일 내로 환불될 예정이야~ 해당 날짜에 코스프레 퍼레이드 참여 예정이었던 여행자들은 해당 내용을 참고해 주길 바라~\n\n다른 궁금한 점은 ilsang_kr@universe.example로 문의 부탁해\n\n마지막으로 다시 한번 모든 여행자에게 고맙다는 인사를 하고 싶어, 다들 정말 고생했어!\n\n이번에 많은 여행자가 전해준 피드백도 고마워~ 일상이이 여행자들의 피드백을 수집해 꼼꼼히 확인했어. 여행자의 피드백을 토대로 더 멋진 행사를 준비하도록 더욱 노력하는 모습을 보여줄게~!\n\n우리 조만간 또 만나자!",
+          "cosine_score": 0.44009012869016206,
+          "rank": 2
+        },
+        {
+          "chunk_id": "NVC-NOT-229::chunk::0",
+          "document_id": "NVC-NOT-229",
+          "source_type": "naver_cafe_notice",
+          "category": "공지사항",
+          "title": "2.8 버전 발견한 오류 & 업데이트 공지 (8월 8일)",
+          "chunk_text": "2.8 버전 발견한 오류 & 업데이트 공지 (8월 8일)\n\n「한여름! 환상의 밤? 기상곡!」 2.8 버전 업데이트 이후 발견된 오류, 그리고 수정한 부분에 대해서 알려줄게~\n\n여행자들이 앞으로 발견된 오류 및 수정한 내용을 한 번에 확인할 수 있도록 해당 게시글에 새로운 소식을 계속해서 업데이트해 줄게~!",
+          "cosine_score": 0.4302329329274647,
+          "rank": 3
+        },
+        {
+          "chunk_id": "NVC-NOT-387::chunk::0",
+          "document_id": "NVC-NOT-387",
+          "source_type": "naver_cafe_notice",
+          "category": "공지사항",
+          "title": "「종료」 일상이의 설문조사 타임",
+          "chunk_text": "「종료」 일상이의 설문조사 타임\n\n이번에는 여행자들이 캐릭터 외형에 대해 어떤 느낌과 생각을 가졌는지 알아보려고 설문조사를 준비했어.\n자세히 읽어보고 성실하게 작성 부탁해. 여행자의 소중한 의견은 우리에게 아주 큰 힘이 돼! (9｀･ω･)9\n※소요시간 약 5분",
+          "cosine_score": 0.42886352196327837,
+          "rank": 4
+        },
+        {
+          "chunk_id": "NVC-NOT-228::chunk::0",
+          "document_id": "NVC-NOT-228",
+          "source_type": "naver_cafe_notice",
+          "category": "공지사항",
+          "title": "「일상 2022 여름 축제」 행사 통합 주의사항",
+          "chunk_text": "「일상 2022 여름 축제」 행사 통합 주의사항\n\n즐거운 일상 2022 여름 축제에 참여하기 전에 우리 함께 어떤 주의사항들이 있는지 함께 확인해 보자구~!\n여행자들과 안전한 행사를 함께하기 위한 주의사항이니깐 반드시 꼭! 숙지해 줘~!\n\n[통합 주의사항 목차]\n1-1.\n1-2.\n1-3. 행사 수위 규정\n2-1.\n2-2.\n2-3.\n3-1.\n3-2.\n3-3\n3-4\n3-5.\n3-6.\n3-7\n3-8.\n4.\n5.\n6.\n7.\n8.\n9.\n※컨트롤+F키 또는 F3키를 사용하여 원하는 목차에 대한 내용을 빠르게 확인할 수 있습니다.",
+          "cosine_score": 0.4286194020084728,
+          "rank": 5
+        }
+      ],
+      "keyword_hit_count": 3,
+      "keyword_total": 3,
+      "keyword_recall": 1.0,
+      "matched_keywords": [
+        "느긋한 휴양촌",
+        "리뷰",
+        "히든 임무"
+      ],
+      "source_document_hit": true,
+      "matched_source_documents": [
+        "NVC-GDE-105"
+      ],
+      "ragas": {}
+    },
+    {
+      "test_id": "SJ-RET-004",
+      "profile": "small",
+      "embedding_model": "text-embedding-3-small",
+      "embeddings_table": "test_documents_embeddings_small",
+      "question": "바람이 멈추고, 전설이… 침몰하는 곳 문서에서 설명하는 지역은 어떤 곳인가요?",
+      "answer": "",
+      "reference_answer": "이 문서는 테노치즈톡 서부의 광활한 지역과 잿더미 바다, 심연의 침공이 남긴 슬픔의 땅에 대해 설명합니다.",
+      "latency_ms": 404.3,
+      "top_k": 5,
+      "top_contexts": [
+        {
+          "chunk_id": "NVC-NOT-280::chunk::20",
+          "document_id": "NVC-NOT-280",
+          "source_type": "naver_cafe_notice",
+          "category": "공지사항",
+          "title": "「눈보라 속 그림자」 2.3 버전 업데이트 상세안내",
+          "chunk_text": "「눈보라 속 그림자」 2.3 버전 업데이트 상세안내\n\n=====업데이트 내용=====\n\n◇이 세계에 존재하지 않는 물질로 만든 검, 그 힘은 드래곤을 침식했던 부식의 독마저 막아낼 수 있을 것 같다",
+          "cosine_score": 0.3354757031560065,
+          "rank": 1
+        },
+        {
+          "chunk_id": "NVC-NOT-301::chunk::119",
+          "document_id": "NVC-NOT-301",
+          "source_type": "naver_cafe_notice",
+          "category": "공지사항",
+          "title": "「달빛 속 광경, 하늘 아래 인간 세상」 2.1 버전 업데이트 상세안내",
+          "chunk_text": "「달빛 속 광경, 하늘 아래 인간 세상」 2.1 버전 업데이트 상세안내\n\n=====문제 수정=====\n\n3. 비경 「단풍의 정원」도전 실패 후, 일정 확률로 배리어가 사라지지 않던 문제 수정",
+          "cosine_score": 0.3166848224016614,
+          "rank": 2
+        },
+        {
+          "chunk_id": "NVC-NOT-313::chunk::24",
+          "document_id": "NVC-NOT-313",
+          "source_type": "naver_cafe_notice",
+          "category": "공지사항",
+          "title": "「부동의 번개 신, 포영의 절멸」 2.0 버전 업데이트 공지",
+          "chunk_text": "「부동의 번개 신, 포영의 절멸」 2.0 버전 업데이트 공지\n\n=====업데이트 내용=====\n\n◇신의 눈: 바람",
+          "cosine_score": 0.2956764271639778,
+          "rank": 3
+        },
+        {
+          "chunk_id": "NVC-NOT-301::chunk::153",
+          "document_id": "NVC-NOT-301",
+          "source_type": "naver_cafe_notice",
+          "category": "공지사항",
+          "title": "「달빛 속 광경, 하늘 아래 인간 세상」 2.1 버전 업데이트 상세안내",
+          "chunk_text": "「달빛 속 광경, 하늘 아래 인간 세상」 2.1 버전 업데이트 상세안내\n\n=====문제 수정=====\n\n1. 「속세의 주전자」에서 장식 「차연(茶烟)이 자욱한 백상」을 테이블 위에 놓을 수 없던 문제 수정",
+          "cosine_score": 0.2915436270577636,
+          "rank": 4
+        },
+        {
+          "chunk_id": "NVC-NOT-301::chunk::154",
+          "document_id": "NVC-NOT-301",
+          "source_type": "naver_cafe_notice",
+          "category": "공지사항",
+          "title": "「달빛 속 광경, 하늘 아래 인간 세상」 2.1 버전 업데이트 상세안내",
+          "chunk_text": "「달빛 속 광경, 하늘 아래 인간 세상」 2.1 버전 업데이트 상세안내\n\n=====문제 수정=====\n\n2. 특정 상황에서 「속세의 주전자」 장식 배치 시 게임에 오류가 발생하던 문제 수정",
+          "cosine_score": 0.28623233948285765,
+          "rank": 5
+        }
+      ],
+      "keyword_hit_count": 0,
+      "keyword_total": 3,
+      "keyword_recall": 0.0,
+      "matched_keywords": [],
+      "source_document_hit": false,
+      "matched_source_documents": [],
+      "ragas": {}
+    },
+    {
+      "test_id": "SJ-RET-005",
+      "profile": "small",
+      "embedding_model": "text-embedding-3-small",
+      "embeddings_table": "test_documents_embeddings_small",
+      "question": "상시 전투 콘텐츠 「지맥 제압전」 오픈! 플레이에 도움이 되는 팁을 확인해 보세요! 문서의 핵심을 알려주세요.",
+      "answer": "",
+      "reference_answer": "이 문서는 상시 전투 콘텐츠 지맥 제압전의 기본 규칙, 획득 가능한 보상, 이벤트 기간, 플레이 팁을 안내합니다.",
+      "latency_ms": 704.88,
+      "top_k": 5,
+      "top_contexts": [
+        {
+          "chunk_id": "NVC-GDE-126::chunk::0",
+          "document_id": "NVC-GDE-126",
+          "source_type": "naver_cafe_guide",
+          "category": "이벤트 가이드",
+          "title": "상시 전투 콘텐츠 「지맥 제압전」 오픈! 플레이에 도움이 되는 팁을 확인해 보세요!",
+          "chunk_text": "상시 전투 콘텐츠 「지맥 제압전」 오픈! 플레이에 도움이 되는 팁을 확인해 보세요!\n\n새로운 상시 전투 콘텐츠 「지맥 제압전」이 업데이트됐어! 앞서 공개한 이벤트 안내에서는 기본 규칙과 획득 가능한 보상, 그리고 이벤트 기간에 대한 내용을 소개했었지?\n테스트 기간 동안 여행자들의 플레이 로그와 피드백을 기반으로 도움이 될 만한 팁을 준비했어! 함께 확인해 보자~",
+          "cosine_score": 0.7750532241597655,
+          "rank": 1
+        },
+        {
+          "chunk_id": "NVC-GDE-600::chunk::0",
+          "document_id": "NVC-GDE-600",
+          "source_type": "naver_cafe_guide",
+          "category": "이벤트 가이드",
+          "title": "「전도 원판·서론」 이벤트 설명",
+          "chunk_text": "「전도 원판·서론」 이벤트 설명\n\n「전도 원판·서론」 이벤트가 오픈 될거야~! 수메르 학자 호세이니가 귀중한 연구 재료인 「지맥의 열매」를 찾기 위해 신비한 고대 유물인 전도 원판을 잠시 여행자에게 맡겼어. 호세이니를 도와 지맥의 열매 조각을 수집하고 전도 원판을 통해 조각의 힘을 발휘해 봐~!\n그리고 「얽힌 속세의 기행」에도 관련 이벤트 임무가 추가됐어. 임무 완료 후 그에 따른 기행 경험치를 획득할 수 있어\n=====이벤트 시간=====\n콘텐츠 오픈 시간: 2021년 04월 30일 11:00 ~ 2021년 05월 17일 04:59(한국시간)\n이벤트 상점 오픈 시간: 2021년 04월 30일 11:00 ~ 2021년 05월 24일 04:59(한국시간)\n※해당 시간은 Asia 서버를 기준으로 합니다\n\n======참여 조건======\n모험 등급≥Lv.20\n\n=====이벤트 소개=====\n이벤트 기간 동안 여행자는 「조사 지점」, 「비경」 그리고 「뒤틀린 유역」에 도전해 「부서진 열매 데이터」를 획득한 뒤 이벤트 상점에서\n아이템을 교환할 수 있어\n다음은 이벤트 내용을 자세히 소개해 줄게~\n\n▶「조사 지점」 탐사\n여행자는 각 지역 「조사 지점」에서 「부서진 열매 데이터」를 회수해야 해\n「조사 지점」에는 「이변의 돌」이 있어서 조각 주변의 몬스터를 강화할 수 있지. 전투 중에 「이변의 돌」을 우선적으로 파괴하고 몬스터와 전투하는 걸 추천해\n여행자는 「조사 지점」에서 총 3가지의 「지맥의 열매 조각」을 회수할 수 있어:\n이 조각들은 어떤 용도가 있을까? 특수한 장치 「전도 원판」에 대해 소개해 줄게\n\n▶「전도 원판」 배치\n「전도 원판」은 「지맥의 열매 조각」을 활성화하는 장치로 전도 원판에 「지맥의 열매 조각」을 장비하면 파티 내 캐릭터에게 상응되는 증폭 효과를 줘(「비경」과 「뒤틀린 유역」에서만 효과 적용)\n「전도 원판」의 배치 화면:\nTip✔: 다인 모드로 이벤트 비경에 들어가면 원판은 월드 주인(파티 내에서 1P인 여행자)의 다인 플랜으로 자동 전환 돼, 그렇기 때문에 사전에 다인 플랜의 지맥의 열매 조각을 배치해두도록 해",
+          "cosine_score": 0.36992462599947007,
+          "rank": 2
+        },
+        {
+          "chunk_id": "NVC-NOT-92::chunk::0",
+          "document_id": "NVC-NOT-92",
+          "source_type": "naver_cafe_notice",
+          "category": "업데이트",
+          "title": "4.7 버전 업데이트 점검 예고",
+          "chunk_text": "4.7 버전 업데이트 점검 예고\n\nTo. 여행자\n2024년 6월 5일 07:00(한국시간)에 버전 업데이트 점검이 진행될 예정입니다. 게임 업데이트 관련 소식을 확인해 주세요.\n\n이번 업데이트에서는 PC 클라이언트의 일부 게임 파일 로직에 변경점이 적용됩니다. 이로 인해 이번 PC 클라이언트 사전 다운로드 및 업데이트에서는 다소 큰 공간이 요구됩니다.\n다만 업데이트가 완료된 이후의 전체 게임 클라이언트 용량이 4.6 버전에 비해 대폭 증가하는 일은 일어나지 않을 것으로 예상됩니다.\n\n미리 디바이스 공간을 충분히 확보한 후, Wi-Fi 환경에서 다운로드하실 것을 권장합니다.\n\n사전 다운로드 및 업데이트 과정에서 PC 클라이언트 압축 해제에 필요한 공간은 20~28GB이며, 이 중에서 사전 다운로드 리소스팩이 차지하는 용량은 약 19~25GB입니다.\n\n버전 업데이트가 완료되고 나면 PC 클라이언트 폴더의 총 용량은 4.6 버전에 비해 2~4GB 증가할 것으로 보입니다.\n\n사전 다운로드를 모두 완료하지 않더라도, 이미 다운로드한 데이터가 있다면 버전 업데이트 시 리소스 다운로드 진행도가 그만큼 증가합니다.\n\n4.7 버전 업데이트 점검 예고\n\n사전 다운로드 기능 오픈",
+          "cosine_score": 0.34894335594375847,
+          "rank": 3
+        },
+        {
+          "chunk_id": "NVC-NOT-369::chunk::126",
+          "document_id": "NVC-NOT-369",
+          "source_type": "naver_cafe_notice",
+          "category": "공지사항",
+          "title": "「백악과 흑룡」 1.2 버전 업데이트 상세 안내 (최적화 - 기타 8번 내용 추가)",
+          "chunk_text": "「백악과 흑룡」 1.2 버전 업데이트 상세 안내 (최적화 - 기타 8번 내용 추가)\n\n=====업데이트 내용=====\n\n◆ 「녹슨 활」의 무기 효과 「속사 궁술」\n일반 공격 피해+40%. 조준 사격 피해-10%\n일반 공격으로 가하는 피해가 40% 증가한다. 강공격으로 가하는 피해가 10% 감소한다",
+          "cosine_score": 0.34857513022007136,
+          "rank": 4
+        },
+        {
+          "chunk_id": "NVC-NOT-45::chunk::51",
+          "document_id": "NVC-NOT-45",
+          "source_type": "naver_cafe_notice",
+          "category": "업데이트",
+          "title": "「불이 돌아오는 날」 5.5 버전 업데이트 안내",
+          "chunk_text": "「불이 돌아오는 날」 5.5 버전 업데이트 안내\n\n=====조정 및 최적화=====\n\n● 우편\n「우편」-「우편 소장함」에 검색 기능이 추가되었습니다.\n「우편」 화면에서 일부 이벤트 관련 알림 우편에 이벤트 페이지로 이동하는 버튼이 추가됩니다.\n「공월 축복」 기간 만료 관련 우편 알림이 추가됩니다.",
+          "cosine_score": 0.346426996454267,
+          "rank": 5
+        }
+      ],
+      "keyword_hit_count": 4,
+      "keyword_total": 4,
+      "keyword_recall": 1.0,
+      "matched_keywords": [
+        "지맥 제압전",
+        "상시 전투",
+        "보상",
+        "팁"
+      ],
+      "source_document_hit": true,
+      "matched_source_documents": [
+        "NVC-GDE-126"
+      ],
+      "ragas": {}
+    }
+  ]
+}
