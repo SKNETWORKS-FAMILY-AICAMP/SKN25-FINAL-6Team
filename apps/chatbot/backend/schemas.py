@@ -18,7 +18,7 @@ SafetyAction = Literal[
 
 
 # LangGraph 전체 노드가 공유하는 state 계약이다.
-# 전처리 -> 라우팅 -> agent -> 저장 -> safety -> final_response 순서로 값이 채워진다.
+# 전처리 -> 라우팅 -> agent -> 저장 -> safety -> ticket_completion 순서로 값이 채워진다.
 class ChatbotState(AgentState):
     # Request/session metadata.
     user_id: NotRequired[int]
@@ -51,7 +51,6 @@ class ChatbotState(AgentState):
     evidence_count: NotRequired[int]
     evidence_results: NotRequired[list[dict[str, Any]]]
     final_text: NotRequired[str | None]
-    final_response_result: NotRequired[dict[str, Any] | None]
     reasoning_node: NotRequired[str | None]
     retrieval_query: NotRequired[str | None]
     retrieval_enrichment: NotRequired[dict[str, Any] | None]

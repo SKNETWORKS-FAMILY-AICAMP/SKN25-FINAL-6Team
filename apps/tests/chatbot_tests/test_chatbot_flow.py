@@ -8,7 +8,7 @@ from chatbot.chains.routing import route_after_draft_persistence, route_after_sa
 
 from chatbot.constants import VOC_FIXED_RESPONSE
 from chatbot.generation import ticket_preprocess, voc_agent
-from chatbot.generation.response.final_response import final_response_node
+from chatbot.generation.response.ticket_completion import ticket_completion_node
 from chatbot.generation.response.fixed_responses import (
     BLOCK_RESPONSE,
     BUG_FALLBACK_RESPONSE,
@@ -50,12 +50,20 @@ def test_preprocess_user_input_masks_sensitive_values_without_dropping_question(
 def test_build_state_uses_masked_content_for_runtime_message_but_keeps_raw_query() -> None:
     user_message = "아이템 미지급입니다. test@example.com 010-1234-5678"
 
-    state = build_state(ticket_id=1, user_message=user_message, category="payment")
+    state = build_state(
+        ticket_id=1,
+        user_message=user_message,
+        category="payment",
+        ui_category="bug",
+        sub_category="launch_access_error",
+        routing_target="bug_agent",
+    )
 
     assert state["raw_query"] == user_message
     assert state["masked_content"] != user_message
     assert "test@example.com" not in state["masked_content"]
     assert "010-1234-5678" not in state["messages"][-1]["content"]
+    assert "Selected subcategory: launch_access_error" in state["messages"][-1]["content"]
     assert state["input_masked"] is True
     assert state["input_detected_labels"] == ["email", "phone"]
 
@@ -342,6 +350,29 @@ def test_safety_action_allows_non_rag_agent_without_retrieved_documents() -> Non
     assert review_required is False
 
 
+def test_safety_action_marks_received_bug_inquiry_for_review() -> None:
+    safety_passed, safety_action, review_required = safety_layer._decide_safety_action(
+        moderation_blocked=False,
+        scores={
+            "toxicity_score": 0.0,
+            "policy_violation_score": 0.0,
+            "factuality_score": 1.0,
+            "hallucination_score": 0.0,
+        },
+        draft_text=(
+            "제공해주신 내용 기준으로 오류 문의가 접수되었습니다. "
+            "현재 대화 내용만으로 원인을 확정하기는 어려워 로그 및 재현 조건 검토가 필요합니다."
+        ),
+        documents=[],
+        state={"category": "bug", "reasoning_node": "bug_agent"},
+        requires_grounding=False,
+    )
+
+    assert safety_passed is True
+    assert safety_action == "REVIEW_REQUIRED"
+    assert review_required is True
+
+
 def test_safety_layer_does_not_fallback_payment_agent_without_rag_docs(monkeypatch) -> None:
     payloads = []
 
@@ -505,34 +536,26 @@ def _final_state(category: str, safety_action: str = "SAFE_FALLBACK") -> dict:
     }
 
 
-def _patch_final_response_writes(monkeypatch) -> dict[str, list[dict]]:
-    payloads = {"ticket": [], "final_response": []}
+def _patch_ticket_completion_writes(monkeypatch) -> dict[str, list[dict]]:
+    payloads = {"ticket": []}
 
     def fake_update_raw_query(payload):
         payloads["ticket"].append(payload)
         return {"stored": True, "ticket_id": payload["ticket_id"]}
 
-    def fake_save_final_response(payload):
-        payloads["final_response"].append(payload)
-        return {"stored": True, "response_id": 99, "ticket_id": payload["ticket_id"]}
-
     monkeypatch.setattr(
-        "chatbot.generation.response.final_response.update_qa_ticket_raw_query",
+        "chatbot.generation.response.ticket_completion.update_qa_ticket_raw_query",
         fake_update_raw_query,
     )
     monkeypatch.setattr(
-        "chatbot.generation.response.final_response.save_final_response",
-        fake_save_final_response,
-    )
-    monkeypatch.setattr(
-        "chatbot.generation.response.final_response.dispatch_github_issue_notification",
+        "chatbot.generation.response.ticket_completion.dispatch_github_issue_notification",
         lambda state: {"status": "skipped"},
     )
     return payloads
 
 
-def test_final_response_uses_category_fallbacks(monkeypatch) -> None:
-    payloads = _patch_final_response_writes(monkeypatch)
+def test_ticket_completion_uses_category_fallbacks(monkeypatch) -> None:
+    payloads = _patch_ticket_completion_writes(monkeypatch)
 
     cases = [
         ("결제", PAYMENT_FALLBACK_RESPONSE),
@@ -542,33 +565,26 @@ def test_final_response_uses_category_fallbacks(monkeypatch) -> None:
     ]
 
     for category, expected in cases:
-        result = final_response_node(_final_state(category))
+        result = ticket_completion_node(_final_state(category))
         assert result["final_text"] == expected
 
     assert [payload["raw_query"] for payload in payloads["ticket"]] == [
         f"User: \nAI: {expected}" for _, expected in cases
     ]
-    assert [payload["final_text"] for payload in payloads["final_response"]] == [
-        expected for _, expected in cases
-    ]
 
 
-def test_final_response_uses_fixed_block_and_review_responses(monkeypatch) -> None:
-    payloads = _patch_final_response_writes(monkeypatch)
+def test_ticket_completion_uses_fixed_block_and_review_responses(monkeypatch) -> None:
+    payloads = _patch_ticket_completion_writes(monkeypatch)
 
-    assert final_response_node(_final_state("FAQ", "BLOCK_RESPONSE"))["final_text"] == BLOCK_RESPONSE
-    assert final_response_node(_final_state("FAQ", "REVIEW_REQUIRED"))["final_text"] == "draft"
+    assert ticket_completion_node(_final_state("FAQ", "BLOCK_RESPONSE"))["final_text"] == BLOCK_RESPONSE
+    assert ticket_completion_node(_final_state("FAQ", "REVIEW_REQUIRED"))["final_text"] == "draft"
     assert [payload["status"] for payload in payloads["ticket"]] == ["resolved", "pending"]
-    assert [payload["safety_action"] for payload in payloads["final_response"]] == [
-        "BLOCK_RESPONSE",
-        "REVIEW_REQUIRED",
-    ]
 
 
-def test_final_response_does_not_write_chatbot_insight(monkeypatch) -> None:
-    _patch_final_response_writes(monkeypatch)
+def test_ticket_completion_does_not_write_chatbot_insight(monkeypatch) -> None:
+    _patch_ticket_completion_writes(monkeypatch)
 
-    result = final_response_node({
+    result = ticket_completion_node({
         **_final_state("payment"),
         "user_id": 1,
         "account_id": 101,
@@ -707,10 +723,10 @@ def test_voc_skips_safety_and_never_retries_from_safety() -> None:
         "retry_count": 0,
     }
 
-    assert route_after_draft_persistence(voc_state) == "final_response"
-    assert route_after_safety(voc_state) == "final_response"
+    assert route_after_draft_persistence(voc_state) == "ticket_completion"
+    assert route_after_safety(voc_state) == "ticket_completion"
 
 
 def test_route_after_draft_persistence_skips_safety_for_voc() -> None:
-    assert route_after_draft_persistence({"category": "voc"}) == "final_response"
+    assert route_after_draft_persistence({"category": "voc"}) == "ticket_completion"
     assert route_after_draft_persistence({"category": "faq"}) == "safety_layer"

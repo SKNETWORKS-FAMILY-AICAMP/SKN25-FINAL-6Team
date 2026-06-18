@@ -17,7 +17,6 @@ CHATBOT_TABLES = (
     "answer_draft",
     "evidence_docs",
     "safety_results",
-    "final_response",
     "failed_queries",
     "payments",
     "refunds",
@@ -30,7 +29,6 @@ AUTO_ID_COLUMNS = {
     "answer_draft": "draft_id",
     "evidence_docs": "evidence_id",
     "safety_results": "safety_id",
-    "final_response": "response_id",
     "failed_queries": "failed_query_id",
 }
 

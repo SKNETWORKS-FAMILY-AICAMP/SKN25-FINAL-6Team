@@ -36,6 +36,9 @@ def build_state(
             f"ticket_id={ticket_id}\n"
             f"account_id={account_id}\n"
             f"source_type={source_type}\n\n"
+            f"Selected UI category: {ui_category or category or 'unknown'}\n"
+            f"Selected subcategory: {sub_category or 'none'}\n"
+            f"Selected routing target: {routing_target or 'none'}\n\n"
             f"Customer inquiry:\n{masked_content}"
         ),
     })
@@ -91,7 +94,7 @@ def _node_summary(node_name: str, node_update: dict[str, Any], state_snapshot: d
         "voc_agent": "VOC agent",
         "draft_persistence": "State draft",
         "safety_layer": "Safety check",
-        "final_response": "Final response",
+        "ticket_completion": "Ticket completion",
     }
     title = title_by_node.get(node_name, node_name)
 
@@ -129,7 +132,7 @@ def _node_summary(node_name: str, node_update: dict[str, Any], state_snapshot: d
         )
         if merged.get("masking_applied"):
             detail += f" masking_labels={', '.join(merged.get('masking_labels') or [])}."
-    elif node_name == "final_response":
+    elif node_name == "ticket_completion":
         detail = f"Persisted final response. action={merged.get('safety_action') or 'AUTO_RESPONSE'}."
     else:
         detail = f"Updated state fields: {', '.join(sorted(node_update.keys()))}."

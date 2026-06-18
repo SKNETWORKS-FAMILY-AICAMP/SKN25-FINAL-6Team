@@ -8,7 +8,7 @@ from typing import Any
 EVENT_ORCHESTRATION_COMPLETED = "orchestration_completed"
 EVENT_AGENT_DRAFTED = "agent_drafted"
 EVENT_SAFETY_CHECKED = "safety_checked"
-EVENT_FINAL_RESPONSE_CREATED = "final_response_created"
+EVENT_TICKET_COMPLETION_COMPLETED = "ticket_completion_completed"
 EVENT_NODE_STARTED = "node_started"
 EVENT_NODE_COMPLETED = "node_completed"
 EVENT_TOOL_STARTED = "tool_started"
