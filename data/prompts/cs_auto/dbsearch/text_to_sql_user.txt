@@ -1,0 +1,12 @@
+Build a DB retrieval plan for this customer-support inquiry.
+
+question:
+{question}
+
+category: {category}
+summary: {summary}
+routing_target: {routing_target}
+enriched_query: {enriched_query}
+
+schema_context:
+{schema_context}

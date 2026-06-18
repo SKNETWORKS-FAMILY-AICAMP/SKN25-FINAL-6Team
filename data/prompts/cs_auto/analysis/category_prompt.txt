@@ -1,0 +1,18 @@
+다음 CS 문의를 하나의 category로 분류하세요.
+
+허용 category:
+- payment: 결제, 충전, 영수증, 카드 승인, 결제 실패
+- refund: 환불, 취소, 환불 지연, 결제 취소
+- account: 로그인, 비밀번호, 계정 잠김, 인증, 회원정보
+- bug: 오류, 버그, 기능 미동작, 접속 이상, UI/게임 실행 문제
+- gacha: 가챠, 뽑기, 배너, 확률, 보상 지급 관련 문의
+- policy: 운영 정책, 이용 제한, 제재 기준, 약관, 공지/규정 문의
+- general: 위 항목으로 보기 어려운 일반 문의
+
+분류 입력:
+<category_context>
+{context_json}
+</category_context>
+
+반드시 아래 JSON 형식 지시를 따르세요.
+{format_instructions}

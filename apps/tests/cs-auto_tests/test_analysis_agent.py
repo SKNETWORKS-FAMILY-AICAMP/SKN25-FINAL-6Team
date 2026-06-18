@@ -10,6 +10,7 @@ import pytest
 
 ROOT_DIR = Path(__file__).resolve().parents[3]
 os.environ.setdefault("CS_AUTO_KEYWORD_DIR", str(ROOT_DIR / "data" / "keywords"))
+os.environ.setdefault("CS_AUTO_PROMPT_DIR", str(ROOT_DIR / "data" / "prompts" / "cs_auto"))
 for path in reversed(
     [
         ROOT_DIR / "apps" / "cs_auto" / "backend",

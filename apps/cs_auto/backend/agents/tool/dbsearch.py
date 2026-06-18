@@ -29,6 +29,7 @@ from psycopg.rows import dict_row
 from pydantic import BaseModel, ConfigDict, Field
 import yaml
 
+from agents.prompt_loader import load_prompt_template, render_prompt_template
 from common.db.connection import db_connection
 from common.llm.client import invoke_structured_llm
 
@@ -62,31 +63,9 @@ DISALLOWED_SQL_PATTERNS = (
 # backend 하위 tool 모듈 경로를 기준으로 프로젝트 루트의 data/sql을 바라보게 맞춘다.
 SQL_ROOT = Path(os.environ.get("CS_AUTO_SQL_DIR", Path(__file__).resolve().parents[5] / "data" / "sql"))
 
-QUERY_TYPE_DECISION_SYSTEM_PROMPT = """
-You decide which DB retrieval strategy should be used for a customer-support
-operation lookup.
-Return JSON matching the schema exactly.
-Choose "fixed_sql" when the request matches a stable predefined lookup pattern.
-Choose "text_to_sql" when a dynamic structured query plan is needed.
-Do not generate SQL.
-""".strip()
+QUERY_TYPE_DECISION_SYSTEM_PROMPT = load_prompt_template("dbsearch/query_type_decision_system.txt")
 
-TEXT_TO_SQL_SYSTEM_PROMPT = """
-You generate only a database retrieval plan for customer-support operations.
-Return JSON matching the schema exactly.
-Never produce SQL directly.
-Use only tables and columns explicitly listed in schema_context.
-You may combine multiple tables when the question requires cross-checking
-payments, refunds, account state, item delivery, gacha history, ticket state,
-or admin events.
-Treat category only as a retrieval hint, not as a hard restriction.
-Prefer the minimum tables needed to answer the question, but join tables when
-evidence from multiple sources is necessary.
-Mark whether account_id or user_id scoping is required.
-For generic payment-diagnosis questions like "payment not working", do not
-guess exact literal values for payment_status, product_name, amount, or
-payment_method unless the question provides a concrete identifier.
-""".strip()
+TEXT_TO_SQL_SYSTEM_PROMPT = load_prompt_template("dbsearch/text_to_sql_system.txt")
 
 
 # ticket_analysis에서 DB 검색 경로에 필요한 필드만 추린 모델이다.
@@ -309,14 +288,14 @@ def _build_query_type_decision_user_prompt(
     analysis: dict[str, object],
     schema_context: dict[str, object],
 ) -> str:
-    return (
-        "Decide whether this operation DB lookup should use fixed_sql or text_to_sql.\n\n"
-        f"question:\n{str(question or '').strip()[:2000]}\n\n"
-        f"category: {str(analysis.get('category') or 'general')}\n"
-        f"summary: {str(analysis.get('summary') or '').strip()[:1000]}\n"
-        f"routing_target: {str(analysis.get('routing_target') or 'fixed_answer')}\n"
-        f"enriched_query: {str(analysis.get('enriched_query') or '').strip()[:2000]}\n\n"
-        f"schema_context:\n{schema_context}\n"
+    return render_prompt_template(
+        "dbsearch/query_type_decision_user.txt",
+        question=str(question or "").strip()[:2000],
+        category=str(analysis.get("category") or "general"),
+        summary=str(analysis.get("summary") or "").strip()[:1000],
+        routing_target=str(analysis.get("routing_target") or "fixed_answer"),
+        enriched_query=str(analysis.get("enriched_query") or "").strip()[:2000],
+        schema_context=schema_context,
     )
 
 
@@ -327,14 +306,14 @@ def _build_text_to_sql_user_prompt(
     analysis: dict[str, object],
     schema_context: dict[str, object],
 ) -> str:
-    return (
-        "Build a DB retrieval plan for this customer-support inquiry.\n\n"
-        f"question:\n{str(question or '').strip()[:2000]}\n\n"
-        f"category: {str(analysis.get('category') or 'general')}\n"
-        f"summary: {str(analysis.get('summary') or '').strip()[:1000]}\n"
-        f"routing_target: {str(analysis.get('routing_target') or 'fixed_answer')}\n"
-        f"enriched_query: {str(analysis.get('enriched_query') or '').strip()[:2000]}\n\n"
-        f"schema_context:\n{schema_context}\n"
+    return render_prompt_template(
+        "dbsearch/text_to_sql_user.txt",
+        question=str(question or "").strip()[:2000],
+        category=str(analysis.get("category") or "general"),
+        summary=str(analysis.get("summary") or "").strip()[:1000],
+        routing_target=str(analysis.get("routing_target") or "fixed_answer"),
+        enriched_query=str(analysis.get("enriched_query") or "").strip()[:2000],
+        schema_context=schema_context,
     )
 
 

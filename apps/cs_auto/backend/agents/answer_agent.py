@@ -20,6 +20,7 @@ from psycopg.rows import dict_row
 from pydantic import BaseModel, ConfigDict, Field
 
 # backend 작업 디렉터리 기준으로 에이전트 모듈 경로를 맞춘다.
+from agents.prompt_loader import load_prompt_template
 from agents.tool.dbsearch import DbSearchRouter
 from agents.tool.docsearch import DocumentRetriever
 from common.db.connection import db_connection
@@ -35,22 +36,6 @@ logger = logging.getLogger(__name__)
 RoutingTarget = Literal["DB_only", "doc_only", "DB&DOC", "fixed_answer"]
 Category = Literal["payment", "refund", "account",  "gacha", "bug", "policy", "general"]
 SafetyAction = Literal["approved", "fixed_answer"]
-
-ANSWER_DRAFT_SYSTEM_PROMPT = """
-You are a Korean game customer-support answer drafting agent.
-Use only the provided ticket, analysis, and evidence.
-Do not invent policy, compensation, status, or resolution details.
-Return JSON matching the response schema exactly.
-""".strip()
-
-ANSWER_SAFETY_SYSTEM_PROMPT = """
-You are a Korean customer-support answer safety evaluator.
-Score the draft using the safety_results-compatible fields only.
-hallucination_score, toxicity_score, and policy_violation_score are risk scores,
-so 0 means safe and 1 means unsafe.
-factuality_score is a confidence score, so 1 means strongly grounded.
-Return JSON matching the response schema exactly.
-""".strip()
 
 FIXED_ANSWER_FALLBACK_TEXT = "문의 내용을 확인했습니다. 정확한 안내를 위해 운영 검토 후 다시 안내드리겠습니다."
 SAFETY_APPROVAL_THRESHOLD = 0.7
@@ -123,64 +108,14 @@ class AnswerSafetyResult(BaseModel):
 ANSWER_DRAFT_PARSER = PydanticOutputParser(pydantic_object=AnswerDraftResult)
 ANSWER_DRAFT_PROMPT = PromptTemplate(
     input_variables=["context_json"],
-    partial_variables={
-        "format_instructions": ANSWER_DRAFT_PARSER.get_format_instructions(),
-        "system_prompt": """
-You are a Korean game customer-support answer drafting agent.
-Write concise, customer-centered Korean responses.
-Follow this response flow: greeting, acknowledge the issue, brief empathy, practical guidance, short summary.
-Use only the provided ticket, analysis, and evidence.
-Do not invent policy, compensation, status, or resolution details.
-Prefer simple language and avoid unnecessary jargon.
-If the evidence is insufficient, explain what can be confirmed now and what will be checked next.
-Return JSON matching the response schema exactly.
-""".strip(),
-    },
-    template="""{system_prompt}
-
-작성 규칙:
-- 반드시 제공된 evidence에 근거해 답변하세요.
-- evidence에 없는 정책, 보상, 처리 상태, 확정 표현을 지어내지 마세요.
-- 답변은 짧고 자연스러운 고객 응대 문장으로 작성하세요.
-- 첫 문장은 짧게 인사하고 문의 내용을 확인했다는 점을 먼저 밝히세요.
-- 고객의 불편이나 문의 의도에 대해 한 문장으로 공감하세요.
-- 규정 설명을 길게 나열하기보다 현재 확인 가능한 안내와 다음 단계를 먼저 제시하세요.
-- 답변의 끝에는 요약 또는 후속 안내를 넣어 고객이 다음 행동을 바로 알 수 있게 하세요.
-- 근거가 부족하면 review_required로 표시하고 이유를 적으세요.
-- draft_text는 한국어 고객 응답 문안으로 작성하세요.
-
-입력:
-<draft_context>
-{context_json}
-</draft_context>
-
-반드시 아래 형식을 따르세요.
-{format_instructions}
-""",
+    partial_variables={"format_instructions": ANSWER_DRAFT_PARSER.get_format_instructions()},
+    template=load_prompt_template("answer/draft_prompt.txt"),
 )
 ANSWER_SAFETY_PARSER = PydanticOutputParser(pydantic_object=AnswerSafetyResult)
 ANSWER_SAFETY_PROMPT = PromptTemplate(
     input_variables=["context_json"],
     partial_variables={"format_instructions": ANSWER_SAFETY_PARSER.get_format_instructions()},
-    template="""다음 고객 응답 초안의 안전성을 평가하세요.
-
-평가 기준:
-- hallucination_score: 근거 없이 지어낸 내용 위험도, 높을수록 위험
-- toxicity_score: 공격적이거나 부적절한 표현 위험도, 높을수록 위험
-- policy_violation_score: 정책 위반 또는 과도한 확정 표현 위험도, 높을수록 위험
-- factuality_score: evidence에 의해 뒷받침되는 정도, 높을수록 안전
-- average_score: 아래 공식을 적용한 최종 평균값
-  average_score = ((1 - hallucination_score) + (1 - toxicity_score) + (1 - policy_violation_score) + factuality_score) / 4
-- average_score가 0.7 이하이면 safety_action을 fixed_answer로 설정하세요.
-
-입력:
-<safety_context>
-{context_json}
-</safety_context>
-
-반드시 아래 형식을 따르세요.
-{format_instructions}
-""",
+    template=load_prompt_template("answer/safety_prompt.txt"),
 )
 
 def _next_integer_id(cur: Any, table_name: str, id_column: str) -> int:
