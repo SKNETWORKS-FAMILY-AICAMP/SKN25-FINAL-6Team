@@ -18,6 +18,9 @@ from common.observability.logger import EVENT_TOOL_COMPLETED, EVENT_TOOL_STARTED
 
 
 FAQ_SOURCE_TYPES = (
+    "universe_qna_onlydaily",
+    "universe_qna_common",
+    "universe_policy",
     "hoyoverse_qna_onlygenshin",
     "hoyoverse_qna_common",
     "hoyoverse_policy",
@@ -26,6 +29,9 @@ FAQ_SOURCE_TYPES = (
 )
 
 SOURCE_PRIORITY = {
+    "universe_qna_common": 5,
+    "universe_qna_onlydaily": 5,
+    "universe_policy": 4,
     "hoyoverse_qna_common": 5,
     "hoyoverse_qna_onlygenshin": 5,
     "hoyoverse_policy": 4,
@@ -102,6 +108,14 @@ def _query_patterns(query: str, max_tokens: int = 8) -> list[str]:
     return [f"%{token}%" for token in tokens[:max_tokens]]
 
 
+def _query_overlap_ratio(original_text: str, enriched_text: str) -> float:
+    original_tokens = set(_tokenize(refine_query_text(original_text)))
+    enriched_tokens = set(_tokenize(refine_query_text(enriched_text)))
+    if not original_tokens or not enriched_tokens:
+        return 0.0
+    return len(original_tokens & enriched_tokens) / len(original_tokens)
+
+
 _RULE_POLICY_KEYWORDS = frozenset(["개인정보", "처리방침", "이용약관", "약관"])
 
 
@@ -155,6 +169,8 @@ def enrich_retrieval_query(text: str) -> RetrievalQuery:
             ]
         )
         query_text = refine_query_text(result.query_text or text)
+        if _query_overlap_ratio(text, query_text) < float(os.environ.get("RETRIEVAL_MIN_QUERY_OVERLAP", "0.2")):
+            query_text = refine_query_text(text)
         return RetrievalQuery(
             query_text=query_text,
             preferred_source_types=_rule_source_types(text),

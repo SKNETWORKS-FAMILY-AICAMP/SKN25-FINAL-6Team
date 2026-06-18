@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from datetime import datetime, date
 from typing import Any, Literal
 
@@ -16,7 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 # backend 작업 디렉터리 기준으로 도구 모듈 경로를 맞춘다.
 from agents.tool.dbsearch import EvidenceItem
-from common.retrieval import embed_query, enrich_retrieval_query, rerank_documents, search_document_chunks
+from common.retrieval import embed_query, enrich_retrieval_query, refine_retrieval_query, rerank_documents, search_document_chunks
 
 
 Category = Literal["payment", "refund", "account", "bug", "gacha", "policy", "general"]
@@ -73,14 +74,35 @@ class RetrievedDocument(BaseModel):
 class DocumentQueryBuilder:
     """Build normalized query payloads for documents retrieval."""
 
+    @staticmethod
+    def _tokenize(text: str) -> list[str]:
+        return [
+            token.lower()
+            for token in re.findall(r"[0-9A-Za-z\uac00-\ud7a3_]+", str(text or ""))
+            if len(token.strip()) > 1
+        ]
+
+    @classmethod
+    def _overlap_ratio(cls, original_text: str, enriched_text: str) -> float:
+        original_tokens = set(cls._tokenize(original_text))
+        enriched_tokens = set(cls._tokenize(enriched_text))
+        if not original_tokens or not enriched_tokens:
+            return 0.0
+        return len(original_tokens & enriched_tokens) / len(original_tokens)
+
     def build(self, ticket: dict[str, object], analysis: dict[str, object]) -> DocumentSearchQuery:
-        query_text = str(analysis.get("enriched_query")).strip()
+        query_text = str(analysis.get("enriched_query") or ticket.get("raw_query") or ticket.get("title") or "").strip()
+        if not query_text:
+            query_text = str(ticket.get("raw_query") or ticket.get("title") or "").strip()
         enrichment = enrich_retrieval_query(query_text)
+        retrieval_query = str(enrichment.query_text or "").strip()
+        if self._overlap_ratio(query_text, retrieval_query) < float(os.environ.get("CS_AUTO_DOC_MIN_QUERY_OVERLAP", "0.2")):
+            retrieval_query = str(refine_retrieval_query.invoke({"text": query_text}) or "").strip()
         candidate_top_k = int(os.environ.get("CS_AUTO_DOC_RETRIEVAL_TOP_K", "8"))
         final_top_k = int(os.environ.get("CS_AUTO_DOC_RETRIEVAL_FINAL_TOP_K", "5"))
         return DocumentSearchQuery(
             query_text=query_text,
-            retrieval_query=enrichment.query_text,
+            retrieval_query=retrieval_query,
             prefer_faq=True,
             candidate_top_k=candidate_top_k,
             final_top_k=final_top_k,

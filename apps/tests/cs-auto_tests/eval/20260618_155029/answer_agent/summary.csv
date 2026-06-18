@@ -1,0 +1,7 @@
+﻿section,correct,total,accuracy,attempted,executed_ok,non_empty_rows,non_empty_results,expected_cases,expected_cases_with_rows,router_match_and_non_empty_rows,gold_chunk_hit_cases,gold_document_hit_cases,doc_cases,all_gold_document_ids_exist_cases,all_gold_chunk_ids_exist_cases,gold_documents_total,gold_document_ids_verified_total,gold_chunk_ids_verified_total,expected_counts,actual_counts
+router_decision,10,21,0.4762,,,,,,,,,,,,,,,,"{'text_to_sql': 10, 'fixed_sql': 11}",{'text_to_sql': 21}
+fixed_sql,,,,21,21,21,,11,11,,,,,,,,,,,
+text_to_sql,,,,21,21,5,,10,4,,,,,,,,,,,
+chosen_path,,,,21,21,5,,,,4,,,,,,,,,,
+document_retrieval,,,,13,13,,13,,,,0,0,,,,,,,,
+dataset_live_db_verification,,,,,,,,,,,,,13,13,13,20,18,20,,

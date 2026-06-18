@@ -1,0 +1,328 @@
+{
+  "dataset_info": {
+    "name": "cs_auto_routing_target_gold_dataset_live_samples",
+    "created_at": "2026-06-18",
+    "source": "live_db",
+    "database": "game_cs",
+    "schema": "public",
+    "notes": [
+      "Gold rows were derived from live DB reads on 2026-06-18.",
+      "The live document store used here is documents / documents_chunks / documents_embeddings.",
+      "ticket_analysis routing_target rows were not available, so routing labels were assigned from ticket intent plus observed live evidence."
+    ]
+  },
+  "examples": [
+    {
+      "ticket_id": 640775015,
+      "routing_target": "doc_only",
+      "ticket": {
+        "account_id": 101,
+        "user_id": 1,
+        "created_at": "2026-06-17 15:18:46.229000",
+        "question": "User: 비밀번호는 어떻게 변경하나요?\nAI: 현재 문의 내용만으로는 정확한 안내를 드리기 어렵습니다. 필요한 경우 담당자가 확인 후 다시 안내드리겠습니다."
+      },
+      "gold_policy": {
+        "documents": [
+          {
+            "document_id": "QNA-GSN-3",
+            "chunk_id": "QNA-GSN-3::chunk::0",
+            "source_type": "universe_qna_onlydaily",
+            "category": "계정_문제",
+            "title": "어떻게 비밀번호를 변경하나요?"
+          }
+        ],
+        "must_include": [
+          "게임 내 일상이 화면 - 설정 - 계정 - 사용자 센터에서 수정 가능",
+          "또는 유니버스 통행증 홈페이지에서 수정 가능"
+        ],
+        "must_not_include": [
+          "운영자가 비밀번호를 직접 변경해준다는 표현",
+          "계정 정지나 복구 절차를 비밀번호 변경 절차로 혼합하는 표현"
+        ]
+      }
+    },
+    {
+      "ticket_id": 615039168,
+      "routing_target": "doc_only",
+      "ticket": {
+        "account_id": 107,
+        "user_id": 7,
+        "created_at": "2026-06-17 15:47:25.987778",
+        "question": "User: 가장 최근에 나온 공지가 어떤거야?\nAI: 가장 최근에 나온 공지는 「안개의 미궁 속으로」 2.2 버전 업데이트 공지입니다."
+      },
+      "gold_policy": {
+        "documents": [
+          {
+            "document_id": "NVC-NOT-1",
+            "source_type": "naver_cafe_notice",
+            "category": "업데이트",
+            "title": "「『공월의 노래·회선곡』 돌아온 예언의 깃」 「여섯 번째 달」 버전 발견한 오류 & 업데이트 공지 (4월 30일)",
+            "published_at": "2026-04-08 18:20:12"
+          }
+        ],
+        "must_include": [
+          "최신 공지의 실제 제목",
+          "최신 기준 공지라는 점"
+        ],
+        "must_not_include": [
+          "존재하지 않는 2.2 버전 공지",
+          "계정별 운영 로그 설명"
+        ]
+      }
+    },
+    {
+      "ticket_id": 187107020,
+      "routing_target": "DB_only",
+      "ticket": {
+        "account_id": 6365,
+        "user_id": 6265,
+        "created_at": "2026-06-17 15:41:56.061578",
+        "question": "User: 지금 결제가 안 돼요\nAI: 현재 문의 내용만으로는 정확한 안내를 드리기 어렵습니다. 필요한 경우 담당자가 확인 후 다시 안내드리겠습니다."
+      },
+      "gold_facts": {
+        "account": {
+          "account_status": "inactive",
+          "server_region": "ASIA"
+        },
+        "latest_payment": {
+          "payment_id": 912654,
+          "product_name": "공월 축복",
+          "product_type": "subscription",
+          "amount": 5900,
+          "currency": "KRW",
+          "payment_method": "card",
+          "payment_status": "success",
+          "paid_at": "2026-05-12 03:06:20"
+        },
+        "refunds": [],
+        "related_deliveries": [
+          {
+            "delivery_id": 919659,
+            "payment_id": 912654,
+            "item_name": "원석",
+            "quantity": 3000,
+            "delivery_status": "delivered",
+            "delivered_at": "2026-05-12 04:34:20"
+          },
+          {
+            "delivery_id": 913191,
+            "payment_id": 912654,
+            "item_name": "원석",
+            "quantity": 3000,
+            "delivery_status": "delivered",
+            "delivered_at": "2026-05-12 05:07:20"
+          }
+        ]
+      },
+      "must_include": [
+        "최근 확인되는 결제는 success 상태",
+        "관련 지급 로그는 delivered 상태",
+        "현재 확인 가능한 환불 로그는 없음"
+      ],
+      "must_not_include": [
+        "결제 실패로 단정",
+        "환불 진행 중이라고 추정"
+      ]
+    },
+    {
+      "ticket_id": 9213,
+      "routing_target": "DB_only",
+      "ticket": {
+        "account_id": 3344,
+        "user_id": 3244,
+        "created_at": "2026-01-25 01:55:00",
+        "question": "지난 두린 픽업 때 픽뚫나고 지금 40뽑 했다가 금일 25일 새벽에 60뽑 정도 더 해서 100스택 가량 했는데도 5성 캐릭터 안나오다가 10뽑 더하니까 진이 나옵니다\n픽뚫이 왜 2번 나오고, 90스택을 초과 헀는데도 5성이 안나오는겁니까?"
+      },
+      "gold_facts": {
+        "account": {
+          "account_status": "active",
+          "server_region": "ASIA"
+        },
+        "recent_character_banner_5star_rows": [
+          {
+            "gacha_id": 911426,
+            "banner_name": "캐릭터 이벤트 기원",
+            "item_name": "진",
+            "item_type": "character",
+            "rarity": "5성",
+            "pity_count": 82,
+            "pulled_at": "2026-03-12 19:12:27.806228"
+          },
+          {
+            "gacha_id": 934453,
+            "banner_name": "캐릭터 이벤트 기원",
+            "item_name": "카에데하라 카즈하",
+            "item_type": "character",
+            "rarity": "5성",
+            "pity_count": 63,
+            "pulled_at": "2026-04-24 02:02:53.806228"
+          }
+        ],
+        "recent_payment_context": [
+          {
+            "payment_id": 910757,
+            "product_name": "창세의 결정 6480개",
+            "payment_status": "fail",
+            "paid_at": "2026-05-21 03:26:43.806228"
+          },
+          {
+            "payment_id": 911942,
+            "product_name": "창세의 결정 980개",
+            "payment_status": "success",
+            "paid_at": "2026-03-22 06:43:45.806228"
+          }
+        ]
+      },
+      "must_include": [
+        "실제 가챠 로그에 있는 5성 결과만 언급",
+        "확인 가능한 pity_count 범위 내에서만 설명"
+      ],
+      "must_not_include": [
+        "로그에 없는 추가 5성이나 픽뚫 기록 생성",
+        "확률 시스템 오류를 확정"
+      ]
+    },
+    {
+      "ticket_id": 779266795,
+      "routing_target": "DB&DOC",
+      "ticket": {
+        "account_id": 107,
+        "user_id": 7,
+        "created_at": "2026-06-16 15:42:31.800914",
+        "question": "Galaxy Store에서 구매한 상품이 로드되지 않는데, 어떻게 해야 하나요"
+      },
+      "gold_facts": {
+        "account": {
+          "account_status": "active",
+          "server_region": "ASIA"
+        },
+        "latest_payment": {
+          "payment_id": 913927,
+          "product_name": "창세의 결정 300개",
+          "product_type": "currency",
+          "amount": 5900,
+          "currency": "KRW",
+          "payment_method": "card",
+          "payment_status": "success",
+          "paid_at": "2026-04-10 05:05:24"
+        },
+        "latest_delivery": {
+          "delivery_id": 913878,
+          "payment_id": 913927,
+          "item_name": "창세의 결정",
+          "quantity": 300,
+          "delivery_status": "delivered",
+          "delivered_at": "2026-04-10 06:36:24"
+        }
+      },
+      "gold_policy": {
+        "documents": [
+          {
+            "document_id": "QNA-GSN-5",
+            "chunk_id": "QNA-GSN-5::chunk::0",
+            "source_type": "universe_qna_onlydaily",
+            "category": "결제_문제",
+            "title": "결제 후 아이템이 지급되지 않았습니다"
+          }
+        ],
+        "must_include": [
+          "결제 지연 시 1~2시간 뒤 재확인 안내",
+          "재로그인 후 상점 진입 및 기존 패키지 탭 재확인 안내",
+          "지속 시 문제 피드백 또는 추가 확인 필요 안내"
+        ]
+      },
+      "must_not_include": [
+        "현재도 미지급이 확정됐다고 단정",
+        "환불 완료나 보상 확정 표현"
+      ]
+    },
+    {
+      "ticket_id": 8760,
+      "routing_target": "DB&DOC",
+      "ticket": {
+        "account_id": 4836,
+        "user_id": 4736,
+        "created_at": "2024-06-05 12:48:00",
+        "question": "카카오페이\nUID 809651821\n어케 환불받음??"
+      },
+      "gold_facts": {
+        "account": {
+          "account_status": "active",
+          "server_region": "ASIA"
+        },
+        "payments": [
+          {
+            "payment_id": 910512,
+            "product_name": "진주 기행",
+            "product_type": "battle_pass",
+            "amount": 12000,
+            "currency": "KRW",
+            "payment_method": "card",
+            "payment_status": "fail",
+            "paid_at": "2024-06-03 18:32:10"
+          },
+          {
+            "payment_id": 910513,
+            "product_name": "진주의 노래",
+            "product_type": "battle_pass_bundle",
+            "amount": 25000,
+            "currency": "KRW",
+            "payment_method": "store_credit",
+            "payment_status": "success",
+            "paid_at": "2024-05-30 08:50:21"
+          }
+        ],
+        "refunds": [],
+        "deliveries": [
+          {
+            "delivery_id": 911210,
+            "payment_id": 910512,
+            "item_name": "진주 기행",
+            "delivery_status": "failed"
+          },
+          {
+            "delivery_id": 910448,
+            "payment_id": 910512,
+            "item_name": "진주 기행",
+            "delivery_status": "failed"
+          },
+          {
+            "delivery_id": 914114,
+            "payment_id": 910513,
+            "item_name": "진주의 노래",
+            "delivery_status": "delivered",
+            "delivered_at": "2024-05-30 11:42:21"
+          }
+        ]
+      },
+      "gold_policy": {
+        "documents": [
+          {
+            "document_id": "QNA-GSN-9",
+            "chunk_id": "QNA-GSN-9::chunk::0",
+            "source_type": "universe_qna_onlydaily",
+            "category": "결제_문제",
+            "title": "기행 관련 FAQ"
+          },
+          {
+            "document_id": "QNA-GSN-9",
+            "chunk_id": "QNA-GSN-9::chunk::1",
+            "source_type": "universe_qna_onlydaily",
+            "category": "결제_문제",
+            "title": "기행 관련 FAQ"
+          }
+        ],
+        "must_include": [
+          "진주 기행과 진주의 노래는 다른 상품임을 구분",
+          "FAQ에 있는 기행 관련 반환 규칙 범위 내에서만 설명",
+          "실제 환불 완료 여부는 DB에서 확인되지 않음을 유지"
+        ]
+      },
+      "must_not_include": [
+        "이미 환불 처리됐다고 단정",
+        "실패 결제를 성공 결제로 오인",
+        "기행 보상 수령 가능 상태를 추정"
+      ]
+    }
+  ]
+}

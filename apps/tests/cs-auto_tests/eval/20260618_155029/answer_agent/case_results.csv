@@ -1,0 +1,283 @@
+﻿ticket_id,title,routing_target,category,expected_query_type,actual_query_type,router_match,router_confidence,router_reason,router_error,fixed_sql_ok,fixed_sql_row_count,fixed_sql_evidence_count,fixed_sql_error,text_to_sql_ok,text_to_sql_row_count,text_to_sql_evidence_count,text_to_sql_error,chosen_path_ok,chosen_path_row_count,chosen_path_evidence_count,chosen_path_error,gold_doc_total,gold_doc_verified_count,gold_chunk_verified_count,all_gold_document_ids_exist,all_gold_chunk_ids_exist,missing_gold_document_ids,missing_gold_chunk_ids,document_eval_ok,document_query_text,document_retrieval_query,document_result_count,document_gold_chunk_hit,document_gold_document_hit,matched_gold_chunk_ids,matched_gold_document_ids,document_error,question,fixed_sql_sql,text_to_sql_sql
+615039168,가장 최근에 나온 공지가 어떤거야?,doc_only,policy,,,,,,,,,,,,,,,,,,,2,1,2,True,True,,,True,가장 최근에 나온 공지가 어떤거야?,최신 공지,5,False,False,,,,가장 최근에 나온 공지가 어떤거야?,,
+108404885,최근에 업데이트된 공지는 어떤거야?,doc_only,policy,,,,,,,,,,,,,,,,,,,2,1,2,True,True,,,True,최근에 업데이트된 공지는 어떤거야?,최근 업데이트 공지,5,False,False,,,,최근에 업데이트된 공지는 어떤거야?,,
+640775015,비밀번호는 어떻게 변경하나요?,doc_only,account,,,,,,,,,,,,,,,,,,,1,1,1,True,True,,,True,비밀번호는 어떻게 변경하나요?,비밀번호 변경 방법,5,False,False,,,,비밀번호는 어떻게 변경하나요?,,
+569347056,우편함 보상은 며칠이내에 받아야 돼?,doc_only,policy,,,,,,,,,,,,,,,,,,,1,1,1,True,True,,,True,우편함 보상은 며칠이내에 받아야 돼?,우편함 보상 수령 기한,5,False,False,,,,우편함 보상은 며칠이내에 받아야 돼?,,
+314818966,결제가 안돼요,DB_only,payment,text_to_sql,text_to_sql,True,0.85,The query '결제가 안돼요' (translated as 'Payment is not working') is a natural language query that requires understanding the context and potentially involves multiple tables and conditions to determine the issue with the payment. This requires a dynamic query generation to handle various potential causes and data relationships.,,True,1,1,,True,5,5,,True,5,5,,,,,,,,,,,,,,,,,,결제가 안돼요,"SELECT
+  payment_id,
+  account_id,
+  product_name,
+  product_type,
+  amount,
+  currency,
+  payment_method,
+  payment_status,
+  transaction_id,
+  paid_at
+FROM payments
+WHERE account_id = %s
+ORDER BY paid_at DESC NULLS LAST, payment_id DESC
+LIMIT %s","SELECT payment_id, product_name, amount, currency, payment_method, payment_status, transaction_id, paid_at FROM payments WHERE payment_status != %s ORDER BY paid_at DESC LIMIT %s"
+187107020,지금 결제가 안 돼요,DB_only,payment,text_to_sql,text_to_sql,True,0.85,"The query '지금 결제가 안 돼요' (translated as 'Payment is not working now') is a natural language query that requires understanding the current status of a payment issue. This involves potentially complex joins and conditions across multiple tables such as 'payments', 'refunds', and 'item_delivery_logs'. The query does not match a stable predefined lookup pattern, thus requiring a dynamic structured query plan.",,True,1,1,,True,5,5,,True,5,5,,,,,,,,,,,,,,,,,,지금 결제가 안 돼요,"SELECT
+  payment_id,
+  account_id,
+  product_name,
+  product_type,
+  amount,
+  currency,
+  payment_method,
+  payment_status,
+  transaction_id,
+  paid_at
+FROM payments
+WHERE account_id = %s
+ORDER BY paid_at DESC NULLS LAST, payment_id DESC
+LIMIT %s","SELECT payment_id, product_name, amount, currency, payment_method, payment_status, transaction_id, paid_at FROM payments WHERE payment_status = %s ORDER BY paid_at DESC LIMIT %s"
+890075186,지금 결제가 안 돼요,DB_only,payment,text_to_sql,text_to_sql,True,0.9,"The query '지금 결제가 안 돼요' (translated as 'Payment is not working now') is a natural language query that requires understanding the current status of a payment issue. This involves checking multiple potential causes such as payment status, transaction issues, or account-related problems. The schema context provides multiple tables and join paths, indicating a need for a dynamic query to explore various possibilities. A fixed SQL would not be sufficient to cover the complexity and variability of the potential queries needed to diagnose the issue.",,True,1,1,,True,5,5,,True,5,5,,,,,,,,,,,,,,,,,,지금 결제가 안 돼요,"SELECT
+  payment_id,
+  account_id,
+  product_name,
+  product_type,
+  amount,
+  currency,
+  payment_method,
+  payment_status,
+  transaction_id,
+  paid_at
+FROM payments
+WHERE account_id = %s
+ORDER BY paid_at DESC NULLS LAST, payment_id DESC
+LIMIT %s","SELECT payment_id, product_name, amount, currency, payment_method, payment_status, transaction_id, paid_at FROM payments WHERE payment_status = %s ORDER BY paid_at DESC LIMIT %s"
+846412870,결제가 안돼,DB_only,payment,text_to_sql,text_to_sql,True,0.85,The query '결제가 안돼' is a natural language query that requires understanding the context and potentially involves multiple tables and conditions to determine why a payment is not processed. This requires a dynamic query generation to handle various possible scenarios and conditions related to payment issues.,,True,1,1,,True,0,0,,True,0,0,,,,,,,,,,,,,,,,,,결제가 안돼,"SELECT
+  payment_id,
+  account_id,
+  product_name,
+  product_type,
+  amount,
+  currency,
+  payment_method,
+  payment_status,
+  transaction_id,
+  paid_at
+FROM payments
+WHERE account_id = %s
+ORDER BY paid_at DESC NULLS LAST, payment_id DESC
+LIMIT %s","SELECT payment_id, product_name, amount, currency, payment_method, payment_status, transaction_id, paid_at FROM payments WHERE payment_status = %s ORDER BY paid_at DESC LIMIT %s"
+318390629,결제가 안돼,DB_only,payment,text_to_sql,text_to_sql,True,0.85,The query '결제가 안돼' is a natural language query that requires understanding the context and potentially involves multiple tables and conditions to determine why a payment is not processed. This requires dynamic query generation to handle various possible scenarios and conditions.,,True,1,1,,True,0,0,,True,0,0,,,,,,,,,,,,,,,,,,결제가 안돼,"SELECT
+  payment_id,
+  account_id,
+  product_name,
+  product_type,
+  amount,
+  currency,
+  payment_method,
+  payment_status,
+  transaction_id,
+  paid_at
+FROM payments
+WHERE account_id = %s
+ORDER BY paid_at DESC NULLS LAST, payment_id DESC
+LIMIT %s","SELECT payment_id, product_name, amount, currency, payment_method, payment_status, transaction_id, paid_at FROM payments WHERE payment_status = %s ORDER BY paid_at DESC LIMIT %s"
+9213,뽑기 시스템 이상한데 확인 부탁드립니다. 지난 두린 픽업 때 픽뚫나고 지금 40뽑 했다가 금일 25일 새벽에...,DB_only,gacha,text_to_sql,text_to_sql,True,0.9,"The query involves a complex analysis of gacha logs, including multiple conditions such as specific counts, character rarity, and sequence of events. This requires dynamic query generation to accurately capture the user's inquiry and analyze the data accordingly.",,True,20,20,,True,0,0,,True,0,0,,,,,,,,,,,,,,,,,,"뽑기 시스템 이상한데 확인 부탁드립니다. 지난 두린 픽업 때 픽뚫나고 지금 40뽑 했다가 금일 25일 새벽에 60뽑 정도 더 해서 100스택 가량 했는데도 5성 캐릭터 안나오다가 10뽑 더하니까 진이 나옵니다 픽뚫이 왜 2번 나오고, 90스택을 초과 헀는데도 5성이 안나오는겁니까? ​ 위의 이미지가 이때까지 픽뚫난 이후로 스택 쌓아놓은 이미지입니다. 뽑기는 지금 결제하면서 뽑기 진행햇고, 당연히 콜롬비나 픽에서 뽑기를 진행했구요. 오늘 뽑기 기록 업데이트 되는 대로 다시 업데이트 하겠습니다. ​ ​ ​","SELECT
+  gacha_id,
+  account_id,
+  banner_name,
+  item_name,
+  item_type,
+  rarity,
+  pity_count,
+  pulled_at
+FROM gacha_logs
+WHERE account_id = %s
+ORDER BY pulled_at DESC NULLS LAST, gacha_id DESC
+LIMIT %s","SELECT gacha_id, banner_name, item_name, rarity, pity_count, pulled_at FROM gacha_logs WHERE banner_name = %s AND rarity = %s ORDER BY pulled_at ASC LIMIT %s"
+9048,진주기행 결제 오류 뜨더니 돈만 나갔습니다 갤스로 진주 기행(15000원)에 출첵 쿠폰 30% 먹여서 컬쳐랜...,DB_only,gacha,text_to_sql,text_to_sql,True,0.85,"The query involves multiple potential tables and conditions, such as payment status, item delivery, and possibly refunds, which require dynamic query generation to accurately retrieve the necessary information.",,True,20,20,,True,0,0,,True,0,0,,,,,,,,,,,,,,,,,,진주기행 결제 오류 뜨더니 돈만 나갔습니다 갤스로 진주 기행(15000원)에 출첵 쿠폰 30% 먹여서 컬쳐랜드로 결제 했는데 10500원 결제는 됐는데 게임에선 결제 오류 뜨더니 결제 실패 했다네요 어떻게 해야 하나요,"SELECT
+  gacha_id,
+  account_id,
+  banner_name,
+  item_name,
+  item_type,
+  rarity,
+  pity_count,
+  pulled_at
+FROM gacha_logs
+WHERE account_id = %s
+ORDER BY pulled_at DESC NULLS LAST, gacha_id DESC
+LIMIT %s","SELECT payments.payment_id, payments.product_name, payments.amount, payments.payment_method, payments.payment_status, item_delivery_logs.delivery_status, refunds.refund_status FROM payments JOIN item_delivery_logs ON payments.payment_id = item_delivery_logs.payment_id JOIN refunds ON payments.payment_id = refunds.payment_id WHERE payments.product_name = %s AND payments.amount = %s LIMIT %s"
+8959,버그인것같아요 각청2번 픽뚫에 운명의자리 선택했는데 관홍창이 나오고.. ​ 이건 사기아니면 버그같아요ㅠㅠ,DB_only,gacha,text_to_sql,text_to_sql,True,0.9,"The query involves a specific user complaint about a potential bug or fraud in a gacha system, which requires checking multiple tables like 'gacha_logs' and 'item_delivery_logs' for specific conditions. This dynamic and complex query pattern is best suited for text_to_sql to ensure all relevant data is considered.",,True,19,19,,True,0,0,"UndefinedTable: missing FROM-clause entry for table ""qa_ticket""
+LINE 1: ...count, gacha_logs.pulled_at FROM gacha_logs WHERE qa_ticket....
+                                                             ^",True,0,0,,,,,,,,,,,,,,,,,,버그인것같아요 각청2번 픽뚫에 운명의자리 선택했는데 관홍창이 나오고.. ​ 이건 사기아니면 버그같아요ㅠㅠ,"SELECT
+  gacha_id,
+  account_id,
+  banner_name,
+  item_name,
+  item_type,
+  rarity,
+  pity_count,
+  pulled_at
+FROM gacha_logs
+WHERE account_id = %s
+ORDER BY pulled_at DESC NULLS LAST, gacha_id DESC
+LIMIT %s","SELECT gacha_logs.gacha_id, gacha_logs.banner_name, gacha_logs.item_name, gacha_logs.item_type, gacha_logs.rarity, gacha_logs.pity_count, gacha_logs.pulled_at FROM gacha_logs WHERE qa_ticket.ticket_id = %s ORDER BY gacha_logs.pulled_at DESC LIMIT %s"
+8913,캔디스를 받지 못하는 버그 ​ 축제 선물 열기도를 달성했지만 기원에서 뽑기 수령하는식의 화면이 뜨지않고 완료...,DB_only,gacha,text_to_sql,text_to_sql,True,0.85,"The query involves a specific user issue related to not receiving an item from a gacha event, which may require a dynamic query to check multiple tables like 'gacha_logs' and 'item_delivery_logs' for specific conditions. The complexity and specificity of the issue suggest that a structured query plan is needed to accurately retrieve the necessary data.",,True,13,13,,True,10,10,,True,10,10,,,,,,,,,,,,,,,,,,캔디스를 받지 못하는 버그 ​ 축제 선물 열기도를 달성했지만 기원에서 뽑기 수령하는식의 화면이 뜨지않고 완료표시만 된채로 캔디스를 얻지 못했습니다 이에대한 조치를 부탁드립니다,"SELECT
+  gacha_id,
+  account_id,
+  banner_name,
+  item_name,
+  item_type,
+  rarity,
+  pity_count,
+  pulled_at
+FROM gacha_logs
+WHERE account_id = %s
+ORDER BY pulled_at DESC NULLS LAST, gacha_id DESC
+LIMIT %s","SELECT gacha_logs.gacha_id, gacha_logs.banner_name, gacha_logs.item_name, gacha_logs.item_type, gacha_logs.rarity, gacha_logs.pulled_at, item_delivery_logs.delivery_id, item_delivery_logs.item_name, item_delivery_logs.delivery_status, item_delivery_logs.expected_at, item_delivery_logs.delivered_at FROM qa_ticket JOIN gacha_logs ON qa_ticket.account_id = gacha_logs.account_id JOIN item_delivery_logs ON qa_ticket.account_id = item_delivery_logs.account_id WHERE qa_ticket.ticket_id = %s ORDER BY gacha_logs.pulled_at DESC LIMIT %s"
+8829,뽑기 확률 이상 인게임 설명상으로 55% 확률로 픽업캐가 나와야 합니다. ​ paimon.moe 사이트에서...,DB_only,gacha,text_to_sql,text_to_sql,True,0.9,"The query involves complex statistical analysis and comparison of gacha probabilities, which requires dynamic query generation to accurately retrieve and process data from multiple tables such as 'gacha_logs'. This is beyond a simple predefined lookup pattern.",,True,20,20,,True,0,0,,True,0,0,,,,,,,,,,,,,,,,,,"뽑기 확률 이상 인게임 설명상으로 55% 확률로 픽업캐가 나와야 합니다. ​ paimon.moe 사이트에서 집계한 18,371 사용자의 953,677회 가챠 결과에 따르면 반천장으로 픽업캐를 획득한 실제 확률이 50.54%입니다. 이는 4.8버전 픽업한 에밀리 52.11%보다 낮은 확률입니다. ​ 캐릭터 출현 확률은 매우 민감한 사항입니다. 답변 부탁드립니다. ​","SELECT
+  gacha_id,
+  account_id,
+  banner_name,
+  item_name,
+  item_type,
+  rarity,
+  pity_count,
+  pulled_at
+FROM gacha_logs
+WHERE account_id = %s
+ORDER BY pulled_at DESC NULLS LAST, gacha_id DESC
+LIMIT %s","SELECT banner_name, item_name, rarity, pity_count FROM gacha_logs WHERE banner_name = %s LIMIT %s"
+8812,공월 결제가 두번..... 분명 기행 하나샀는데.....두번결제되구 750결정이 들어왔네요....짜피 한세트...,DB_only,refund,fixed_sql,text_to_sql,False,0.85,"The query involves understanding a complex scenario with multiple potential database interactions, such as checking for duplicate payments, verifying item delivery, and ensuring no other users are affected. This requires dynamic query generation to handle the specific details and conditions mentioned in the user's request.",,True,1,1,,True,0,0,,True,0,0,,,,,,,,,,,,,,,,,,공월 결제가 두번..... 분명 기행 하나샀는데.....두번결제되구 750결정이 들어왔네요....짜피 한세트 더 사도 문제없는데 다른사람이 피해보기전 고쳐주셨으면 합니다. ​ ps. 환불은 안할꺼고 750결정 들어온것도 쓸 생각입니다.,"SELECT
+  r.refund_id,
+  r.payment_id,
+  p.account_id,
+  p.product_name,
+  p.payment_status,
+  p.paid_at,
+  r.refund_status,
+  r.refund_reason,
+  r.requested_at,
+  r.processed_at
+FROM refunds r
+JOIN payments p ON p.payment_id = r.payment_id
+WHERE p.account_id = %s
+ORDER BY r.requested_at DESC NULLS LAST, r.refund_id DESC
+LIMIT %s","SELECT payments.payment_id, payments.product_name, payments.amount, payments.payment_status, item_delivery_logs.item_name, item_delivery_logs.quantity, item_delivery_logs.delivery_status FROM payments JOIN item_delivery_logs ON payments.payment_id = item_delivery_logs.payment_id WHERE payments.product_name LIKE %s AND payments.payment_status = %s LIMIT %s"
+8760,진주기행 12000원 중복결제 카카오페이 ​ ​ UID 809651821 ​ 어케 환불받음??,DB_only,account,fixed_sql,text_to_sql,False,0.85,"The query involves a specific UID and a refund process, which requires dynamic filtering and potentially joining multiple tables to find the relevant payment and refund information. This complexity and specificity suggest the need for a dynamic query generation.",,True,1,1,,True,0,0,,True,0,0,,,,,,,,,,,,,,,,,,진주기행 12000원 중복결제 카카오페이 ​ ​ UID 809651821 ​ 어케 환불받음??,"SELECT
+  account_id,
+  user_id,
+  game_name,
+  uid,
+  server_region,
+  account_status
+FROM game_accounts
+WHERE account_id = %s
+LIMIT %s","SELECT refunds.refund_id, refunds.refund_status, refunds.refund_reason, refunds.requested_at, refunds.processed_at FROM game_accounts JOIN payments ON game_accounts.account_id = payments.account_id JOIN refunds ON payments.payment_id = refunds.payment_id WHERE game_accounts.uid = %s AND payments.product_name = %s AND payments.amount = %s AND payments.payment_method = %s LIMIT %s"
+779266795,"Galaxy Store에서 구매한 상품이 로드되지 않는데, 어떻게 해야 하나요",DB&DOC,account,fixed_sql,text_to_sql,False,0.85,"The query involves troubleshooting a dynamic issue related to item delivery in the Galaxy Store, which may require complex joins and conditions across multiple tables such as 'payments', 'item_delivery_logs', and 'qa_ticket'. This complexity and variability in the query structure necessitate a dynamic query generation approach.",,True,1,1,,True,0,0,,True,0,0,,1,1,1,True,True,,,True,"Galaxy Store에서 구매한 상품이 로드되지 않는데, 어떻게 해야 하나요",galaxy store 구매한 상품 로드 문제 해결,5,False,False,,,,"Galaxy Store에서 구매한 상품이 로드되지 않는데, 어떻게 해야 하나요","SELECT
+  account_id,
+  user_id,
+  game_name,
+  uid,
+  server_region,
+  account_status
+FROM game_accounts
+WHERE account_id = %s
+LIMIT %s","SELECT payments.product_name, payments.payment_status, item_delivery_logs.delivery_status, item_delivery_logs.expected_at, item_delivery_logs.delivered_at FROM payments JOIN item_delivery_logs ON payments.account_id = item_delivery_logs.account_id WHERE payments.product_name LIKE %s AND item_delivery_logs.delivery_status != %s LIMIT %s"
+8812,공월 결제가 두번..... 분명 기행 하나샀는데.....두번결제되구 750결정이 들어왔네요....짜피 한세트...,DB&DOC,refund,fixed_sql,text_to_sql,False,0.85,"The query involves multiple tables and requires dynamic filtering based on the user's specific situation, such as checking for duplicate payments and associated refunds. This complexity and the need for a tailored query suggest using text_to_sql.",,True,1,1,,True,10,10,,True,10,10,,2,2,2,True,True,,,True,공월 결제가 두번..... 분명 기행 하나샀는데.....두번결제되구 750결정이 들어왔네요....짜피 한세트 더 사도 문제없는데 다른사람이 피해보기전 고쳐주셨으면 합니다. ​ ps. 환불은 안할꺼고 750결정 들어온것도 쓸 생각입니다.,결제 오류,5,False,False,,,,공월 결제가 두번..... 분명 기행 하나샀는데.....두번결제되구 750결정이 들어왔네요....짜피 한세트 더 사도 문제없는데 다른사람이 피해보기전 고쳐주셨으면 합니다. ​ ps. 환불은 안할꺼고 750결정 들어온것도 쓸 생각입니다.,"SELECT
+  r.refund_id,
+  r.payment_id,
+  p.account_id,
+  p.product_name,
+  p.payment_status,
+  p.paid_at,
+  r.refund_status,
+  r.refund_reason,
+  r.requested_at,
+  r.processed_at
+FROM refunds r
+JOIN payments p ON p.payment_id = r.payment_id
+WHERE p.account_id = %s
+ORDER BY r.requested_at DESC NULLS LAST, r.refund_id DESC
+LIMIT %s","SELECT payments.payment_id, payments.product_name, payments.amount, payments.paid_at, refunds.refund_status FROM payments JOIN refunds ON payments.payment_id = refunds.payment_id WHERE payments.product_name LIKE %s AND payments.amount > %s ORDER BY payments.paid_at DESC LIMIT %s"
+8679,공월 환불에 대해 -3월1일쯤에 공월을 샀는데 -3월 2일까지 공월이 안들어옴 -3월 2?3일쯤 구글에 환불...,DB&DOC,account,fixed_sql,text_to_sql,False,0.85,"The query involves multiple conditions and potential joins across several tables, such as payments, refunds, and item delivery logs, to determine the status of a refund and item delivery. This complexity requires a dynamic query generation.",,True,1,1,,True,0,0,,True,0,0,,2,2,2,True,True,,,True,공월 환불에 대해 -3월1일쯤에 공월을 샀는데 -3월 2일까지 공월이 안들어옴 -3월 2?3일쯤 구글에 환불신청함 -그리고 환불이 됐다고 떠서 원신 접속함 -환불 되서 공월을 안주는 줄 알았는데 공월을 줌 -게임 접속해야하니까 일단 받음 -창세결정은 아직 원석으로 안바꿈 - 내 원석 수가 공월에서 준 원석 수 보다 마이너스 되면 -계정정지 먹는다는데 어캄 ​,공월 환불 문제,5,False,False,,,,공월 환불에 대해 -3월1일쯤에 공월을 샀는데 -3월 2일까지 공월이 안들어옴 -3월 2?3일쯤 구글에 환불신청함 -그리고 환불이 됐다고 떠서 원신 접속함 -환불 되서 공월을 안주는 줄 알았는데 공월을 줌 -게임 접속해야하니까 일단 받음 -창세결정은 아직 원석으로 안바꿈 - 내 원석 수가 공월에서 준 원석 수 보다 마이너스 되면 -계정정지 먹는다는데 어캄 ​,"SELECT
+  account_id,
+  user_id,
+  game_name,
+  uid,
+  server_region,
+  account_status
+FROM game_accounts
+WHERE account_id = %s
+LIMIT %s","SELECT payments.payment_id, payments.product_name, payments.paid_at, refunds.refund_status, refunds.processed_at, item_delivery_logs.item_name, item_delivery_logs.delivered_at, game_accounts.account_status FROM payments JOIN refunds ON payments.payment_id = refunds.payment_id JOIN item_delivery_logs ON payments.payment_id = item_delivery_logs.payment_id JOIN game_accounts ON payments.account_id = game_accounts.account_id WHERE payments.product_name = %s AND payments.paid_at >= %s AND payments.paid_at <= %s LIMIT %s"
+8646,카카오 결제 문의 카카오로 결제 했는데 중간에 원신이 꺼져버려서 계좌에서 돈만 빠져나가고 원신에는 적용이 안...,DB&DOC,refund,fixed_sql,text_to_sql,False,0.85,"The query involves multiple tables and requires dynamic filtering based on the specific transaction and refund status. It is not a simple lookup and needs to consider various conditions and joins, which are not predefined.",,True,1,1,,True,0,0,,True,0,0,,2,2,2,True,True,,,True,카카오 결제 문의 카카오로 결제 했는데 중간에 원신이 꺼져버려서 계좌에서 돈만 빠져나가고 원신에는 적용이 안되었습니다 ​ 이거 어떻게 해야하나요? 환불 가능한가요?,카카오 결제 오류 환불 방법,5,False,False,,,,카카오 결제 문의 카카오로 결제 했는데 중간에 원신이 꺼져버려서 계좌에서 돈만 빠져나가고 원신에는 적용이 안되었습니다 ​ 이거 어떻게 해야하나요? 환불 가능한가요?,"SELECT
+  r.refund_id,
+  r.payment_id,
+  p.account_id,
+  p.product_name,
+  p.payment_status,
+  p.paid_at,
+  r.refund_status,
+  r.refund_reason,
+  r.requested_at,
+  r.processed_at
+FROM refunds r
+JOIN payments p ON p.payment_id = r.payment_id
+WHERE p.account_id = %s
+ORDER BY r.requested_at DESC NULLS LAST, r.refund_id DESC
+LIMIT %s","SELECT payments.payment_id, payments.payment_status, refunds.refund_status, item_delivery_logs.delivery_status FROM payments JOIN refunds ON payments.payment_id = refunds.payment_id JOIN item_delivery_logs ON payments.payment_id = item_delivery_logs.payment_id WHERE payments.payment_method = %s AND payments.account_id = %s LIMIT %s"
+8594,60일 넘게 이벤트 당첨 품목이 오지 않고 있습니다 ​ ​ 위 이미지는 10월 20일에 이벤트 공지사항에 게...,DB&DOC,account,fixed_sql,text_to_sql,False,0.85,"The query involves a complex scenario with multiple potential tables and conditions, such as checking delivery logs and possibly cross-referencing with account information. This requires a dynamic query to accurately capture the specific conditions and data relationships.",,True,1,1,,True,0,0,,True,0,0,,1,1,1,True,True,,,True,"60일 넘게 이벤트 당첨 품목이 오지 않고 있습니다 ​ ​ 위 이미지는 10월 20일에 이벤트 공지사항에 게재된 ""3주년 기념 원신 공식카페 출석 이벤트 당첨자"" 명단입니다. 보시다시피, ""타크라크"" 닉네임으로 문화상품권 5천원에 당첨되었습니다. 공지 글 안내에 따르면 영업일 기준 30일 이내로 [네이버 쪽지]로 발송된다고 적혀 있었습니다. ​ 그러나 2달을 훨씬 넘어간 지금까지도 쪽지의 발송은 요원해 보이네요. 다른 당첨품인 ""아크릴 키링""은 이미 발송이 된 것 같더군요. 그러나 저뿐만 아니라 다른 여러 사람들도 문상 쪽지를 받지 못했습니다. ​ 언젠간 주겠지 하고 기다리고 있었습니다만, 이젠 2달을 넘어 새해까지 밝은 마당에 여전히 지급되지 않는 것은 선을 넘었다고 생각하여 문의글을 씁니다. ​",이벤트 당첨 상품 미수령 문의,5,False,False,,,,"60일 넘게 이벤트 당첨 품목이 오지 않고 있습니다 ​ ​ 위 이미지는 10월 20일에 이벤트 공지사항에 게재된 ""3주년 기념 원신 공식카페 출석 이벤트 당첨자"" 명단입니다. 보시다시피, ""타크라크"" 닉네임으로 문화상품권 5천원에 당첨되었습니다. 공지 글 안내에 따르면 영업일 기준 30일 이내로 [네이버 쪽지]로 발송된다고 적혀 있었습니다. ​ 그러나 2달을 훨씬 넘어간 지금까지도 쪽지의 발송은 요원해 보이네요. 다른 당첨품인 ""아크릴 키링""은 이미 발송이 된 것 같더군요. 그러나 저뿐만 아니라 다른 여러 사람들도 문상 쪽지를 받지 못했습니다. ​ 언젠간 주겠지 하고 기다리고 있었습니다만, 이젠 2달을 넘어 새해까지 밝은 마당에 여전히 지급되지 않는 것은 선을 넘었다고 생각하여 문의글을 씁니다. ​","SELECT
+  account_id,
+  user_id,
+  game_name,
+  uid,
+  server_region,
+  account_status
+FROM game_accounts
+WHERE account_id = %s
+LIMIT %s","SELECT item_delivery_logs.item_name, item_delivery_logs.delivery_status, item_delivery_logs.expected_at, item_delivery_logs.delivered_at FROM game_accounts JOIN item_delivery_logs ON game_accounts.account_id = item_delivery_logs.account_id WHERE game_accounts.account_id = %s AND item_delivery_logs.item_name = %s LIMIT %s"
+8387,페이몬 공지만 쓰지말고 보상 지급좀 신경써 문상 5천원 짜리라고 슬쩍 넘기자는건지 아님 진짜 까먹은건지는 모...,DB&DOC,account,fixed_sql,text_to_sql,False,0.9,"The query involves multiple potential conditions and checks, such as verifying if specific winners were compensated, checking for unpaid winners, and confirming if the issue is isolated or widespread. This requires a dynamic query to handle various conditions and joins across multiple tables, which is best suited for text_to_sql.",,True,1,1,,True,0,0,,True,0,0,,1,1,1,True,True,,,True,페이몬 공지만 쓰지말고 보상 지급좀 신경써 문상 5천원 짜리라고 슬쩍 넘기자는건지 아님 진짜 까먹은건지는 모르겠지만 아직 기억하고 있고 매일 쪽지함 체크했는데 안왔음 ​ 그리고 문상 5천원 당첨자들만 안챙긴건지 다른 당첨자들도 안챙긴건지도 알고싶음 ​ 개인 이벤트도 이러면 안되지만 공식에서 이러는건 더더욱 아니라고 생각하는데 해명을 좀 해보시길 일단 글 작성자 여기 있음 분명 8월 7일 부터 영업일에 준다고 했는데 스팸함이고 뭐고 다 체크했는데 없음 ​ 카페 검색결과 미지급 당첨자들 다수 있음 이 이벤트 외에도 미지급 당첨자도 있는거 같던데 이제 슬슬 확인좀 해,이벤트 보상 미지급,5,False,False,,,,페이몬 공지만 쓰지말고 보상 지급좀 신경써 문상 5천원 짜리라고 슬쩍 넘기자는건지 아님 진짜 까먹은건지는 모르겠지만 아직 기억하고 있고 매일 쪽지함 체크했는데 안왔음 ​ 그리고 문상 5천원 당첨자들만 안챙긴건지 다른 당첨자들도 안챙긴건지도 알고싶음 ​ 개인 이벤트도 이러면 안되지만 공식에서 이러는건 더더욱 아니라고 생각하는데 해명을 좀 해보시길 일단 글 작성자 여기 있음 분명 8월 7일 부터 영업일에 준다고 했는데 스팸함이고 뭐고 다 체크했는데 없음 ​ 카페 검색결과 미지급 당첨자들 다수 있음 이 이벤트 외에도 미지급 당첨자도 있는거 같던데 이제 슬슬 확인좀 해,"SELECT
+  account_id,
+  user_id,
+  game_name,
+  uid,
+  server_region,
+  account_status
+FROM game_accounts
+WHERE account_id = %s
+LIMIT %s","SELECT item_delivery_logs.delivery_id, item_delivery_logs.account_id, item_delivery_logs.item_name, item_delivery_logs.delivery_status, item_delivery_logs.expected_at, item_delivery_logs.delivered_at FROM item_delivery_logs WHERE item_delivery_logs.item_name = %s AND item_delivery_logs.delivery_status != %s ORDER BY item_delivery_logs.expected_at ASC LIMIT %s"
+8242,진주기행 결제오류 진주기행을 결제했는대 갑자기 오류뜨더니 다시누르니 2번결제되고 돈은 돈대로 나갔어요 ㅠㅠ...,DB&DOC,account,fixed_sql,text_to_sql,False,0.9,"The query involves multiple tables and requires dynamic filtering based on user ID and payment status, which is not a stable predefined pattern.",,True,1,1,,True,0,0,,True,0,0,,2,2,2,True,True,,,True,진주기행 결제오류 진주기행을 결제했는대 갑자기 오류뜨더니 다시누르니 2번결제되고 돈은 돈대로 나갔어요 ㅠㅠ 구글 플래이스토어에 환불요청했는대 돈돌려받을수있나요? uid 804815058,결제 오류 환불 요청,5,False,False,,,,진주기행 결제오류 진주기행을 결제했는대 갑자기 오류뜨더니 다시누르니 2번결제되고 돈은 돈대로 나갔어요 ㅠㅠ 구글 플래이스토어에 환불요청했는대 돈돌려받을수있나요? uid 804815058,"SELECT
+  account_id,
+  user_id,
+  game_name,
+  uid,
+  server_region,
+  account_status
+FROM game_accounts
+WHERE account_id = %s
+LIMIT %s","SELECT payments.payment_id, payments.product_name, payments.amount, payments.payment_status, refunds.refund_status, refunds.requested_at, refunds.processed_at FROM game_accounts JOIN payments ON game_accounts.account_id = payments.account_id JOIN refunds ON payments.payment_id = refunds.payment_id WHERE game_accounts.uid = %s LIMIT %s"
+8231,문제가 생겼습니다. 재가 이번에 미코를 뽑으려고 10만원짜리 기프트 카드를 썻습니다. 근데 안드로이드에서 결...,DB&DOC,refund,fixed_sql,text_to_sql,False,0.85,The query involves multiple tables and requires dynamic filtering based on specific conditions related to payment and refund processes. The complexity and variability of the conditions make it suitable for a text_to_sql approach.,,True,1,1,,True,0,0,,True,0,0,,2,2,2,True,True,,,True,문제가 생겼습니다. 재가 이번에 미코를 뽑으려고 10만원짜리 기프트 카드를 썻습니다. 근데 안드로이드에서 결제를 할때 기프트 카드가 아닌 그냥 돈 119000원이 결재가 되서 환불을 받고 다시 기프트카드를 사용한 후 아무생각 없이 창세의 결정을 원석으로 바꿨는데 8080개가 아닌 16160개가 교환이 되버렸습니다. 혹시 몰라서 지금 원석 8080개는 안쓰고 있는데 이런 경우에는 환불이 어떻게 되는지 문의 드립니다.,안드로이드 결제 환불 방법,5,False,False,,,,문제가 생겼습니다. 재가 이번에 미코를 뽑으려고 10만원짜리 기프트 카드를 썻습니다. 근데 안드로이드에서 결제를 할때 기프트 카드가 아닌 그냥 돈 119000원이 결재가 되서 환불을 받고 다시 기프트카드를 사용한 후 아무생각 없이 창세의 결정을 원석으로 바꿨는데 8080개가 아닌 16160개가 교환이 되버렸습니다. 혹시 몰라서 지금 원석 8080개는 안쓰고 있는데 이런 경우에는 환불이 어떻게 되는지 문의 드립니다.,"SELECT
+  r.refund_id,
+  r.payment_id,
+  p.account_id,
+  p.product_name,
+  p.payment_status,
+  p.paid_at,
+  r.refund_status,
+  r.refund_reason,
+  r.requested_at,
+  r.processed_at
+FROM refunds r
+JOIN payments p ON p.payment_id = r.payment_id
+WHERE p.account_id = %s
+ORDER BY r.requested_at DESC NULLS LAST, r.refund_id DESC
+LIMIT %s","SELECT payments.payment_id, payments.amount, payments.payment_method, payments.payment_status, refunds.refund_status, refunds.refund_reason, item_delivery_logs.item_name, item_delivery_logs.quantity, item_delivery_logs.delivery_status FROM payments JOIN refunds ON payments.payment_id = refunds.payment_id JOIN item_delivery_logs ON payments.payment_id = item_delivery_logs.payment_id WHERE payments.payment_method = %s AND payments.amount = %s AND item_delivery_logs.item_name = %s AND item_delivery_logs.quantity IN (%s, %s) LIMIT %s"
+8000,원신 트럭 미지급 안드폰으로 결제 했는데 결정 미지급,DB&DOC,account,fixed_sql,text_to_sql,False,0.85,"The query involves multiple potential tables and requires understanding of specific conditions related to payment and delivery status, which are not covered by a fixed pattern. The enriched query suggests a complex scenario that may involve checking payment status, refunds, and item delivery logs, necessitating a dynamic query.",,True,1,1,,True,0,0,"UndefinedTable: missing FROM-clause entry for table ""qa_ticket""
+LINE 1: ....payment_id = item_delivery_logs.payment_id WHERE qa_ticket....
+                                                             ^",True,0,0,,1,1,1,True,True,,,True,원신 트럭 미지급 안드폰으로 결제 했는데 결정 미지급,결제 아이템 미지급 문제,5,False,False,,,,원신 트럭 미지급 안드폰으로 결제 했는데 결정 미지급,"SELECT
+  account_id,
+  user_id,
+  game_name,
+  uid,
+  server_region,
+  account_status
+FROM game_accounts
+WHERE account_id = %s
+LIMIT %s","SELECT payments.payment_id, payments.product_name, payments.payment_method, payments.payment_status, item_delivery_logs.delivery_status, item_delivery_logs.item_name FROM payments JOIN item_delivery_logs ON payments.payment_id = item_delivery_logs.payment_id WHERE qa_ticket.ticket_id = %s LIMIT %s"

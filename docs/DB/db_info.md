@@ -1,6 +1,6 @@
 # DB Info
 
-Last verified from the live database on 2026-06-17.
+Last verified from the live database on 2026-06-18.
 
 ## Connection
 
@@ -16,10 +16,10 @@ Last verified from the live database on 2026-06-17.
 | Password | `DB_PASSWORD` environment variable |
 | Schema | `public` |
 | Extensions | `plpgsql 1.0`, `vector 0.6.0` |
-| Public Tables | 20 |
-| Public Columns | 158 |
+| Public Tables | 19 |
+| Public Columns | 151 |
 | Workflow Write Tables | 7 |
-| RAG Tables | 4 |
+| RAG Tables | 3 |
 
 ## Test Connection
 
@@ -40,10 +40,10 @@ See `docs/DB/notion_data.md` for a shorter summary oriented toward Notion and pr
 
 ## Current Live-Schema Notes
 
-- The live `public` schema currently has 20 tables and no `_ex` mirror tables.
-- The document/RAG store in the live DB is `sj_documents -> test_documents_chunks -> test_documents_embeddings_large/small`.
-- Older docs and some code still reference `documents`, `documents_chunks`, and `documents_embeddings`; those table names are not present in the live `public` schema at this verification point.
-- Workflow write tables with no database-side PK default remain: `answer_draft`, `evidence_docs`, `failed_queries`, `final_response`, `safety_results`, `ticket_analysis`.
+- The live `public` schema currently has 19 tables and no `_ex` mirror tables.
+- The document/RAG store in the live DB is `documents -> documents_chunks -> documents_embeddings`.
+- Older docs and some handoff notes still reference `sj_documents`, `test_documents_chunks`, and `test_documents_embeddings_large/small`; those table names are not present in the live `public` schema at this verification point.
+- Workflow write tables now expose database-generated PKs via `IDENTITY`: `answer_draft`, `evidence_docs`, `failed_queries`, `final_response`, `safety_results`, and `ticket_analysis`.
 
 ## Data Generation Reference
 

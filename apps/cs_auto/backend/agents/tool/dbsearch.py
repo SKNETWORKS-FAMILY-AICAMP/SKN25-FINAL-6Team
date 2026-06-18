@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import os
 import re
+from collections import deque
 from pathlib import Path
 from typing import Any, Literal
 
@@ -36,6 +37,12 @@ RoutingTarget = Literal["DB_only", "doc_only", "DB&DOC", "fixed_answer"]
 Category = Literal["payment", "refund", "account", "bug", "gacha", "policy", "general"]
 QueryType = Literal["fixed_sql", "text_to_sql"]
 DB_DISABLED_CATEGORIES = frozenset({"bug", "policy", "general"})
+DEFAULT_QUERY_TYPE_BY_CATEGORY: dict[str, QueryType] = {
+    "account": "fixed_sql",
+    "refund": "fixed_sql",
+    "payment": "text_to_sql",
+    "gacha": "text_to_sql",
+}
 
 ALLOWED_SQL_ACTION_PREFIXES = ("select", "with")
 DISALLOWED_SQL_PATTERNS = (
@@ -76,6 +83,9 @@ Treat category only as a retrieval hint, not as a hard restriction.
 Prefer the minimum tables needed to answer the question, but join tables when
 evidence from multiple sources is necessary.
 Mark whether account_id or user_id scoping is required.
+For generic payment-diagnosis questions like "payment not working", do not
+guess exact literal values for payment_status, product_name, amount, or
+payment_method unless the question provides a concrete identifier.
 """.strip()
 
 
@@ -456,10 +466,239 @@ def _join_condition_for_tables(
     return None
 
 
+def _qualified_column(table: str, column: str) -> str:
+    return f"{table}.{column}"
+
+
+def _column_name(column_ref: str) -> str:
+    ref = str(column_ref or "")
+    return ref.split(".", 1)[1] if "." in ref else ref
+
+
+def _has_filter_for_column(filters: list[TextToSqlFilter], column_name: str) -> bool:
+    return any(_column_name(raw_filter.column) == column_name for raw_filter in filters)
+
+
+def _table_from_column(column_ref: str) -> str:
+    ref = str(column_ref or "")
+    return ref.split(".", 1)[0] if "." in ref else ""
+
+
+def _contains_any(text: str, keywords: set[str]) -> bool:
+    lowered = str(text or "").lower()
+    compact = re.sub(r"[\W_]+", "", lowered)
+    return any(
+        keyword in lowered or re.sub(r"[\W_]+", "", keyword.lower()) in compact
+        for keyword in keywords
+    )
+
+
+def _looks_like_generic_payment_diagnosis(question: str, category_hint: str) -> bool:
+    if category_hint != "payment":
+        return False
+
+    question_text = str(question or "")
+    compact = re.sub(r"[\W_]+", "", question_text.lower())
+    if "결제" not in question_text and "결제" not in compact:
+        return False
+
+    failure_markers = {"안돼", "안됨", "오류", "실패", "문제", "안되", "먹통"}
+    specific_markers = {"transaction", "payment_id", "주문번호", "상품", "패키지", "원", "₩", "uid"}
+
+    has_failure_signal = any(marker in compact for marker in failure_markers)
+    has_specific_identifier = any(marker.lower() in question_text.lower() or marker in compact for marker in specific_markers)
+    digit_count = sum(char.isdigit() for char in question_text)
+    return has_failure_signal and not has_specific_identifier and digit_count < 6
+
+
+def _account_scope_column(
+    plan: TextToSqlPlan,
+    schema_context: dict[str, object] | None,
+) -> str | None:
+    if not plan.tables:
+        return None
+
+    table_columns = schema_context.get("table_columns", {}) if schema_context else {}
+    candidate_tables = list(dict.fromkeys([plan.tables[0], *plan.tables[1:], "payments", "gacha_logs", "game_accounts", "item_delivery_logs", "qa_ticket"]))
+    for table in candidate_tables:
+        columns = table_columns.get(table) or []
+        if "account_id" in columns:
+            return _qualified_column(str(table), "account_id")
+    return None
+
+
+def _normalize_plan_filters(
+    plan: TextToSqlPlan,
+    ticket: dict[str, object],
+    schema_context: dict[str, object] | None,
+    question: str = "",
+) -> list[TextToSqlFilter]:
+    normalized_filters = list(plan.filters)
+    category_hint = str((schema_context or {}).get("category_hint") or "").lower()
+    question_text = str(question or "")
+
+    payment_issue_keywords = {
+        "결제가 안",
+        "결제 안",
+        "결제오류",
+        "결제 오류",
+        "돈만 나갔",
+        "반영이 안",
+        "적용이 안",
+        "실패",
+        "환불",
+    }
+    payment_diagnosis_query = _contains_any(question_text, payment_issue_keywords) or _looks_like_generic_payment_diagnosis(
+        question_text,
+        category_hint,
+    )
+    gacha_anomaly_keywords = {
+        "픽뚫",
+        "천장",
+        "스택",
+        "확률",
+        "이상",
+        "버그",
+        "왜",
+        "안나오",
+    }
+    gacha_anomaly_query = _contains_any(question_text, gacha_anomaly_keywords)
+
+    if payment_diagnosis_query:
+        normalized_filters = [
+            raw_filter
+            for raw_filter in normalized_filters
+            if not (
+                raw_filter.value_source == "literal"
+                and _table_from_column(raw_filter.column) in {"payments", "refunds", "item_delivery_logs"}
+                and _column_name(raw_filter.column) in {"payment_status", "product_name", "amount", "payment_method", "refund_status", "delivery_status"}
+            )
+        ]
+
+    if category_hint == "gacha" and gacha_anomaly_query and not payment_diagnosis_query:
+        # Broad account-scoped log retrieval is more reliable than overfitting
+        # to guessed banner/rarity literals for anomaly complaints.
+        normalized_filters = [
+            raw_filter
+            for raw_filter in normalized_filters
+            if not (
+                raw_filter.value_source == "literal"
+                and _column_name(raw_filter.column) in {"banner_name", "rarity", "item_name", "item_type", "pity_count"}
+            )
+        ]
+
+    if plan.needs_account_scope and not _has_filter_for_column(normalized_filters, "account_id"):
+        account_scope_column = _account_scope_column(plan, schema_context)
+        if account_scope_column and ticket.get("account_id") is not None:
+            normalized_filters.insert(
+                0,
+                TextToSqlFilter(
+                    column=account_scope_column,
+                    operator="=",
+                    value_source="ticket.account_id",
+                ),
+            )
+
+    return normalized_filters
+
+
+def _join_keyword_for_table(table_name: str) -> str:
+    if table_name == "refunds":
+        return "LEFT JOIN"
+    return "JOIN"
+
+
+def _append_explicit_joins(
+    sql_parts: list[str],
+    joined_tables: set[str],
+    joins: list[TextToSqlJoin],
+) -> None:
+    pending_joins = list(joins)
+    while pending_joins:
+        next_pending: list[TextToSqlJoin] = []
+        progressed = False
+        for join in pending_joins:
+            left_table = _table_name_from_ref(join.left)
+            right_table = _table_name_from_ref(join.right)
+
+            if right_table in joined_tables:
+                progressed = True
+                continue
+
+            if left_table in joined_tables:
+                join_keyword = _join_keyword_for_table(right_table)
+                sql_parts.append(f"{join_keyword} {right_table} ON {join.left} = {join.right}")
+                joined_tables.add(right_table)
+                progressed = True
+                continue
+
+            if right_table in joined_tables and left_table not in joined_tables:
+                join_keyword = _join_keyword_for_table(left_table)
+                sql_parts.append(f"{join_keyword} {left_table} ON {join.right} = {join.left}")
+                joined_tables.add(left_table)
+                progressed = True
+                continue
+
+            next_pending.append(join)
+
+        if not progressed:
+            break
+        pending_joins = next_pending
+
+
+def _build_join_graph(schema_context: dict[str, object] | None) -> dict[str, list[tuple[str, str, str]]]:
+    graph: dict[str, list[tuple[str, str, str]]] = {}
+    if not schema_context:
+        return graph
+
+    join_paths = schema_context.get("join_paths") or []
+    for path in join_paths:
+        if not isinstance(path, list) or len(path) != 2:
+            continue
+        left_ref = str(path[0])
+        right_ref = str(path[1])
+        left_table = _table_name_from_ref(left_ref)
+        right_table = _table_name_from_ref(right_ref)
+        if not left_table or not right_table:
+            continue
+        graph.setdefault(left_table, []).append((right_table, left_ref, right_ref))
+        graph.setdefault(right_table, []).append((left_table, right_ref, left_ref))
+    return graph
+
+
+def _find_join_path(
+    joined_tables: set[str],
+    target_table: str,
+    schema_context: dict[str, object] | None,
+) -> list[tuple[str, str, str]]:
+    if target_table in joined_tables:
+        return []
+
+    graph = _build_join_graph(schema_context)
+    queue: deque[tuple[str, list[tuple[str, str, str]]]] = deque(
+        (table, []) for table in sorted(joined_tables)
+    )
+    visited = set(joined_tables)
+
+    while queue:
+        current_table, path = queue.popleft()
+        if current_table == target_table:
+            return path
+
+        for next_table, left_ref, right_ref in graph.get(current_table, []):
+            if next_table in visited:
+                continue
+            visited.add(next_table)
+            queue.append((next_table, [*path, (next_table, left_ref, right_ref)]))
+
+    return []
+
+
 def render_text_to_sql(
     plan: TextToSqlPlan,
     ticket: dict[str, object],
     schema_context: dict[str, object] | None = None,
+    question: str = "",
 ) -> tuple[str, tuple[object, ...]]:
     if not plan.tables:
         return "", ()
@@ -469,37 +708,31 @@ def render_text_to_sql(
     sql_parts = [f"SELECT {columns}", f"FROM {base_table}"]
     params: list[object] = []
     joined_tables: set[str] = {base_table}
+    normalized_filters = _normalize_plan_filters(plan, ticket, schema_context, question)
 
-    for join in plan.joins:
-        right_table = _table_name_from_ref(join.right)
-        if right_table in joined_tables:
-            continue
-        sql_parts.append(f"JOIN {right_table} ON {join.left} = {join.right}")
-        joined_tables.add(right_table)
+    _append_explicit_joins(sql_parts, joined_tables, plan.joins)
 
     referenced_tables = {base_table}
     referenced_tables.update(_table_name_from_ref(column) for column in plan.columns if "." in column)
-    for raw_filter in plan.filters:
+    for raw_filter in normalized_filters:
         referenced_tables.add(_table_name_from_ref(raw_filter.column))
     referenced_tables.update(str(table) for table in plan.tables[1:])
 
     for target_table in sorted(referenced_tables):
         if target_table in joined_tables:
             continue
-        join_condition = _join_condition_for_tables(base_table, target_table, schema_context)
-        if join_condition is None:
-            for joined_table in sorted(joined_tables):
-                join_condition = _join_condition_for_tables(joined_table, target_table, schema_context)
-                if join_condition is not None:
-                    break
-        if join_condition is None:
+        join_path = _find_join_path(joined_tables, target_table, schema_context)
+        if not join_path:
             continue
-        left_ref, right_ref = join_condition
-        sql_parts.append(f"JOIN {target_table} ON {left_ref} = {right_ref}")
-        joined_tables.add(target_table)
+        for next_table, left_ref, right_ref in join_path:
+            if next_table in joined_tables:
+                continue
+            join_keyword = _join_keyword_for_table(next_table)
+            sql_parts.append(f"{join_keyword} {next_table} ON {left_ref} = {right_ref}")
+            joined_tables.add(next_table)
 
     where_clauses: list[str] = []
-    for raw_filter in plan.filters:
+    for raw_filter in normalized_filters:
         value = _resolve_filter_value(raw_filter, ticket)
         if raw_filter.operator == "IN" and isinstance(value, list) and value:
             placeholders = ", ".join(["%s"] * len(value))
@@ -635,7 +868,7 @@ class TextToSqlSearcher:
         question = str(analysis.get("enriched_query"))
         schema_context = self.build_schema_context(category)
         plan = self.build_plan(question, analysis, schema_context)
-        sql, params = render_text_to_sql(plan, ticket, schema_context)
+        sql, params = render_text_to_sql(plan, ticket, schema_context, question)
 
         if not sql:
             return _empty_db_search_result("text_to_sql", plan=plan.model_dump())
@@ -685,6 +918,13 @@ class DbSearchRouter:
                 query_type="fixed_sql",
                 reason=f"DB lookup disabled for category: {category}",
                 confidence=1.0,
+            )
+        default_query_type = DEFAULT_QUERY_TYPE_BY_CATEGORY.get(category)
+        if default_query_type is not None:
+            return QueryTypeDecision(
+                query_type=default_query_type,
+                reason=f"Default query type for category '{category}'",
+                confidence=0.95,
             )
         question = str(analysis.get("enriched_query"))
         schema_context = self.text_to_sql.build_schema_context(category)

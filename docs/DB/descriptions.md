@@ -1,6 +1,6 @@
 # DB Descriptions
 
-Generated from the live PostgreSQL database on 2026-06-17.
+Generated from the live PostgreSQL database on 2026-06-18.
 
 ## Basic Info
 
@@ -15,8 +15,8 @@ Generated from the live PostgreSQL database on 2026-06-17.
 | User | `game_cs_user` |
 | Schema | `public` |
 | Extensions | `plpgsql 1.0`, `vector 0.6.0` |
-| Public Tables | 20 |
-| Public Columns | 158 |
+| Public Tables | 19 |
+| Public Columns | 151 |
 | `_ex` Tables | 0 |
 
 ## Table Summary
@@ -26,44 +26,43 @@ Row counts are exact `COUNT(*)` results at verification time.
 | Table | Exact Rows | Columns | Primary Key | PK Default | Purpose |
 | --- | ---: | ---: | --- | --- | --- |
 | `admin_users` | 10 | 9 | `admin_id` | `nextval('admin_users_admin_id_seq'::regclass)` | Administrator/operator login accounts and auth metadata |
-| `answer_draft` | 4 | 6 | `draft_id` | none | Generated answer drafts for tickets |
+| `answer_draft` | 30 | 6 | `draft_id` | `IDENTITY` | Generated answer drafts for tickets |
 | `community_users` | 1,500 | 8 | `user_id` | none | Community user profile data |
-| `evidence_docs` | 16 | 7 | `evidence_id` | none | Retrieved evidence saved for answer drafts |
-| `failed_queries` | 0 | 6 | `failed_query_id` | none | Failed ticket/query processing logs |
-| `final_response` | 0 | 6 | `response_id` | none | Final customer-facing responses |
+| `documents` | 1,068 | 8 | `documents_id` | none | Source documents used by the current RAG corpus |
+| `documents_chunks` | 5,068 | 6 | `chunk_id` | none | Searchable chunks for the current RAG corpus |
+| `documents_embeddings` | 5,068 | 7 | `embedding_id` | none | Vector embeddings for document chunks |
+| `evidence_docs` | 106 | 7 | `evidence_id` | `IDENTITY` | Retrieved evidence saved for answer drafts |
+| `failed_queries` | 3 | 6 | `failed_query_id` | `IDENTITY` | Failed ticket/query processing logs |
+| `final_response` | 13 | 6 | `response_id` | `IDENTITY` | Final customer-facing responses |
 | `gacha_logs` | 25,000 | 8 | `gacha_id` | none | Gacha pull history per game account |
 | `game_accounts` | 1,500 | 8 | `account_id` | none | Game account data linked to community users |
 | `insight` | 0 | 10 | `insight_id` | `nextval('insight_insight_id_seq'::regclass)` | Ticket/user/account-level insight analysis data |
 | `item_delivery_logs` | 10,000 | 9 | `delivery_id` | none | Paid or reward item delivery history |
 | `notification_logs` | 0 | 7 | `notification_id` | `nextval('notification_logs_notification_id_seq'::regclass)` | Notification send results and errors |
 | `payments` | 5,000 | 10 | `payment_id` | none | Payment transaction history |
-| `qa_ticket` | 9,228 | 10 | `ticket_id` | none | Customer inquiry/QA tickets |
+| `qa_ticket` | 9,257 | 10 | `ticket_id` | `IDENTITY` | Customer inquiry/QA tickets |
 | `refunds` | 300 | 6 | `refund_id` | none | Refund request and processing history |
-| `safety_results` | 4 | 10 | `safety_id` | none | Safety and grounding check results for drafts |
-| `sj_documents` | 1,068 | 8 | `document_id` | none | Source documents used by the current RAG corpus |
-| `test_documents_chunks` | 5,068 | 6 | `chunk_id` | none | Searchable chunks for the current RAG corpus |
-| `test_documents_embeddings_large` | 5,068 | 7 | `embedding_id` | none | Large-model vector embeddings for document chunks |
-| `test_documents_embeddings_small` | 5,068 | 7 | `embedding_id` | none | Small-model vector embeddings for document chunks |
-| `ticket_analysis` | 0 | 10 | `analysis_id` | none | Ticket classification, risk, sentiment, and routing analysis |
+| `safety_results` | 26 | 10 | `safety_id` | `IDENTITY` | Safety and grounding check results for drafts |
+| `ticket_analysis` | 0 | 10 | `analysis_id` | `IDENTITY` | Ticket classification, risk, sentiment, and routing analysis |
 
 ## Data Type Summary
 
 | Data Type | PostgreSQL UDT | Column Count |
 | --- | --- | ---: |
-| `USER-DEFINED` | `vector` | 2 |
-| `character varying` | `varchar` | 63 |
+| `USER-DEFINED` | `vector` | 1 |
+| `character varying` | `varchar` | 58 |
 | `double precision` | `float8` | 5 |
 | `integer` | `int4` | 44 |
 | `numeric` | `numeric` | 1 |
 | `text` | `text` | 17 |
-| `timestamp without time zone` | `timestamp` | 26 |
+| `timestamp without time zone` | `timestamp` | 25 |
 
 ## Current Schema Notes
 
-- The live `public` schema currently has no `_ex` mirror/template tables.
-- The RAG source table is `sj_documents`, and retrieval artifacts live in `test_documents_chunks`, `test_documents_embeddings_large`, and `test_documents_embeddings_small`.
-- Older repo documents that describe `documents`, `documents_chunks`, `documents_embeddings`, or `_ex` tables are historical references, not live-schema facts.
-- `qa_ticket`, `answer_draft`, and `ticket_analysis` have ordinal gaps in `information_schema.columns`, which indicates earlier schema revisions with dropped columns; the current column counts above are authoritative.
+- The live `public` schema currently has 19 tables and no `_ex` mirror/template tables.
+- The RAG source table is `documents`, and retrieval artifacts live in `documents_chunks` and `documents_embeddings`.
+- Older repo documents that describe `sj_documents`, `test_documents_chunks`, `test_documents_embeddings_large`, `test_documents_embeddings_small`, or `_ex` tables are historical references, not live-schema facts.
+- `qa_ticket`, `answer_draft`, `notification_logs`, and `ticket_analysis` have ordinal gaps in `information_schema.columns`, which indicates earlier schema revisions with dropped columns; the current column counts above are authoritative.
 
 ## Workflow Read/Write Map
 
@@ -76,8 +75,8 @@ Row counts are exact `COUNT(*)` results at verification time.
 | Item delivery context | `item_delivery_logs`, `payments`, `game_accounts` |
 | Gacha context | `gacha_logs`, `game_accounts` |
 | Abuse/VOC context | `insight` |
-| RAG source | `sj_documents` |
-| RAG retrieval | `test_documents_chunks`, `test_documents_embeddings_large`, `test_documents_embeddings_small` |
+| RAG source | `documents` |
+| RAG retrieval | `documents_chunks`, `documents_embeddings` |
 | Workflow writes | `ticket_analysis`, `answer_draft`, `evidence_docs`, `safety_results`, `final_response`, `notification_logs`, `failed_queries` |
 
 ## Foreign Key Summary
@@ -104,9 +103,8 @@ Row counts are exact `COUNT(*)` results at verification time.
 | `qa_ticket.user_id` | `community_users.user_id` | NO ACTION | CASCADE |
 | `refunds.payment_id` | `payments.payment_id` | NO ACTION | CASCADE |
 | `safety_results.draft_id` | `answer_draft.draft_id` | NO ACTION | CASCADE |
-| `test_documents_chunks.document_id` | `sj_documents.document_id` | NO ACTION | NO ACTION |
-| `test_documents_embeddings_large.chunk_id` | `test_documents_chunks.chunk_id` | NO ACTION | CASCADE |
-| `test_documents_embeddings_small.chunk_id` | `test_documents_chunks.chunk_id` | NO ACTION | CASCADE |
+| `documents_chunks.document_id` | `documents.documents_id` | NO ACTION | NO ACTION |
+| `documents_embeddings.chunk_id` | `documents_chunks.chunk_id` | NO ACTION | CASCADE |
 | `ticket_analysis.ticket_id` | `qa_ticket.ticket_id` | NO ACTION | NO ACTION |
 
 ## Index Summary
@@ -116,7 +114,18 @@ Row counts are exact `COUNT(*)` results at verification time.
 | `admin_users` | `admin_users_pkey` | `UNIQUE INDEX admin_users_pkey ON public.admin_users USING btree (admin_id)` |
 | `admin_users` | `uq_admin_users_login_id` | `UNIQUE INDEX uq_admin_users_login_id ON public.admin_users USING btree (login_id)` |
 | `answer_draft` | `answer_draft_pkey` | `UNIQUE INDEX answer_draft_pkey ON public.answer_draft USING btree (draft_id)` |
+| `answer_draft` | `idx_answer_draft_ticket_id` | `INDEX idx_answer_draft_ticket_id ON public.answer_draft USING btree (ticket_id)` |
 | `community_users` | `community_users_pkey` | `UNIQUE INDEX community_users_pkey ON public.community_users USING btree (user_id)` |
+| `documents` | `sj_documents_pkey` | `UNIQUE INDEX sj_documents_pkey ON public.documents USING btree (documents_id)` |
+| `documents_chunks` | `idx_test_documents_chunks_document_id` | `INDEX idx_test_documents_chunks_document_id ON public.documents_chunks USING btree (document_id)` |
+| `documents_chunks` | `idx_test_documents_chunks_document_order` | `INDEX idx_test_documents_chunks_document_order ON public.documents_chunks USING btree (document_id, chunk_order)` |
+| `documents_chunks` | `test_documents_chunks_pkey` | `UNIQUE INDEX test_documents_chunks_pkey ON public.documents_chunks USING btree (chunk_id)` |
+| `documents_chunks` | `uq_test_documents_chunks_document_order` | `UNIQUE INDEX uq_test_documents_chunks_document_order ON public.documents_chunks USING btree (document_id, chunk_order)` |
+| `documents_embeddings` | `idx_test_documents_embeddings_small_chunk_id` | `INDEX idx_test_documents_embeddings_small_chunk_id ON public.documents_embeddings USING btree (chunk_id)` |
+| `documents_embeddings` | `idx_test_documents_embeddings_small_source_category` | `INDEX idx_test_documents_embeddings_small_source_category ON public.documents_embeddings USING btree (source_type, category)` |
+| `documents_embeddings` | `idx_test_documents_embeddings_small_vector_cosine` | `INDEX idx_test_documents_embeddings_small_vector_cosine ON public.documents_embeddings USING ivfflat (embedding_vector vector_cosine_ops) WITH (lists='100')` |
+| `documents_embeddings` | `test_documents_embeddings_small_pkey` | `UNIQUE INDEX test_documents_embeddings_small_pkey ON public.documents_embeddings USING btree (embedding_id)` |
+| `documents_embeddings` | `uq_test_documents_embeddings_small_chunk_id` | `UNIQUE INDEX uq_test_documents_embeddings_small_chunk_id ON public.documents_embeddings USING btree (chunk_id)` |
 | `evidence_docs` | `evidence_docs_pkey` | `UNIQUE INDEX evidence_docs_pkey ON public.evidence_docs USING btree (evidence_id)` |
 | `failed_queries` | `failed_queries_pkey` | `UNIQUE INDEX failed_queries_pkey ON public.failed_queries USING btree (failed_query_id)` |
 | `final_response` | `final_response_pkey` | `UNIQUE INDEX final_response_pkey ON public.final_response USING btree (response_id)` |
@@ -127,24 +136,12 @@ Row counts are exact `COUNT(*)` results at verification time.
 | `notification_logs` | `notification_logs_pkey` | `UNIQUE INDEX notification_logs_pkey ON public.notification_logs USING btree (notification_id)` |
 | `payments` | `payments_pkey` | `UNIQUE INDEX payments_pkey ON public.payments USING btree (payment_id)` |
 | `qa_ticket` | `idx_qa_ticket_assignee_admin_id` | `INDEX idx_qa_ticket_assignee_admin_id ON public.qa_ticket USING btree (assignee_admin_id)` |
+| `qa_ticket` | `idx_qa_ticket_inquiry_created_at` | `INDEX idx_qa_ticket_inquiry_created_at ON public.qa_ticket USING btree (inquiry_created_at)` |
 | `qa_ticket` | `qa_ticket_pkey` | `UNIQUE INDEX qa_ticket_pkey ON public.qa_ticket USING btree (ticket_id)` |
 | `refunds` | `refunds_pkey` | `UNIQUE INDEX refunds_pkey ON public.refunds USING btree (refund_id)` |
+| `safety_results` | `idx_safety_results_draft_id` | `INDEX idx_safety_results_draft_id ON public.safety_results USING btree (draft_id)` |
 | `safety_results` | `safety_results_pkey` | `UNIQUE INDEX safety_results_pkey ON public.safety_results USING btree (safety_id)` |
-| `sj_documents` | `sj_documents_pkey` | `UNIQUE INDEX sj_documents_pkey ON public.sj_documents USING btree (document_id)` |
-| `test_documents_chunks` | `idx_test_documents_chunks_document_id` | `INDEX idx_test_documents_chunks_document_id ON public.test_documents_chunks USING btree (document_id)` |
-| `test_documents_chunks` | `idx_test_documents_chunks_document_order` | `INDEX idx_test_documents_chunks_document_order ON public.test_documents_chunks USING btree (document_id, chunk_order)` |
-| `test_documents_chunks` | `test_documents_chunks_pkey` | `UNIQUE INDEX test_documents_chunks_pkey ON public.test_documents_chunks USING btree (chunk_id)` |
-| `test_documents_chunks` | `uq_test_documents_chunks_document_order` | `UNIQUE INDEX uq_test_documents_chunks_document_order ON public.test_documents_chunks USING btree (document_id, chunk_order)` |
-| `test_documents_embeddings_large` | `idx_test_documents_embeddings_large_chunk_id` | `INDEX idx_test_documents_embeddings_large_chunk_id ON public.test_documents_embeddings_large USING btree (chunk_id)` |
-| `test_documents_embeddings_large` | `idx_test_documents_embeddings_large_source_category` | `INDEX idx_test_documents_embeddings_large_source_category ON public.test_documents_embeddings_large USING btree (source_type, category)` |
-| `test_documents_embeddings_large` | `idx_test_documents_embeddings_large_vector_cosine` | `INDEX idx_test_documents_embeddings_large_vector_cosine ON public.test_documents_embeddings_large USING ivfflat (embedding_vector vector_cosine_ops) WITH (lists='100')` |
-| `test_documents_embeddings_large` | `test_documents_embeddings_large_pkey` | `UNIQUE INDEX test_documents_embeddings_large_pkey ON public.test_documents_embeddings_large USING btree (embedding_id)` |
-| `test_documents_embeddings_large` | `uq_test_documents_embeddings_large_chunk_id` | `UNIQUE INDEX uq_test_documents_embeddings_large_chunk_id ON public.test_documents_embeddings_large USING btree (chunk_id)` |
-| `test_documents_embeddings_small` | `idx_test_documents_embeddings_small_chunk_id` | `INDEX idx_test_documents_embeddings_small_chunk_id ON public.test_documents_embeddings_small USING btree (chunk_id)` |
-| `test_documents_embeddings_small` | `idx_test_documents_embeddings_small_source_category` | `INDEX idx_test_documents_embeddings_small_source_category ON public.test_documents_embeddings_small USING btree (source_type, category)` |
-| `test_documents_embeddings_small` | `idx_test_documents_embeddings_small_vector_cosine` | `INDEX idx_test_documents_embeddings_small_vector_cosine ON public.test_documents_embeddings_small USING ivfflat (embedding_vector vector_cosine_ops) WITH (lists='100')` |
-| `test_documents_embeddings_small` | `test_documents_embeddings_small_pkey` | `UNIQUE INDEX test_documents_embeddings_small_pkey ON public.test_documents_embeddings_small USING btree (embedding_id)` |
-| `test_documents_embeddings_small` | `uq_test_documents_embeddings_small_chunk_id` | `UNIQUE INDEX uq_test_documents_embeddings_small_chunk_id ON public.test_documents_embeddings_small USING btree (chunk_id)` |
+| `ticket_analysis` | `idx_ticket_analysis_analyzed_at` | `INDEX idx_ticket_analysis_analyzed_at ON public.ticket_analysis USING btree (analyzed_at)` |
 | `ticket_analysis` | `ticket_analysis_pkey` | `UNIQUE INDEX ticket_analysis_pkey ON public.ticket_analysis USING btree (analysis_id)` |
 
 ## Table Details
@@ -176,10 +173,10 @@ Indexes:
 
 ### `answer_draft`
 
-- Exact Rows: 4
+- Exact Rows: 30
 - Purpose: Generated answer drafts for tickets
 - Primary Key: `draft_id`
-- PK Default: none
+- PK Default: `IDENTITY`
 - Foreign Keys: `analysis_id` -> `ticket_analysis.analysis_id` (CASCADE), `ticket_id` -> `qa_ticket.ticket_id` (CASCADE)
 
 | # | Column | Type | Nullable | Default | Notes |
@@ -194,6 +191,7 @@ Indexes:
 Indexes:
 
 - `answer_draft_pkey`: `UNIQUE INDEX answer_draft_pkey ON public.answer_draft USING btree (draft_id)`
+- `idx_answer_draft_ticket_id`: `INDEX idx_answer_draft_ticket_id ON public.answer_draft USING btree (ticket_id)`
 
 ### `community_users`
 
@@ -220,10 +218,10 @@ Indexes:
 
 ### `evidence_docs`
 
-- Exact Rows: 16
+- Exact Rows: 106
 - Purpose: Retrieved evidence saved for answer drafts
 - Primary Key: `evidence_id`
-- PK Default: none
+- PK Default: `IDENTITY`
 - Foreign Keys: `draft_id` -> `answer_draft.draft_id` (CASCADE)
 
 | # | Column | Type | Nullable | Default | Notes |
@@ -242,10 +240,10 @@ Indexes:
 
 ### `failed_queries`
 
-- Exact Rows: 0
+- Exact Rows: 3
 - Purpose: Failed ticket/query processing logs
 - Primary Key: `failed_query_id`
-- PK Default: none
+- PK Default: `IDENTITY`
 - Foreign Keys: `ticket_id` -> `qa_ticket.ticket_id` (NO ACTION)
 
 | # | Column | Type | Nullable | Default | Notes |
@@ -263,10 +261,10 @@ Indexes:
 
 ### `final_response`
 
-- Exact Rows: 0
+- Exact Rows: 13
 - Purpose: Final customer-facing responses
 - Primary Key: `response_id`
-- PK Default: none
+- PK Default: `IDENTITY`
 - Foreign Keys: `draft_id` -> `answer_draft.draft_id` (NO ACTION), `ticket_id` -> `qa_ticket.ticket_id` (CASCADE)
 
 | # | Column | Type | Nullable | Default | Notes |
@@ -426,10 +424,10 @@ Indexes:
 
 ### `qa_ticket`
 
-- Exact Rows: 9,228
+- Exact Rows: 9,257
 - Purpose: Customer inquiry/QA tickets
 - Primary Key: `ticket_id`
-- PK Default: none
+- PK Default: `IDENTITY`
 - Foreign Keys: `account_id` -> `game_accounts.account_id` (SET NULL), `assignee_admin_id` -> `admin_users.admin_id` (SET NULL), `user_id` -> `community_users.user_id` (CASCADE)
 
 | # | Column | Type | Nullable | Default | Notes |
@@ -448,6 +446,7 @@ Indexes:
 Indexes:
 
 - `idx_qa_ticket_assignee_admin_id`: `INDEX idx_qa_ticket_assignee_admin_id ON public.qa_ticket USING btree (assignee_admin_id)`
+- `idx_qa_ticket_inquiry_created_at`: `INDEX idx_qa_ticket_inquiry_created_at ON public.qa_ticket USING btree (inquiry_created_at)`
 - `qa_ticket_pkey`: `UNIQUE INDEX qa_ticket_pkey ON public.qa_ticket USING btree (ticket_id)`
 
 ### `refunds`
@@ -473,10 +472,10 @@ Indexes:
 
 ### `safety_results`
 
-- Exact Rows: 4
+- Exact Rows: 26
 - Purpose: Safety and grounding check results for drafts
 - Primary Key: `safety_id`
-- PK Default: none
+- PK Default: `IDENTITY`
 - Foreign Keys: `draft_id` -> `answer_draft.draft_id` (CASCADE)
 
 | # | Column | Type | Nullable | Default | Notes |
@@ -494,19 +493,20 @@ Indexes:
 
 Indexes:
 
+- `idx_safety_results_draft_id`: `INDEX idx_safety_results_draft_id ON public.safety_results USING btree (draft_id)`
 - `safety_results_pkey`: `UNIQUE INDEX safety_results_pkey ON public.safety_results USING btree (safety_id)`
 
-### `sj_documents`
+### `documents`
 
 - Exact Rows: 1,068
 - Purpose: Source documents used by the current RAG corpus
-- Primary Key: `document_id`
+- Primary Key: `documents_id`
 - PK Default: none
 - Foreign Keys: none
 
 | # | Column | Type | Nullable | Default | Notes |
 | ---: | --- | --- | --- | --- | --- |
-| 1 | `document_id` | `varchar` | NO | `` | PK, UNIQUE |
+| 1 | `documents_id` | `varchar` | NO | `` | PK, UNIQUE |
 | 2 | `source_type` | `varchar` | YES | `` |  |
 | 3 | `category` | `varchar` | YES | `` |  |
 | 4 | `title` | `varchar` | YES | `` |  |
@@ -517,20 +517,20 @@ Indexes:
 
 Indexes:
 
-- `sj_documents_pkey`: `UNIQUE INDEX sj_documents_pkey ON public.sj_documents USING btree (document_id)`
+- `sj_documents_pkey`: `UNIQUE INDEX sj_documents_pkey ON public.documents USING btree (documents_id)`
 
-### `test_documents_chunks`
+### `documents_chunks`
 
 - Exact Rows: 5,068
 - Purpose: Searchable chunks for the current RAG corpus
 - Primary Key: `chunk_id`
 - PK Default: none
-- Foreign Keys: `document_id` -> `sj_documents.document_id` (NO ACTION)
+- Foreign Keys: `document_id` -> `documents.documents_id` (NO ACTION)
 
 | # | Column | Type | Nullable | Default | Notes |
 | ---: | --- | --- | --- | --- | --- |
 | 1 | `chunk_id` | `varchar` | NO | `` | PK, UNIQUE |
-| 2 | `document_id` | `varchar` | NO | `` | FK -> `sj_documents.document_id` |
+| 2 | `document_id` | `varchar` | NO | `` | FK -> `documents.documents_id` |
 | 3 | `chunk_text` | `text` | NO | `` |  |
 | 4 | `chunk_order` | `int4` | NO | `` |  |
 | 5 | `token_count` | `int4` | YES | `` |  |
@@ -538,23 +538,23 @@ Indexes:
 
 Indexes:
 
-- `idx_test_documents_chunks_document_id`: `INDEX idx_test_documents_chunks_document_id ON public.test_documents_chunks USING btree (document_id)`
-- `idx_test_documents_chunks_document_order`: `INDEX idx_test_documents_chunks_document_order ON public.test_documents_chunks USING btree (document_id, chunk_order)`
-- `test_documents_chunks_pkey`: `UNIQUE INDEX test_documents_chunks_pkey ON public.test_documents_chunks USING btree (chunk_id)`
-- `uq_test_documents_chunks_document_order`: `UNIQUE INDEX uq_test_documents_chunks_document_order ON public.test_documents_chunks USING btree (document_id, chunk_order)`
+- `idx_test_documents_chunks_document_id`: `INDEX idx_test_documents_chunks_document_id ON public.documents_chunks USING btree (document_id)`
+- `idx_test_documents_chunks_document_order`: `INDEX idx_test_documents_chunks_document_order ON public.documents_chunks USING btree (document_id, chunk_order)`
+- `test_documents_chunks_pkey`: `UNIQUE INDEX test_documents_chunks_pkey ON public.documents_chunks USING btree (chunk_id)`
+- `uq_test_documents_chunks_document_order`: `UNIQUE INDEX uq_test_documents_chunks_document_order ON public.documents_chunks USING btree (document_id, chunk_order)`
 
-### `test_documents_embeddings_large`
+### `documents_embeddings`
 
 - Exact Rows: 5,068
-- Purpose: Large-model vector embeddings for document chunks
+- Purpose: Vector embeddings for document chunks
 - Primary Key: `embedding_id`
 - PK Default: none
-- Foreign Keys: `chunk_id` -> `test_documents_chunks.chunk_id` (CASCADE)
+- Foreign Keys: `chunk_id` -> `documents_chunks.chunk_id` (CASCADE)
 
 | # | Column | Type | Nullable | Default | Notes |
 | ---: | --- | --- | --- | --- | --- |
 | 1 | `embedding_id` | `varchar` | NO | `` | PK, UNIQUE |
-| 2 | `chunk_id` | `varchar` | NO | `` | UNIQUE, FK -> `test_documents_chunks.chunk_id` |
+| 2 | `chunk_id` | `varchar` | NO | `` | UNIQUE, FK -> `documents_chunks.chunk_id` |
 | 3 | `embedding_vector` | `vector` | YES | `` |  |
 | 4 | `embedding_model` | `varchar` | YES | `` |  |
 | 5 | `source_type` | `varchar` | YES | `` |  |
@@ -563,44 +563,18 @@ Indexes:
 
 Indexes:
 
-- `idx_test_documents_embeddings_large_chunk_id`: `INDEX idx_test_documents_embeddings_large_chunk_id ON public.test_documents_embeddings_large USING btree (chunk_id)`
-- `idx_test_documents_embeddings_large_source_category`: `INDEX idx_test_documents_embeddings_large_source_category ON public.test_documents_embeddings_large USING btree (source_type, category)`
-- `idx_test_documents_embeddings_large_vector_cosine`: `INDEX idx_test_documents_embeddings_large_vector_cosine ON public.test_documents_embeddings_large USING ivfflat (embedding_vector vector_cosine_ops) WITH (lists='100')`
-- `test_documents_embeddings_large_pkey`: `UNIQUE INDEX test_documents_embeddings_large_pkey ON public.test_documents_embeddings_large USING btree (embedding_id)`
-- `uq_test_documents_embeddings_large_chunk_id`: `UNIQUE INDEX uq_test_documents_embeddings_large_chunk_id ON public.test_documents_embeddings_large USING btree (chunk_id)`
-
-### `test_documents_embeddings_small`
-
-- Exact Rows: 5,068
-- Purpose: Small-model vector embeddings for document chunks
-- Primary Key: `embedding_id`
-- PK Default: none
-- Foreign Keys: `chunk_id` -> `test_documents_chunks.chunk_id` (CASCADE)
-
-| # | Column | Type | Nullable | Default | Notes |
-| ---: | --- | --- | --- | --- | --- |
-| 1 | `embedding_id` | `varchar` | NO | `` | PK, UNIQUE |
-| 2 | `chunk_id` | `varchar` | NO | `` | UNIQUE, FK -> `test_documents_chunks.chunk_id` |
-| 3 | `embedding_vector` | `vector` | YES | `` |  |
-| 4 | `embedding_model` | `varchar` | YES | `` |  |
-| 5 | `source_type` | `varchar` | YES | `` |  |
-| 6 | `category` | `varchar` | YES | `` |  |
-| 7 | `created_at` | `timestamp` | YES | `CURRENT_TIMESTAMP` |  |
-
-Indexes:
-
-- `idx_test_documents_embeddings_small_chunk_id`: `INDEX idx_test_documents_embeddings_small_chunk_id ON public.test_documents_embeddings_small USING btree (chunk_id)`
-- `idx_test_documents_embeddings_small_source_category`: `INDEX idx_test_documents_embeddings_small_source_category ON public.test_documents_embeddings_small USING btree (source_type, category)`
-- `idx_test_documents_embeddings_small_vector_cosine`: `INDEX idx_test_documents_embeddings_small_vector_cosine ON public.test_documents_embeddings_small USING ivfflat (embedding_vector vector_cosine_ops) WITH (lists='100')`
-- `test_documents_embeddings_small_pkey`: `UNIQUE INDEX test_documents_embeddings_small_pkey ON public.test_documents_embeddings_small USING btree (embedding_id)`
-- `uq_test_documents_embeddings_small_chunk_id`: `UNIQUE INDEX uq_test_documents_embeddings_small_chunk_id ON public.test_documents_embeddings_small USING btree (chunk_id)`
+- `idx_test_documents_embeddings_small_chunk_id`: `INDEX idx_test_documents_embeddings_small_chunk_id ON public.documents_embeddings USING btree (chunk_id)`
+- `idx_test_documents_embeddings_small_source_category`: `INDEX idx_test_documents_embeddings_small_source_category ON public.documents_embeddings USING btree (source_type, category)`
+- `idx_test_documents_embeddings_small_vector_cosine`: `INDEX idx_test_documents_embeddings_small_vector_cosine ON public.documents_embeddings USING ivfflat (embedding_vector vector_cosine_ops) WITH (lists='100')`
+- `test_documents_embeddings_small_pkey`: `UNIQUE INDEX test_documents_embeddings_small_pkey ON public.documents_embeddings USING btree (embedding_id)`
+- `uq_test_documents_embeddings_small_chunk_id`: `UNIQUE INDEX uq_test_documents_embeddings_small_chunk_id ON public.documents_embeddings USING btree (chunk_id)`
 
 ### `ticket_analysis`
 
 - Exact Rows: 0
 - Purpose: Ticket classification, risk, sentiment, and routing analysis
 - Primary Key: `analysis_id`
-- PK Default: none
+- PK Default: `IDENTITY`
 - Foreign Keys: `ticket_id` -> `qa_ticket.ticket_id` (NO ACTION)
 
 | # | Column | Type | Nullable | Default | Notes |
@@ -618,5 +592,6 @@ Indexes:
 
 Indexes:
 
+- `idx_ticket_analysis_analyzed_at`: `INDEX idx_ticket_analysis_analyzed_at ON public.ticket_analysis USING btree (analyzed_at)`
 - `ticket_analysis_pkey`: `UNIQUE INDEX ticket_analysis_pkey ON public.ticket_analysis USING btree (analysis_id)`
 
