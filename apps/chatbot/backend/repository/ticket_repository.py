@@ -63,7 +63,7 @@ def save_qa_ticket(payload: dict[str, Any]) -> dict[str, Any]:
     return safe_write(operation="write_qa_ticket", payload=payload, writer=_write)
 
 
-# final_response 단계에서 qa_ticket의 처리 상태를 resolved/review 등으로 갱신한다.
+# ticket_completion 단계에서 qa_ticket의 처리 상태를 resolved/review 등으로 갱신한다.
 def update_qa_ticket_status(payload: dict[str, Any]) -> dict[str, Any]:
     def _write() -> dict[str, Any]:
         with db_connection() as conn:
@@ -99,21 +99,22 @@ def update_qa_ticket_raw_query(payload: dict[str, Any]) -> dict[str, Any]:
                     """
                     UPDATE qa_ticket
                     SET raw_query = %s,
-                        safety_action = %s,
                         status = %s
                     WHERE ticket_id = %s
                     """,
                     (
                         payload["raw_query"],
-                        payload.get("safety_action"),
                         payload.get("status"),
                         _optional_int(payload["ticket_id"]),
                     ),
                 )
+                updated_count = cur.rowcount
         return {
             "status": "ok",
             "stored": True,
             "ticket_id": payload["ticket_id"],
+            "ticket_status": payload.get("status"),
+            "updated_count": updated_count,
         }
 
     return safe_write(operation="update_qa_ticket_raw_query", payload=payload, writer=_write)

@@ -7,7 +7,7 @@ from chatbot.chains.routing import route_after_draft_persistence, route_after_pr
 from chatbot.generation.bug_agent import bug_agent_node
 from chatbot.generation.faq_agent import faq_agent_node
 from chatbot.generation.payment_agent import payment_agent_node
-from chatbot.generation.response.final_response import final_response_node
+from chatbot.generation.response.ticket_completion import ticket_completion_node
 from chatbot.generation.ticket_preprocess import ticket_preprocess_node
 from chatbot.generation.voc_agent import voc_agent_node
 from chatbot.safety.safety_layer import safety_layer_node
@@ -24,13 +24,13 @@ workflow.add_node("faq_agent", faq_agent_node)
 workflow.add_node("voc_agent", voc_agent_node)
 workflow.add_node("draft_persistence", draft_persistence_node)
 workflow.add_node("safety_layer", safety_layer_node)
-workflow.add_node("final_response", final_response_node)
+workflow.add_node("ticket_completion", ticket_completion_node)
 
 # 1단계: 사용자 문의를 전처리하고 qa_ticket에 최초 저장한다.
 workflow.set_entry_point("ticket_preprocess")
 
 # 2단계: 전처리 결과와 선택 카테고리에 따라 담당 agent로 분기한다.
-# prompt injection처럼 즉시 차단해야 하는 입력은 agent를 거치지 않고 final_response로 이동한다.
+# prompt injection처럼 즉시 차단해야 하는 입력은 agent를 거치지 않고 ticket_completion으로 이동한다.
 workflow.add_conditional_edges(
     "ticket_preprocess",
     route_after_preprocess,
@@ -39,7 +39,7 @@ workflow.add_conditional_edges(
         "bug_agent": "bug_agent",
         "faq_agent": "faq_agent",
         "voc_agent": "voc_agent",
-        "final_response": "final_response",
+        "ticket_completion": "ticket_completion",
     },
 )
 
@@ -48,13 +48,13 @@ for node_name in ("payment_agent", "bug_agent", "faq_agent", "voc_agent"):
     workflow.add_edge(node_name, "draft_persistence")
 
 # 4단계: answer_draft/evidence_docs 저장 후 safety 검사 여부를 결정한다.
-# VOC는 고정 응답이라 바로 final_response로 가고, 나머지는 safety_layer에서 검증한다.
+# VOC는 고정 응답이라 바로 ticket_completion으로 가고, 나머지는 safety_layer에서 검증한다.
 workflow.add_conditional_edges(
     "draft_persistence",
     route_after_draft_persistence,
     {
         "safety_layer": "safety_layer",
-        "final_response": "final_response",
+        "ticket_completion": "ticket_completion",
     },
 )
 
@@ -67,11 +67,11 @@ workflow.add_conditional_edges(
         "bug_agent": "bug_agent",
         "faq_agent": "faq_agent",
         "draft_persistence": "draft_persistence",
-        "final_response": "final_response",
+        "ticket_completion": "ticket_completion",
     },
 )
 
 # 6단계: 최종 응답과 티켓 상태를 저장한 뒤 workflow를 종료한다.
-workflow.add_edge("final_response", END)
+workflow.add_edge("ticket_completion", END)
 
 graph = workflow.compile()

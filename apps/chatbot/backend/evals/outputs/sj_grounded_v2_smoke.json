@@ -1,0 +1,249 @@
+{
+  "dataset": {
+    "name": "sj-documents-grounded-ragas-30-v2",
+    "description": "sj_documents의 실제 QNA/가이드/공지 문서에 있는 내용만 묻는 30개 자동응답 평가셋입니다. small/large embedding 비교와 RAGAS 평가에서 답변 공백을 줄이기 위해 source_documents를 명시했습니다.",
+    "version": "v2",
+    "total_examples": 30,
+    "expected_action": "AUTO_RESPONSE",
+    "paper_basis": [
+      "RAGAS: retrieved_contexts, reference_answer, rubrics 기반 faithfulness, answer_relevancy, context_precision, context_recall 평가",
+      "StructGPT: 계정/결제처럼 절차가 정해진 질의를 구조화된 단계로 묻도록 구성",
+      "ChatLR: 문서 검색 대상과 정형 로그 조회 대상을 분리하고, 본 세트는 문서 검색형 질의만 포함",
+      "Enhancing Few-shot Text-to-SQL Capabilities of LLMs: 자연어 문의를 검색 가능한 intent로 명확히 작성"
+    ],
+    "evaluation_note": "질문은 실제 sj_documents의 title/chunk_text에 등장하는 고유명사와 절차를 기반으로 작성했습니다. LangSmith 업로드 시 --langsmith-recreate-dataset 사용을 권장합니다."
+  },
+  "profiles": {
+    "small": {
+      "embedding_model": "text-embedding-3-small",
+      "embedding_dimensions": 1536,
+      "documents_table": "sj_documents",
+      "chunks_table": "test_documents_chunks",
+      "embeddings_table": "test_documents_embeddings_small"
+    }
+  },
+  "summary": {
+    "small": {
+      "examples": 3,
+      "avg_keyword_recall": 0.25,
+      "source_document_hit_rate": 0.0,
+      "avg_latency_ms": 1965.09
+    }
+  },
+  "results": [
+    {
+      "test_id": "SJ-GROUNDED-001",
+      "profile": "small",
+      "embedding_model": "text-embedding-3-small",
+      "embeddings_table": "test_documents_embeddings_small",
+      "question": "메일을 연동하거나 연동된 메일을 변경하려면 어디에서 해야 하나요?",
+      "answer": "",
+      "reference_answer": "유니버스 통행증 공식 홈페이지에 로그인한 뒤 기본 정보-메일 페이지에서 메일 연동 또는 변경을 할 수 있습니다. 게임 내 설정-계정에서 유저 센터에 방문해도 같은 작업을 진행할 수 있습니다.",
+      "latency_ms": 5037.0,
+      "top_k": 5,
+      "top_contexts": [
+        {
+          "chunk_id": "NVC-NOT-385::chunk::189",
+          "document_id": "NVC-NOT-385",
+          "source_type": "naver_cafe_notice",
+          "category": "공지사항",
+          "title": "「다가오는 객성」 1.1 버전 업데이트 안내 (WiFi 사용 권장)",
+          "chunk_text": "「다가오는 객성」 1.1 버전 업데이트 안내 (WiFi 사용 권장)\n\n=====문제 수정=====\n\n24. 우편 화면에서 삭제 버튼 연속 클릭 시 일정 확률로 보상을 수령하지 않은 우편이 삭제되던 문제 수정",
+          "cosine_score": 0.3212787495410345,
+          "rank": 1
+        },
+        {
+          "chunk_id": "NVC-NOT-385::chunk::183",
+          "document_id": "NVC-NOT-385",
+          "source_type": "naver_cafe_notice",
+          "category": "공지사항",
+          "title": "「다가오는 객성」 1.1 버전 업데이트 안내 (WiFi 사용 권장)",
+          "chunk_text": "「다가오는 객성」 1.1 버전 업데이트 안내 (WiFi 사용 권장)\n\n=====문제 수정=====\n\n18. 모바일 클라이언트에서 리월 지역 오장산 수면이 정상적으로 얼어붙지 않던 문제 수정",
+          "cosine_score": 0.2993794755020167,
+          "rank": 2
+        },
+        {
+          "chunk_id": "NVC-NOT-385::chunk::58",
+          "document_id": "NVC-NOT-385",
+          "source_type": "naver_cafe_notice",
+          "category": "공지사항",
+          "title": "「다가오는 객성」 1.1 버전 업데이트 안내 (WiFi 사용 권장)",
+          "chunk_text": "「다가오는 객성」 1.1 버전 업데이트 안내 (WiFi 사용 권장)\n\n=====업데이트 내용=====\n\n2. 설정\n- 키보드 및 패드 버튼 사용자 설정 추가: 일상이 화면-설정-키 설정에서 변경할 키를 선택한 후 키 변경 가능\n- 설정-그래픽에 사용자 설정 추가: 볼륨포그, 반사, Bloom, 군중 밀도, 다인 모드 파티원 이펙트\n- 설정-기타에 새로운 항목 추가: 전투 중 카메라 자동 조정, 기본 카메라 거리",
+          "cosine_score": 0.2972667577576339,
+          "rank": 3
+        },
+        {
+          "chunk_id": "NVC-NOT-386::chunk::38",
+          "document_id": "NVC-NOT-386",
+          "source_type": "naver_cafe_notice",
+          "category": "공지사항",
+          "title": "「다가오는 객성」 1.1 버전 업데이트 공지 (WiFi 사용 권장)",
+          "chunk_text": "「다가오는 객성」 1.1 버전 업데이트 공지 (WiFi 사용 권장)\n\n=====업데이트 내용=====\n\n2. 설정\n키보드 및 패드 버튼 사용자 설정 추가: 일상이 화면-설정-키 설정에서 변경할 키를 선택한 후 키 변경 가능.\n설정-그래픽에 사용자 설정 추가: 볼륨포그, 반사, Bloom, 군중 밀도, 다인 모드 파티원 이펙트.\n설정-기타에 새로운 항목 추가: 전투 중 카메라 자동 조정, 기본 카메라 거리.",
+          "cosine_score": 0.2919445085850607,
+          "rank": 4
+        },
+        {
+          "chunk_id": "NVC-NOT-385::chunk::121",
+          "document_id": "NVC-NOT-385",
+          "source_type": "naver_cafe_notice",
+          "category": "공지사항",
+          "title": "「다가오는 객성」 1.1 버전 업데이트 안내 (WiFi 사용 권장)",
+          "chunk_text": "「다가오는 객성」 1.1 버전 업데이트 안내 (WiFi 사용 권장)\n\n=====문제 수정=====\n\n2. 캐릭터가 무기 「드래곤 슬레이어 영웅담」 장착 후 워프를 진행하면 본인에게 무기 효과 「계승」이 적용되던 문제 수정",
+          "cosine_score": 0.28840001462160925,
+          "rank": 5
+        }
+      ],
+      "keyword_hit_count": 0,
+      "keyword_total": 4,
+      "keyword_recall": 0.0,
+      "matched_keywords": [],
+      "source_document_hit": false,
+      "matched_source_documents": [],
+      "ragas": {}
+    },
+    {
+      "test_id": "SJ-GROUNDED-002",
+      "profile": "small",
+      "embedding_model": "text-embedding-3-small",
+      "embeddings_table": "test_documents_embeddings_small",
+      "question": "유니버스 아이디는 무엇이고 변경할 수 있나요?",
+      "answer": "",
+      "reference_answer": "아이디는 유니버스 계정의 인증 수단이며 로그인할 때 비밀번호와 함께 사용됩니다. 공식 홈페이지의 기본 정보-아이디 또는 게임 내 설정-계정의 유저 센터에서 설정할 수 있지만, 연동 이후에는 변경 및 연동 해제가 불가능합니다.",
+      "latency_ms": 414.23,
+      "top_k": 5,
+      "top_contexts": [
+        {
+          "chunk_id": "NVC-NOT-99::chunk::0",
+          "document_id": "NVC-NOT-99",
+          "source_type": "naver_cafe_notice",
+          "category": "안내",
+          "title": "X(Twitter) 로그인 오류 관련 안내(오류 복구 완료)",
+          "chunk_text": "X(Twitter) 로그인 오류 관련 안내(오류 복구 완료)\n\nX(Twitter)의 오류로 인해 일부 여행자가 X(Twitter) 계정을 통해 로그인할 수 없는 오류가 발생했어\n\n여행자들에게 불편을 끼쳐 정말 미안해\n\n서비스 복구 완료 후 커뮤니티 공지사항을 통해 다시 알려줄게, 후속 공지사항을 확인해 줘~\n\nX(Twitter) 계정으로 로그인이 불가한 여행자는 유니버스통행증 혹은 다른 로그인 방법을 이용해 주길 바라",
+          "cosine_score": 0.40434518905266403,
+          "rank": 1
+        },
+        {
+          "chunk_id": "NVC-NOT-87::chunk::0",
+          "document_id": "NVC-NOT-87",
+          "source_type": "naver_cafe_notice",
+          "category": "안내",
+          "title": "X(Twitter) 로그인 오류 관련 안내 (오류 복구 완료)",
+          "chunk_text": "X(Twitter) 로그인 오류 관련 안내 (오류 복구 완료)\n\n현재 X(Twitter) 로그인 오류 관련 서비스가 복구되었어\n\n여행자들에게 불편을 끼쳐 정말 미안해, 양해 부탁해\nX(Twitter)의 오류로 인해 일부 여행자가 X(Twitter) 계정을 통해 로그인할 수 없는 오류가 발생했어\n\n여행자들에게 불편을 끼쳐 정말 미안해\n\n서비스 복구 완료 후 본 게시글을 통해 다시 알려줄게, 후속 공지사항을 확인해 줘~\n\nX(Twitter) 계정으로 로그인이 불가한 여행자는 유니버스통행증 혹은 다른 로그인 방법을 이용해 주길 바라",
+          "cosine_score": 0.40320162941391025,
+          "rank": 2
+        },
+        {
+          "chunk_id": "NVC-NOT-153::chunk::0",
+          "document_id": "NVC-NOT-153",
+          "source_type": "naver_cafe_notice",
+          "category": "공지사항",
+          "title": "일상 공식 커뮤니티 사칭 주의 안내",
+          "chunk_text": "일상 공식 커뮤니티 사칭 주의 안내\n\n일상 커뮤니티 계정: 일상 @ilsang_universekr\n\n▶ 공식 카페: https://support.universe.example\n일상 커뮤니티 명칭: 일상 공식카페\n\n▶ 공식 페이스북: https://support.universe.example\n일상 커뮤니티 계정: 일상 @ilsang.universe.example\n\n▶ 공식 유튜브 채널: https://support.universe.example\n일상 커뮤니티 계정: 일상 @dailyimpact_KR\n\n▶ 공식 틱톡 채널: https://support.universe.example\n일상 공식 커뮤니티 계정: 일상 @ilsang_universe_kr\n\n▶ 공식 호요랩: https://support.universe.example\n\n▶ 공식 홈페이지: https://support.universe.example",
+          "cosine_score": 0.282868922740514,
+          "rank": 3
+        },
+        {
+          "chunk_id": "NVC-GDE-186::chunk::0",
+          "document_id": "NVC-GDE-186",
+          "source_type": "naver_cafe_guide",
+          "category": "캐릭터 소개",
+          "title": "「여행자(불)」 등장!",
+          "chunk_text": "「여행자(불)」 등장!\n\n5.3 버전 업데이트가 이루어지고 나면 드디어 불 원소 공명을 할 수 있게 될 거야! 이번에는 여행자가 어떤 힘을 얻게 될지 확인해 볼까?",
+          "cosine_score": 0.28001871465844297,
+          "rank": 4
+        },
+        {
+          "chunk_id": "NVC-NOT-313::chunk::15",
+          "document_id": "NVC-NOT-313",
+          "source_type": "naver_cafe_notice",
+          "category": "공지사항",
+          "title": "「부동의 번개 신, 포영의 절멸」 2.0 버전 업데이트 공지",
+          "chunk_text": "「부동의 번개 신, 포영의 절멸」 2.0 버전 업데이트 공지\n\n=====업데이트 내용=====\n\n◇먼 옛날 속세를 떠난 무인들이 땅속 깊은 곳에 세상 밖의 풍경을 본따 지은 화려한 저택. 나중에 어떤 이가 그 안에서 백지장처럼 실성한 가부키모노를 발견했다고 한다\n비경 「진다이의 저택」",
+          "cosine_score": 0.2631627588353933,
+          "rank": 5
+        }
+      ],
+      "keyword_hit_count": 0,
+      "keyword_total": 4,
+      "keyword_recall": 0.0,
+      "matched_keywords": [],
+      "source_document_hit": false,
+      "matched_source_documents": [],
+      "ragas": {}
+    },
+    {
+      "test_id": "SJ-GROUNDED-003",
+      "profile": "small",
+      "embedding_model": "text-embedding-3-small",
+      "embeddings_table": "test_documents_embeddings_small",
+      "question": "유니버스 통행증 계정은 어디에서 가입할 수 있나요?",
+      "answer": "",
+      "reference_answer": "유니버스 통행증 공식 홈페이지의 로그인 화면에서 회원가입을 누르거나, 유니버스 산하 게임의 로그인 화면에서 회원가입을 눌러 가입할 수 있습니다.",
+      "latency_ms": 444.05,
+      "top_k": 5,
+      "top_contexts": [
+        {
+          "chunk_id": "QNA-COM-19::chunk::0",
+          "document_id": "QNA-COM-19",
+          "source_type": "universe_qna_common",
+          "category": "유니버스_통행증_이슈",
+          "title": "Hoyoverse 통행증이 뭔가요?",
+          "chunk_text": "Hoyoverse 통행증이 뭔가요?\n\n질문: Hoyoverse 통행증이 뭔가요?\n\n답변:\n유니버스 통행증을 사용하면 유니버스 산하의 모든 게임에 로그인할 수 있습니다.\n계정 연동 시스템은 유니버스 산하의 모든 게임에서 사용 가능합니다. 예를 들어, A 게임에서 가입한 유니버스 통행증에 Facebook 계정을 연동할 경우, 동일한 유니버스 통행증으로 B 게임 로그인 시 해당 Facebook 계정 및 유니버스 통행증 계정의 연동 상태가 그대로 유지됩니다.",
+          "cosine_score": 0.5894474040897157,
+          "rank": 1
+        },
+        {
+          "chunk_id": "QNA-GSN-1::chunk::1",
+          "document_id": "QNA-GSN-1",
+          "source_type": "universe_qna_onlydaily",
+          "category": "계정_문제",
+          "title": "〈일상〉 유니버스 통행증과 Microsoft 계정 크로스 세이브에 관한 FAQ (1/2)",
+          "chunk_text": "〈일상〉 유니버스 통행증과 Microsoft 계정 크로스 세이브에 관한 FAQ (1/2)\n\nQ: Microsoft 계정을 연동하고 나면 iOS/Android/PC 플랫폼을 통해 Xbox 플랫폼에서 생성한 [유니버스 통행증]에 창세의 결정을 결제할 수 있나요? 혹은 Xbox 플랫폼을 통해 iOS/Android/PC 플랫폼에서 생성한 [유니버스 통행증]에 창세의 결정을 결제할 수 있나요?\n\nA: Xbox 플랫폼에서 연동 및 생성한 [유니버스 통행증]은 Xbox 플랫폼과 온라인 결제 플랫폼, iOS/Android/PC 플랫폼을 통한 결제를 모두 지원합니다.\n\nQ: iOS/Android/PC 플랫폼에서 결제를 통해 획득한 시공의 결정이나 유람은 Xbox 플랫폼에서도 호환이 되나요?\n\nA: 계정 연동이 완료되면 iOS/Android/PC 플랫폼에서 획득한 시공의 결정과 Xbox 플랫폼에서 획득한 시공의 결정은 서로 호환되며, 이는 유람 또한 마찬가지입니다. 플랫폼을 바꿔서 플레이할 경우 다른 플랫폼에서 결제한 시공의 결정은 별도로 표시되지만, 정상적으로 사용이 가능합니다.",
+          "cosine_score": 0.473501029419815,
+          "rank": 2
+        },
+        {
+          "chunk_id": "NVC-GDE-685::chunk::0",
+          "document_id": "NVC-GDE-685",
+          "source_type": "naver_cafe_guide",
+          "category": "가이드",
+          "title": "「일상」 게임 내 계정 연동하는 방법 가이드 (wifi 사용추천)",
+          "chunk_text": "「일상」 게임 내 계정 연동하는 방법 가이드 (wifi 사용추천)\n\n일부 여행자들이 게임 내 계정 연동하는 방법을 몰라 힘들어한다는 소식을 듣고 일상이이 지금 게임 계정을 연동하는 방법을 알려주려고 해~\n\n1. 게임 내 왼쪽 상단에 ‘일상이' 아이콘을 눌러줘\n2. ‘설정' 아이콘을 눌러줘\n3. ‘계정'을 선택하면 ‘유저 센터'를 확인할 수 있어. ‘유저 센터'를 눌러줘\n※주의사항\n구글/애플 계정/ 게임센터/트위터/페이스북 등 다른 플랫폼으로 로그인한 계정은 새로운 계정으로 형성되기에 기존의 유니버스 통행증과 연동할 수 없습니다. 아래 절차에 따라 새로운 유니버스 통행증을 가입해 주시길 바랍니다.\n\n▶ 모바일 버전 구글/애플 계정/ 게임센터로 로그인한 계정을 유니버스 통행증과 연동하는 방법\n1. ‘계정 연동'에 ‘연동' 버튼을 확인할 수 있을 거야. 선택!\n\n======게임센터=====\n=====구글=====\n=====애플 계정(Sign In With Appl)=====\n\n2. 메일 연동 혹은 아이디 연동을 선택해 가입하면 완성! (^o^)v\n예시) 아이디: test00\n비밀번호: xxxxxx\n3. 회원가입한 메일 혹은 아이디를 사용해 PC 버전에서 이어서 게임을 즐길 수 있어~\n\n▶PC 버전 유니버스 통행증을 트위터/페이스북 계정과 연동 방법\n1. 맨 아래 ‘계정 연동'을 선택해줘~\n2. 트위터 혹은 페이스북 계정을 연동할 수 있어\n▶ 유니버스 통행증으로 iOS 버전 로그인 지원 플랫폼 계정 연동 방법\n1. 맨 아래 ‘계정 연동'에서 ‘연동'을 선택해줘~\n2. 연동하고 싶은 플랫폼을 선택해 연동하면 된다구!\n\n▶ 유니버스 통행증으로 안드로이드 버전 로그인 지원 플랫폼 계정 연동 방법\n1. ‘계정 연동'에서 ‘연동'을 선택!\n2. 연동하고 싶은 플랫폼을 선택해 ‘연동' 터치!\n※'서드파티 계정이 이미 다른 계정과 연동되어 있습니다' 해당 말은 연동하려는 구글/ 페이스북/ 트위터/ 애플 계정/ 게임센터 계정이 이미 다른 계정에 연동되어 있다는 뜻입니다.",
+          "cosine_score": 0.41762999151905733,
+          "rank": 3
+        },
+        {
+          "chunk_id": "NVC-NOT-413::chunk::0",
+          "document_id": "NVC-NOT-413",
+          "source_type": "naver_cafe_notice",
+          "category": "공지사항",
+          "title": "「일상」 정식 오픈 FAQ (수정)",
+          "chunk_text": "「일상」 정식 오픈 FAQ (수정)\n\n모험을 시작하기에 앞서 여행자들이 궁금해할 내용을 준비했어~! 그럼 정식 오픈 관련 FAQ를 알려줄게~\n\n출시 시 어떤 언어와 더빙을 지원하나요?\n은 한국어, 영어, 일본어, 중국어(번체), 중국어(간체), 독일어, 프랑스어, 러시아어, 스페인어, 포르투갈어, 태국어, 인도네시아어, 베트남어를 지원해.\n지원하는 더빙은 한국어, 영어, 일본어, 중국어야.\n여행자는 게임 입장 후 게임 설정에서 원하는 언어와 더빙을 선택할 수 있어.\n\n게임을 미리 다운로드할 수 있나요? 만약 가능하다면, 어떻게 미리 다운로드할 수 있나요?\n여행자들은 미리 게임을 다운로드할 수 있어.\n\n▶ PC\n사전 다운로드 시간: 2020년 9월 26일 11:00(한국시간)\nPC를 사용하는 여행자는 공식 홈페이지에서 다운로드 개방 시간에 맞춰 게임을 다운로드할 수 있어.\n공식 홈페이지: https://support.universe.example\n\n▶ iOS&Android\n사전 다운로드 시간: 2020년 9월 27일 15:00(한국시간)\niOS 예약 주소: https://support.universe.example\nAndroid 예약 주소: https://support.universe.example\n(App Store의 경우 딜레이가 발생할 수 있습니다. App Store에서 예약 버튼이 사전 다운로드 버튼으로 새로고침되지 않았을 경우 새로고침될 때까지 기다려주세요)\n\n▶ PS4\n예약주문 여행자: 2020년 9월 26일 01:00(한국시간)\n모든 여행자: 2020년 9월 28일 01:00(한국시간)\nPS4 예약 주소: https://support.universe.example\n\n서버 오픈 시 어떤 혜택 이벤트가 진행되나요?\n일부 혜택 이벤트:\n\n▶ 사전예약 300만 달성 보상:\n만남의 인연 10개——서버 오픈 후 여행자는 게임 내 우편으로 보상을 수령할 수 있어. (서버 오픈부터 1.1버전 업데이트 전까지 캐릭터 생성 시 획득 가능)\n\n▶ 글로벌 사전예약 1000만 달성 보상:\n만남의 인연 10개——서버 오픈 후 여행자 모험 등급 Lv.10 달성 시 게임 내 우편으로 보상을 수령할 수 있어. (서버 오픈부터 1.1버전 업데이트 전까지 캐릭터 생성 시 획득 가능)\n\n▶ 「출행 준비」 이벤트:\n이벤트 선택 보상——서버 오픈 후 이벤트에 참여한 여행자들은 게임 내 우편을 통해 보상을 수령할 수 있어. (이벤트 기간에 출행 준비 보상을 게임 속으로 교환해 주세요)\n이벤트 주소: https://support.universe.example\n\n◎ [만남의 인연]은 게임 내 기원 아이템으로 캐릭터 및 무기를 뽑는데 사용 가능하며, 기원 기능이 해제되면 사용할 수 있습니다.\n\n바람의 날개 스킨 「수호의 날개」:\n바람의 날개 스킨——서버 오픈 후 모든 여행자는 게임 내 우편을 통해 보상을 수령할 수 있어.\n\n어떤 계정으로 에 로그인할 수 있나요?\n▶ PC 클라이언트:\n유니버스 통행증/Facebook/Twitter\n\n▶ iOS 플랫폼(태블릿 포함):\n유니버스 통행증/Sign In With Apple/Gamecenter/Facebook/Twitter\n\n▶ Android 플랫폼(태블릿 포함):\n유니버스 통행증/Google/Facebook/Twitter",
+          "cosine_score": 0.40088821802805275,
+          "rank": 4
+        },
+        {
+          "chunk_id": "QNA-COM-20::chunk::0",
+          "document_id": "QNA-COM-20",
+          "source_type": "universe_qna_common",
+          "category": "유니버스_통행증_이슈",
+          "title": "SNS 계정을 연동하려면 어떻게 해야 하나요?",
+          "chunk_text": "SNS 계정을 연동하려면 어떻게 해야 하나요?\n\n질문: SNS 계정을 연동하려면 어떻게 해야 하나요?\n\n답변:\nFacebook이나 X(Twitter) 계정 연동하기:\n1. [ 유니버스 통행증 공식 홈페이지 ]의 계정 연동 페이지로 이동하면 Facebook 또는 X(Twitter) 계정을 연동할 수 있습니다.\n2. 유니버스 산하 게임에 로그인한 다음, 설정-계정을 통해 유저 센터에 방문하는 방법으로도 계정을 연동할 수 있습니다.\n\nGoogle, Apple, Game Center 계정 연동하기:\niOS 또는 안드로이드 디바이스에서 유니버스 산하 게임에 로그인한 다음, 설정-계정을 통해 유저 센터를 방문하면 계정을 연동할 수 있습니다.",
+          "cosine_score": 0.3897853024361343,
+          "rank": 5
+        }
+      ],
+      "keyword_hit_count": 3,
+      "keyword_total": 4,
+      "keyword_recall": 0.75,
+      "matched_keywords": [
+        "유니버스 통행증",
+        "회원가입",
+        "공식 홈페이지"
+      ],
+      "source_document_hit": false,
+      "matched_source_documents": [],
+      "ragas": {}
+    }
+  ]
+}

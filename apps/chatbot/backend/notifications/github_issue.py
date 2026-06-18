@@ -144,13 +144,13 @@ def _dispatch_github_issue_for_bug(state: dict[str, Any]) -> dict[str, Any]:
 
 
 def dispatch_github_issue_notification(state: dict[str, Any]) -> dict[str, Any]:
-    # final_response 단계에서 호출되며, 대상이 아니면 skipped로 남겨 흐름을 단순하게 유지한다.
+    # ticket_completion 단계에서 호출되며, 대상이 아니면 skipped로 남겨 흐름을 단순하게 유지한다.
     github_issue_result = _dispatch_github_issue_for_bug(state)
     log_event(
         EVENT_NOTIFICATION_DISPATCHED,
         ticket_id=state.get("ticket_id"),
         session_id=state.get("session_id"),
-        node_name="final_response",
+        node_name="ticket_completion",
         category=state.get("category"),
         routing_target=state.get("routing_target"),
         status=github_issue_result.get("status", "unknown"),

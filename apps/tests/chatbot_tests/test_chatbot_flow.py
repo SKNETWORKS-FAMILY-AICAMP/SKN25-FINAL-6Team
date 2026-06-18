@@ -8,16 +8,15 @@ from chatbot.chains.routing import route_after_draft_persistence, route_after_sa
 
 from chatbot.constants import VOC_FIXED_RESPONSE
 from chatbot.generation import ticket_preprocess, voc_agent
-from chatbot.generation.response.final_response import final_response_node
+from chatbot.generation.response.ticket_completion import ticket_completion_node
 from chatbot.generation.response.fixed_responses import (
     BLOCK_RESPONSE,
     BUG_FALLBACK_RESPONSE,
     FAQ_FALLBACK_RESPONSE,
     PAYMENT_FALLBACK_RESPONSE,
-    REVIEW_QUEUE_RESPONSE,
     SAFE_FALLBACK_RESPONSE,
 )
-from chatbot.notifications import dispatcher
+from chatbot.notifications import github_issue
 from chatbot.observability.logger import log_event
 from chatbot.safety import safety_layer
 from chatbot.service.chatbot_service import build_state, last_message_text
@@ -51,12 +50,20 @@ def test_preprocess_user_input_masks_sensitive_values_without_dropping_question(
 def test_build_state_uses_masked_content_for_runtime_message_but_keeps_raw_query() -> None:
     user_message = "아이템 미지급입니다. test@example.com 010-1234-5678"
 
-    state = build_state(ticket_id=1, user_message=user_message, category="payment")
+    state = build_state(
+        ticket_id=1,
+        user_message=user_message,
+        category="payment",
+        ui_category="bug",
+        sub_category="launch_access_error",
+        routing_target="bug_agent",
+    )
 
     assert state["raw_query"] == user_message
     assert state["masked_content"] != user_message
     assert "test@example.com" not in state["masked_content"]
     assert "010-1234-5678" not in state["messages"][-1]["content"]
+    assert "Selected subcategory: launch_access_error" in state["messages"][-1]["content"]
     assert state["input_masked"] is True
     assert state["input_detected_labels"] == ["email", "phone"]
 
@@ -202,6 +209,7 @@ def test_safety_action_blocks_moderation_flagged_content() -> None:
         },
         draft_text="blocked content",
         documents=[{"chunk_text": "blocked content"}],
+        state={},
     )
 
     assert safety_passed is False
@@ -220,6 +228,7 @@ def test_safety_action_uses_fallback_when_generated_without_evidence() -> None:
         },
         draft_text="unsupported answer",
         documents=[],
+        state={},
         requires_grounding=True,
     )
 
@@ -239,6 +248,7 @@ def test_safety_action_fallbacks_when_grounding_is_too_low() -> None:
         },
         draft_text="partly unsupported answer",
         documents=[{"chunk_text": "some evidence"}],
+        state={},
         requires_grounding=True,
     )
 
@@ -258,6 +268,7 @@ def test_safety_action_allows_middle_grounding_with_review_required() -> None:
         },
         draft_text="partly paraphrased answer",
         documents=[{"chunk_text": "some evidence"}],
+        state={},
         requires_grounding=True,
     )
 
@@ -277,6 +288,7 @@ def test_safety_action_auto_response_when_grounding_is_good() -> None:
         },
         draft_text="grounded answer",
         documents=[{"chunk_text": "some evidence"}],
+        state={},
         requires_grounding=True,
     )
 
@@ -329,12 +341,36 @@ def test_safety_action_allows_non_rag_agent_without_retrieved_documents() -> Non
         },
         draft_text="결제 이력을 확인한 뒤 안내드리겠습니다.",
         documents=[],
+        state={},
         requires_grounding=False,
     )
 
     assert safety_passed is True
     assert safety_action == "AUTO_RESPONSE"
     assert review_required is False
+
+
+def test_safety_action_marks_received_bug_inquiry_for_review() -> None:
+    safety_passed, safety_action, review_required = safety_layer._decide_safety_action(
+        moderation_blocked=False,
+        scores={
+            "toxicity_score": 0.0,
+            "policy_violation_score": 0.0,
+            "factuality_score": 1.0,
+            "hallucination_score": 0.0,
+        },
+        draft_text=(
+            "제공해주신 내용 기준으로 오류 문의가 접수되었습니다. "
+            "현재 대화 내용만으로 원인을 확정하기는 어려워 로그 및 재현 조건 검토가 필요합니다."
+        ),
+        documents=[],
+        state={"category": "bug", "reasoning_node": "bug_agent"},
+        requires_grounding=False,
+    )
+
+    assert safety_passed is True
+    assert safety_action == "REVIEW_REQUIRED"
+    assert review_required is True
 
 
 def test_safety_layer_does_not_fallback_payment_agent_without_rag_docs(monkeypatch) -> None:
@@ -500,26 +536,26 @@ def _final_state(category: str, safety_action: str = "SAFE_FALLBACK") -> dict:
     }
 
 
-def _patch_final_response_writes(monkeypatch) -> list[dict]:
-    payloads = []
+def _patch_ticket_completion_writes(monkeypatch) -> dict[str, list[dict]]:
+    payloads = {"ticket": []}
 
     def fake_update_raw_query(payload):
-        payloads.append(payload)
+        payloads["ticket"].append(payload)
         return {"stored": True, "ticket_id": payload["ticket_id"]}
 
     monkeypatch.setattr(
-        "chatbot.generation.response.final_response.update_qa_ticket_raw_query",
+        "chatbot.generation.response.ticket_completion.update_qa_ticket_raw_query",
         fake_update_raw_query,
     )
     monkeypatch.setattr(
-        "chatbot.generation.response.final_response.dispatch_urgent_alert",
+        "chatbot.generation.response.ticket_completion.dispatch_github_issue_notification",
         lambda state: {"status": "skipped"},
     )
     return payloads
 
 
-def test_final_response_uses_category_fallbacks(monkeypatch) -> None:
-    payloads = _patch_final_response_writes(monkeypatch)
+def test_ticket_completion_uses_category_fallbacks(monkeypatch) -> None:
+    payloads = _patch_ticket_completion_writes(monkeypatch)
 
     cases = [
         ("결제", PAYMENT_FALLBACK_RESPONSE),
@@ -529,24 +565,26 @@ def test_final_response_uses_category_fallbacks(monkeypatch) -> None:
     ]
 
     for category, expected in cases:
-        result = final_response_node(_final_state(category))
+        result = ticket_completion_node(_final_state(category))
         assert result["final_text"] == expected
 
-    assert [payload["raw_query"] for payload in payloads] == [f"User: \nAI: {expected}" for _, expected in cases]
+    assert [payload["raw_query"] for payload in payloads["ticket"]] == [
+        f"User: \nAI: {expected}" for _, expected in cases
+    ]
 
 
-def test_final_response_uses_fixed_block_and_review_responses(monkeypatch) -> None:
-    payloads = _patch_final_response_writes(monkeypatch)
+def test_ticket_completion_uses_fixed_block_and_review_responses(monkeypatch) -> None:
+    payloads = _patch_ticket_completion_writes(monkeypatch)
 
-    assert final_response_node(_final_state("FAQ", "BLOCK_RESPONSE"))["final_text"] == BLOCK_RESPONSE
-    assert final_response_node(_final_state("FAQ", "REVIEW_QUEUE"))["final_text"] == REVIEW_QUEUE_RESPONSE
-    assert [payload["status"] for payload in payloads] == ["resolved", "pending"]
+    assert ticket_completion_node(_final_state("FAQ", "BLOCK_RESPONSE"))["final_text"] == BLOCK_RESPONSE
+    assert ticket_completion_node(_final_state("FAQ", "REVIEW_REQUIRED"))["final_text"] == "draft"
+    assert [payload["status"] for payload in payloads["ticket"]] == ["resolved", "pending"]
 
 
-def test_final_response_does_not_write_chatbot_insight(monkeypatch) -> None:
-    _patch_final_response_writes(monkeypatch)
+def test_ticket_completion_does_not_write_chatbot_insight(monkeypatch) -> None:
+    _patch_ticket_completion_writes(monkeypatch)
 
-    result = final_response_node({
+    result = ticket_completion_node({
         **_final_state("payment"),
         "user_id": 1,
         "account_id": 101,
@@ -556,115 +594,99 @@ def test_final_response_does_not_write_chatbot_insight(monkeypatch) -> None:
     assert "insight_result" not in result
 
 
-def test_dispatch_urgent_alert_creates_github_issue_for_bug_agent(monkeypatch) -> None:
+def test_dispatch_github_issue_creates_issue_for_review_required_bug(monkeypatch) -> None:
     github_calls = []
     notification_logs = []
 
-    monkeypatch.setattr(dispatcher, "send_slack_alert", lambda message: {"status": "ok"})
     monkeypatch.setattr(
-        dispatcher,
-        "create_github_issue",
+        github_issue,
+        "_create_github_issue",
         lambda title, body: github_calls.append((title, body))
         or {"status": "ok", "issue_url": "https://github.com/acme/game/issues/1"},
     )
+    monkeypatch.setattr(github_issue, "notification_log_exists", lambda ticket_id, channel: {"exists": False})
     monkeypatch.setattr(
-        dispatcher,
+        github_issue,
         "save_notification_log",
         lambda payload: notification_logs.append(payload) or {"status": "ok", "stored": True},
     )
-    monkeypatch.setattr(dispatcher, "log_event", lambda *args, **kwargs: {})
+    monkeypatch.setattr(github_issue, "log_event", lambda *args, **kwargs: {})
 
-    result = dispatcher.dispatch_urgent_alert(
+    result = github_issue.dispatch_github_issue_notification(
         {
             "ticket_id": 1,
             "session_id": 2,
             "user_id": 3,
             "account_id": 4,
-            "category": "in-game-bug",
+            "category": "bug",
             "routing_target": "urgent_alert",
             "reasoning_node": "bug_agent",
+            "safety_action": "REVIEW_REQUIRED",
+            "review_required": True,
             "normalized_query": "game closes after loading",
             "final_text": "operator will review",
         }
     )
 
-    assert result["status"] == "skipped"
-    assert result["github_issue_result"]["status"] == "ok"
+    assert result["status"] == "ok"
     assert github_calls
-    assert github_calls[0][0] == "[인게임 버그] game closes after loading"
+    assert github_calls[0][0] == "[버그 검토 필요] game closes after loading"
     assert [payload["channel"] for payload in notification_logs] == ["github_issue"]
 
 
-def test_dispatch_urgent_alert_skips_github_issue_for_non_bug(monkeypatch) -> None:
+def test_dispatch_github_issue_skips_for_non_bug(monkeypatch) -> None:
     github_calls = []
 
-    monkeypatch.setattr(dispatcher, "send_slack_alert", lambda message: {"status": "ok"})
     monkeypatch.setattr(
-        dispatcher,
-        "create_github_issue",
+        github_issue,
+        "_create_github_issue",
         lambda title, body: github_calls.append((title, body)) or {"status": "ok"},
     )
-    monkeypatch.setattr(dispatcher, "save_notification_log", lambda payload: {"status": "ok", "stored": True})
-    monkeypatch.setattr(dispatcher, "log_event", lambda *args, **kwargs: {})
+    monkeypatch.setattr(github_issue, "save_notification_log", lambda payload: {"status": "ok", "stored": True})
+    monkeypatch.setattr(github_issue, "log_event", lambda *args, **kwargs: {})
 
-    result = dispatcher.dispatch_urgent_alert(
+    result = github_issue.dispatch_github_issue_notification(
         {
             "ticket_id": 1,
             "category": "payment",
             "routing_target": "urgent_alert",
             "reasoning_node": "payment_agent",
+            "safety_action": "REVIEW_REQUIRED",
+            "review_required": True,
             "normalized_query": "paid item was not delivered",
         }
     )
 
-    assert result["github_issue_result"]["status"] == "skipped"
+    assert result["status"] == "skipped"
     assert not github_calls
 
 
-def test_dispatch_urgent_alert_sends_slack_only_for_review_queue_once(monkeypatch) -> None:
-    slack_calls = []
-    notification_logs = []
+def test_dispatch_github_issue_skips_duplicate_ticket(monkeypatch) -> None:
+    github_calls = []
 
-    monkeypatch.setattr(dispatcher, "send_slack_alert", lambda message: slack_calls.append(message) or {"status": "ok"})
-    monkeypatch.setattr(dispatcher, "create_github_issue", lambda title, body: {"status": "skipped"})
-    monkeypatch.setattr(dispatcher, "notification_log_exists", lambda ticket_id, channel: {"exists": False})
     monkeypatch.setattr(
-        dispatcher,
-        "save_notification_log",
-        lambda payload: notification_logs.append(payload) or {"status": "ok", "stored": True},
+        github_issue,
+        "_create_github_issue",
+        lambda title, body: github_calls.append((title, body)) or {"status": "ok"},
     )
-    monkeypatch.setattr(dispatcher, "log_event", lambda *args, **kwargs: {})
+    monkeypatch.setattr(github_issue, "notification_log_exists", lambda ticket_id, channel: {"exists": True})
+    monkeypatch.setattr(github_issue, "log_event", lambda *args, **kwargs: {})
 
-    result = dispatcher.dispatch_urgent_alert(
+    result = github_issue.dispatch_github_issue_notification(
         {
             "ticket_id": 1,
-            "category": "FAQ",
+            "category": "bug",
             "routing_target": "urgent_alert",
-            "reasoning_node": "faq_agent",
-            "safety_action": "REVIEW_QUEUE",
+            "reasoning_node": "bug_agent",
+            "safety_action": "REVIEW_REQUIRED",
+            "review_required": True,
             "normalized_query": "needs human review",
         }
     )
 
-    assert result["status"] == "ok"
-    assert len(slack_calls) == 1
-    assert [payload["channel"] for payload in notification_logs] == ["slack"]
-
-    monkeypatch.setattr(dispatcher, "notification_log_exists", lambda ticket_id, channel: {"exists": True})
-    result = dispatcher.dispatch_urgent_alert(
-        {
-            "ticket_id": 1,
-            "category": "FAQ",
-            "routing_target": "urgent_alert",
-            "reasoning_node": "faq_agent",
-            "safety_action": "REVIEW_QUEUE",
-            "normalized_query": "needs human review again",
-        }
-    )
-
     assert result["status"] == "skipped"
-    assert result["reason"] == "slack alert already sent for ticket_id"
-    assert len(slack_calls) == 1
+    assert result["reason"] == "github issue already created for ticket_id"
+    assert not github_calls
 
 
 def test_voc_agent_uses_fallback_for_non_actionable_non_rag_intent(monkeypatch) -> None:
@@ -701,11 +723,10 @@ def test_voc_skips_safety_and_never_retries_from_safety() -> None:
         "retry_count": 0,
     }
 
-    assert route_after_draft_persistence(voc_state) == "final_response"
-    assert route_after_safety(voc_state) == "final_response"
+    assert route_after_draft_persistence(voc_state) == "ticket_completion"
+    assert route_after_safety(voc_state) == "ticket_completion"
 
 
 def test_route_after_draft_persistence_skips_safety_for_voc() -> None:
-    assert route_after_draft_persistence({"category": "voc"}) == "final_response"
+    assert route_after_draft_persistence({"category": "voc"}) == "ticket_completion"
     assert route_after_draft_persistence({"category": "faq"}) == "safety_layer"
-

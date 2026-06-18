@@ -3,7 +3,10 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from korcen import korcen as korcen_filter
+try:
+    from korcen import korcen as korcen_filter
+except ModuleNotFoundError:
+    korcen_filter = None
 
 
 PROMPT_INJECTION_PATTERNS: tuple[re.Pattern[str], ...] = (
@@ -69,6 +72,9 @@ def _append_unique(labels: list[str], label: str) -> None:
 
 def _mask_profanity(text: str) -> tuple[str, bool]:
     # korcen으로 욕설 구간을 감지하고, 감지된 구간만 [PROFANITY]로 치환한다.
+    if korcen_filter is None:
+        return text, False
+
     marker = "\ue000"
     highlighted = korcen_filter.highlight_profanity(text, highlight_char=marker)
     if highlighted == text:

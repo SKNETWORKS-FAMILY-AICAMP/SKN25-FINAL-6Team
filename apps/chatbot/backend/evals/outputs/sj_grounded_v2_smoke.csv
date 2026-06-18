@@ -1,0 +1,4 @@
+﻿test_id,profile,embedding_model,embeddings_table,question,latency_ms,keyword_recall,source_document_hit,matched_keywords,matched_source_documents,answer,reference_answer
+SJ-GROUNDED-001,small,text-embedding-3-small,test_documents_embeddings_small,메일을 연동하거나 연동된 메일을 변경하려면 어디에서 해야 하나요?,5037.0,0.0,False,[],[],,유니버스 통행증 공식 홈페이지에 로그인한 뒤 기본 정보-메일 페이지에서 메일 연동 또는 변경을 할 수 있습니다. 게임 내 설정-계정에서 유저 센터에 방문해도 같은 작업을 진행할 수 있습니다.
+SJ-GROUNDED-002,small,text-embedding-3-small,test_documents_embeddings_small,유니버스 아이디는 무엇이고 변경할 수 있나요?,414.23,0.0,False,[],[],,"아이디는 유니버스 계정의 인증 수단이며 로그인할 때 비밀번호와 함께 사용됩니다. 공식 홈페이지의 기본 정보-아이디 또는 게임 내 설정-계정의 유저 센터에서 설정할 수 있지만, 연동 이후에는 변경 및 연동 해제가 불가능합니다."
+SJ-GROUNDED-003,small,text-embedding-3-small,test_documents_embeddings_small,유니버스 통행증 계정은 어디에서 가입할 수 있나요?,444.05,0.75,False,"[""유니버스 통행증"", ""회원가입"", ""공식 홈페이지""]",[],,"유니버스 통행증 공식 홈페이지의 로그인 화면에서 회원가입을 누르거나, 유니버스 산하 게임의 로그인 화면에서 회원가입을 눌러 가입할 수 있습니다."

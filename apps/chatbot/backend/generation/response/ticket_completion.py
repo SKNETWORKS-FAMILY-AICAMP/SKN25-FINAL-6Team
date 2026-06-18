@@ -6,7 +6,7 @@ from chatbot.generation.response.fixed_responses import (
     fallback_response_for_category,
 )
 from chatbot.notifications.github_issue import dispatch_github_issue_notification
-from chatbot.observability.logger import EVENT_FINAL_RESPONSE_CREATED, log_event
+from chatbot.observability.logger import EVENT_TICKET_COMPLETION_COMPLETED, log_event
 from chatbot.repository.failed_query_repository import save_failed_query
 from chatbot.repository.ticket_repository import update_qa_ticket_raw_query
 from chatbot.schemas import ChatbotState
@@ -48,7 +48,7 @@ def _record_faq_safe_fallback_query(state: ChatbotState, decision: str) -> dict 
     )
 
 
-def final_response_node(state: ChatbotState) -> dict:
+def ticket_completion_node(state: ChatbotState) -> dict:
     # 1단계: safety_action에 따라 사용자에게 보여줄 최종 문구를 확정한다.
     decision = state["safety_action"]
     draft_text = state["draft_text"]
@@ -72,17 +72,16 @@ def final_response_node(state: ChatbotState) -> dict:
         {
             "ticket_id": state["ticket_id"],
             "raw_query": f"User: {raw_query}\nAI: {final_text}",
-            "safety_action": decision,
             "status": _ticket_status_for_decision(decision, state.get("review_required")),
         }
     )
 
-    # 4단계: LangSmith/admin log에서 최종 처리 결과를 추적할 수 있게 이벤트를 남긴다.
+    # 5단계: LangSmith/admin log에서 최종 처리 결과를 추적할 수 있게 이벤트를 남긴다.
     log_event(
-        EVENT_FINAL_RESPONSE_CREATED,
+        EVENT_TICKET_COMPLETION_COMPLETED,
         ticket_id=state.get("ticket_id"),
         session_id=state.get("session_id"),
-        node_name="final_response",
+        node_name="ticket_completion",
         category=state.get("category"),
         routing_target=state.get("routing_target"),
         status="ok",

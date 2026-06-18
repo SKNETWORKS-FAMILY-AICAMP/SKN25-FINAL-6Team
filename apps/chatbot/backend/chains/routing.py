@@ -33,24 +33,24 @@ def _is_voc_state(state: ChatbotState) -> bool:
 def route_after_draft_persistence(state: ChatbotState) -> str:
     # VOC는 고정 감사 응답이므로 safety 검사를 생략하고, 나머지 답변은 safety_layer로 보낸다.
     if _is_voc_state(state):
-        return "final_response"
+        return "ticket_completion"
     return "safety_layer"
 
 
 def route_after_safety(state: ChatbotState) -> str:
     # safety 결과에 따라 재저장, 재생성, fallback/review/block, 최종 응답 경로를 결정한다.
     if _is_voc_state(state):
-        return "final_response"
+        return "ticket_completion"
     if state.get("safety_action") == "MASKING":
         if state.get("retry_count", 0) <= MAX_MASKING_RETRY:
             return "draft_persistence"
-        return "final_response"
+        return "ticket_completion"
     if state.get("safety_action") in {"BLOCK_RESPONSE", "SAFE_FALLBACK", "REVIEW_REQUIRED"}:
-        return "final_response"
+        return "ticket_completion"
     if state["safety_passed"]:
-        return "final_response"
+        return "ticket_completion"
     if state["retry_count"] >= MAX_SAFETY_RETRY:
-        return "final_response"
+        return "ticket_completion"
     return route_by_category(state)
 
 
@@ -94,7 +94,7 @@ def _trace_category_dispatch(state: ChatbotState, *, started_at: float) -> dict[
 def route_after_preprocess(state: ChatbotState) -> str:
     # prompt injection은 agent에 넘기지 않고 전처리 단계의 block 응답으로 바로 마무리한다.
     if "prompt_injection" in (state.get("input_detected_labels") or []):
-        return "final_response"
+        return "ticket_completion"
     return route_by_category(state)
 
 
