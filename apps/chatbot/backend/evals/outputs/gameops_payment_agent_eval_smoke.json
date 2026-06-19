@@ -1,0 +1,59 @@
+{
+  "dataset": {
+    "name": "gameops-chatbot-payment-agent-db-grounded-30-v1",
+    "version": "v1",
+    "description": "Payment agent examples grounded in actual payment/refund/item delivery/gacha rows.",
+    "total_examples": 30,
+    "paper_basis": [
+      "Self-Instruct: generate diverse instruction/input/output examples, then filter invalid or near-duplicate samples.",
+      "Persona-based synthetic user simulation: vary user intent, urgency, expertise, and message style.",
+      "Synthetic user generated text evaluation: include short, noisy, incomplete, and typo-like user messages so evals are not overly clean."
+    ],
+    "generation_note": "Synthetic user messages are generated from actual local DB records/documents. The expected evidence IDs point to the DB rows used to generate each example.",
+    "category_counts": {
+      "payment": 30
+    }
+  },
+  "summary": {
+    "total": 1,
+    "db_lookup_accuracy": 1.0,
+    "action_match": 0.0,
+    "false_fallback_rate": 0.0,
+    "avg_latency_ms": 4242.58,
+    "p95_latency_ms": 4242.58
+  },
+  "results": [
+    {
+      "test_id": "PAY-001",
+      "question": "진주 기행 결제 상태 확인해주세요. 주문/거래번호는 TXN000912735 입니다.",
+      "expected_action": "REVIEW_REQUIRED",
+      "actual_action": "AUTO_RESPONSE",
+      "action_match": false,
+      "db_lookup_accuracy": true,
+      "false_fallback": false,
+      "latency_ms": 4242.58,
+      "expected_records": {
+        "payments": [
+          912735
+        ]
+      },
+      "answer": "\"진주 기행\" 결제 상태에 대해 확인한 결과, 해당 결제는 현재 \"보류 중\" 상태입니다. 결제 정보는 다음과 같습니다:\n\n- 상품명: 진주 기행\n- 결제 금액: 12,000원\n- 결제 수단: Google Pay\n- 결제 상태: 보류 중\n- 결제 시각: 2026-06-01 10:43:30\n\n현재 결제가 완료되지 않았으므로, 결제 상태가 변경될 때까지 기다려 주시기 바랍니다. 추가적인 문제가 발생할 경우 고객 지원팀에 문의해 주세요.",
+      "error": null,
+      "matched_records": {
+        "payments": [
+          "912735"
+        ]
+      },
+      "retrieved_records": {
+        "payments": [
+          "911535",
+          "912735",
+          "912975",
+          "913344",
+          "914404"
+        ]
+      },
+      "missing_records": {}
+    }
+  ]
+}

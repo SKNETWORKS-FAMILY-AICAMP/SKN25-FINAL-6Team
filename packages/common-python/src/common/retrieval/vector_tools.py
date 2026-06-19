@@ -5,6 +5,7 @@ import math
 import os
 import re
 from collections import Counter
+from functools import lru_cache
 from typing import Any
 
 from langchain_core.tools import tool
@@ -14,10 +15,19 @@ from psycopg.rows import dict_row
 from pydantic import BaseModel, Field
 
 from common.db.connection import db_connection
-from common.observability.logger import EVENT_TOOL_COMPLETED, EVENT_TOOL_STARTED, log_event
+from common.observability.logger import (
+    EVENT_TOOL_COMPLETED,
+    EVENT_TOOL_STARTED,
+    log_event,
+    record_chat_model_usage,
+    record_embedding_usage,
+)
 
 
 FAQ_SOURCE_TYPES = (
+    "universe_qna_onlydaily",
+    "universe_qna_common",
+    "universe_policy",
     "hoyoverse_qna_onlygenshin",
     "hoyoverse_qna_common",
     "hoyoverse_policy",
@@ -26,6 +36,9 @@ FAQ_SOURCE_TYPES = (
 )
 
 SOURCE_PRIORITY = {
+    "universe_qna_common": 5,
+    "universe_qna_onlydaily": 5,
+    "universe_policy": 4,
     "hoyoverse_qna_common": 5,
     "hoyoverse_qna_onlygenshin": 5,
     "hoyoverse_policy": 4,
@@ -96,6 +109,28 @@ def refine_query_text(text: str, max_terms: int = 16) -> str:
     return " ".join(deduped[:max_terms])
 
 
+@lru_cache(maxsize=1)
+def _known_faq_categories() -> frozenset[str]:
+    """Load FAQ document categories from DB once; skip category filters if unavailable."""
+    source_placeholders = ", ".join(["%s"] * len(FAQ_SOURCE_TYPES))
+    try:
+        with db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    SELECT DISTINCT category
+                    FROM documents
+                    WHERE source_type IN ({source_placeholders})
+                      AND category IS NOT NULL
+                      AND category <> ''
+                    """,
+                    list(FAQ_SOURCE_TYPES),
+                )
+                return frozenset(str(row[0]) for row in cur.fetchall() if row[0])
+    except Exception:
+        return frozenset()
+
+
 def _query_patterns(query: str, max_tokens: int = 8) -> list[str]:
     """Generate LIKE patterns used for title/category prefiltering."""
     tokens = list(dict.fromkeys(_tokenize(refine_query_text(query))))
@@ -139,21 +174,29 @@ def enrich_retrieval_query(text: str) -> RetrievalQuery:
             api_key=api_key,
             temperature=0,
             timeout=float(os.environ.get("LLM_TIMEOUT_SECONDS", "60")),
-        ).with_structured_output(RetrievalQuery)
-        result = llm.invoke(
+        ).with_structured_output(RetrievalQuery, include_raw=True)
+        raw_result = llm.invoke(
             [
                 (
                     "system",
                     "You enrich Korean game CS FAQ/RAG search queries. "
-                    "Extract a concise Korean query_text and optional category hints. "
-                    "Normalize slang, typos, and equivalent phrases into the same canonical Korean FAQ search query. "
-                    "For example, similar phrasings about resetting game progress should become one canonical query. "
-                    "Do not preserve vague slang when a clearer FAQ title-style query is possible. "
+                    "Extract a concise Korean query_text and optional category hints for retrieval. "
+                    "Preserve concrete search clues from the user text: exact error messages, quoted phrases, "
+                    "product names, event names, version numbers, character names, currency/item names, and IDs. "
+                    "Normalize slang, typos, and equivalent phrases only when doing so keeps those concrete clues. "
+                    "Avoid over-generalizing into broad labels such as game update, character, account, or payment "
+                    "when the original text contains a more specific title-like phrase. "
+                    "Keep 3 to 8 search-critical Korean terms in query_text when possible. "
+                    "Use preferred_categories only when it exactly matches a known FAQ category. "
                     "Do not answer the user.",
                 ),
                 ("user", text),
             ]
         )
+        record_chat_model_usage("query_enrichment", model, raw_result.get("raw"))
+        result = raw_result.get("parsed")
+        if result is None:
+            return _fallback_enrich_query(text)
         query_text = refine_query_text(result.query_text or text)
         return RetrievalQuery(
             query_text=query_text,
@@ -288,9 +331,9 @@ def _llm_rerank_documents(documents: list[dict[str, Any]], query: str) -> list[d
         api_key=api_key,
         temperature=0,
         timeout=float(os.environ.get("LLM_TIMEOUT_SECONDS", "60")),
-    ).with_structured_output(RerankResult)
+    ).with_structured_output(RerankResult, include_raw=True)
 
-    result = reranker.invoke(
+    raw_result = reranker.invoke(
         [
             (
                 "system",
@@ -306,6 +349,10 @@ def _llm_rerank_documents(documents: list[dict[str, Any]], query: str) -> list[d
             ),
         ]
     )
+    record_chat_model_usage("reranker", model, raw_result.get("raw"))
+    result = raw_result.get("parsed")
+    if result is None:
+        return _fallback_rerank(documents)
 
     by_id = {str(document.get("chunk_id") or ""): document for document in documents}
     seen: set[str] = set()
@@ -434,7 +481,12 @@ def _enrichment_filter_clause(enrichment: RetrievalQuery | None) -> tuple[str, l
         checks.append(f"d.source_type IN ({', '.join(['%s'] * len(source_types))})")
         params.extend(source_types)
 
-    categories = [category for category in enrichment.preferred_categories if category]
+    known_categories = _known_faq_categories()
+    categories = [
+        category
+        for category in enrichment.preferred_categories
+        if category and (not known_categories or category in known_categories)
+    ]
     if categories:
         checks.append("d.category = ANY(%s)")
         params.append(categories)
@@ -695,6 +747,7 @@ def embed_query(text: str) -> str:
         api_key=os.environ.get("LLM_API_KEY"),
     )
     vector = client.embed_query(text)
+    record_embedding_usage("embedding", _embedding_model_name(), text)
     log_event(
         EVENT_TOOL_COMPLETED,
         tool_name="embed_query",

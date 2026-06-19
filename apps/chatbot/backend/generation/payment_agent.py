@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import json
+import os
 import re
-from typing import Any
+from typing import Any, Literal
 
 from langsmith import traceable
+from langchain_openai import ChatOpenAI
+from pydantic import BaseModel, Field
 
 from chatbot.agent import invoke_payment_agent
 from chatbot.generation.drafting_agent import build_draft_update
@@ -12,6 +15,159 @@ from chatbot.generation.policies import PAYMENT_POLICY
 from chatbot.observability.logger import EVENT_NODE_COMPLETED, EVENT_NODE_STARTED, log_event
 from chatbot.repository.operation_log_repository import collect_payment_context_by_user
 from chatbot.schemas import ChatbotState
+from common.observability.logger import record_chat_model_usage
+
+
+PaymentIntentType = Literal["READ_ONLY", "ACTION_REQUEST"]
+
+
+class PaymentIntentResult(BaseModel):
+    intent_type: PaymentIntentType
+    confidence: float = Field(ge=0.0, le=1.0)
+    method: Literal["rule", "llm", "fallback"]
+    reason: str = ""
+
+
+class _PaymentIntentLLMOutput(BaseModel):
+    intent_type: PaymentIntentType
+    reason: str = ""
+
+
+READ_ONLY_PATTERNS = (
+    r"내역",
+    r"상태",
+    r"조회",
+    r"확인(?:해\s*줘|해주세요|부탁|하고\s*싶|하고싶|할\s*수|되나요|해도|)$",
+    r"알려\s*줘",
+    r"알고\s*싶",
+    r"기록",
+    r"로그",
+    r"결과",
+    r"천장",
+    r"어떻게\s*처리",
+    r"진행\s*상황",
+)
+
+ACTION_PATTERNS = (
+    r"환불(?:해\s*줘|해주세요|처리|신청|진행)",
+    r"결제\s*취소",
+    r"취소(?:해\s*줘|해주세요|처리)",
+    r"지급(?:해\s*줘|해주세요|처리|해\s*주세요)",
+    r"재지급",
+    r"넣어\s*줘",
+    r"넣어주세요",
+    r"보상(?:해\s*줘|해주세요|넣어|지급|처리)",
+    r"복구(?:해\s*줘|해주세요|처리)",
+    r"해결(?:해\s*줘|해주세요|처리)",
+    r"조치(?:해\s*줘|해주세요|부탁|처리)",
+    r"처리(?:해\s*줘|해주세요|부탁)",
+    r"승인(?:해\s*줘|해주세요|처리)",
+    r"반려(?:해\s*줘|해주세요|처리)",
+)
+
+
+def _normalize_intent_text(text: str) -> str:
+    return re.sub(r"\s+", " ", str(text or "").lower()).strip()
+
+
+def _matches_intent_patterns(patterns: tuple[str, ...], text: str) -> list[str]:
+    return [pattern for pattern in patterns if re.search(pattern, text)]
+
+
+def _classify_payment_intent_by_rule(text: str) -> PaymentIntentResult | None:
+    normalized = _normalize_intent_text(text)
+    if not normalized:
+        return PaymentIntentResult(
+            intent_type="READ_ONLY",
+            confidence=0.75,
+            method="fallback",
+            reason="empty query defaults to read-only handling",
+        )
+
+    action_hits = _matches_intent_patterns(ACTION_PATTERNS, normalized)
+    read_hits = _matches_intent_patterns(READ_ONLY_PATTERNS, normalized)
+
+    if action_hits:
+        return PaymentIntentResult(
+            intent_type="ACTION_REQUEST",
+            confidence=0.9,
+            method="rule",
+            reason=f"action request pattern matched: {action_hits[0]}",
+        )
+    if read_hits:
+        return PaymentIntentResult(
+            intent_type="READ_ONLY",
+            confidence=0.88,
+            method="rule",
+            reason=f"read-only inquiry pattern matched: {read_hits[0]}",
+        )
+    return None
+
+
+def _payment_intent_llm_enabled() -> bool:
+    value = os.environ.get("PAYMENT_INTENT_LLM_ENABLED", "true").strip().lower()
+    return value not in {"0", "false", "no", "off"}
+
+
+def _classify_payment_intent_by_llm(text: str) -> PaymentIntentResult | None:
+    api_key = os.environ.get("LLM_API_KEY") or os.environ.get("OPENAI_API_KEY")
+    if not api_key or not _payment_intent_llm_enabled():
+        return None
+
+    model = os.environ.get("PAYMENT_INTENT_MODEL") or os.environ.get("LLM_MODEL") or "gpt-4o-mini"
+    llm = ChatOpenAI(model=model, api_key=api_key, temperature=0)
+    classifier = llm.with_structured_output(_PaymentIntentLLMOutput, include_raw=True)
+    raw_result = classifier.invoke(
+        [
+            {
+                "role": "system",
+                "content": (
+                    "Classify a Korean game customer-support payment inquiry.\n"
+                    "Return READ_ONLY when the user only asks to view, check, confirm, or explain "
+                    "payment/refund/item-delivery/gacha records, status, history, logs, results, or pity count.\n"
+                    "Return ACTION_REQUEST only when the user asks the operator or system to perform "
+                    "a change or handling action such as refund, cancel, grant, redeliver, recover, compensate, fix, or resolve.\n"
+                    "If the message is a status inquiry even with words like 처리 상태 or 어떻게 처리됐는지, classify READ_ONLY."
+                ),
+            },
+            {"role": "user", "content": text},
+        ]
+    )
+    record_chat_model_usage("payment_intent_classifier", model, raw_result.get("raw"))
+    result = raw_result.get("parsed")
+    if result is None:
+        return None
+    return PaymentIntentResult(
+        intent_type=result.intent_type,
+        confidence=0.8,
+        method="llm",
+        reason=result.reason,
+    )
+
+
+def classify_payment_intent(text: str) -> dict[str, object]:
+    rule_result = _classify_payment_intent_by_rule(text)
+    if rule_result is not None:
+        return dict(rule_result)
+
+    try:
+        llm_result = _classify_payment_intent_by_llm(text)
+    except Exception as exc:
+        llm_result = PaymentIntentResult(
+            intent_type="READ_ONLY",
+            confidence=0.55,
+            method="fallback",
+            reason=f"LLM intent classifier failed; defaulted to read-only: {exc.__class__.__name__}",
+        )
+    if llm_result is not None:
+        return dict(llm_result)
+
+    return PaymentIntentResult(
+        intent_type="READ_ONLY",
+        confidence=0.55,
+        method="fallback",
+        reason="no high-confidence rule hit and LLM fallback unavailable",
+    ).dict()
 
 
 def _compact_row(row: dict[str, Any]) -> str:
@@ -49,7 +205,7 @@ def _payment_context_to_evidence(context: dict[str, Any]) -> list[dict[str, Any]
     return evidence
 
 
-def _payment_context_message(context: dict[str, Any]) -> dict[str, str]:
+def _payment_context_message(context: dict[str, Any], payment_intent: dict[str, Any]) -> dict[str, str]:
     # payment agent가 사용자 범위 DB 근거만 보고 답하도록 system message에 DB context를 붙인다.
     return {
         "role": "system",
@@ -57,6 +213,16 @@ def _payment_context_message(context: dict[str, Any]) -> dict[str, str]:
             "Payment DB context scoped to the logged-in user_id only. "
             "Use this evidence before answering payment/refund/item delivery/gacha questions. "
             "Do not use user-provided account_id or payment_id unless it appears in this context.\n\n"
+            "Payment intent classification:\n"
+            f"{json.dumps(payment_intent, ensure_ascii=False, default=str)}\n\n"
+            "Intent handling rules:\n"
+            "- If intent_type is READ_ONLY, provide an AUTO_RESPONSE using the DB evidence. "
+            "Do not escalate to operator review only because adjacent records are missing; "
+            "state what is confirmed and what is not confirmed.\n"
+            "- If intent_type is ACTION_REQUEST, explain that the requested handling requires "
+            "operator review or processing. Do not claim that refund, cancellation, compensation, "
+            "recovery, or item delivery was already applied.\n\n"
+            "Payment context:\n"
             f"{json.dumps(context, ensure_ascii=False, default=str)}"
         ),
     }
@@ -223,7 +389,11 @@ def _collect_payment_context(state: ChatbotState) -> dict[str, Any]:
             "counts": {},
             "count": 0,
         }
-    return collect_payment_context_by_user(user_id=int(user_id), account_id=state.get("account_id"))
+    return collect_payment_context_by_user(
+        user_id=int(user_id),
+        account_id=state.get("account_id"),
+        query_text=_query_text_for_matching(state),
+    )
 
 
 def payment_agent_node(state: ChatbotState) -> dict:
@@ -236,21 +406,27 @@ def payment_agent_node(state: ChatbotState) -> dict:
         category=state.get("category"),
         routing_target=state.get("routing_target"),
     )
+    query_text = _query_text_for_matching(state)
+    payment_intent = classify_payment_intent(query_text)
     payment_context = _annotate_item_delivery_relevance(_collect_payment_context(state), state)
     payment_evidence = _payment_context_to_evidence(payment_context)
 
     # 2단계: DB context를 message와 retrieved_documents에 추가해 agent와 safety가 같은 근거를 보게 한다.
     agent_state = dict(state)
     agent_state["payment_context"] = payment_context
+    agent_state["payment_intent"] = payment_intent
+    agent_state["payment_intent_type"] = payment_intent.get("intent_type")
     agent_state["retrieved_documents"] = payment_evidence
     messages = [
         *list(state.get("messages") or []),
-        _payment_context_message(payment_context),
+        _payment_context_message(payment_context, payment_intent),
     ]
     agent_state["messages"] = messages
     result = invoke_payment_agent(agent_state)
     update = build_draft_update(state, result, PAYMENT_POLICY.name)
     update["payment_context"] = payment_context
+    update["payment_intent"] = payment_intent
+    update["payment_intent_type"] = payment_intent.get("intent_type")
     update["retrieved_documents"] = payment_evidence
 
     # 3단계: 생성된 초안과 근거 수를 기록하고 다음 draft_persistence 노드로 넘긴다.
@@ -265,6 +441,8 @@ def payment_agent_node(state: ChatbotState) -> dict:
             "draft_length": len(update.get("draft_text") or ""),
             "payment_context_count": payment_context.get("count"),
             "payment_evidence_count": len(payment_evidence),
+            "payment_intent_type": payment_intent.get("intent_type"),
+            "payment_intent_method": payment_intent.get("method"),
         },
     )
     return update

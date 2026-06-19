@@ -1,0 +1,1277 @@
+{
+  "dataset": {
+    "name": "gameops-chatbot-payment-agent-db-grounded-30-v1",
+    "version": "v1",
+    "description": "Payment agent examples grounded in actual payment/refund/item delivery/gacha rows.",
+    "total_examples": 30,
+    "paper_basis": [
+      "Self-Instruct: generate diverse instruction/input/output examples, then filter invalid or near-duplicate samples.",
+      "Persona-based synthetic user simulation: vary user intent, urgency, expertise, and message style.",
+      "Synthetic user generated text evaluation: include short, noisy, incomplete, and typo-like user messages so evals are not overly clean."
+    ],
+    "generation_note": "Synthetic user messages are generated from actual local DB records/documents. The expected evidence IDs point to the DB rows used to generate each example.",
+    "category_counts": {
+      "payment": 30
+    }
+  },
+  "summary": {
+    "total": 30,
+    "db_lookup_accuracy": 1.0,
+    "action_match": 1.0,
+    "false_fallback_rate": 0.0,
+    "avg_latency_ms": 1718.17,
+    "p95_latency_ms": 2397.95
+  },
+  "results": [
+    {
+      "test_id": "PAY-001",
+      "question": "진주 기행 결제 상태 확인해주세요. 주문/거래번호는 TXN000912735 입니다.",
+      "expected_action": "AUTO_RESPONSE",
+      "actual_action": "AUTO_RESPONSE",
+      "action_match": true,
+      "db_lookup_accuracy": true,
+      "false_fallback": false,
+      "latency_ms": 3360.58,
+      "payment_intent_type": "READ_ONLY",
+      "payment_intent_method": "rule",
+      "payment_intent_reason": "read-only inquiry pattern matched: 상태",
+      "expected_records": {
+        "payments": [
+          912735
+        ]
+      },
+      "answer": "\"진주 기행\" 결제 상태에 대해 확인한 결과, 해당 결제는 현재 \"보류 중\" 상태입니다. 결제 금액은 12,000원이며, 결제 수단은 Google Pay입니다. 결제는 2026년 6월 1일에 진행되었습니다.\n\n현재 결제 상태가 \"보류 중\"이므로, 결제 완료 여부를 확인하기 위해 추가적인 시간이 필요할 수 있습니다. 결제 상태가 변경되면 알림을 받으실 수 있도록 주기적으로 확인해 주시기 바랍니다. 추가적인 도움이 필요하시면 고객 지원팀에 문의해 주세요.",
+      "error": null,
+      "matched_records": {
+        "payments": [
+          "912735"
+        ]
+      },
+      "retrieved_records": {
+        "payments": [
+          "911535",
+          "912735",
+          "912975",
+          "913344",
+          "914404"
+        ]
+      },
+      "missing_records": {}
+    },
+    {
+      "test_id": "PAY-002",
+      "question": "창세의 결정 980개 결제 상태 확인해주세요. 주문/거래번호는 TXN000912669 입니다.",
+      "expected_action": "AUTO_RESPONSE",
+      "actual_action": "AUTO_RESPONSE",
+      "action_match": true,
+      "db_lookup_accuracy": true,
+      "false_fallback": false,
+      "latency_ms": 1684.24,
+      "payment_intent_type": "READ_ONLY",
+      "payment_intent_method": "rule",
+      "payment_intent_reason": "read-only inquiry pattern matched: 상태",
+      "expected_records": {
+        "payments": [
+          912669
+        ]
+      },
+      "answer": "주문하신 \"창세의 결정 980개\"에 대한 결제 상태를 확인한 결과, 다음과 같은 정보가 확인되었습니다:\n\n- **상품명**: 창세의 결정 980개\n- **결제 금액**: 19,000원\n- **결제 통화**: KRW\n- **결제 방법**: 카드\n- **결제 상태**: 성공\n- **결제 일시**: 2026년 1월 4일 07:54:30\n- **거래 번호**: TXN000912669\n\n현재 결제는 성공적으로 완료된 상태입니다. 그러나 해당 결제와 관련된 아이템 지급 로그는 확인되지 않았습니다. 추가적인 확인이 필요할 경우 고객 지원팀에 문의해 주시기 바랍니다.",
+      "error": null,
+      "matched_records": {
+        "payments": [
+          "912669"
+        ]
+      },
+      "retrieved_records": {
+        "payments": [
+          "911139",
+          "912669",
+          "913810"
+        ]
+      },
+      "missing_records": {}
+    },
+    {
+      "test_id": "PAY-003",
+      "question": "창세의 결정 1980개 결제 상태 확인해주세요. 주문/거래번호는 TXN00910439 입니다.",
+      "expected_action": "AUTO_RESPONSE",
+      "actual_action": "AUTO_RESPONSE",
+      "action_match": true,
+      "db_lookup_accuracy": true,
+      "false_fallback": false,
+      "latency_ms": 1692.54,
+      "payment_intent_type": "READ_ONLY",
+      "payment_intent_method": "rule",
+      "payment_intent_reason": "read-only inquiry pattern matched: 상태",
+      "expected_records": {
+        "payments": [
+          910439
+        ]
+      },
+      "answer": "주문 번호 TXN00910439에 대한 결제 상태를 확인한 결과, \"창세의 결정 1980개\" 상품에 대한 결제가 성공적으로 완료되었습니다. 결제 금액은 37,000원이며, 결제 수단은 Google Pay입니다. 결제는 2024년 11월 15일에 완료되었습니다.\n\n또한, 해당 상품은 이미 정상적으로 지급 완료된 상태입니다. 지급은 2024년 11월 15일에 완료되었습니다. 추가적인 문제가 있으시다면 다시 문의해 주세요. 감사합니다.",
+      "error": null,
+      "matched_records": {
+        "payments": [
+          "910439"
+        ]
+      },
+      "retrieved_records": {
+        "payments": [
+          "910438",
+          "910439",
+          "910589",
+          "910821",
+          "910881",
+          "911968",
+          "912417",
+          "913916"
+        ]
+      },
+      "missing_records": {}
+    },
+    {
+      "test_id": "PAY-004",
+      "question": "공월 축복 결제 상태 확인해주세요. 주문/거래번호는 TXN000910852 입니다.",
+      "expected_action": "AUTO_RESPONSE",
+      "actual_action": "AUTO_RESPONSE",
+      "action_match": true,
+      "db_lookup_accuracy": true,
+      "false_fallback": false,
+      "latency_ms": 1672.6,
+      "payment_intent_type": "READ_ONLY",
+      "payment_intent_method": "rule",
+      "payment_intent_reason": "read-only inquiry pattern matched: 상태",
+      "expected_records": {
+        "payments": [
+          910852
+        ]
+      },
+      "answer": "주문번호 TXN000910852에 대한 결제 상태를 확인한 결과, \"공월 축복\" 상품이 5,900원에 성공적으로 결제되었습니다. 결제는 카드로 이루어졌으며, 결제일시는 2026년 6월 9일입니다. \n\n또한, 해당 결제와 관련된 아이템인 \"원석\"이 정상적으로 지급 완료된 것으로 확인되었습니다. 추가적인 문의 사항이 있으시면 언제든지 말씀해 주세요.",
+      "error": null,
+      "matched_records": {
+        "payments": [
+          "910852"
+        ]
+      },
+      "retrieved_records": {
+        "payments": [
+          "910852",
+          "911353",
+          "913508",
+          "914745",
+          "914877"
+        ]
+      },
+      "missing_records": {}
+    },
+    {
+      "test_id": "PAY-005",
+      "question": "진주의 노래 결제 상태 확인해주세요. 주문/거래번호는 TXN000912589 입니다.",
+      "expected_action": "AUTO_RESPONSE",
+      "actual_action": "AUTO_RESPONSE",
+      "action_match": true,
+      "db_lookup_accuracy": true,
+      "false_fallback": false,
+      "latency_ms": 2397.95,
+      "payment_intent_type": "READ_ONLY",
+      "payment_intent_method": "rule",
+      "payment_intent_reason": "read-only inquiry pattern matched: 상태",
+      "expected_records": {
+        "payments": [
+          912589
+        ]
+      },
+      "answer": "주문하신 \"진주의 노래\" 결제 상태를 확인한 결과, 결제는 성공적으로 완료되었습니다. \n\n- **상품명**: 진주의 노래\n- **결제 금액**: 25,000원\n- **결제 수단**: Google Pay\n- **결제 상태**: 성공\n- **결제 일시**: 2026년 3월 3일 10:29\n\n그러나 해당 결제와 관련된 아이템 지급 로그는 확인되지 않았습니다. 아이템 지급이 완료되지 않은 경우, 추가적인 확인이 필요할 수 있습니다. 추가 문의 사항이 있으시면 말씀해 주세요.",
+      "error": null,
+      "matched_records": {
+        "payments": [
+          "912589"
+        ]
+      },
+      "retrieved_records": {
+        "payments": [
+          "911909",
+          "912589",
+          "913225",
+          "913932",
+          "914723"
+        ]
+      },
+      "missing_records": {}
+    },
+    {
+      "test_id": "PAY-006",
+      "question": "창세의 결정 980개 결제 상태 확인해주세요. 주문/거래번호는 TXN000912319 입니다.",
+      "expected_action": "AUTO_RESPONSE",
+      "actual_action": "AUTO_RESPONSE",
+      "action_match": true,
+      "db_lookup_accuracy": true,
+      "false_fallback": false,
+      "latency_ms": 1900.89,
+      "payment_intent_type": "READ_ONLY",
+      "payment_intent_method": "rule",
+      "payment_intent_reason": "read-only inquiry pattern matched: 상태",
+      "expected_records": {
+        "payments": [
+          912319
+        ]
+      },
+      "answer": "주문하신 \"창세의 결정 980개\"에 대한 결제 상태는 다음과 같습니다:\n\n- **상품명**: 창세의 결정 980개\n- **결제 금액**: 19,000원\n- **결제 통화**: KRW\n- **결제 방법**: 스토어 크레딧\n- **결제 상태**: 성공\n- **결제 일시**: 2026년 4월 24일 00:05:03\n- **거래 번호**: TXN000912319\n\n해당 결제에 대한 아이템 지급은 확인되지 않았습니다. 다른 결제 기록에서 \"창세의 결정 980개\"가 지급된 기록이 있으니, 혹시 다른 결제와 혼동하신 것은 아닌지 확인 부탁드립니다. 추가적인 도움이 필요하시면 고객 지원팀에 문의해 주세요.",
+      "error": null,
+      "matched_records": {
+        "payments": [
+          "912319"
+        ]
+      },
+      "retrieved_records": {
+        "payments": [
+          "910645",
+          "910954",
+          "911553",
+          "911849",
+          "912319",
+          "913199",
+          "913944",
+          "914021"
+        ]
+      },
+      "missing_records": {}
+    },
+    {
+      "test_id": "PAY-007",
+      "question": "진주의 노래 결제 상태 확인해주세요. 주문/거래번호는 TXN000910728 입니다.",
+      "expected_action": "AUTO_RESPONSE",
+      "actual_action": "AUTO_RESPONSE",
+      "action_match": true,
+      "db_lookup_accuracy": true,
+      "false_fallback": false,
+      "latency_ms": 1620.71,
+      "payment_intent_type": "READ_ONLY",
+      "payment_intent_method": "rule",
+      "payment_intent_reason": "read-only inquiry pattern matched: 상태",
+      "expected_records": {
+        "payments": [
+          910728
+        ]
+      },
+      "answer": "주문하신 \"진주의 노래\" 결제 상태에 대해 확인해 드리겠습니다.\n\n- **상품명**: 진주의 노래\n- **결제 금액**: 25,000원\n- **결제 수단**: Google Pay\n- **결제 상태**: 성공\n- **결제 일시**: 2026년 1월 27일 21시 01분 03초\n\n해당 결제와 관련된 아이템은 정상적으로 지급 완료되었습니다. 지급 일시는 2026년 1월 27일 22시 18분 03초입니다. 추가적인 문의 사항이 있으시면 언제든지 말씀해 주세요.",
+      "error": null,
+      "matched_records": {
+        "payments": [
+          "910728"
+        ]
+      },
+      "retrieved_records": {
+        "payments": [
+          "910518",
+          "910728",
+          "911045",
+          "911606",
+          "912093",
+          "912657",
+          "913909",
+          "914336"
+        ]
+      },
+      "missing_records": {}
+    },
+    {
+      "test_id": "PAY-008",
+      "question": "공월 축복 결제 상태 확인해주세요. 주문/거래번호는 TXN000912292 입니다.",
+      "expected_action": "AUTO_RESPONSE",
+      "actual_action": "AUTO_RESPONSE",
+      "action_match": true,
+      "db_lookup_accuracy": true,
+      "false_fallback": false,
+      "latency_ms": 2093.66,
+      "payment_intent_type": "READ_ONLY",
+      "payment_intent_method": "rule",
+      "payment_intent_reason": "read-only inquiry pattern matched: 상태",
+      "expected_records": {
+        "payments": [
+          912292
+        ]
+      },
+      "answer": "주문 번호 TXN000912292에 대한 결제 상태를 확인한 결과, \"공월 축복\" 상품이 5,900원에 성공적으로 결제되었습니다. 결제는 2026년 2월 20일에 Google Pay를 통해 완료되었습니다.\n\n또한, 해당 결제와 관련된 \"원석\" 3,000개가 2026년 2월 20일에 정상적으로 지급 완료된 것으로 확인되었습니다. 추가적인 문제가 있으시면 다시 문의해 주세요. 감사합니다.",
+      "error": null,
+      "matched_records": {
+        "payments": [
+          "912292"
+        ]
+      },
+      "retrieved_records": {
+        "payments": [
+          "912292"
+        ]
+      },
+      "missing_records": {}
+    },
+    {
+      "test_id": "PAY-009",
+      "question": "공월 축복 결제 상태 확인해주세요. 주문/거래번호는 TXN000911722 입니다.",
+      "expected_action": "AUTO_RESPONSE",
+      "actual_action": "AUTO_RESPONSE",
+      "action_match": true,
+      "db_lookup_accuracy": true,
+      "false_fallback": false,
+      "latency_ms": 1614.19,
+      "payment_intent_type": "READ_ONLY",
+      "payment_intent_method": "rule",
+      "payment_intent_reason": "read-only inquiry pattern matched: 상태",
+      "expected_records": {
+        "payments": [
+          911722
+        ]
+      },
+      "answer": "주문번호 TXN000911722에 대한 결제 상태를 확인한 결과, \"공월 축복\" 상품이 5,900원에 성공적으로 결제되었습니다. 결제는 2026년 3월 30일에 완료되었으며, 결제 수단은 스토어 크레딧입니다. 또한, 해당 결제와 관련된 아이템인 \"원석\" 3,000개가 정상적으로 지급 완료되었습니다. 추가적인 문의 사항이 있으시면 언제든지 말씀해 주세요.",
+      "error": null,
+      "matched_records": {
+        "payments": [
+          "911722"
+        ]
+      },
+      "retrieved_records": {
+        "payments": [
+          "910551",
+          "911066",
+          "911163",
+          "911332",
+          "911722",
+          "914834"
+        ]
+      },
+      "missing_records": {}
+    },
+    {
+      "test_id": "PAY-010",
+      "question": "창세의 결정 980개 결제 상태 확인해주세요. 주문/거래번호는 TXN000912898 입니다.",
+      "expected_action": "AUTO_RESPONSE",
+      "actual_action": "AUTO_RESPONSE",
+      "action_match": true,
+      "db_lookup_accuracy": true,
+      "false_fallback": false,
+      "latency_ms": 2058.42,
+      "payment_intent_type": "READ_ONLY",
+      "payment_intent_method": "rule",
+      "payment_intent_reason": "read-only inquiry pattern matched: 상태",
+      "expected_records": {
+        "payments": [
+          912898
+        ]
+      },
+      "answer": "주문하신 \"창세의 결정 980개\"에 대한 결제 상태를 확인한 결과, 다음과 같은 정보가 확인되었습니다:\n\n- **상품명**: 창세의 결정 980개\n- **결제 금액**: 19,000원\n- **결제 수단**: Google Pay\n- **결제 상태**: 성공\n- **결제 일시**: 2026년 2월 24일 21:46:09\n- **거래 번호**: TXN000912898\n\n또한, 해당 결제와 관련된 아이템 지급은 다음과 같이 완료되었습니다:\n\n- **지급 수량**: 980개\n- **지급 상태**: 지급 완료\n- **지급 완료 일시**: 2026년 2월 24일 23:36:09 및 23:57:09\n\n결제와 아이템 지급 모두 정상적으로 완료된 것으로 확인됩니다. 추가 문의 사항이 있으시면 언제든지 말씀해 주세요.",
+      "error": null,
+      "matched_records": {
+        "payments": [
+          "912898"
+        ]
+      },
+      "retrieved_records": {
+        "payments": [
+          "911899",
+          "912411",
+          "912898",
+          "914274",
+          "914480"
+        ]
+      },
+      "missing_records": {}
+    },
+    {
+      "test_id": "PAY-011",
+      "question": "창세의 결정 60개 결제 상태 확인해주세요. 주문/거래번호는 TXN000913130 입니다.",
+      "expected_action": "AUTO_RESPONSE",
+      "actual_action": "AUTO_RESPONSE",
+      "action_match": true,
+      "db_lookup_accuracy": true,
+      "false_fallback": false,
+      "latency_ms": 1580.98,
+      "payment_intent_type": "READ_ONLY",
+      "payment_intent_method": "rule",
+      "payment_intent_reason": "read-only inquiry pattern matched: 상태",
+      "expected_records": {
+        "payments": [
+          913130
+        ]
+      },
+      "answer": "주문하신 \"창세의 결정 60개\"에 대한 결제 상태를 확인한 결과, 결제는 성공적으로 완료되었습니다. 다음은 결제 세부 정보입니다:\n\n- **상품명**: 창세의 결정 60개\n- **결제 금액**: 1,200원\n- **통화**: KRW\n- **결제 방법**: 카드\n- **결제 상태**: 성공\n- **결제 일시**: 2026년 5월 23일 22:08:31\n\n현재 지급 로그에서 해당 아이템의 지급 완료 여부는 확인되지 않았습니다. 추가적인 확인이 필요할 경우, 고객 지원팀에 문의해 주시기 바랍니다.",
+      "error": null,
+      "matched_records": {
+        "payments": [
+          "913130"
+        ]
+      },
+      "retrieved_records": {
+        "payments": [
+          "910214",
+          "913130"
+        ]
+      },
+      "missing_records": {}
+    },
+    {
+      "test_id": "PAY-012",
+      "question": "창세의 결정 1980개 결제 상태 확인해주세요. 주문/거래번호는 TXN000914894 입니다.",
+      "expected_action": "AUTO_RESPONSE",
+      "actual_action": "AUTO_RESPONSE",
+      "action_match": true,
+      "db_lookup_accuracy": true,
+      "false_fallback": false,
+      "latency_ms": 1763.7,
+      "payment_intent_type": "READ_ONLY",
+      "payment_intent_method": "rule",
+      "payment_intent_reason": "read-only inquiry pattern matched: 상태",
+      "expected_records": {
+        "payments": [
+          914894
+        ]
+      },
+      "answer": "주문하신 \"창세의 결정 1980개\"에 대한 결제 상태를 확인한 결과, 다음과 같은 정보를 확인할 수 있었습니다:\n\n- **상품명**: 창세의 결정 1980개\n- **결제 금액**: 37,000원\n- **결제 수단**: 스토어 크레딧\n- **결제 상태**: 성공\n- **결제 일시**: 2026년 4월 30일 20:06:48\n- **거래 번호**: TXN000914894\n\n또한, 해당 아이템은 정상적으로 지급 완료되었습니다. 지급은 2026년 4월 30일 21:07:48에 완료되었습니다.\n\n추가 문의 사항이 있으시면 언제든지 말씀해 주세요.",
+      "error": null,
+      "matched_records": {
+        "payments": [
+          "914894"
+        ]
+      },
+      "retrieved_records": {
+        "payments": [
+          "913579",
+          "914894"
+        ]
+      },
+      "missing_records": {}
+    },
+    {
+      "test_id": "PAY-013",
+      "question": "공월 축복 환불 요청이 어떻게 처리됐는지 알고 싶어요.",
+      "expected_action": "AUTO_RESPONSE",
+      "actual_action": "AUTO_RESPONSE",
+      "action_match": true,
+      "db_lookup_accuracy": true,
+      "false_fallback": false,
+      "latency_ms": 1647.1,
+      "payment_intent_type": "READ_ONLY",
+      "payment_intent_method": "rule",
+      "payment_intent_reason": "read-only inquiry pattern matched: 알고\\s*싶",
+      "expected_records": {
+        "payments": [
+          912880
+        ],
+        "refunds": [
+          910135
+        ]
+      },
+      "answer": "고객님께서 요청하신 \"공월 축복\"의 환불 처리는 다음과 같이 진행되었습니다. \n\n- **환불 상태**: 승인됨\n- **환불 사유**: 아이템 미지급\n- **환불 요청일**: 2026년 6월 11일\n- **환불 처리일**: 2026년 6월 12일\n\n해당 환불은 성공적으로 처리되었으며, 결제는 2026년 6월 1일에 이루어졌습니다. 추가적인 문의 사항이 있으시면 언제든지 말씀해 주세요. 감사합니다.",
+      "error": null,
+      "matched_records": {
+        "payments": [
+          "912880"
+        ],
+        "refunds": [
+          "910135"
+        ]
+      },
+      "retrieved_records": {
+        "payments": [
+          "910644",
+          "911823",
+          "912880",
+          "913993",
+          "914753"
+        ],
+        "refunds": [
+          "910135"
+        ]
+      },
+      "missing_records": {}
+    },
+    {
+      "test_id": "PAY-014",
+      "question": "창세의 결정 60개 환불 요청이 어떻게 처리됐는지 알고 싶어요.",
+      "expected_action": "AUTO_RESPONSE",
+      "actual_action": "AUTO_RESPONSE",
+      "action_match": true,
+      "db_lookup_accuracy": true,
+      "false_fallback": false,
+      "latency_ms": 1273.17,
+      "payment_intent_type": "READ_ONLY",
+      "payment_intent_method": "rule",
+      "payment_intent_reason": "read-only inquiry pattern matched: 알고\\s*싶",
+      "expected_records": {
+        "payments": [
+          913183
+        ],
+        "refunds": [
+          910272
+        ]
+      },
+      "answer": "\"창세의 결정 60개\"에 대한 환불 요청은 성공적으로 처리되었습니다. 해당 환불은 \"아이템 미지급\" 사유로 2026년 3월 8일에 요청되었으며, 2026년 3월 11일에 승인 및 처리되었습니다. 환불 상태는 \"승인됨\"으로 확인됩니다. 추가 문의 사항이 있으시면 언제든지 말씀해 주세요.",
+      "error": null,
+      "matched_records": {
+        "payments": [
+          "913183"
+        ],
+        "refunds": [
+          "910272"
+        ]
+      },
+      "retrieved_records": {
+        "payments": [
+          "913183",
+          "913673",
+          "913872",
+          "913877",
+          "914861"
+        ],
+        "refunds": [
+          "910094",
+          "910272"
+        ]
+      },
+      "missing_records": {}
+    },
+    {
+      "test_id": "PAY-015",
+      "question": "창세의 결정 300개 환불 요청이 어떻게 처리됐는지 알고 싶어요.",
+      "expected_action": "AUTO_RESPONSE",
+      "actual_action": "AUTO_RESPONSE",
+      "action_match": true,
+      "db_lookup_accuracy": true,
+      "false_fallback": false,
+      "latency_ms": 1322.61,
+      "payment_intent_type": "READ_ONLY",
+      "payment_intent_method": "rule",
+      "payment_intent_reason": "read-only inquiry pattern matched: 알고\\s*싶",
+      "expected_records": {
+        "payments": [
+          912852
+        ],
+        "refunds": [
+          910211
+        ]
+      },
+      "answer": "\"창세의 결정 300개\"에 대한 환불 요청은 현재 \"대기 중\" 상태입니다. 이 환불 요청은 2026년 2월 24일에 \"중복 결제\" 사유로 접수되었으며, 아직 처리 완료되지 않았습니다. 환불이 완료되면 추가적인 알림을 받으실 것입니다. 더 궁금한 사항이 있으시면 언제든지 문의해 주세요.",
+      "error": null,
+      "matched_records": {
+        "payments": [
+          "912852"
+        ],
+        "refunds": [
+          "910211"
+        ]
+      },
+      "retrieved_records": {
+        "payments": [
+          "911131",
+          "911949",
+          "912852",
+          "914170"
+        ],
+        "refunds": [
+          "910211"
+        ]
+      },
+      "missing_records": {}
+    },
+    {
+      "test_id": "PAY-016",
+      "question": "공월 축복 환불 요청이 어떻게 처리됐는지 알고 싶어요.",
+      "expected_action": "AUTO_RESPONSE",
+      "actual_action": "AUTO_RESPONSE",
+      "action_match": true,
+      "db_lookup_accuracy": true,
+      "false_fallback": false,
+      "latency_ms": 1330.63,
+      "payment_intent_type": "READ_ONLY",
+      "payment_intent_method": "rule",
+      "payment_intent_reason": "read-only inquiry pattern matched: 알고\\s*싶",
+      "expected_records": {
+        "payments": [
+          910046
+        ],
+        "refunds": [
+          910051
+        ]
+      },
+      "answer": "고객님께서 요청하신 \"공월 축복\" 환불에 대한 처리 상태를 확인해본 결과, 해당 환불 요청은 \"아이템 미지급\" 사유로 2025년 7월 10일에 접수되었으며, 현재 환불 상태는 \"대기 중\"입니다. 아직 처리 완료되지 않았으니, 조금 더 기다려 주시기 바랍니다. 추가적인 문의 사항이 있으시면 언제든지 말씀해 주세요.",
+      "error": null,
+      "matched_records": {
+        "payments": [
+          "910046"
+        ],
+        "refunds": [
+          "910051"
+        ]
+      },
+      "retrieved_records": {
+        "payments": [
+          "910046",
+          "911228",
+          "913702",
+          "914969"
+        ],
+        "refunds": [
+          "910051"
+        ]
+      },
+      "missing_records": {}
+    },
+    {
+      "test_id": "PAY-017",
+      "question": "창세의 결정 1980개 환불 요청이 어떻게 처리됐는지 알고 싶어요.",
+      "expected_action": "AUTO_RESPONSE",
+      "actual_action": "AUTO_RESPONSE",
+      "action_match": true,
+      "db_lookup_accuracy": true,
+      "false_fallback": false,
+      "latency_ms": 1521.33,
+      "payment_intent_type": "READ_ONLY",
+      "payment_intent_method": "rule",
+      "payment_intent_reason": "read-only inquiry pattern matched: 알고\\s*싶",
+      "expected_records": {
+        "payments": [
+          910899
+        ],
+        "refunds": [
+          910147
+        ]
+      },
+      "answer": "\"창세의 결정 1980개\"에 대한 환불 요청은 성공적으로 처리되었습니다. 환불 상태는 \"승인됨\"이며, 환불 사유는 \"아이템 미지급\"이었습니다. 환불 요청은 2026년 3월 11일에 접수되었고, 2026년 3월 15일에 처리되었습니다. 추가적인 도움이 필요하시면 언제든지 문의해 주세요.",
+      "error": null,
+      "matched_records": {
+        "payments": [
+          "910899"
+        ],
+        "refunds": [
+          "910147"
+        ]
+      },
+      "retrieved_records": {
+        "payments": [
+          "910899",
+          "913464",
+          "913634",
+          "914371"
+        ],
+        "refunds": [
+          "910147"
+        ]
+      },
+      "missing_records": {}
+    },
+    {
+      "test_id": "PAY-018",
+      "question": "창세의 결정 980개 환불 요청이 어떻게 처리됐는지 알고 싶어요.",
+      "expected_action": "AUTO_RESPONSE",
+      "actual_action": "AUTO_RESPONSE",
+      "action_match": true,
+      "db_lookup_accuracy": true,
+      "false_fallback": false,
+      "latency_ms": 1536.04,
+      "payment_intent_type": "READ_ONLY",
+      "payment_intent_method": "rule",
+      "payment_intent_reason": "read-only inquiry pattern matched: 알고\\s*싶",
+      "expected_records": {
+        "payments": [
+          910192
+        ],
+        "refunds": [
+          910241
+        ]
+      },
+      "answer": "\"창세의 결정 980개\"에 대한 환불 요청은 다음과 같이 처리되었습니다:\n\n- **환불 요청일**: 2026년 6월 11일\n- **환불 처리 상태**: 승인됨\n- **환불 처리일**: 2026년 6월 15일\n- **환불 사유**: 사용자 요청에 따른 환불\n\n해당 환불 요청은 성공적으로 승인되어 처리되었습니다. 추가 문의 사항이 있으시면 언제든지 말씀해 주세요.",
+      "error": null,
+      "matched_records": {
+        "payments": [
+          "910192"
+        ],
+        "refunds": [
+          "910241"
+        ]
+      },
+      "retrieved_records": {
+        "payments": [
+          "910192",
+          "910193",
+          "912405",
+          "913345"
+        ],
+        "refunds": [
+          "910104",
+          "910241"
+        ]
+      },
+      "missing_records": {}
+    },
+    {
+      "test_id": "PAY-019",
+      "question": "창세의 결정 980개 환불 요청이 어떻게 처리됐는지 알고 싶어요.",
+      "expected_action": "AUTO_RESPONSE",
+      "actual_action": "AUTO_RESPONSE",
+      "action_match": true,
+      "db_lookup_accuracy": true,
+      "false_fallback": false,
+      "latency_ms": 1742.23,
+      "payment_intent_type": "READ_ONLY",
+      "payment_intent_method": "rule",
+      "payment_intent_reason": "read-only inquiry pattern matched: 알고\\s*싶",
+      "expected_records": {
+        "payments": [
+          912009
+        ],
+        "refunds": [
+          910228
+        ]
+      },
+      "answer": "고객님께서 요청하신 \"창세의 결정 980개\" 환불에 대한 처리 상태를 확인해 보았습니다.\n\n- **환불 요청 상태**: 현재 환불 요청은 \"대기 중\" 상태입니다.\n- **환불 요청 사유**: 사용자 요청에 따른 환불\n- **환불 요청 날짜**: 2026년 4월 28일\n- **처리 완료 날짜**: 아직 처리 완료되지 않았습니다.\n\n환불 요청이 아직 처리되지 않았으므로, 조금 더 기다려 주시기 바랍니다. 추가적인 문의 사항이 있으시면 언제든지 연락해 주세요. 감사합니다.",
+      "error": null,
+      "matched_records": {
+        "payments": [
+          "912009"
+        ],
+        "refunds": [
+          "910228"
+        ]
+      },
+      "retrieved_records": {
+        "payments": [
+          "911012",
+          "911238",
+          "911444",
+          "912009",
+          "914536"
+        ],
+        "refunds": [
+          "910228"
+        ]
+      },
+      "missing_records": {}
+    },
+    {
+      "test_id": "PAY-020",
+      "question": "창세의 결정 300개 환불 요청이 어떻게 처리됐는지 알고 싶어요.",
+      "expected_action": "AUTO_RESPONSE",
+      "actual_action": "AUTO_RESPONSE",
+      "action_match": true,
+      "db_lookup_accuracy": true,
+      "false_fallback": false,
+      "latency_ms": 1460.12,
+      "payment_intent_type": "READ_ONLY",
+      "payment_intent_method": "rule",
+      "payment_intent_reason": "read-only inquiry pattern matched: 알고\\s*싶",
+      "expected_records": {
+        "payments": [
+          913859
+        ],
+        "refunds": [
+          910130
+        ]
+      },
+      "answer": "\"창세의 결정 300개\"에 대한 환불 요청은 현재 \"대기 중\" 상태입니다. 환불 요청은 2026년 3월 13일에 \"중복 결제\" 사유로 접수되었으며, 아직 처리 완료되지 않았습니다. 환불이 완료되면 추가적인 알림을 받으실 수 있습니다. 환불 진행 상황에 대해 더 궁금하신 점이 있으시면 언제든지 문의해 주세요.",
+      "error": null,
+      "matched_records": {
+        "payments": [
+          "913859"
+        ],
+        "refunds": [
+          "910130"
+        ]
+      },
+      "retrieved_records": {
+        "payments": [
+          "911344",
+          "913859"
+        ],
+        "refunds": [
+          "910130"
+        ]
+      },
+      "missing_records": {}
+    },
+    {
+      "test_id": "PAY-021",
+      "question": "원석 아이템이 아직 안 들어온 것 같아요. 지급 로그 확인해주세요.",
+      "expected_action": "AUTO_RESPONSE",
+      "actual_action": "AUTO_RESPONSE",
+      "action_match": true,
+      "db_lookup_accuracy": true,
+      "false_fallback": false,
+      "latency_ms": 1564.98,
+      "payment_intent_type": "READ_ONLY",
+      "payment_intent_method": "rule",
+      "payment_intent_reason": "read-only inquiry pattern matched: 로그",
+      "expected_records": {
+        "item_delivery_logs": [
+          919710
+        ],
+        "payments": [
+          914733
+        ]
+      },
+      "answer": "문의하신 원석 아이템의 지급 로그를 확인한 결과, 다음과 같은 지급 내역이 있습니다:\n\n- **원석 3000개**: 2026년 1월 26일 08:12:32에 지급 완료\n- **원석 3000개**: 2026년 1월 26일 10:53:32에 지급 완료\n\n두 건 모두 정상적으로 지급 완료된 것으로 확인됩니다. 추가적인 문제가 있거나 다른 문의 사항이 있으시면 말씀해 주세요.",
+      "error": null,
+      "matched_records": {
+        "item_delivery_logs": [
+          "919710"
+        ],
+        "payments": [
+          "914733"
+        ]
+      },
+      "retrieved_records": {
+        "item_delivery_logs": [
+          "910567",
+          "912086",
+          "914132",
+          "916470",
+          "919225",
+          "919710"
+        ],
+        "payments": [
+          "912569",
+          "913946",
+          "914733",
+          "914904"
+        ]
+      },
+      "missing_records": {}
+    },
+    {
+      "test_id": "PAY-022",
+      "question": "원석 아이템이 아직 안 들어온 것 같아요. 지급 로그 확인해주세요.",
+      "expected_action": "AUTO_RESPONSE",
+      "actual_action": "AUTO_RESPONSE",
+      "action_match": true,
+      "db_lookup_accuracy": true,
+      "false_fallback": false,
+      "latency_ms": 1409.15,
+      "payment_intent_type": "READ_ONLY",
+      "payment_intent_method": "rule",
+      "payment_intent_reason": "read-only inquiry pattern matched: 로그",
+      "expected_records": {
+        "item_delivery_logs": [
+          919815
+        ]
+      },
+      "answer": "문의하신 \"원석\" 아이템의 지급 로그를 확인한 결과, 최근에 지급된 기록이 있습니다. \n\n- 2026년 4월 14일에 이벤트 보상으로 160개의 원석이 지급되었습니다.\n- 2026년 4월 10일에도 이벤트 보상으로 160개의 원석이 지급되었습니다.\n- 2026년 4월 7일에는 결제를 통해 3000개의 원석이 지급되었습니다.\n\n모든 지급은 정상적으로 완료된 것으로 확인됩니다. 추가적인 문제가 있거나 다른 문의 사항이 있으시면 말씀해 주세요.",
+      "error": null,
+      "matched_records": {
+        "item_delivery_logs": [
+          "919815"
+        ]
+      },
+      "retrieved_records": {
+        "item_delivery_logs": [
+          "910599",
+          "910770",
+          "911814",
+          "913835",
+          "914115",
+          "917344",
+          "917553",
+          "918209",
+          "918618",
+          "918658",
+          "919815"
+        ]
+      },
+      "missing_records": {}
+    },
+    {
+      "test_id": "PAY-023",
+      "question": "창세의 결정 아이템이 아직 안 들어온 것 같아요. 지급 로그 확인해주세요.",
+      "expected_action": "AUTO_RESPONSE",
+      "actual_action": "AUTO_RESPONSE",
+      "action_match": true,
+      "db_lookup_accuracy": true,
+      "false_fallback": false,
+      "latency_ms": 1632.96,
+      "payment_intent_type": "READ_ONLY",
+      "payment_intent_method": "rule",
+      "payment_intent_reason": "read-only inquiry pattern matched: 로그",
+      "expected_records": {
+        "item_delivery_logs": [
+          912735
+        ],
+        "payments": [
+          913194
+        ]
+      },
+      "answer": "문의하신 \"창세의 결정\" 아이템 지급 로그를 확인한 결과, 두 건의 지급이 완료된 것으로 확인되었습니다.\n\n1. **창세의 결정 300개**: 2026년 3월 1일에 결제되었으며, 2026년 3월 2일에 정상적으로 지급 완료되었습니다.\n2. **창세의 결정 60개**: 2026년 1월 7일에 결제되었으며, 같은 날 지급 완료되었습니다.\n\n따라서, \"창세의 결정\" 아이템은 모두 정상적으로 지급된 상태입니다. 추가적인 문제가 있거나 다른 문의 사항이 있으시면 언제든지 말씀해 주세요.",
+      "error": null,
+      "matched_records": {
+        "item_delivery_logs": [
+          "912735"
+        ],
+        "payments": [
+          "913194"
+        ]
+      },
+      "retrieved_records": {
+        "item_delivery_logs": [
+          "911835",
+          "912125",
+          "912705",
+          "912735",
+          "914488",
+          "914494",
+          "914790",
+          "914839",
+          "915461",
+          "916017",
+          "917328",
+          "917715",
+          "918530"
+        ],
+        "payments": [
+          "913194",
+          "913991",
+          "914396",
+          "914929"
+        ]
+      },
+      "missing_records": {}
+    },
+    {
+      "test_id": "PAY-024",
+      "question": "창세의 결정 아이템이 아직 안 들어온 것 같아요. 지급 로그 확인해주세요.",
+      "expected_action": "AUTO_RESPONSE",
+      "actual_action": "AUTO_RESPONSE",
+      "action_match": true,
+      "db_lookup_accuracy": true,
+      "false_fallback": false,
+      "latency_ms": 2549.13,
+      "payment_intent_type": "READ_ONLY",
+      "payment_intent_method": "rule",
+      "payment_intent_reason": "read-only inquiry pattern matched: 로그",
+      "expected_records": {
+        "item_delivery_logs": [
+          912669
+        ],
+        "payments": [
+          911697
+        ]
+      },
+      "answer": "문의하신 \"창세의 결정\" 아이템 지급 로그를 확인한 결과, 다음과 같은 지급 내역이 있습니다:\n\n1. **창세의 결정 6480개**\n   - 결제 금액: 119,000원\n   - 결제 방법: 스토어 크레딧\n   - 결제 상태: 성공\n   - 지급 상태: 지급 완료\n   - 지급 완료 시간: 2026-02-02 08:43:24\n\n2. **창세의 결정 300개**\n   - 결제 금액: 5,900원\n   - 결제 방법: 스토어 크레딧\n   - 결제 상태: 성공\n   - 지급 상태: 지급 완료\n   - 지급 완료 시간: 2026-01-22 12:22:18\n\n3. **창세의 결정 300개**\n   - 결제 금액: 5,900원\n   - 결제 방법: 카드\n   - 결제 상태: 보류 중\n   - 지급 상태: 지급 실패\n\n위 내역 중 지급이 완료된 항목은 모두 정상적으로 지급된 것으로 확인됩니다. 지급 실패된 항목에 대해서는 추가적인 조치가 필요할 수 있습니다. 추가 문의 사항이 있으시면 말씀해 주세요.",
+      "error": null,
+      "matched_records": {
+        "item_delivery_logs": [
+          "912669"
+        ],
+        "payments": [
+          "911697"
+        ]
+      },
+      "retrieved_records": {
+        "item_delivery_logs": [
+          "911928",
+          "912257",
+          "912669",
+          "913261",
+          "913935",
+          "917277",
+          "919354",
+          "919684"
+        ],
+        "payments": [
+          "911220",
+          "911355",
+          "911697",
+          "913064",
+          "913450"
+        ]
+      },
+      "missing_records": {}
+    },
+    {
+      "test_id": "PAY-025",
+      "question": "창세의 결정 아이템이 아직 안 들어온 것 같아요. 지급 로그 확인해주세요.",
+      "expected_action": "AUTO_RESPONSE",
+      "actual_action": "AUTO_RESPONSE",
+      "action_match": true,
+      "db_lookup_accuracy": true,
+      "false_fallback": false,
+      "latency_ms": 1576.47,
+      "payment_intent_type": "READ_ONLY",
+      "payment_intent_method": "rule",
+      "payment_intent_reason": "read-only inquiry pattern matched: 로그",
+      "expected_records": {
+        "item_delivery_logs": [
+          919348
+        ],
+        "payments": [
+          913598
+        ]
+      },
+      "answer": "문의하신 \"창세의 결정\" 아이템은 이미 지급 완료된 것으로 확인됩니다. \n\n- **지급 내역 1**: \n  - **수량**: 1980개\n  - **지급 완료 시각**: 2026년 3월 18일 19시 13분\n\n- **지급 내역 2**: \n  - **수량**: 1980개\n  - **지급 완료 시각**: 2026년 1월 26일 17시 00분\n\n두 건 모두 정상적으로 지급된 기록이 있습니다. 추가적인 문제가 있으시다면 다시 문의해 주세요.",
+      "error": null,
+      "matched_records": {
+        "item_delivery_logs": [
+          "919348"
+        ],
+        "payments": [
+          "913598"
+        ]
+      },
+      "retrieved_records": {
+        "item_delivery_logs": [
+          "911700",
+          "916382",
+          "917183",
+          "918972",
+          "919234",
+          "919348",
+          "919947"
+        ],
+        "payments": [
+          "912180",
+          "913030",
+          "913598"
+        ]
+      },
+      "missing_records": {}
+    },
+    {
+      "test_id": "PAY-026",
+      "question": "창세의 결정 아이템이 아직 안 들어온 것 같아요. 지급 로그 확인해주세요.",
+      "expected_action": "AUTO_RESPONSE",
+      "actual_action": "AUTO_RESPONSE",
+      "action_match": true,
+      "db_lookup_accuracy": true,
+      "false_fallback": false,
+      "latency_ms": 1923.27,
+      "payment_intent_type": "READ_ONLY",
+      "payment_intent_method": "rule",
+      "payment_intent_reason": "read-only inquiry pattern matched: 로그",
+      "expected_records": {
+        "item_delivery_logs": [
+          910439
+        ],
+        "payments": [
+          911099
+        ]
+      },
+      "answer": "결제하신 \"창세의 결정 300개\" 아이템은 이미 지급 완료된 것으로 확인됩니다. \n\n- **결제 정보**: \n  - 상품명: 창세의 결정 300개\n  - 결제 금액: 5,900원\n  - 결제 수단: Google Pay\n  - 결제 상태: 성공\n  - 결제 일시: 2026년 1월 13일 13:06\n\n- **지급 로그**:\n  - 지급 수량: 300개\n  - 지급 상태: 완료\n  - 지급 완료 일시: 2026년 1월 13일 14:37\n\n지급이 정상적으로 완료된 것으로 확인되며, 게임 내에서 해당 아이템을 확인해 보시기 바랍니다. 추가적인 문제가 있을 경우 다시 문의해 주세요.",
+      "error": null,
+      "matched_records": {
+        "item_delivery_logs": [
+          "910439"
+        ],
+        "payments": [
+          "911099"
+        ]
+      },
+      "retrieved_records": {
+        "item_delivery_logs": [
+          "910439",
+          "912635"
+        ],
+        "payments": [
+          "911099"
+        ]
+      },
+      "missing_records": {}
+    },
+    {
+      "test_id": "PAY-027",
+      "question": "원석 아이템이 아직 안 들어온 것 같아요. 지급 로그 확인해주세요.",
+      "expected_action": "AUTO_RESPONSE",
+      "actual_action": "AUTO_RESPONSE",
+      "action_match": true,
+      "db_lookup_accuracy": true,
+      "false_fallback": false,
+      "latency_ms": 1405.74,
+      "payment_intent_type": "READ_ONLY",
+      "payment_intent_method": "rule",
+      "payment_intent_reason": "read-only inquiry pattern matched: 로그",
+      "expected_records": {
+        "item_delivery_logs": [
+          910852
+        ],
+        "payments": [
+          913932
+        ]
+      },
+      "answer": "문의하신 원석 아이템의 지급 로그를 확인한 결과, 최근에 원석이 정상적으로 지급된 기록이 있습니다. \n\n- 2026년 5월 12일에 두 번의 지급이 있었으며, 각각 3000개의 원석이 지급되었습니다. 첫 번째 지급은 18:50에 완료되었고, 두 번째 지급은 20:53에 완료되었습니다.\n\n따라서 원석 아이템은 정상적으로 지급된 것으로 확인됩니다. 추가적인 문제가 있거나 다른 문의 사항이 있으시면 말씀해 주세요.",
+      "error": null,
+      "matched_records": {
+        "item_delivery_logs": [
+          "910852"
+        ],
+        "payments": [
+          "913932"
+        ]
+      },
+      "retrieved_records": {
+        "item_delivery_logs": [
+          "910852",
+          "911798",
+          "912160",
+          "912217",
+          "912395",
+          "913397",
+          "914199",
+          "914701",
+          "916315",
+          "916401",
+          "916749",
+          "917836",
+          "918636"
+        ],
+        "payments": [
+          "911909",
+          "912589",
+          "913225",
+          "913932",
+          "914723"
+        ]
+      },
+      "missing_records": {}
+    },
+    {
+      "test_id": "PAY-028",
+      "question": "원석 아이템이 아직 안 들어온 것 같아요. 지급 로그 확인해주세요.",
+      "expected_action": "AUTO_RESPONSE",
+      "actual_action": "AUTO_RESPONSE",
+      "action_match": true,
+      "db_lookup_accuracy": true,
+      "false_fallback": false,
+      "latency_ms": 1204.74,
+      "payment_intent_type": "READ_ONLY",
+      "payment_intent_method": "rule",
+      "payment_intent_reason": "read-only inquiry pattern matched: 로그",
+      "expected_records": {
+        "item_delivery_logs": [
+          917976
+        ],
+        "payments": [
+          910405
+        ]
+      },
+      "answer": "문의하신 \"원석\" 아이템의 지급 로그를 확인한 결과, 최근에 지급된 기록은 없습니다. 이전에 지급된 \"원석\" 아이템은 2026년 1월 3일과 2025년 12월 26일에 각각 3000개씩 지급된 기록이 있습니다.\n\n현재 요청하신 \"원석\" 아이템의 지급이 확인되지 않으므로, 추가적인 확인이 필요할 수 있습니다. 다른 문의 사항이 있으시면 말씀해 주세요.",
+      "error": null,
+      "matched_records": {
+        "item_delivery_logs": [
+          "917976"
+        ],
+        "payments": [
+          "910405"
+        ]
+      },
+      "retrieved_records": {
+        "item_delivery_logs": [
+          "913909",
+          "914363",
+          "916369",
+          "916485",
+          "917976"
+        ],
+        "payments": [
+          "910405",
+          "910406",
+          "910871",
+          "912546",
+          "913086",
+          "914532",
+          "914967"
+        ]
+      },
+      "missing_records": {}
+    },
+    {
+      "test_id": "PAY-029",
+      "question": "무기 이벤트 기원 뽑기 기록에서 제례 대검 결과가 맞는지 확인해주세요. 천장 카운트도 같이 봐주세요.",
+      "expected_action": "AUTO_RESPONSE",
+      "actual_action": "AUTO_RESPONSE",
+      "action_match": true,
+      "db_lookup_accuracy": true,
+      "false_fallback": false,
+      "latency_ms": 1582.6,
+      "payment_intent_type": "READ_ONLY",
+      "payment_intent_method": "rule",
+      "payment_intent_reason": "read-only inquiry pattern matched: 기록",
+      "expected_records": {
+        "gacha_logs": [
+          925818
+        ]
+      },
+      "answer": "무기 이벤트 기원에서 \"제례 대검\"의 뽑기 기록은 다음과 같습니다:\n\n1. 2026년 4월 19일에 \"제례 대검\"을 획득하셨으며, 당시 천장 카운트는 6회였습니다.\n2. 2026년 3월 30일에 \"제례 대검\"을 획득하셨으며, 당시 천장 카운트는 2회였습니다.\n\n위의 기록은 무기 이벤트 기원에서의 결과입니다. 추가로 확인이 필요하신 사항이 있으면 말씀해 주세요.",
+      "error": null,
+      "matched_records": {
+        "gacha_logs": [
+          "925818"
+        ]
+      },
+      "retrieved_records": {
+        "gacha_logs": [
+          "914094",
+          "915136",
+          "915929",
+          "917088",
+          "919097",
+          "919214",
+          "919881",
+          "919986",
+          "920484",
+          "921373",
+          "925818",
+          "925858",
+          "926091",
+          "927116",
+          "928752"
+        ]
+      },
+      "missing_records": {}
+    },
+    {
+      "test_id": "PAY-030",
+      "question": "무기 이벤트 기원 뽑기 기록에서 설탕 결과가 맞는지 확인해주세요. 천장 카운트도 같이 봐주세요.",
+      "expected_action": "AUTO_RESPONSE",
+      "actual_action": "AUTO_RESPONSE",
+      "action_match": true,
+      "db_lookup_accuracy": true,
+      "false_fallback": false,
+      "latency_ms": 1422.4,
+      "payment_intent_type": "READ_ONLY",
+      "payment_intent_method": "rule",
+      "payment_intent_reason": "read-only inquiry pattern matched: 기록",
+      "expected_records": {
+        "gacha_logs": [
+          919710
+        ]
+      },
+      "answer": "무기 이벤트 기원에서 \"설탕\" 캐릭터를 뽑으신 기록은 다음과 같습니다:\n\n- **아이템 이름**: 설탕\n- **희귀도**: 4성\n- **뽑기 일시**: 2026년 1월 18일 18시 21분 38초\n- **천장 카운트**: 5회\n- **배너 이름**: 무기 이벤트 기원\n\n해당 기록은 정확하게 확인되었습니다. 추가로 궁금하신 사항이 있으면 언제든지 문의해 주세요.",
+      "error": null,
+      "matched_records": {
+        "gacha_logs": [
+          "919710"
+        ]
+      },
+      "retrieved_records": {
+        "gacha_logs": [
+          "912234",
+          "913114",
+          "913535",
+          "916651",
+          "918253",
+          "919328",
+          "919710",
+          "921273",
+          "923251",
+          "926433",
+          "926534",
+          "927261",
+          "928550",
+          "928569",
+          "929061",
+          "931228",
+          "931826",
+          "933125",
+          "934025",
+          "934029"
+        ]
+      },
+      "missing_records": {}
+    }
+  ]
+}

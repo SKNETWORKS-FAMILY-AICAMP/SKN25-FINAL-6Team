@@ -1,0 +1,339 @@
+{
+  "dataset_info": {
+    "name": "gameops-chatbot-category-mapping-contract-20-v1",
+    "version": "v1",
+    "description": "Frontend category/sub-category to backend category/routing_target contract cases.",
+    "total_examples": 20,
+    "paper_basis": [
+      "Self-Instruct: generate diverse instruction/input/output examples, then filter invalid or near-duplicate samples.",
+      "Persona-based synthetic user simulation: vary user intent, urgency, expertise, and message style.",
+      "Synthetic user generated text evaluation: include short, noisy, incomplete, and typo-like user messages so evals are not overly clean."
+    ],
+    "generation_note": "Synthetic user messages are generated from actual local DB records/documents. The expected evidence IDs point to the DB rows used to generate each example.",
+    "category_counts": {
+      "null": 20
+    }
+  },
+  "examples": [
+    {
+      "inputs": {
+        "ui_category": "payment",
+        "sub_category": "payment_history"
+      },
+      "outputs": {
+        "expected_category": "payment",
+        "expected_routing_target": "payment_agent",
+        "expected_should_use_rag": false
+      },
+      "metadata": {
+        "test_id": "MAP-001",
+        "eval_area": "category_mapping_contract",
+        "note": "Contract test, not model performance."
+      }
+    },
+    {
+      "inputs": {
+        "ui_category": "payment",
+        "sub_category": "missing_item"
+      },
+      "outputs": {
+        "expected_category": "payment",
+        "expected_routing_target": "payment_agent",
+        "expected_should_use_rag": false
+      },
+      "metadata": {
+        "test_id": "MAP-002",
+        "eval_area": "category_mapping_contract",
+        "note": "Contract test, not model performance."
+      }
+    },
+    {
+      "inputs": {
+        "ui_category": "payment",
+        "sub_category": "duplicate_payment"
+      },
+      "outputs": {
+        "expected_category": "payment",
+        "expected_routing_target": "payment_agent",
+        "expected_should_use_rag": false
+      },
+      "metadata": {
+        "test_id": "MAP-003",
+        "eval_area": "category_mapping_contract",
+        "note": "Contract test, not model performance."
+      }
+    },
+    {
+      "inputs": {
+        "ui_category": "payment",
+        "sub_category": "payment_method"
+      },
+      "outputs": {
+        "expected_category": "faq",
+        "expected_routing_target": "faq_agent",
+        "expected_should_use_rag": true
+      },
+      "metadata": {
+        "test_id": "MAP-004",
+        "eval_area": "category_mapping_contract",
+        "note": "Contract test, not model performance."
+      }
+    },
+    {
+      "inputs": {
+        "ui_category": "payment",
+        "sub_category": "refund_policy"
+      },
+      "outputs": {
+        "expected_category": "faq",
+        "expected_routing_target": "faq_agent",
+        "expected_should_use_rag": true
+      },
+      "metadata": {
+        "test_id": "MAP-005",
+        "eval_area": "category_mapping_contract",
+        "note": "Contract test, not model performance."
+      }
+    },
+    {
+      "inputs": {
+        "ui_category": "account",
+        "sub_category": "login_issue"
+      },
+      "outputs": {
+        "expected_category": "faq",
+        "expected_routing_target": "faq_agent",
+        "expected_should_use_rag": true
+      },
+      "metadata": {
+        "test_id": "MAP-006",
+        "eval_area": "category_mapping_contract",
+        "note": "Contract test, not model performance."
+      }
+    },
+    {
+      "inputs": {
+        "ui_category": "account",
+        "sub_category": "account_recovery"
+      },
+      "outputs": {
+        "expected_category": "faq",
+        "expected_routing_target": "faq_agent",
+        "expected_should_use_rag": true
+      },
+      "metadata": {
+        "test_id": "MAP-007",
+        "eval_area": "category_mapping_contract",
+        "note": "Contract test, not model performance."
+      }
+    },
+    {
+      "inputs": {
+        "ui_category": "account",
+        "sub_category": "account_linking"
+      },
+      "outputs": {
+        "expected_category": "faq",
+        "expected_routing_target": "faq_agent",
+        "expected_should_use_rag": true
+      },
+      "metadata": {
+        "test_id": "MAP-008",
+        "eval_area": "category_mapping_contract",
+        "note": "Contract test, not model performance."
+      }
+    },
+    {
+      "inputs": {
+        "ui_category": "account",
+        "sub_category": "phone_change"
+      },
+      "outputs": {
+        "expected_category": "faq",
+        "expected_routing_target": "faq_agent",
+        "expected_should_use_rag": true
+      },
+      "metadata": {
+        "test_id": "MAP-009",
+        "eval_area": "category_mapping_contract",
+        "note": "Contract test, not model performance."
+      }
+    },
+    {
+      "inputs": {
+        "ui_category": "reward",
+        "sub_category": "product_not_delivered"
+      },
+      "outputs": {
+        "expected_category": "payment",
+        "expected_routing_target": "payment_agent",
+        "expected_should_use_rag": false
+      },
+      "metadata": {
+        "test_id": "MAP-010",
+        "eval_area": "category_mapping_contract",
+        "note": "Contract test, not model performance."
+      }
+    },
+    {
+      "inputs": {
+        "ui_category": "reward",
+        "sub_category": "mail_reward"
+      },
+      "outputs": {
+        "expected_category": "faq",
+        "expected_routing_target": "faq_agent",
+        "expected_should_use_rag": true
+      },
+      "metadata": {
+        "test_id": "MAP-011",
+        "eval_area": "category_mapping_contract",
+        "note": "Contract test, not model performance."
+      }
+    },
+    {
+      "inputs": {
+        "ui_category": "reward",
+        "sub_category": "coupon_usage"
+      },
+      "outputs": {
+        "expected_category": "faq",
+        "expected_routing_target": "faq_agent",
+        "expected_should_use_rag": true
+      },
+      "metadata": {
+        "test_id": "MAP-012",
+        "eval_area": "category_mapping_contract",
+        "note": "Contract test, not model performance."
+      }
+    },
+    {
+      "inputs": {
+        "ui_category": "bug",
+        "sub_category": "launch_access_error"
+      },
+      "outputs": {
+        "expected_category": "bug",
+        "expected_routing_target": "bug_agent",
+        "expected_should_use_rag": false
+      },
+      "metadata": {
+        "test_id": "MAP-013",
+        "eval_area": "category_mapping_contract",
+        "note": "Contract test, not model performance."
+      }
+    },
+    {
+      "inputs": {
+        "ui_category": "bug",
+        "sub_category": "gameplay_progress_error"
+      },
+      "outputs": {
+        "expected_category": "bug",
+        "expected_routing_target": "bug_agent",
+        "expected_should_use_rag": false
+      },
+      "metadata": {
+        "test_id": "MAP-014",
+        "eval_area": "category_mapping_contract",
+        "note": "Contract test, not model performance."
+      }
+    },
+    {
+      "inputs": {
+        "ui_category": "bug",
+        "sub_category": "graphics_sound_error"
+      },
+      "outputs": {
+        "expected_category": "bug",
+        "expected_routing_target": "bug_agent",
+        "expected_should_use_rag": false
+      },
+      "metadata": {
+        "test_id": "MAP-015",
+        "eval_area": "category_mapping_contract",
+        "note": "Contract test, not model performance."
+      }
+    },
+    {
+      "inputs": {
+        "ui_category": "bug",
+        "sub_category": "paid_item_missing"
+      },
+      "outputs": {
+        "expected_category": "payment",
+        "expected_routing_target": "payment_agent",
+        "expected_should_use_rag": false
+      },
+      "metadata": {
+        "test_id": "MAP-016",
+        "eval_area": "category_mapping_contract",
+        "note": "Contract test, not model performance."
+      }
+    },
+    {
+      "inputs": {
+        "ui_category": "bug",
+        "sub_category": "reward_mail_missing"
+      },
+      "outputs": {
+        "expected_category": "payment",
+        "expected_routing_target": "payment_agent",
+        "expected_should_use_rag": false
+      },
+      "metadata": {
+        "test_id": "MAP-017",
+        "eval_area": "category_mapping_contract",
+        "note": "Contract test, not model performance."
+      }
+    },
+    {
+      "inputs": {
+        "ui_category": "bug",
+        "sub_category": "gacha_log_issue"
+      },
+      "outputs": {
+        "expected_category": "payment",
+        "expected_routing_target": "payment_agent",
+        "expected_should_use_rag": false
+      },
+      "metadata": {
+        "test_id": "MAP-018",
+        "eval_area": "category_mapping_contract",
+        "note": "Contract test, not model performance."
+      }
+    },
+    {
+      "inputs": {
+        "ui_category": "notice",
+        "sub_category": "notice_event"
+      },
+      "outputs": {
+        "expected_category": "faq",
+        "expected_routing_target": "faq_agent",
+        "expected_should_use_rag": true
+      },
+      "metadata": {
+        "test_id": "MAP-019",
+        "eval_area": "category_mapping_contract",
+        "note": "Contract test, not model performance."
+      }
+    },
+    {
+      "inputs": {
+        "ui_category": "voc",
+        "sub_category": "voc_etc"
+      },
+      "outputs": {
+        "expected_category": "voc",
+        "expected_routing_target": "voc_agent",
+        "expected_should_use_rag": false
+      },
+      "metadata": {
+        "test_id": "MAP-020",
+        "eval_area": "category_mapping_contract",
+        "note": "Contract test, not model performance."
+      }
+    }
+  ]
+}

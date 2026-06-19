@@ -14,6 +14,7 @@ from chatbot.observability.logger import EVENT_NODE_COMPLETED, EVENT_NODE_STARTE
 from chatbot.repository.failed_query_repository import save_failed_query
 from chatbot.retrieval.cache_store import get_cached_retrieval, set_cached_retrieval
 from common.retrieval.vector_tools import embed_query, enrich_retrieval_query, rerank_documents, search_document_chunks
+from common.observability.logger import record_chat_model_usage
 from chatbot.schemas import ChatbotState
 from chatbot.utils.query_enrichment import rewrite_query_with_llm
 
@@ -387,10 +388,15 @@ def _generate_evidence_answer(
                 content=(
                     "You are a Korean game customer support FAQ/RAG drafting unit. "
                     "Answer only with facts supported by the provided evidence. "
+                    "Every factual sentence must be directly supported by one of the evidence documents. "
+                    "If a detail, next step, external channel, deadline, condition, or limitation is not in the evidence, omit it. "
+                    "Do not add generic support suggestions such as checking the official community, customer center, notices, or contacting support unless the evidence explicitly says so. "
+                    "Use the same key terms, menu names, item names, event names, version numbers, status names, dates, and policy conditions that appear in the evidence. "
+                    "Avoid broad paraphrases that change the meaning or add unstated assumptions. "
                     "Do not use adjacent maintenance, outage, or incident notices as an answer to a how-to question "
                     "unless the customer explicitly asked about maintenance, outage, or incidents. "
                     "If the evidence does not explicitly answer the requested topic, say that exact guidance is not available "
-                    "and avoid adding unrelated operational notices. "
+                    "and avoid adding unrelated operational notices or generic alternatives. "
                     "When the customer asks multiple things and the evidence supports only some of them, answer the supported "
                     "parts clearly and state which parts are not confirmed by the provided evidence. "
                     "If the evidence says the customer's assumed method, menu, path, or condition is not supported, state that "
@@ -426,6 +432,7 @@ def _generate_evidence_answer(
             ),
         ]
     )
+    record_chat_model_usage("faq_answer_generation", model, response)
     return str(response.content).strip()
 
 

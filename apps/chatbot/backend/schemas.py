@@ -62,6 +62,8 @@ class ChatbotState(AgentState):
     retrieval_cache_key_hash: NotRequired[str | None]
     retrieval_cache_ttl: NotRequired[int | None]
     payment_context: NotRequired[dict[str, Any] | None]
+    payment_intent: NotRequired[dict[str, Any] | None]
+    payment_intent_type: NotRequired[str | None]
     faq_failure_reason: NotRequired[str | None]
     safety_passed: NotRequired[bool | None]
     safety_action: NotRequired[SafetyAction | str | None]

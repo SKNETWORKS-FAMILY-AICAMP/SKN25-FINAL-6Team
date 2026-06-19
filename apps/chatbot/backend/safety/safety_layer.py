@@ -19,6 +19,7 @@ from chatbot.generation.response.fixed_responses import SAFE_FALLBACK_RESPONSE
 from chatbot.observability.logger import EVENT_SAFETY_CHECKED, log_event
 from chatbot.repository.safety_repository import save_safety_results
 from chatbot.schemas import ChatbotState
+from common.observability.logger import estimate_tokens, record_usage
 
 
 MODERATION_MODEL = "omni-moderation-latest"
@@ -178,6 +179,14 @@ def _moderation_safety_check(text: str) -> tuple[bool, dict[str, float], str]:
     response = client.moderations.create(
         model=MODERATION_MODEL,
         input=text,
+    )
+    record_usage(
+        component="safety_moderation",
+        model=MODERATION_MODEL,
+        prompt_tokens=estimate_tokens(text, MODERATION_MODEL),
+        completion_tokens=0,
+        successful_requests=1,
+        estimated=True,
     )
     result = response.results[0]
     scores = _as_dict(result.category_scores)

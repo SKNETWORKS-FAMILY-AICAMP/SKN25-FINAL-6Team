@@ -39,13 +39,18 @@ def read_gacha_logs(account_id: int) -> str:
 
 # payment agent가 결제/환불/아이템 지급/가챠 로그를 사용자 소유 범위 안에서 한 번에 모은다.
 @tool(parse_docstring=True)
-def collect_user_payment_context(user_id: int, account_id: int | None = None) -> str:
+def collect_user_payment_context(
+    user_id: int,
+    account_id: int | None = None,
+    query_text: str | None = None,
+) -> str:
     """Read payment, refund, item delivery, and gacha records owned by the logged-in user.
 
     Args:
         user_id: Logged-in community user ID. This is the ownership boundary.
         account_id: Optional game account ID to narrow the lookup, only if it belongs to user_id.
+        query_text: Optional user question text used to prioritize matching payment records.
     """
     from chatbot.repository.operation_log_repository import collect_payment_context_by_user
 
-    return _json(collect_payment_context_by_user(user_id=user_id, account_id=account_id))
+    return _json(collect_payment_context_by_user(user_id=user_id, account_id=account_id, query_text=query_text))
