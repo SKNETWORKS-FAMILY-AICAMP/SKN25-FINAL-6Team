@@ -622,12 +622,12 @@
           </div>
         </section>
 
-        <form id="chatForm" class="grid grid-cols-[1fr_52px] items-end gap-3 border-t border-brand-blue/12 bg-[#f5efe2]/82 p-5">
+        <form id="chatForm" class="grid grid-cols-[minmax(0,1fr)_52px] items-end gap-3 border-t border-brand-blue/12 bg-[#f5efe2]/82 p-5">
           <div class="min-w-0">
             <div id="bugReportForm" class="hidden rounded-2xl border border-brand-blue/12 bg-white/86 p-4 shadow-[0_14px_34px_rgba(16,47,74,0.06)]"></div>
-            <textarea id="chatInput" class="min-h-[52px] max-h-[180px] w-full resize-none rounded-xl border border-brand-blue/15 bg-white/88 px-5 py-3 text-[15px] font-semibold leading-7 text-[#153958] outline-none placeholder:text-[#7f98aa]" placeholder="궁금한 내용을 입력해주세요." rows="1"></textarea>
+            <textarea id="chatInput" class="block min-h-[52px] max-h-[180px] w-full resize-none rounded-xl border border-brand-blue/15 bg-white/88 px-5 py-3 text-[15px] font-semibold leading-7 text-[#153958] outline-none placeholder:text-[#7f98aa]" placeholder="궁금한 내용을 입력해주세요." rows="1"></textarea>
           </div>
-          <button class="grid place-items-center rounded-xl bg-brand-blue text-white shadow-[0_16px_30px_rgba(96,150,180,0.28)]" type="submit" aria-label="전송">
+          <button class="grid h-[52px] w-[52px] shrink-0 place-items-center self-end rounded-xl bg-brand-blue text-white shadow-[0_16px_30px_rgba(96,150,180,0.28)]" type="submit" aria-label="전송">
             <svg class="ui-icon" style="color: #fff" viewBox="0 0 24 24" aria-hidden="true">
               <path d="M22 2 11 13" />
               <path d="m22 2-7 20-4-9-9-4z" />
@@ -2767,7 +2767,7 @@
         faqCategoryTitle.textContent = "문의 유형";
         faqList.innerHTML = `
           <div class="rounded-xl border border-dashed border-brand-blue/15 bg-white/55 p-5 text-sm font-semibold leading-7 text-[#5b7890]">
-            먼저 채팅 영역에서 1차 카테고리를 선택하면 관련 자주 찾는 질문이 표시됩니다.
+            먼저 채팅 영역에서 카테고리를 선택하면 관련 자주 찾는 질문이 표시됩니다.
           </div>
         `;
         return;
@@ -2827,6 +2827,12 @@
     inquiryHistoryButton.addEventListener("click", showInquiryPage);
     backToChatButton.addEventListener("click", showChatMainPage);
     bindCategoryButtons();
+    chatInput.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
+      event.preventDefault();
+      if (chatSubmitButton.disabled) return;
+      chatForm.requestSubmit();
+    });
     chatForm.addEventListener("submit", async (event) => {
       event.preventDefault();
       if (clientState.sessionLocked) {
