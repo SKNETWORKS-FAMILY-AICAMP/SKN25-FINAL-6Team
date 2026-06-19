@@ -7,7 +7,7 @@ import pytest
 from chatbot.chains.routing import route_after_draft_persistence, route_after_safety, route_by_category
 
 from chatbot.constants import VOC_FIXED_RESPONSE
-from chatbot.generation import bug_agent, ticket_preprocess, voc_agent
+from chatbot.generation import bug_agent, payment_agent, ticket_preprocess, voc_agent
 from chatbot.generation.response.ticket_completion import ticket_completion_node
 from chatbot.generation.response.fixed_responses import (
     BLOCK_RESPONSE,
@@ -157,6 +157,30 @@ def test_build_state_uses_masked_content_for_runtime_message_but_keeps_raw_query
     assert "Selected subcategory: launch_access_error" in state["messages"][-1]["content"]
     assert state["input_masked"] is True
     assert state["input_detected_labels"] == ["email", "phone"]
+
+
+def test_payment_agent_does_not_read_db_for_out_of_scope_input(monkeypatch) -> None:
+    def fail_collect_payment_context(state):
+        raise AssertionError("payment context should not be collected for out-of-scope input")
+
+    monkeypatch.setattr(payment_agent, "_collect_payment_context", fail_collect_payment_context)
+
+    update = payment_agent.payment_agent_node(
+        {
+            "ticket_id": 1,
+            "session_id": "s-1",
+            "raw_query": "sdsdsd",
+            "masked_content": "sdsdsd",
+            "normalized_query": "sdsdsd",
+            "retry_count": 0,
+            "category": "payment",
+            "routing_target": "payment_agent",
+        }
+    )
+
+    assert update["draft_text"].startswith("결제/환불 문의 내용을 조금 더 구체적으로 입력해 주세요.")
+    assert update["payment_intent_type"] == "OUT_OF_SCOPE"
+    assert update["retrieved_documents"] == []
 
 
 def test_ticket_preprocess_persists_raw_query_and_normalizes_masked_content(monkeypatch) -> None:
