@@ -57,7 +57,6 @@ class SharedDraftRequest(BaseModel):
     context_rows: list[dict[str, Any]] = Field(default_factory=list)
     retrieved_documents: list[dict[str, Any]] = Field(default_factory=list)
     is_actionable: bool | None = None
-    should_use_rag: bool | None = None
     fallback_reason: str | None = None
     force_review: bool = False
 
@@ -313,7 +312,7 @@ def _rerank_documents(documents: list[dict[str, Any]], query: str) -> list[dict[
 
 
 def _run_faq_draft(request: SharedDraftRequest) -> SharedDraftResult:
-    if request.is_actionable is False or request.should_use_rag is False:
+    if request.is_actionable is False:
         return SharedDraftResult(
             draft_text=SAFE_FALLBACK_RESPONSE,
             reasoning_node="faq_agent",
@@ -396,7 +395,7 @@ def _build_voc_response(voc_type: str) -> str:
 
 
 def _run_voc_draft(request: SharedDraftRequest) -> SharedDraftResult:
-    if request.is_actionable is False and request.should_use_rag is False:
+    if request.is_actionable is False:
         voc_type = "other"
         sentiment = "negative"
         topic_keywords: list[str] = []

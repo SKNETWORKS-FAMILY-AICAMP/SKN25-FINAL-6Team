@@ -318,10 +318,11 @@ def _requires_second_pass_safety(
 
 
 def _requires_document_grounding(state: ChatbotState, documents: list[dict[str, Any]]) -> bool:
+    routing_target = str(state.get("routing_target") or "").strip().lower()
     return (
         state.get("reasoning_node") == "faq_agent"
         or str(state.get("category") or "").lower() == "faq"
-        or state.get("should_use_rag") is True
+        or routing_target in {"faq_agent", "rag_reply"}
     )
 
 
@@ -337,6 +338,12 @@ def _payment_context_requires_review(state: ChatbotState) -> tuple[bool, str | N
     context = state.get("payment_context")
     if not isinstance(context, dict):
         return False, None
+
+    if state.get("payment_intent_type") == "READ_ONLY":
+        return False, None
+
+    if state.get("payment_intent_type") == "ACTION_REQUEST":
+        return True, "payment_action_request_requires_operator_review"
 
     data = context.get("data")
     if not isinstance(data, dict):

@@ -50,7 +50,6 @@ class ChatRequest(BaseModel):
     ui_category: str | None = None
     sub_category: str | None = None
     routing_target: str | None = None
-    should_use_rag: bool | None = None
     fallback_routing_target: str | None = None
     previous_messages: list[dict[str, str]] | None = None
     conversation_summary: str | None = None
@@ -317,7 +316,6 @@ def chat(request: ChatRequest) -> ChatResponse:
         ui_category=request.ui_category,
         sub_category=request.sub_category,
         routing_target=request.routing_target,
-        should_use_rag=request.should_use_rag,
         fallback_routing_target=request.fallback_routing_target,
         previous_messages=previous_messages,
         conversation_summary=conversation_summary,

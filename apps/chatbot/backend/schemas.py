@@ -41,7 +41,6 @@ class ChatbotState(AgentState):
     routing_target: NotRequired[RoutingTarget | str]
     fallback_routing_target: NotRequired[str | None]
     is_actionable: NotRequired[bool | None]
-    should_use_rag: NotRequired[bool | None]
     fallback_reason: NotRequired[str | None]
 
     # Drafting, retrieval, safety, and review state.
@@ -80,6 +79,7 @@ class ChatbotState(AgentState):
 
     # Bug reproduction collection state.
     initial_bug_query: NotRequired[str | None]
+    bug_intent: NotRequired[dict[str, Any] | None]
     bug_collection_status: NotRequired[str | None]
     bug_report_form: NotRequired[str | None]
     github_issue_content: NotRequired[str | None]

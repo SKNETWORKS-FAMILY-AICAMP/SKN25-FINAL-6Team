@@ -20,7 +20,6 @@
         "user_message": "업데이트 후 실행하면 로딩 70%에서 멈춰요. PC, 윈도우 11입니다.",
         "category": "bug",
         "routing_target": "bug_agent",
-        "should_use_rag": false,
         "user_id": 1,
         "account_id": 101
       },
@@ -34,8 +33,17 @@
         ],
         "rubrics": {
           "required_info_coverage": "답변이 required_info_slots에 해당하는 추가 정보 요청을 충분히 포함해야 한다.",
-          "action_match": "버그 원인을 단정하거나 보상을 약속하지 않고 검토/접수 흐름으로 보내야 한다."
-        }
+          "action_match": "버그 원인을 단정하거나 보상을 약속하지 않고 검토/접수 흐름으로 보내야 한다.",
+          "required_core_info_coverage": "The answer should request or confirm relevant core incident fields: occurred time, error message/code, device/OS, and reproduction steps.",
+          "optional_context_info_coverage": "The answer may request symptom-specific optional context such as quest, location, graphics settings, screenshot, controller, storage, or mail title."
+        },
+        "required_core_info_slots": [
+          "device",
+          "os",
+          "occurred_at",
+          "reproduction_steps"
+        ],
+        "optional_info_slots": []
       },
       "metadata": {
         "test_id": "BUG-001",
@@ -49,7 +57,6 @@
         "user_message": "모바일에서 전투 시작하면 바로 튕겨요. 오류 코드는 안 떠요.",
         "category": "bug",
         "routing_target": "bug_agent",
-        "should_use_rag": false,
         "user_id": 1,
         "account_id": 101
       },
@@ -62,8 +69,16 @@
         ],
         "rubrics": {
           "required_info_coverage": "답변이 required_info_slots에 해당하는 추가 정보 요청을 충분히 포함해야 한다.",
-          "action_match": "버그 원인을 단정하거나 보상을 약속하지 않고 검토/접수 흐름으로 보내야 한다."
-        }
+          "action_match": "버그 원인을 단정하거나 보상을 약속하지 않고 검토/접수 흐름으로 보내야 한다.",
+          "required_core_info_coverage": "The answer should request or confirm relevant core incident fields: occurred time, error message/code, device/OS, and reproduction steps.",
+          "optional_context_info_coverage": "The answer may request symptom-specific optional context such as quest, location, graphics settings, screenshot, controller, storage, or mail title."
+        },
+        "required_core_info_slots": [
+          "device",
+          "occurred_at",
+          "reproduction_steps"
+        ],
+        "optional_info_slots": []
       },
       "metadata": {
         "test_id": "BUG-002",
@@ -77,21 +92,27 @@
         "user_message": "특정 퀘스트 NPC가 안 보여서 진행이 막혔어요.",
         "category": "bug",
         "routing_target": "bug_agent",
-        "should_use_rag": false,
         "user_id": 1,
         "account_id": 101
       },
       "outputs": {
         "expected_action": "REVIEW_REQUIRED",
         "required_info_slots": [
-          "quest_name",
-          "location",
           "reproduction_steps"
         ],
         "rubrics": {
           "required_info_coverage": "답변이 required_info_slots에 해당하는 추가 정보 요청을 충분히 포함해야 한다.",
-          "action_match": "버그 원인을 단정하거나 보상을 약속하지 않고 검토/접수 흐름으로 보내야 한다."
-        }
+          "action_match": "버그 원인을 단정하거나 보상을 약속하지 않고 검토/접수 흐름으로 보내야 한다.",
+          "required_core_info_coverage": "The answer should request or confirm relevant core incident fields: occurred time, error message/code, device/OS, and reproduction steps.",
+          "optional_context_info_coverage": "The answer may request symptom-specific optional context such as quest, location, graphics settings, screenshot, controller, storage, or mail title."
+        },
+        "required_core_info_slots": [
+          "reproduction_steps"
+        ],
+        "optional_info_slots": [
+          "quest_name",
+          "location"
+        ]
       },
       "metadata": {
         "test_id": "BUG-003",
@@ -105,7 +126,6 @@
         "user_message": "캐릭터 스킬 쓰면 사운드만 안 나옵니다.",
         "category": "bug",
         "routing_target": "bug_agent",
-        "should_use_rag": false,
         "user_id": 1,
         "account_id": 101
       },
@@ -113,13 +133,21 @@
         "expected_action": "REVIEW_REQUIRED",
         "required_info_slots": [
           "device",
-          "settings",
           "reproduction_steps"
         ],
         "rubrics": {
           "required_info_coverage": "답변이 required_info_slots에 해당하는 추가 정보 요청을 충분히 포함해야 한다.",
-          "action_match": "버그 원인을 단정하거나 보상을 약속하지 않고 검토/접수 흐름으로 보내야 한다."
-        }
+          "action_match": "버그 원인을 단정하거나 보상을 약속하지 않고 검토/접수 흐름으로 보내야 한다.",
+          "required_core_info_coverage": "The answer should request or confirm relevant core incident fields: occurred time, error message/code, device/OS, and reproduction steps.",
+          "optional_context_info_coverage": "The answer may request symptom-specific optional context such as quest, location, graphics settings, screenshot, controller, storage, or mail title."
+        },
+        "required_core_info_slots": [
+          "device",
+          "reproduction_steps"
+        ],
+        "optional_info_slots": [
+          "settings"
+        ]
       },
       "metadata": {
         "test_id": "BUG-004",
@@ -133,21 +161,27 @@
         "user_message": "그래픽이 깨져서 맵 일부가 검게 보여요.",
         "category": "bug",
         "routing_target": "bug_agent",
-        "should_use_rag": false,
         "user_id": 1,
         "account_id": 101
       },
       "outputs": {
         "expected_action": "REVIEW_REQUIRED",
         "required_info_slots": [
-          "device",
-          "graphics_settings",
-          "screenshot_request"
+          "device"
         ],
         "rubrics": {
           "required_info_coverage": "답변이 required_info_slots에 해당하는 추가 정보 요청을 충분히 포함해야 한다.",
-          "action_match": "버그 원인을 단정하거나 보상을 약속하지 않고 검토/접수 흐름으로 보내야 한다."
-        }
+          "action_match": "버그 원인을 단정하거나 보상을 약속하지 않고 검토/접수 흐름으로 보내야 한다.",
+          "required_core_info_coverage": "The answer should request or confirm relevant core incident fields: occurred time, error message/code, device/OS, and reproduction steps.",
+          "optional_context_info_coverage": "The answer may request symptom-specific optional context such as quest, location, graphics settings, screenshot, controller, storage, or mail title."
+        },
+        "required_core_info_slots": [
+          "device"
+        ],
+        "optional_info_slots": [
+          "graphics_settings",
+          "screenshot_request"
+        ]
       },
       "metadata": {
         "test_id": "BUG-005",
@@ -161,7 +195,6 @@
         "user_message": "접속 시 네트워크 오류 4201이 반복돼요.",
         "category": "bug",
         "routing_target": "bug_agent",
-        "should_use_rag": false,
         "user_id": 1,
         "account_id": 101
       },
@@ -169,13 +202,21 @@
         "expected_action": "REVIEW_REQUIRED",
         "required_info_slots": [
           "error_code",
-          "network_environment",
           "occurred_at"
         ],
         "rubrics": {
           "required_info_coverage": "답변이 required_info_slots에 해당하는 추가 정보 요청을 충분히 포함해야 한다.",
-          "action_match": "버그 원인을 단정하거나 보상을 약속하지 않고 검토/접수 흐름으로 보내야 한다."
-        }
+          "action_match": "버그 원인을 단정하거나 보상을 약속하지 않고 검토/접수 흐름으로 보내야 한다.",
+          "required_core_info_coverage": "The answer should request or confirm relevant core incident fields: occurred time, error message/code, device/OS, and reproduction steps.",
+          "optional_context_info_coverage": "The answer may request symptom-specific optional context such as quest, location, graphics settings, screenshot, controller, storage, or mail title."
+        },
+        "required_core_info_slots": [
+          "error_code",
+          "occurred_at"
+        ],
+        "optional_info_slots": [
+          "network_environment"
+        ]
       },
       "metadata": {
         "test_id": "BUG-006",
@@ -189,21 +230,27 @@
         "user_message": "이벤트 보스 잡았는데 다음 단계가 안 열립니다.",
         "category": "bug",
         "routing_target": "bug_agent",
-        "should_use_rag": false,
         "user_id": 1,
         "account_id": 101
       },
       "outputs": {
         "expected_action": "REVIEW_REQUIRED",
         "required_info_slots": [
-          "event_name",
-          "progress_state",
           "reproduction_steps"
         ],
         "rubrics": {
           "required_info_coverage": "답변이 required_info_slots에 해당하는 추가 정보 요청을 충분히 포함해야 한다.",
-          "action_match": "버그 원인을 단정하거나 보상을 약속하지 않고 검토/접수 흐름으로 보내야 한다."
-        }
+          "action_match": "버그 원인을 단정하거나 보상을 약속하지 않고 검토/접수 흐름으로 보내야 한다.",
+          "required_core_info_coverage": "The answer should request or confirm relevant core incident fields: occurred time, error message/code, device/OS, and reproduction steps.",
+          "optional_context_info_coverage": "The answer may request symptom-specific optional context such as quest, location, graphics settings, screenshot, controller, storage, or mail title."
+        },
+        "required_core_info_slots": [
+          "reproduction_steps"
+        ],
+        "optional_info_slots": [
+          "event_name",
+          "progress_state"
+        ]
       },
       "metadata": {
         "test_id": "BUG-007",
@@ -217,21 +264,27 @@
         "user_message": "업적 달성했는데 업적 보상이 비활성화예요.",
         "category": "bug",
         "routing_target": "bug_agent",
-        "should_use_rag": false,
         "user_id": 1,
         "account_id": 101
       },
       "outputs": {
         "expected_action": "REVIEW_REQUIRED",
         "required_info_slots": [
-          "achievement_name",
-          "occurred_at",
-          "screenshot_request"
+          "occurred_at"
         ],
         "rubrics": {
           "required_info_coverage": "답변이 required_info_slots에 해당하는 추가 정보 요청을 충분히 포함해야 한다.",
-          "action_match": "버그 원인을 단정하거나 보상을 약속하지 않고 검토/접수 흐름으로 보내야 한다."
-        }
+          "action_match": "버그 원인을 단정하거나 보상을 약속하지 않고 검토/접수 흐름으로 보내야 한다.",
+          "required_core_info_coverage": "The answer should request or confirm relevant core incident fields: occurred time, error message/code, device/OS, and reproduction steps.",
+          "optional_context_info_coverage": "The answer may request symptom-specific optional context such as quest, location, graphics settings, screenshot, controller, storage, or mail title."
+        },
+        "required_core_info_slots": [
+          "occurred_at"
+        ],
+        "optional_info_slots": [
+          "achievement_name",
+          "screenshot_request"
+        ]
       },
       "metadata": {
         "test_id": "BUG-008",
@@ -245,21 +298,27 @@
         "user_message": "컨트롤러 연결하면 카메라가 계속 돌아요.",
         "category": "bug",
         "routing_target": "bug_agent",
-        "should_use_rag": false,
         "user_id": 1,
         "account_id": 101
       },
       "outputs": {
         "expected_action": "REVIEW_REQUIRED",
         "required_info_slots": [
-          "device",
-          "controller_model",
-          "settings"
+          "device"
         ],
         "rubrics": {
           "required_info_coverage": "답변이 required_info_slots에 해당하는 추가 정보 요청을 충분히 포함해야 한다.",
-          "action_match": "버그 원인을 단정하거나 보상을 약속하지 않고 검토/접수 흐름으로 보내야 한다."
-        }
+          "action_match": "버그 원인을 단정하거나 보상을 약속하지 않고 검토/접수 흐름으로 보내야 한다.",
+          "required_core_info_coverage": "The answer should request or confirm relevant core incident fields: occurred time, error message/code, device/OS, and reproduction steps.",
+          "optional_context_info_coverage": "The answer may request symptom-specific optional context such as quest, location, graphics settings, screenshot, controller, storage, or mail title."
+        },
+        "required_core_info_slots": [
+          "device"
+        ],
+        "optional_info_slots": [
+          "controller_model",
+          "settings"
+        ]
       },
       "metadata": {
         "test_id": "BUG-009",
@@ -273,7 +332,6 @@
         "user_message": "패치 이후 프레임이 갑자기 10fps로 떨어졌습니다.",
         "category": "bug",
         "routing_target": "bug_agent",
-        "should_use_rag": false,
         "user_id": 1,
         "account_id": 101
       },
@@ -282,13 +340,22 @@
         "required_info_slots": [
           "device",
           "os",
-          "graphics_settings",
           "occurred_at"
         ],
         "rubrics": {
           "required_info_coverage": "답변이 required_info_slots에 해당하는 추가 정보 요청을 충분히 포함해야 한다.",
-          "action_match": "버그 원인을 단정하거나 보상을 약속하지 않고 검토/접수 흐름으로 보내야 한다."
-        }
+          "action_match": "버그 원인을 단정하거나 보상을 약속하지 않고 검토/접수 흐름으로 보내야 한다.",
+          "required_core_info_coverage": "The answer should request or confirm relevant core incident fields: occurred time, error message/code, device/OS, and reproduction steps.",
+          "optional_context_info_coverage": "The answer may request symptom-specific optional context such as quest, location, graphics settings, screenshot, controller, storage, or mail title."
+        },
+        "required_core_info_slots": [
+          "device",
+          "os",
+          "occurred_at"
+        ],
+        "optional_info_slots": [
+          "graphics_settings"
+        ]
       },
       "metadata": {
         "test_id": "BUG-010",
@@ -302,7 +369,6 @@
         "user_message": "상점 버튼 누르면 빈 화면만 나와요.",
         "category": "bug",
         "routing_target": "bug_agent",
-        "should_use_rag": false,
         "user_id": 1,
         "account_id": 101
       },
@@ -310,13 +376,21 @@
         "expected_action": "REVIEW_REQUIRED",
         "required_info_slots": [
           "device",
-          "network_environment",
           "reproduction_steps"
         ],
         "rubrics": {
           "required_info_coverage": "답변이 required_info_slots에 해당하는 추가 정보 요청을 충분히 포함해야 한다.",
-          "action_match": "버그 원인을 단정하거나 보상을 약속하지 않고 검토/접수 흐름으로 보내야 한다."
-        }
+          "action_match": "버그 원인을 단정하거나 보상을 약속하지 않고 검토/접수 흐름으로 보내야 한다.",
+          "required_core_info_coverage": "The answer should request or confirm relevant core incident fields: occurred time, error message/code, device/OS, and reproduction steps.",
+          "optional_context_info_coverage": "The answer may request symptom-specific optional context such as quest, location, graphics settings, screenshot, controller, storage, or mail title."
+        },
+        "required_core_info_slots": [
+          "device",
+          "reproduction_steps"
+        ],
+        "optional_info_slots": [
+          "network_environment"
+        ]
       },
       "metadata": {
         "test_id": "BUG-011",
@@ -330,21 +404,27 @@
         "user_message": "맵 이동 후 캐릭터가 바닥 아래로 떨어집니다.",
         "category": "bug",
         "routing_target": "bug_agent",
-        "should_use_rag": false,
         "user_id": 1,
         "account_id": 101
       },
       "outputs": {
         "expected_action": "REVIEW_REQUIRED",
         "required_info_slots": [
-          "location",
-          "reproduction_steps",
-          "screenshot_request"
+          "reproduction_steps"
         ],
         "rubrics": {
           "required_info_coverage": "답변이 required_info_slots에 해당하는 추가 정보 요청을 충분히 포함해야 한다.",
-          "action_match": "버그 원인을 단정하거나 보상을 약속하지 않고 검토/접수 흐름으로 보내야 한다."
-        }
+          "action_match": "버그 원인을 단정하거나 보상을 약속하지 않고 검토/접수 흐름으로 보내야 한다.",
+          "required_core_info_coverage": "The answer should request or confirm relevant core incident fields: occurred time, error message/code, device/OS, and reproduction steps.",
+          "optional_context_info_coverage": "The answer may request symptom-specific optional context such as quest, location, graphics settings, screenshot, controller, storage, or mail title."
+        },
+        "required_core_info_slots": [
+          "reproduction_steps"
+        ],
+        "optional_info_slots": [
+          "location",
+          "screenshot_request"
+        ]
       },
       "metadata": {
         "test_id": "BUG-012",
@@ -358,21 +438,27 @@
         "user_message": "일일 임무 완료했는데 완료 처리가 안 됩니다.",
         "category": "bug",
         "routing_target": "bug_agent",
-        "should_use_rag": false,
         "user_id": 1,
         "account_id": 101
       },
       "outputs": {
         "expected_action": "REVIEW_REQUIRED",
         "required_info_slots": [
-          "quest_name",
-          "progress_state",
           "occurred_at"
         ],
         "rubrics": {
           "required_info_coverage": "답변이 required_info_slots에 해당하는 추가 정보 요청을 충분히 포함해야 한다.",
-          "action_match": "버그 원인을 단정하거나 보상을 약속하지 않고 검토/접수 흐름으로 보내야 한다."
-        }
+          "action_match": "버그 원인을 단정하거나 보상을 약속하지 않고 검토/접수 흐름으로 보내야 한다.",
+          "required_core_info_coverage": "The answer should request or confirm relevant core incident fields: occurred time, error message/code, device/OS, and reproduction steps.",
+          "optional_context_info_coverage": "The answer may request symptom-specific optional context such as quest, location, graphics settings, screenshot, controller, storage, or mail title."
+        },
+        "required_core_info_slots": [
+          "occurred_at"
+        ],
+        "optional_info_slots": [
+          "quest_name",
+          "progress_state"
+        ]
       },
       "metadata": {
         "test_id": "BUG-013",
@@ -386,7 +472,6 @@
         "user_message": "아이패드에서 로그인 후 터치가 안 먹어요.",
         "category": "bug",
         "routing_target": "bug_agent",
-        "should_use_rag": false,
         "user_id": 1,
         "account_id": 101
       },
@@ -399,8 +484,16 @@
         ],
         "rubrics": {
           "required_info_coverage": "답변이 required_info_slots에 해당하는 추가 정보 요청을 충분히 포함해야 한다.",
-          "action_match": "버그 원인을 단정하거나 보상을 약속하지 않고 검토/접수 흐름으로 보내야 한다."
-        }
+          "action_match": "버그 원인을 단정하거나 보상을 약속하지 않고 검토/접수 흐름으로 보내야 한다.",
+          "required_core_info_coverage": "The answer should request or confirm relevant core incident fields: occurred time, error message/code, device/OS, and reproduction steps.",
+          "optional_context_info_coverage": "The answer may request symptom-specific optional context such as quest, location, graphics settings, screenshot, controller, storage, or mail title."
+        },
+        "required_core_info_slots": [
+          "device",
+          "os",
+          "reproduction_steps"
+        ],
+        "optional_info_slots": []
       },
       "metadata": {
         "test_id": "BUG-014",
@@ -414,7 +507,6 @@
         "user_message": "한글 채팅 입력하면 글자가 두 번씩 찍힙니다.",
         "category": "bug",
         "routing_target": "bug_agent",
-        "should_use_rag": false,
         "user_id": 1,
         "account_id": 101
       },
@@ -422,13 +514,21 @@
         "expected_action": "REVIEW_REQUIRED",
         "required_info_slots": [
           "device",
-          "input_method",
           "reproduction_steps"
         ],
         "rubrics": {
           "required_info_coverage": "답변이 required_info_slots에 해당하는 추가 정보 요청을 충분히 포함해야 한다.",
-          "action_match": "버그 원인을 단정하거나 보상을 약속하지 않고 검토/접수 흐름으로 보내야 한다."
-        }
+          "action_match": "버그 원인을 단정하거나 보상을 약속하지 않고 검토/접수 흐름으로 보내야 한다.",
+          "required_core_info_coverage": "The answer should request or confirm relevant core incident fields: occurred time, error message/code, device/OS, and reproduction steps.",
+          "optional_context_info_coverage": "The answer may request symptom-specific optional context such as quest, location, graphics settings, screenshot, controller, storage, or mail title."
+        },
+        "required_core_info_slots": [
+          "device",
+          "reproduction_steps"
+        ],
+        "optional_info_slots": [
+          "input_method"
+        ]
       },
       "metadata": {
         "test_id": "BUG-015",
@@ -442,21 +542,28 @@
         "user_message": "보스 패턴 중 화면이 하얗게 번쩍이고 멈춰요.",
         "category": "bug",
         "routing_target": "bug_agent",
-        "should_use_rag": false,
         "user_id": 1,
         "account_id": 101
       },
       "outputs": {
         "expected_action": "REVIEW_REQUIRED",
         "required_info_slots": [
-          "location",
           "device",
           "reproduction_steps"
         ],
         "rubrics": {
           "required_info_coverage": "답변이 required_info_slots에 해당하는 추가 정보 요청을 충분히 포함해야 한다.",
-          "action_match": "버그 원인을 단정하거나 보상을 약속하지 않고 검토/접수 흐름으로 보내야 한다."
-        }
+          "action_match": "버그 원인을 단정하거나 보상을 약속하지 않고 검토/접수 흐름으로 보내야 한다.",
+          "required_core_info_coverage": "The answer should request or confirm relevant core incident fields: occurred time, error message/code, device/OS, and reproduction steps.",
+          "optional_context_info_coverage": "The answer may request symptom-specific optional context such as quest, location, graphics settings, screenshot, controller, storage, or mail title."
+        },
+        "required_core_info_slots": [
+          "device",
+          "reproduction_steps"
+        ],
+        "optional_info_slots": [
+          "location"
+        ]
       },
       "metadata": {
         "test_id": "BUG-016",
@@ -470,21 +577,28 @@
         "user_message": "친구 초대 링크가 열리지 않습니다.",
         "category": "bug",
         "routing_target": "bug_agent",
-        "should_use_rag": false,
         "user_id": 1,
         "account_id": 101
       },
       "outputs": {
         "expected_action": "REVIEW_REQUIRED",
         "required_info_slots": [
-          "link_type",
           "device",
           "error_message"
         ],
         "rubrics": {
           "required_info_coverage": "답변이 required_info_slots에 해당하는 추가 정보 요청을 충분히 포함해야 한다.",
-          "action_match": "버그 원인을 단정하거나 보상을 약속하지 않고 검토/접수 흐름으로 보내야 한다."
-        }
+          "action_match": "버그 원인을 단정하거나 보상을 약속하지 않고 검토/접수 흐름으로 보내야 한다.",
+          "required_core_info_coverage": "The answer should request or confirm relevant core incident fields: occurred time, error message/code, device/OS, and reproduction steps.",
+          "optional_context_info_coverage": "The answer may request symptom-specific optional context such as quest, location, graphics settings, screenshot, controller, storage, or mail title."
+        },
+        "required_core_info_slots": [
+          "device",
+          "error_message"
+        ],
+        "optional_info_slots": [
+          "link_type"
+        ]
       },
       "metadata": {
         "test_id": "BUG-017",
@@ -498,21 +612,27 @@
         "user_message": "게임 설치 후 첫 실행에서 리소스 다운로드가 실패해요.",
         "category": "bug",
         "routing_target": "bug_agent",
-        "should_use_rag": false,
         "user_id": 1,
         "account_id": 101
       },
       "outputs": {
         "expected_action": "REVIEW_REQUIRED",
         "required_info_slots": [
-          "device",
-          "storage_status",
-          "network_environment"
+          "device"
         ],
         "rubrics": {
           "required_info_coverage": "답변이 required_info_slots에 해당하는 추가 정보 요청을 충분히 포함해야 한다.",
-          "action_match": "버그 원인을 단정하거나 보상을 약속하지 않고 검토/접수 흐름으로 보내야 한다."
-        }
+          "action_match": "버그 원인을 단정하거나 보상을 약속하지 않고 검토/접수 흐름으로 보내야 한다.",
+          "required_core_info_coverage": "The answer should request or confirm relevant core incident fields: occurred time, error message/code, device/OS, and reproduction steps.",
+          "optional_context_info_coverage": "The answer may request symptom-specific optional context such as quest, location, graphics settings, screenshot, controller, storage, or mail title."
+        },
+        "required_core_info_slots": [
+          "device"
+        ],
+        "optional_info_slots": [
+          "storage_status",
+          "network_environment"
+        ]
       },
       "metadata": {
         "test_id": "BUG-018",
@@ -526,21 +646,27 @@
         "user_message": "특정 캐릭터 의상이 전투 중 사라져요.",
         "category": "bug",
         "routing_target": "bug_agent",
-        "should_use_rag": false,
         "user_id": 1,
         "account_id": 101
       },
       "outputs": {
         "expected_action": "REVIEW_REQUIRED",
         "required_info_slots": [
-          "character_name",
-          "costume_name",
           "reproduction_steps"
         ],
         "rubrics": {
           "required_info_coverage": "답변이 required_info_slots에 해당하는 추가 정보 요청을 충분히 포함해야 한다.",
-          "action_match": "버그 원인을 단정하거나 보상을 약속하지 않고 검토/접수 흐름으로 보내야 한다."
-        }
+          "action_match": "버그 원인을 단정하거나 보상을 약속하지 않고 검토/접수 흐름으로 보내야 한다.",
+          "required_core_info_coverage": "The answer should request or confirm relevant core incident fields: occurred time, error message/code, device/OS, and reproduction steps.",
+          "optional_context_info_coverage": "The answer may request symptom-specific optional context such as quest, location, graphics settings, screenshot, controller, storage, or mail title."
+        },
+        "required_core_info_slots": [
+          "reproduction_steps"
+        ],
+        "optional_info_slots": [
+          "character_name",
+          "costume_name"
+        ]
       },
       "metadata": {
         "test_id": "BUG-019",
@@ -554,21 +680,27 @@
         "user_message": "알림은 왔는데 우편함에 아무것도 없습니다.",
         "category": "bug",
         "routing_target": "bug_agent",
-        "should_use_rag": false,
         "user_id": 1,
         "account_id": 101
       },
       "outputs": {
         "expected_action": "REVIEW_REQUIRED",
         "required_info_slots": [
-          "occurred_at",
-          "mail_title",
-          "screenshot_request"
+          "occurred_at"
         ],
         "rubrics": {
           "required_info_coverage": "답변이 required_info_slots에 해당하는 추가 정보 요청을 충분히 포함해야 한다.",
-          "action_match": "버그 원인을 단정하거나 보상을 약속하지 않고 검토/접수 흐름으로 보내야 한다."
-        }
+          "action_match": "버그 원인을 단정하거나 보상을 약속하지 않고 검토/접수 흐름으로 보내야 한다.",
+          "required_core_info_coverage": "The answer should request or confirm relevant core incident fields: occurred time, error message/code, device/OS, and reproduction steps.",
+          "optional_context_info_coverage": "The answer may request symptom-specific optional context such as quest, location, graphics settings, screenshot, controller, storage, or mail title."
+        },
+        "required_core_info_slots": [
+          "occurred_at"
+        ],
+        "optional_info_slots": [
+          "mail_title",
+          "screenshot_request"
+        ]
       },
       "metadata": {
         "test_id": "BUG-020",

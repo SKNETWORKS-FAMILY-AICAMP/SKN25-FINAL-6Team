@@ -60,10 +60,11 @@ def _is_category_redirect_response(final_text: str) -> bool:
 
 
 def _is_faq_state(state: ChatbotState) -> bool:
+    routing_target = str(state.get("routing_target") or "").strip().lower()
     return (
         str(state.get("category") or "").strip().lower() == "faq"
         or state.get("reasoning_node") == "faq_agent"
-        or state.get("should_use_rag") is True
+        or routing_target in {"faq_agent", "rag_reply"}
     )
 
 

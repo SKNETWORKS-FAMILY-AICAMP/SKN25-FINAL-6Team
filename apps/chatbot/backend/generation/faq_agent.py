@@ -440,7 +440,7 @@ def run_faq_rag(state: ChatbotState) -> dict[str, Any]:
     # FAQ/RAG 전체 실행 흐름을 관리한다.
     query = _active_query(state)
 
-    if state.get("is_actionable") is False or state.get("should_use_rag") is False:
+    if state.get("is_actionable") is False:
         reason = str(state.get("fallback_reason") or "rag_not_requested")
         _record_failed_query(state, query, reason)
         return {

@@ -4,7 +4,7 @@ import json
 import re
 from typing import Any
 
-from chatbot.repository.base import safe_read
+from chatbot.repository.base import read_response, safe_read
 
 
 PAYMENT_CONTEXT_LIMIT = 20

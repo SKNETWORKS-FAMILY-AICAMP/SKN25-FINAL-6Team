@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from datetime import datetime
 import json
@@ -90,11 +90,11 @@ def test_run_faq_rag_blocks_llm_when_no_documents(monkeypatch) -> None:
     assert failed_payloads
 
 
-def test_run_faq_rag_skips_retrieval_when_intent_says_rag_is_not_needed(monkeypatch) -> None:
+def test_run_faq_rag_skips_retrieval_when_inquiry_is_not_actionable(monkeypatch) -> None:
     failed_payloads = []
 
     def fail_enrich(*args, **kwargs):
-        raise AssertionError("RAG should not run when intent gate says should_use_rag=false")
+        raise AssertionError("RAG should not run when the inquiry is not actionable")
 
     monkeypatch.setattr(faq_agent, "enrich_retrieval_query", fail_enrich)
     monkeypatch.setattr(faq_agent, "_write_failed_query", lambda payload: failed_payloads.append(payload) or "{}")
@@ -104,7 +104,6 @@ def test_run_faq_rag_skips_retrieval_when_intent_says_rag_is_not_needed(monkeypa
             **_state(),
             "raw_query": "게임이 너무 어려워요.",
             "is_actionable": False,
-            "should_use_rag": False,
             "fallback_reason": "low_information_complaint",
         }
     )
@@ -372,7 +371,6 @@ def test_run_faq_rag_answers_with_canonical_retrieval_query(monkeypatch) -> None
             **_state(),
             "raw_query": "스토리 초기화 문의",
             "normalized_query": "스토리 초기화 문의",
-            "should_use_rag": True,
         }
     )
 

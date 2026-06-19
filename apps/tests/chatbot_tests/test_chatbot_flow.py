@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 
@@ -91,7 +91,6 @@ def test_bug_agent_answers_known_bug_faq_before_collecting_form(monkeypatch) -> 
     assert update["draft_text"] == "확인된 FAQ 기준으로 안내드립니다."
     assert update["bug_collection_status"] is None
     assert update["retrieved_documents"] == docs
-    assert update["should_use_rag"] is True
     assert search_payloads[0]["enrichment"].preferred_categories == ["bug_faq"]
 
 
@@ -135,7 +134,6 @@ def test_bug_agent_accepts_reranked_bug_faq_chunk_with_realistic_scores(monkeypa
 
     assert update["draft_text"] == "FAQ 문서 기준으로 답변합니다."
     assert update["bug_collection_status"] is None
-    assert update["should_use_rag"] is True
     assert update["retrieval_enrichment"]["best_cosine_score"] == pytest.approx(0.388024)
     assert update["retrieval_enrichment"]["best_bm25_score"] == pytest.approx(1.387389)
 
@@ -528,7 +526,6 @@ def test_safety_layer_does_not_ground_non_faq_payment_context_documents(monkeypa
             "category": "결제",
             "routing_target": "urgent_alert",
             "reasoning_node": "payment_agent",
-            "should_use_rag": False,
         }
     )
 
@@ -870,17 +867,16 @@ def test_dispatch_github_issue_skips_duplicate_ticket(monkeypatch) -> None:
     assert not github_calls
 
 
-def test_voc_agent_uses_fallback_for_non_actionable_non_rag_intent(monkeypatch) -> None:
+def test_voc_agent_uses_fallback_for_non_actionable_intent(monkeypatch) -> None:
     result = voc_agent.voc_agent_node(
         {
             "ticket_id": 1,
             "user_id": 1,
             "account_id": 101,
             "normalized_query": "게임 이용 불만",
-            "routing_target": "rag_reply",
+            "routing_target": "voc_agent",
             "retry_count": 0,
             "is_actionable": False,
-            "should_use_rag": False,
             "fallback_reason": "low_information_complaint",
         }
     )
@@ -924,6 +920,5 @@ def test_route_after_draft_persistence_sends_bug_faq_rag_to_safety() -> None:
     assert route_after_draft_persistence({
         "reasoning_node": "bug_agent",
         "bug_collection_status": "collecting",
-        "should_use_rag": True,
         "retrieved_documents": [{"chunk_text": "게임 튕김 FAQ"}],
     }) == "safety_layer"

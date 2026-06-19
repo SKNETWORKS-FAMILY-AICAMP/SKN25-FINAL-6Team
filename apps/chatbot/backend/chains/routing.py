@@ -37,7 +37,6 @@ def route_after_draft_persistence(state: ChatbotState) -> str:
     if (
         state.get("reasoning_node") == "bug_agent"
         and state.get("bug_collection_status") in {"collecting", "ready_for_review"}
-        and state.get("should_use_rag") is not True
         and not state.get("retrieved_documents")
     ):
         return "ticket_completion"

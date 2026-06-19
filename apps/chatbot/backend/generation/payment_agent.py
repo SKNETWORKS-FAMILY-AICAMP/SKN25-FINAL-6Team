@@ -428,6 +428,7 @@ def payment_agent_node(state: ChatbotState) -> dict:
     update["payment_intent"] = payment_intent
     update["payment_intent_type"] = payment_intent.get("intent_type")
     update["retrieved_documents"] = payment_evidence
+    update["review_required"] = payment_intent.get("intent_type") == "ACTION_REQUEST"
 
     # 3단계: 생성된 초안과 근거 수를 기록하고 다음 draft_persistence 노드로 넘긴다.
     log_event(

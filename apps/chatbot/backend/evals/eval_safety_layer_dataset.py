@@ -61,7 +61,6 @@ def make_state(example: dict[str, Any]) -> dict[str, Any]:
         "category": category,
         "routing_target": inputs.get("routing_target") or f"{category}_agent",
         "reasoning_node": inputs.get("reasoning_node") or f"{category}_agent",
-        "should_use_rag": inputs.get("should_use_rag", category == "faq"),
         "draft_id": inputs.get("draft_id"),
         "ticket_id": inputs.get("ticket_id"),
         "session_id": inputs.get("session_id"),

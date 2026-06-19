@@ -22,8 +22,7 @@
       },
       "outputs": {
         "expected_category": "payment",
-        "expected_routing_target": "payment_agent",
-        "expected_should_use_rag": false
+        "expected_routing_target": "payment_agent"
       },
       "metadata": {
         "test_id": "MAP-001",
@@ -38,8 +37,7 @@
       },
       "outputs": {
         "expected_category": "payment",
-        "expected_routing_target": "payment_agent",
-        "expected_should_use_rag": false
+        "expected_routing_target": "payment_agent"
       },
       "metadata": {
         "test_id": "MAP-002",
@@ -54,8 +52,7 @@
       },
       "outputs": {
         "expected_category": "payment",
-        "expected_routing_target": "payment_agent",
-        "expected_should_use_rag": false
+        "expected_routing_target": "payment_agent"
       },
       "metadata": {
         "test_id": "MAP-003",
@@ -70,8 +67,7 @@
       },
       "outputs": {
         "expected_category": "faq",
-        "expected_routing_target": "faq_agent",
-        "expected_should_use_rag": true
+        "expected_routing_target": "faq_agent"
       },
       "metadata": {
         "test_id": "MAP-004",
@@ -86,8 +82,7 @@
       },
       "outputs": {
         "expected_category": "faq",
-        "expected_routing_target": "faq_agent",
-        "expected_should_use_rag": true
+        "expected_routing_target": "faq_agent"
       },
       "metadata": {
         "test_id": "MAP-005",
@@ -102,8 +97,7 @@
       },
       "outputs": {
         "expected_category": "faq",
-        "expected_routing_target": "faq_agent",
-        "expected_should_use_rag": true
+        "expected_routing_target": "faq_agent"
       },
       "metadata": {
         "test_id": "MAP-006",
@@ -118,8 +112,7 @@
       },
       "outputs": {
         "expected_category": "faq",
-        "expected_routing_target": "faq_agent",
-        "expected_should_use_rag": true
+        "expected_routing_target": "faq_agent"
       },
       "metadata": {
         "test_id": "MAP-007",
@@ -134,8 +127,7 @@
       },
       "outputs": {
         "expected_category": "faq",
-        "expected_routing_target": "faq_agent",
-        "expected_should_use_rag": true
+        "expected_routing_target": "faq_agent"
       },
       "metadata": {
         "test_id": "MAP-008",
@@ -150,8 +142,7 @@
       },
       "outputs": {
         "expected_category": "faq",
-        "expected_routing_target": "faq_agent",
-        "expected_should_use_rag": true
+        "expected_routing_target": "faq_agent"
       },
       "metadata": {
         "test_id": "MAP-009",
@@ -166,8 +157,7 @@
       },
       "outputs": {
         "expected_category": "payment",
-        "expected_routing_target": "payment_agent",
-        "expected_should_use_rag": false
+        "expected_routing_target": "payment_agent"
       },
       "metadata": {
         "test_id": "MAP-010",
@@ -182,8 +172,7 @@
       },
       "outputs": {
         "expected_category": "faq",
-        "expected_routing_target": "faq_agent",
-        "expected_should_use_rag": true
+        "expected_routing_target": "faq_agent"
       },
       "metadata": {
         "test_id": "MAP-011",
@@ -198,8 +187,7 @@
       },
       "outputs": {
         "expected_category": "faq",
-        "expected_routing_target": "faq_agent",
-        "expected_should_use_rag": true
+        "expected_routing_target": "faq_agent"
       },
       "metadata": {
         "test_id": "MAP-012",
@@ -214,8 +202,7 @@
       },
       "outputs": {
         "expected_category": "bug",
-        "expected_routing_target": "bug_agent",
-        "expected_should_use_rag": false
+        "expected_routing_target": "bug_agent"
       },
       "metadata": {
         "test_id": "MAP-013",
@@ -230,8 +217,7 @@
       },
       "outputs": {
         "expected_category": "bug",
-        "expected_routing_target": "bug_agent",
-        "expected_should_use_rag": false
+        "expected_routing_target": "bug_agent"
       },
       "metadata": {
         "test_id": "MAP-014",
@@ -246,8 +232,7 @@
       },
       "outputs": {
         "expected_category": "bug",
-        "expected_routing_target": "bug_agent",
-        "expected_should_use_rag": false
+        "expected_routing_target": "bug_agent"
       },
       "metadata": {
         "test_id": "MAP-015",
@@ -262,8 +247,7 @@
       },
       "outputs": {
         "expected_category": "payment",
-        "expected_routing_target": "payment_agent",
-        "expected_should_use_rag": false
+        "expected_routing_target": "payment_agent"
       },
       "metadata": {
         "test_id": "MAP-016",
@@ -278,8 +262,7 @@
       },
       "outputs": {
         "expected_category": "payment",
-        "expected_routing_target": "payment_agent",
-        "expected_should_use_rag": false
+        "expected_routing_target": "payment_agent"
       },
       "metadata": {
         "test_id": "MAP-017",
@@ -294,8 +277,7 @@
       },
       "outputs": {
         "expected_category": "payment",
-        "expected_routing_target": "payment_agent",
-        "expected_should_use_rag": false
+        "expected_routing_target": "payment_agent"
       },
       "metadata": {
         "test_id": "MAP-018",
@@ -310,8 +292,7 @@
       },
       "outputs": {
         "expected_category": "faq",
-        "expected_routing_target": "faq_agent",
-        "expected_should_use_rag": true
+        "expected_routing_target": "faq_agent"
       },
       "metadata": {
         "test_id": "MAP-019",
@@ -326,8 +307,7 @@
       },
       "outputs": {
         "expected_category": "voc",
-        "expected_routing_target": "voc_agent",
-        "expected_should_use_rag": false
+        "expected_routing_target": "voc_agent"
       },
       "metadata": {
         "test_id": "MAP-020",
