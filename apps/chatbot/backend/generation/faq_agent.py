@@ -8,19 +8,83 @@ from typing import Any
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
+from common.db.connection import db_connection
+from common.observability.logger import record_chat_model_usage
 from chatbot.generation.policies import FAQ_POLICY
 from chatbot.generation.response.fixed_responses import SAFE_FALLBACK_RESPONSE
 from chatbot.observability.logger import EVENT_NODE_COMPLETED, EVENT_NODE_STARTED, EVENT_TOOL_COMPLETED, log_event
 from chatbot.repository.failed_query_repository import save_failed_query
 from chatbot.retrieval.cache_store import get_cached_retrieval, set_cached_retrieval
 from common.retrieval.vector_tools import embed_query, enrich_retrieval_query, rerank_documents, search_document_chunks
-from common.observability.logger import record_chat_model_usage
 from chatbot.schemas import ChatbotState
 from chatbot.utils.query_enrichment import rewrite_query_with_llm
 
 
+NOTICE_SOURCE_TYPES = ("naver_cafe_notice",)
+LATEST_NOTICE_KEYWORDS = ("최근", "최신", "새로운", "가장 최근", "마지막")
+NOTICE_QUERY_KEYWORDS = ("공지", "공지사항", "이벤트", "업데이트", "점검", "버전")
+
+
 def _active_query(state: ChatbotState) -> str:
     return str(state.get("normalized_query") or state.get("raw_query") or "").strip()
+
+
+def _is_latest_notice_query(query: str, state: ChatbotState) -> bool:
+    # "최근 공지"는 의미 유사도보다 원문 게시일 정렬이 중요한 조회 의도다.
+    haystack = " ".join(
+        [
+            query,
+            str(state.get("category") or ""),
+            str(state.get("ui_category") or ""),
+            str(state.get("sub_category") or ""),
+        ]
+    )
+    has_latest_intent = any(keyword in haystack for keyword in LATEST_NOTICE_KEYWORDS)
+    has_notice_scope = any(keyword in haystack for keyword in NOTICE_QUERY_KEYWORDS)
+    return has_latest_intent and has_notice_scope
+
+
+def _fetch_latest_notice_documents(limit: int) -> list[dict[str, Any]]:
+    # 공지 최신성은 제목 안 날짜가 아니라 게시판에 등록된 원문 문서 published_at 기준으로 판단한다.
+    source_placeholders = ", ".join(["%s"] * len(NOTICE_SOURCE_TYPES))
+    with db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"""
+                WITH latest_notice AS (
+                    SELECT documents_id
+                    FROM documents
+                    WHERE source_type IN ({source_placeholders})
+                    ORDER BY published_at DESC NULLS LAST,
+                             updated_at DESC NULLS LAST,
+                             documents_id DESC
+                    LIMIT 1
+                )
+                SELECT
+                    c.chunk_id,
+                    c.document_id,
+                    d.source_type,
+                    d.category,
+                    d.title,
+                    c.chunk_text,
+                    c.created_at AS chunk_created_at,
+                    d.published_at,
+                    d.updated_at,
+                    1.0 AS score,
+                    1.0 AS cosine_score,
+                    1.0 AS bm25_score,
+                    1.0 AS field_match_score,
+                    'latest_notice_by_published_at' AS retrieval_method
+                FROM documents_chunks c
+                JOIN documents d ON d.documents_id = c.document_id
+                WHERE c.document_id = (SELECT documents_id FROM latest_notice)
+                ORDER BY c.chunk_order ASC, c.created_at ASC NULLS LAST
+                LIMIT %s
+                """,
+                (*NOTICE_SOURCE_TYPES, limit),
+            )
+            columns = [desc[0] for desc in cur.description]
+            return [dict(zip(columns, row)) for row in cur.fetchall()]
 
 
 def _format_evidence(documents: list[dict[str, Any]]) -> str:
@@ -29,6 +93,8 @@ def _format_evidence(documents: list[dict[str, Any]]) -> str:
         title = doc.get("title") or "untitled"
         source_type = doc.get("source_type") or "unknown"
         category = doc.get("category") or "unknown"
+        published_at = doc.get("published_at")
+        updated_at = doc.get("updated_at")
         chunk_text = " ".join(str(doc.get("chunk_text") or "").split())
         blocks.append(
             "\n".join(
@@ -36,6 +102,8 @@ def _format_evidence(documents: list[dict[str, Any]]) -> str:
                     f"[{index}] title: {title}",
                     f"source_type: {source_type}",
                     f"category: {category}",
+                    f"published_at: {published_at}" if published_at else "",
+                    f"updated_at: {updated_at}" if updated_at else "",
                     f"score: {doc.get('score')}",
                     f"content: {chunk_text}",
                 ]
@@ -410,6 +478,9 @@ def _generate_evidence_answer(
                     "For reward, mail, event, or notice deadline questions, "
                     "do not present a general deadline as universal unless the evidence clearly says so; "
                     "mention that the exact claim period may depend on the specific event or reward notice. "
+            "For notice documents, use published_at as the notice posting date when it is present. "
+                    "Do not describe a date that appears only in the title as the posting or announcement date; "
+                    "it may be an effective date, event date, or update application date. "
                     "For account linking, PSN, or cross-save questions, "
                     "separate what linking enables from how to link; "
                     "if supported by the evidence, mention shared game progress across platforms and caution the user to check notices for payment, reward, and friend-related limitations. "
@@ -451,6 +522,44 @@ def run_faq_rag(state: ChatbotState) -> dict[str, Any]:
             "faq_failure_reason": reason,
         }
 
+    final_top_k = int(os.environ.get("FAQ_RETRIEVAL_TOP_K", os.environ.get("RETRIEVAL_TOP_K", "4")))
+    if _is_latest_notice_query(query, state):
+        documents = _fetch_latest_notice_documents(final_top_k)
+        _print_retrieval_summary(
+            original_query=query,
+            retrieval_query="latest notice by published_at",
+            documents=documents,
+        )
+        low_evidence, reason = _is_low_evidence(documents)
+        if low_evidence:
+            reason = reason or "latest_notice_not_found"
+            _record_failed_query(state, query, reason)
+            return {
+                "draft_text": SAFE_FALLBACK_RESPONSE,
+                "retrieved_documents": documents,
+                "retrieval_query": "latest notice by published_at",
+                "retrieval_enrichment": {
+                    "method": "latest_notice_by_published_at",
+                    "source_types": list(NOTICE_SOURCE_TYPES),
+                },
+                "faq_failure_reason": reason,
+            }
+        answer = _generate_evidence_answer(
+            original_query=query,
+            retrieval_query="latest notice by published_at",
+            documents=documents,
+        )
+        return {
+            "draft_text": answer,
+            "retrieved_documents": documents,
+            "retrieval_query": "latest notice by published_at",
+            "retrieval_enrichment": {
+                "method": "latest_notice_by_published_at",
+                "source_types": list(NOTICE_SOURCE_TYPES),
+            },
+            "faq_failure_reason": None,
+        }
+
     enriched = enrich_retrieval_query(query)
     retrieval_query = enriched.query_text
     if not retrieval_query:
@@ -463,7 +572,6 @@ def run_faq_rag(state: ChatbotState) -> dict[str, Any]:
             "faq_failure_reason": "empty_retrieval_query",
         }
 
-    final_top_k = int(os.environ.get("FAQ_RETRIEVAL_TOP_K", os.environ.get("RETRIEVAL_TOP_K", "4")))
     candidate_top_k = _retrieval_candidate_top_k(final_top_k)
     documents = _retrieve_documents(
         retrieval_query=retrieval_query,

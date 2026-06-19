@@ -235,6 +235,54 @@ def test_run_faq_rag_generates_once_with_evidence(monkeypatch) -> None:
     assert calls[0]["retrieval_query"] == "payment item delivery"
 
 
+def test_run_faq_rag_uses_published_at_for_latest_notice(monkeypatch) -> None:
+    calls = []
+    latest_notice_docs = [
+        {
+            "chunk_id": "notice-2-6-0",
+            "document_id": "NOTICE-2-6",
+            "source_type": "naver_cafe_notice",
+            "category": "공지사항",
+            "title": "자색 정원의 산들바람 2.6 버전 업데이트 공지",
+            "chunk_text": "2.6 버전 업데이트에는 신규 이벤트와 최적화 내용이 포함됩니다.",
+            "score": 1.0,
+            "cosine_score": 1.0,
+            "bm25_score": 1.0,
+            "field_match_score": 1.0,
+        }
+    ]
+
+    def fail_embed(*args, **kwargs):
+        raise AssertionError("latest notice lookup should not use embedding search")
+
+    monkeypatch.setattr(faq_agent, "_embed_query", fail_embed)
+    monkeypatch.setattr(faq_agent, "enrich_retrieval_query", lambda text: (_ for _ in ()).throw(AssertionError("latest notice lookup should skip enrichment")))
+    monkeypatch.setattr(faq_agent, "_fetch_latest_notice_documents", lambda limit: latest_notice_docs)
+    monkeypatch.setattr(
+        faq_agent,
+        "_generate_evidence_answer",
+        lambda **kwargs: calls.append(kwargs) or "latest notice answer",
+    )
+
+    result = faq_agent.run_faq_rag(
+        {
+            **_state(),
+            "raw_query": "가장 최근에 나온 공지사항 알려줘",
+            "normalized_query": "가장 최근에 나온 공지사항 알려줘",
+            "category": "faq",
+            "ui_category": "notice",
+            "sub_category": "notice_event",
+            "routing_target": "faq_agent",
+        }
+    )
+
+    assert result["draft_text"] == "latest notice answer"
+    assert result["retrieved_documents"] == latest_notice_docs
+    assert result["retrieval_query"] == "latest notice by published_at"
+    assert result["retrieval_enrichment"]["method"] == "latest_notice_by_published_at"
+    assert calls[0]["documents"] == latest_notice_docs
+
+
 def test_run_faq_rag_reuses_cached_retrieved_documents(monkeypatch) -> None:
     """FAQ/RAG should cache evidence documents while still generating a fresh answer."""
     calls = {"embed": 0, "search": 0, "rerank": 0, "answer": 0}
