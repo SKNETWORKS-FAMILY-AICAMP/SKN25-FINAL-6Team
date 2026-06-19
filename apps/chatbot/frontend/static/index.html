@@ -118,62 +118,93 @@
     .answer-card {
       display: grid;
       max-width: 680px;
-      gap: 12px;
+      gap: 14px;
       color: #1f3b4d;
       letter-spacing: 0;
-      line-height: 1.75;
+      line-height: 1.68;
       font-size: 15px;
       font-weight: 400;
     }
 
     .answer-title {
-      font-size: 17px;
-      font-weight: 700;
-      line-height: 1.55;
+      font-size: 16.5px;
+      font-weight: 900;
+      line-height: 1.45;
       color: #17364a;
     }
 
     .answer-summary {
       font-size: 15px;
-      font-weight: 400;
-      line-height: 1.7;
+      font-weight: 600;
+      line-height: 1.72;
       color: #2d4a5c;
       white-space: pre-line;
     }
 
     .answer-section {
       display: grid;
-      gap: 7px;
-      border-radius: 8px;
-      border: 1px solid rgba(96, 150, 180, 0.16);
-      background: rgba(255, 255, 255, 0.26);
-      padding: 12px 14px;
+      gap: 9px;
+      border-radius: 10px;
+      border: 1px solid rgba(96, 150, 180, 0.18);
+      border-left: 4px solid rgba(96, 150, 180, 0.72);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.74), rgba(255, 255, 255, 0.46));
+      padding: 13px 15px 14px 16px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
     }
 
     .answer-section-title {
+      width: fit-content;
+      border-radius: 999px;
+      background: rgba(96, 150, 180, 0.14);
+      padding: 3px 9px;
       font-size: 14.5px;
-      font-weight: 700;
-      line-height: 1.55;
-      color: #2f6f91;
+      font-weight: 900;
+      line-height: 1.35;
+      color: #246482;
     }
 
     .answer-section-content {
       font-size: 14.5px;
-      font-weight: 400;
-      line-height: 1.7;
-      color: #1f3b4d;
+      font-weight: 500;
+      line-height: 1.72;
+      color: #4b6576;
       white-space: pre-line;
     }
 
     .answer-list {
       display: grid;
-      gap: 5px;
+      gap: 8px;
       margin: 0;
-      padding-left: 18px;
+      padding-left: 0;
+      list-style: none;
       font-size: 14.5px;
-      font-weight: 400;
-      line-height: 1.65;
-      color: #1f3b4d;
+      font-weight: 500;
+      line-height: 1.68;
+      color: #263f51;
+      counter-reset: answerStep;
+    }
+
+    .answer-list li {
+      position: relative;
+      min-height: 28px;
+      padding-left: 34px;
+    }
+
+    .answer-list li::before {
+      counter-increment: answerStep;
+      content: counter(answerStep);
+      position: absolute;
+      left: 0;
+      top: 1px;
+      display: grid;
+      width: 22px;
+      height: 22px;
+      place-items: center;
+      border-radius: 999px;
+      background: rgba(96, 150, 180, 0.17);
+      color: #2b6f91;
+      font-size: 12px;
+      font-weight: 900;
     }
 
     .answer-note {
@@ -1730,7 +1761,7 @@
     }
 
     const answerSectionTitleRules = [
-      { title: "확인 대상", keywords: ["확인", "플랫폼", "대상", "항목"] },
+      { title: "확인 대상", keywords: ["확인 대상", "확인 항목", "입력해 주세요", "알려주세요", "제출해 주세요"] },
       { title: "설치 및 실행 조건", keywords: ["설치", "실행", "성능", "저장 공간", "RAM", "그래픽카드", "DirectX", "Windows"] },
       { title: "결제 확인", keywords: ["결제", "영수증", "승인", "청구", "구매"] },
       { title: "환불 안내", keywords: ["환불", "취소", "환급", "환불 불가"] },
@@ -1738,13 +1769,13 @@
       { title: "보상 확인", keywords: ["보상", "우편함", "수령", "지급", "아이템"] },
       { title: "오류 확인", keywords: ["오류", "버그", "문제", "접속", "실패", "불가"] },
       { title: "이벤트 안내", keywords: ["이벤트", "기간", "참여", "보상", "수령"] },
-      { title: "진행 방법", keywords: ["방법", "절차", "진행", "설정", "변경"] },
+      { title: "진행 방법", keywords: ["방법", "절차", "진행", "설정", "변경", "시도", "다운로드", "업데이트", "첨부"] },
     ];
 
     function isAnswerNoteLine(line) {
       return (
         /^(참고|참고사항|주의|주의사항|유의사항|추가 안내|권장|Note)\s*[:：]?/i.test(line)
-        || /(보다 원활한|주의해 주세요|주의해주시기|권장합니다|좋습니다|어려울 수 있습니다|복구가 어려울 수 있습니다)/.test(line)
+        || /(보다 원활한|주의해 주세요|주의해주시기|어려울 수 있습니다|복구가 어려울 수 있습니다)/.test(line)
       );
     }
 
@@ -1777,15 +1808,27 @@
         heading,
         content: "",
         items: [],
+        preferList: false,
       };
+    }
+
+    function shouldPreferListAfter(text) {
+      return /(다음|아래).{0,12}(방법|항목|사항|절차).{0,12}(시도|확인|진행|참고)|시도해\s*보세요[:：]?|확인해\s*주세요[:：]?/.test(String(text || ""));
     }
 
     function addSectionLine(section, text) {
       const sentences = splitKoreanSentences(text);
       const parts = sentences.length ? sentences : [text];
       parts.forEach((part) => {
+        if (section.preferList) {
+          section.items.push(part);
+          return;
+        }
         if (!section.content) {
           section.content = part;
+          if (shouldPreferListAfter(part)) {
+            section.preferList = true;
+          }
         } else {
           section.items.push(part);
         }
@@ -1858,11 +1901,6 @@
           }
           const nextLine = lines[index + 1] || "";
 
-          if (isAnswerNoteLine(line)) {
-            noteLines.push(line);
-            return;
-          }
-
           const numbered = line.match(/^(\d+)[.)]\s*(.+)$/);
           if (numbered) {
             const numberedText = numbered[2].trim();
@@ -1886,6 +1924,11 @@
               result.sections.push(currentSection);
             }
             currentSection.items.push(bullet[1].trim());
+            return;
+          }
+
+          if (isAnswerNoteLine(line)) {
+            noteLines.push(line);
             return;
           }
 
@@ -2257,7 +2300,7 @@
         <div class="h-[44px] w-[44px] shrink-0 overflow-hidden rounded-full bg-white/80 shadow-[0_10px_24px_rgba(16,47,74,0.08)] ring-2 ring-white/80">
           <img class="h-full w-full object-cover" src="assets/일상이.png" alt="일상이" />
         </div>
-        <article class="max-w-[520px] rounded-2xl rounded-tl-md bg-white/86 px-5 py-4 text-[15px] font-semibold leading-7 text-[#153958] shadow-[0_12px_30px_rgba(16,47,74,0.08)]">
+        <article class="max-w-[600px] rounded-2xl rounded-tl-md bg-white/86 px-5 py-4 text-[15px] font-semibold leading-7 text-[#153958] shadow-[0_12px_30px_rgba(16,47,74,0.08)]">
           ${createAnswerHTML(message)}
         </article>
       `;
@@ -2272,7 +2315,7 @@
         <div class="h-[44px] w-[44px] shrink-0 overflow-hidden rounded-full bg-white/80 shadow-[0_10px_24px_rgba(16,47,74,0.08)] ring-2 ring-white/80">
           <img class="h-full w-full object-cover" src="assets/일상이.png" alt="일상이" />
         </div>
-        <article class="max-w-[520px] rounded-2xl rounded-tl-md bg-white/86 px-5 py-4 text-[15px] font-semibold leading-7 text-[#153958] shadow-[0_12px_30px_rgba(16,47,74,0.08)]">
+        <article class="max-w-[600px] rounded-2xl rounded-tl-md bg-white/86 px-5 py-4 text-[15px] font-semibold leading-7 text-[#153958] shadow-[0_12px_30px_rgba(16,47,74,0.08)]">
           <div class="bot-loading-card" role="status" aria-live="polite">
             <div>
               <div class="bot-loading-title">답변이 생성중입니다</div>
