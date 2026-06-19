@@ -614,6 +614,13 @@ def search_document_chunks(
     if isinstance(enrichment, dict):
         enrichment = RetrievalQuery.model_validate(enrichment)
     db_side_query_vec = query_vec if _db_side_vector_search_enabled() else None
+    has_enrichment_scope = bool(
+        enrichment
+        and (
+            getattr(enrichment, "preferred_categories", None)
+            or getattr(enrichment, "preferred_source_types", None)
+        )
+    )
 
     rows = _fetch_candidate_rows(
         retrieval_query=retrieval_query,
@@ -623,7 +630,25 @@ def search_document_chunks(
         use_query_filter=True,
         query_vector=db_side_query_vec,
     )
-    candidate_scope = "faq"
+    if has_enrichment_scope and not prefer_faq:
+        candidate_scope = "filtered"
+    else:
+        candidate_scope = "faq" if prefer_faq else "all"
+
+    if has_enrichment_scope and not prefer_faq and len(rows) < min_candidate_count:
+        broad_rows = _fetch_candidate_rows(
+            retrieval_query=retrieval_query,
+            candidate_limit=broad_candidate_limit,
+            faq_only=prefer_faq,
+            enrichment=enrichment,
+            use_query_filter=False,
+            query_vector=db_side_query_vec,
+        )
+        rows_by_id = {row["chunk_id"]: row for row in rows}
+        for row in broad_rows:
+            rows_by_id.setdefault(row["chunk_id"], row)
+        rows = list(rows_by_id.values())
+        candidate_scope = "filtered_broad"
 
     if prefer_faq and len(rows) < min_candidate_count:
         broad_rows = _fetch_candidate_rows(
