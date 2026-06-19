@@ -16,6 +16,7 @@ configure_langsmith("chatbot")
 from chatbot.service.account_service import get_server_regions, login_with_credentials
 from chatbot.service.chatbot_service import run_chatbot
 from chatbot.service.multiturn_service import build_session_context
+from chatbot.repository.ticket_repository import find_collecting_bug_ticket
 
 
 app = FastAPI(title="GameOps Chatbot API")
@@ -138,6 +139,54 @@ def _next_session_turn_id(previous_session_id: str | int | None) -> str:
     return f"{session_id}-1"
 
 
+def _is_bug_route(request: ChatRequest) -> bool:
+    return (
+        request.category == "bug"
+        or str(request.routing_target or "").strip().lower() == "bug_agent"
+    )
+
+
+def _extract_section(raw_query: str | None, section_name: str) -> str:
+    if not raw_query:
+        return ""
+    marker = f"[{section_name}]"
+    start = raw_query.find(marker)
+    if start == -1:
+        return ""
+    start += len(marker)
+    next_section = raw_query.find("\n[", start)
+    end = next_section if next_section != -1 else len(raw_query)
+    return raw_query[start:end].strip()
+
+
+def _extract_user_text(raw_query: str | None) -> str:
+    if not raw_query:
+        return ""
+    text = str(raw_query)
+    if not text.startswith("User:"):
+        return ""
+    start = len("User:")
+    end = text.find("\nAI:", start)
+    if end == -1:
+        end = len(text)
+    return text[start:end].strip()
+
+
+def _extract_initial_bug_query(raw_query: str | None) -> str:
+    return _extract_section(raw_query, "초기 문의") or _extract_user_text(raw_query)
+
+
+def _looks_like_bug_report_form(text: str) -> bool:
+    labels = (
+        "발생 시점",
+        "오류 메시지",
+        "사용 기기/OS",
+        "사용 기기",
+        "오류 내용",
+    )
+    return sum(1 for label in labels if label in text) >= 2
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     # 배포/헬스체크에서 API 프로세스가 살아 있는지만 빠르게 확인한다.
@@ -209,8 +258,37 @@ def list_tickets(
 
 @app.post("/chat", response_model=ChatResponse)
 def chat(request: ChatRequest) -> ChatResponse:
-    ticket_id = _new_ticket_id()
     session_id = _next_session_turn_id(request.session_id)
+    initial_bug_query: str | None = None
+    bug_collection_status: str | None = None
+    bug_report_form: str | None = None
+
+    collecting_ticket: dict[str, Any] | None = None
+    if _is_bug_route(request):
+        lookup = find_collecting_bug_ticket(
+            {
+                "user_id": request.user_id,
+                "account_id": request.account_id,
+                "session_id": session_id,
+            }
+        )
+        rows = lookup.get("data") or []
+        collecting_ticket = rows[0] if rows else None
+
+    if collecting_ticket:
+        ticket_id = int(collecting_ticket["ticket_id"])
+        initial_bug_query = _extract_initial_bug_query(collecting_ticket.get("raw_query"))
+        bug_collection_status = "ready_for_review"
+        bug_report_form = request.user_message
+    else:
+        ticket_id = _new_ticket_id()
+        if _is_bug_route(request):
+            initial_bug_query = request.user_message
+            if _looks_like_bug_report_form(request.user_message):
+                bug_collection_status = "ready_for_review"
+                bug_report_form = request.user_message
+            else:
+                bug_collection_status = "collecting"
 
     # 이전 대화가 요청에 없으면 DB에서 같은 session base의 최근 turn을 가져와 멀티턴 context로 사용한다.
     previous_messages = request.previous_messages
@@ -241,6 +319,9 @@ def chat(request: ChatRequest) -> ChatResponse:
         fallback_routing_target=request.fallback_routing_target,
         previous_messages=previous_messages,
         conversation_summary=conversation_summary,
+        initial_bug_query=initial_bug_query,
+        bug_collection_status=bug_collection_status,
+        bug_report_form=bug_report_form,
     )
     state = output["state"]
 
