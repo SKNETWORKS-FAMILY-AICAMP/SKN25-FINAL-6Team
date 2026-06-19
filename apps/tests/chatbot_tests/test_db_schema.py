@@ -13,7 +13,6 @@ load_dotenv()
 
 CHATBOT_TABLES = (
     "qa_ticket",
-    "ticket_analysis",
     "answer_draft",
     "evidence_docs",
     "safety_results",
@@ -25,7 +24,6 @@ CHATBOT_TABLES = (
 )
 
 AUTO_ID_COLUMNS = {
-    "ticket_analysis": "analysis_id",
     "answer_draft": "draft_id",
     "evidence_docs": "evidence_id",
     "safety_results": "safety_id",

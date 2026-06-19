@@ -163,26 +163,26 @@ def build_preprocess_safety_dataset() -> list[dict[str, Any]]:
 
 def build_category_mapping_dataset() -> list[dict[str, Any]]:
     rows = [
-        ("MAP-001", "payment", "payment_history", "payment", "payment_agent", False),
-        ("MAP-002", "payment", "missing_item", "payment", "payment_agent", False),
-        ("MAP-003", "payment", "duplicate_payment", "payment", "payment_agent", False),
-        ("MAP-004", "payment", "payment_method", "faq", "faq_agent", True),
-        ("MAP-005", "payment", "refund_policy", "faq", "faq_agent", True),
-        ("MAP-006", "account", "login_issue", "faq", "faq_agent", True),
-        ("MAP-007", "account", "account_recovery", "faq", "faq_agent", True),
-        ("MAP-008", "account", "account_linking", "faq", "faq_agent", True),
-        ("MAP-009", "account", "phone_change", "faq", "faq_agent", True),
-        ("MAP-010", "reward", "product_not_delivered", "payment", "payment_agent", False),
-        ("MAP-011", "reward", "mail_reward", "faq", "faq_agent", True),
-        ("MAP-012", "reward", "coupon_usage", "faq", "faq_agent", True),
-        ("MAP-013", "bug", "launch_access_error", "bug", "bug_agent", False),
-        ("MAP-014", "bug", "gameplay_progress_error", "bug", "bug_agent", False),
-        ("MAP-015", "bug", "graphics_sound_error", "bug", "bug_agent", False),
-        ("MAP-016", "bug", "paid_item_missing", "payment", "payment_agent", False),
-        ("MAP-017", "bug", "reward_mail_missing", "payment", "payment_agent", False),
-        ("MAP-018", "bug", "gacha_log_issue", "payment", "payment_agent", False),
-        ("MAP-019", "notice", "notice_event", "faq", "faq_agent", True),
-        ("MAP-020", "voc", "voc_etc", "voc", "voc_agent", False),
+        ("MAP-001", "payment", "payment_history", "payment", "payment_agent"),
+        ("MAP-002", "payment", "missing_item", "payment", "payment_agent"),
+        ("MAP-003", "payment", "duplicate_payment", "payment", "payment_agent"),
+        ("MAP-004", "payment", "payment_method", "faq", "faq_agent"),
+        ("MAP-005", "payment", "refund_policy", "faq", "faq_agent"),
+        ("MAP-006", "account", "login_issue", "faq", "faq_agent"),
+        ("MAP-007", "account", "account_recovery", "faq", "faq_agent"),
+        ("MAP-008", "account", "account_linking", "faq", "faq_agent"),
+        ("MAP-009", "account", "phone_change", "faq", "faq_agent"),
+        ("MAP-010", "reward", "product_not_delivered", "payment", "payment_agent"),
+        ("MAP-011", "reward", "mail_reward", "faq", "faq_agent"),
+        ("MAP-012", "reward", "coupon_usage", "faq", "faq_agent"),
+        ("MAP-013", "bug", "launch_access_error", "bug", "bug_agent"),
+        ("MAP-014", "bug", "gameplay_progress_error", "bug", "bug_agent"),
+        ("MAP-015", "bug", "graphics_sound_error", "bug", "bug_agent"),
+        ("MAP-016", "bug", "paid_item_missing", "payment", "payment_agent"),
+        ("MAP-017", "bug", "reward_mail_missing", "payment", "payment_agent"),
+        ("MAP-018", "bug", "gacha_log_issue", "payment", "payment_agent"),
+        ("MAP-019", "notice", "notice_event", "faq", "faq_agent"),
+        ("MAP-020", "voc", "voc_etc", "voc", "voc_agent"),
     ]
     return [
         {
@@ -193,7 +193,6 @@ def build_category_mapping_dataset() -> list[dict[str, Any]]:
             "outputs": {
                 "expected_category": category,
                 "expected_routing_target": routing_target,
-                "expected_should_use_rag": should_use_rag,
             },
             "metadata": {
                 "test_id": test_id,
@@ -201,7 +200,7 @@ def build_category_mapping_dataset() -> list[dict[str, Any]]:
                 "note": "Contract test, not model performance.",
             },
         }
-        for test_id, ui_category, sub_category, category, routing_target, should_use_rag in rows
+        for test_id, ui_category, sub_category, category, routing_target in rows
     ]
 
 
@@ -317,7 +316,6 @@ def build_faq_dataset(limit: int = 40) -> list[dict[str, Any]]:
                     "user_message": question,
                     "category": "faq",
                     "routing_target": "faq_agent",
-                    "should_use_rag": True,
                     "user_id": 1,
                     "account_id": 101,
                 },
@@ -450,7 +448,6 @@ def build_payment_dataset(limit: int = 30) -> list[dict[str, Any]]:
                     "user_message": message,
                     "category": "payment",
                     "routing_target": "payment_agent",
-                    "should_use_rag": False,
                     "user_id": user_id,
                     "account_id": account_id,
                 },
@@ -513,7 +510,6 @@ def build_bug_dataset() -> list[dict[str, Any]]:
                     "user_message": message,
                     "category": "bug",
                     "routing_target": "bug_agent",
-                    "should_use_rag": False,
                     "user_id": 1,
                     "account_id": 101,
                 },

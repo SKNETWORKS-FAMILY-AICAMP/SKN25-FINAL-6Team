@@ -9,6 +9,12 @@ from chatbot.utils.query_enrichment import normalize_query_text
 
 
 SUPPORTED_CATEGORIES = {"payment", "bug", "faq", "voc"}
+CATEGORY_DEFAULT_ROUTING_TARGET = {
+    "payment": "payment_agent",
+    "bug": "bug_agent",
+    "faq": "faq_agent",
+    "voc": "voc_agent",
+}
 write_qa_ticket = save_qa_ticket
 
 
@@ -37,10 +43,9 @@ def ticket_preprocess_node(state: ChatbotState) -> dict:
     masked_content = state.get("masked_content") or raw_query
     category = _category_from_user_selection(state.get("category"))
     normalized_query = normalize_query_text(masked_content)
-    routing_target = state.get("routing_target") or ("bug_agent" if category == "bug" else "rag_reply")
-    should_use_rag = state.get("should_use_rag")
-    if should_use_rag is None:
-        should_use_rag = category == "faq"
+    # 프론트는 세부 카테고리 선택 후 routing_target을 보내지만,
+    # API/eval 직접 호출에서도 category만으로 같은 흐름에 들어가도록 기본값을 맞춘다.
+    routing_target = state.get("routing_target") or CATEGORY_DEFAULT_ROUTING_TARGET[category]
 
     # 2단계: 원문 문의는 qa_ticket에 저장하고, 이후 노드는 state의 normalized_query를 사용한다.
     _write_qa_ticket(
@@ -62,7 +67,6 @@ def ticket_preprocess_node(state: ChatbotState) -> dict:
             "category": category,
             "routing_target": routing_target,
             "is_actionable": False,
-            "should_use_rag": False,
             "fallback_reason": "prompt_injection_detected",
             "draft_text": BLOCK_RESPONSE,
             "safety_action": "BLOCK_RESPONSE",
@@ -80,6 +84,5 @@ def ticket_preprocess_node(state: ChatbotState) -> dict:
         "routing_target": routing_target,
         "fallback_routing_target": state.get("fallback_routing_target"),
         "is_actionable": True,
-        "should_use_rag": should_use_rag,
         "fallback_reason": None,
     }

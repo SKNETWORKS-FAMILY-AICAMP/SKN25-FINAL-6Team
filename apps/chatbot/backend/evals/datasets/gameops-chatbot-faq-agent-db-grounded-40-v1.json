@@ -20,7 +20,6 @@
         "user_message": "공식 충전센터/PC 클라이언트에서 결제를 시도했는데 「거래가 거부되었습니다. 기타 결제 방식을 선택해주세요」...",
         "category": "faq",
         "routing_target": "faq_agent",
-        "should_use_rag": true,
         "user_id": 1,
         "account_id": 101
       },
@@ -73,7 +72,6 @@
         "user_message": "유니버스 때문에 문의드려요. 어떻게 해야 하나요?",
         "category": "faq",
         "routing_target": "faq_agent",
-        "should_use_rag": true,
         "user_id": 1,
         "account_id": 101
       },
@@ -126,7 +124,6 @@
         "user_message": "유니버스 계정을 삭제하는 방법은? 이런 상황이면 고객센터에서는 어떻게 안내하나요?",
         "category": "faq",
         "routing_target": "faq_agent",
-        "should_use_rag": true,
         "user_id": 1,
         "account_id": 101
       },
@@ -179,7 +176,6 @@
         "user_message": "모바일에서 급하게 확인 중인데 새로운 관련해서 바로 알려주세요.",
         "category": "faq",
         "routing_target": "faq_agent",
-        "should_use_rag": true,
         "user_id": 1,
         "account_id": 101
       },
@@ -232,7 +228,6 @@
         "user_message": "결제를 했는데 계정에 반영이 되지 않아요. 어떻게 해야 하나요? 이거 제가 직접 해결할 수 있는 건가요?",
         "category": "faq",
         "routing_target": "faq_agent",
-        "should_use_rag": true,
         "user_id": 1,
         "account_id": 101
       },
@@ -285,7 +280,6 @@
         "user_message": "게임 내에서 상품이 로드되지 않는데, 어떻게 해야 하나요?",
         "category": "faq",
         "routing_target": "faq_agent",
-        "should_use_rag": true,
         "user_id": 1,
         "account_id": 101
       },
@@ -338,7 +332,6 @@
         "user_message": "게임 때문에 문의드려요. 어떻게 해야 하나요?",
         "category": "faq",
         "routing_target": "faq_agent",
-        "should_use_rag": true,
         "user_id": 1,
         "account_id": 101
       },
@@ -391,7 +384,6 @@
         "user_message": "월드 레벨/모험 등급 관련 FAQ 이런 상황이면 고객센터에서는 어떻게 안내하나요?",
         "category": "faq",
         "routing_target": "faq_agent",
-        "should_use_rag": true,
         "user_id": 1,
         "account_id": 101
       },
@@ -444,7 +436,6 @@
         "user_message": "모바일에서 급하게 확인 중인데 별바다 관련해서 바로 알려주세요.",
         "category": "faq",
         "routing_target": "faq_agent",
-        "should_use_rag": true,
         "user_id": 1,
         "account_id": 101
       },
@@ -497,7 +488,6 @@
         "user_message": "버그, 튕김 관련 FAQ 이거 제가 직접 해결할 수 있는 건가요?",
         "category": "faq",
         "routing_target": "faq_agent",
-        "should_use_rag": true,
         "user_id": 1,
         "account_id": 101
       },
@@ -551,7 +541,6 @@
         "user_message": "바람 멎은 산, 공간의 신전 지역 관련 FAQ",
         "category": "faq",
         "routing_target": "faq_agent",
-        "should_use_rag": true,
         "user_id": 1,
         "account_id": 101
       },
@@ -604,7 +593,6 @@
         "user_message": "기기 때문에 문의드려요. 어떻게 해야 하나요?",
         "category": "faq",
         "routing_target": "faq_agent",
-        "should_use_rag": true,
         "user_id": 1,
         "account_id": 101
       },
@@ -657,7 +645,6 @@
         "user_message": "〈일상〉 유니버스 통행증과 Microsoft 계정 크로스 세이브에 관한 FAQ (1/2) 이런 상황이면 고객센터에서는 어떻게 안내하나요?",
         "category": "faq",
         "routing_target": "faq_agent",
-        "should_use_rag": true,
         "user_id": 1,
         "account_id": 101
       },
@@ -711,7 +698,6 @@
         "user_message": "모바일에서 급하게 확인 중인데 캐릭터 관련해서 바로 알려주세요.",
         "category": "faq",
         "routing_target": "faq_agent",
-        "should_use_rag": true,
         "user_id": 1,
         "account_id": 101
       },
@@ -764,7 +750,6 @@
         "user_message": "계정 정보나 결제 정보가 정책상 어떻게 쓰이는지 알려주세요.",
         "category": "faq",
         "routing_target": "faq_agent",
-        "should_use_rag": true,
         "user_id": 1,
         "account_id": 101
       },
@@ -871,7 +856,6 @@
         "user_message": "유니버스 개인정보처리방침 기준으로 제가 확인해야 할 권리나 주의사항이 있나요?",
         "category": "faq",
         "routing_target": "faq_agent",
-        "should_use_rag": true,
         "user_id": 1,
         "account_id": 101
       },
@@ -978,7 +962,6 @@
         "user_message": "개인정보나 계정 데이터가 어떻게 처리되는지 궁금해요. 유니버스 부분 설명해주세요.",
         "category": "faq",
         "routing_target": "faq_agent",
-        "should_use_rag": true,
         "user_id": 1,
         "account_id": 101
       },
@@ -1085,7 +1068,6 @@
         "user_message": "일상 관련 정책이 어떻게 되어 있나요?",
         "category": "faq",
         "routing_target": "faq_agent",
-        "should_use_rag": true,
         "user_id": 1,
         "account_id": 101
       },
@@ -1179,7 +1161,6 @@
         "user_message": "계정 정보나 결제 정보가 정책상 어떻게 쓰이는지 알려주세요.",
         "category": "faq",
         "routing_target": "faq_agent",
-        "should_use_rag": true,
         "user_id": 1,
         "account_id": 101
       },
@@ -1286,7 +1267,6 @@
         "user_message": "유니버스 개인정보처리방침 기준으로 제가 확인해야 할 권리나 주의사항이 있나요?",
         "category": "faq",
         "routing_target": "faq_agent",
-        "should_use_rag": true,
         "user_id": 1,
         "account_id": 101
       },
@@ -1393,7 +1373,6 @@
         "user_message": "「옥빛 아래 속세의 노래」 1.5 버전 업데이트 상세안내 공지에서 제가 알아야 할 내용이 뭐예요?",
         "category": "faq",
         "routing_target": "faq_agent",
-        "should_use_rag": true,
         "user_id": 1,
         "account_id": 101
       },
@@ -1565,7 +1544,6 @@
         "user_message": "여명을 관련 공지가 있던데 핵심만 알려주세요.",
         "category": "faq",
         "routing_target": "faq_agent",
-        "should_use_rag": true,
         "user_id": 1,
         "account_id": 101
       },
@@ -1809,7 +1787,6 @@
         "user_message": "이벤트/점검 공지 확인 중인데 「밤하늘을 수놓은 등불」 1.3 버전 업데이트 상세안내 (최적화-오디오-6번 추가) 내용이 궁금해요.",
         "category": "faq",
         "routing_target": "faq_agent",
-        "should_use_rag": true,
         "user_id": 1,
         "account_id": 101
       },
@@ -2011,7 +1988,6 @@
         "user_message": "공지사항 공지에서 기간이나 보상 관련해서 중요한 점 알려주세요.",
         "category": "faq",
         "routing_target": "faq_agent",
-        "should_use_rag": true,
         "user_id": 1,
         "account_id": 101
       },
@@ -2066,7 +2042,6 @@
         "user_message": "최근 발생한 〈일상〉 핵 프로그램 문제 관련 조치 안내 공지에서 제가 알아야 할 내용이 뭐예요?",
         "category": "faq",
         "routing_target": "faq_agent",
-        "should_use_rag": true,
         "user_id": 1,
         "account_id": 101
       },
@@ -2119,7 +2094,6 @@
         "user_message": "여명을 관련 공지가 있던데 핵심만 알려주세요.",
         "category": "faq",
         "routing_target": "faq_agent",
-        "should_use_rag": true,
         "user_id": 1,
         "account_id": 101
       },
@@ -2363,7 +2337,6 @@
         "user_message": "이벤트/점검 공지 확인 중인데 2.8 버전 발견한 오류 & 업데이트 공지 (8월 8일) 내용이 궁금해요.",
         "category": "faq",
         "routing_target": "faq_agent",
-        "should_use_rag": true,
         "user_id": 1,
         "account_id": 101
       },
@@ -2460,7 +2433,6 @@
         "user_message": "공지사항 공지에서 기간이나 보상 관련해서 중요한 점 알려주세요.",
         "category": "faq",
         "routing_target": "faq_agent",
-        "should_use_rag": true,
         "user_id": 1,
         "account_id": 101
       },
@@ -2635,7 +2607,6 @@
         "user_message": "「『공월의 노래·도입』 눈보라와 푸른숲의 춤」 「첫 번째 달」 버전 업데이트 안내 공지에서 제가 알아야 할 내용이 뭐예요?",
         "category": "faq",
         "routing_target": "faq_agent",
-        "should_use_rag": true,
         "user_id": 1,
         "account_id": 101
       },
@@ -2792,7 +2763,6 @@
         "user_message": "옥빛 관련 공지가 있던데 핵심만 알려주세요.",
         "category": "faq",
         "routing_target": "faq_agent",
-        "should_use_rag": true,
         "user_id": 1,
         "account_id": 101
       },
@@ -2964,7 +2934,6 @@
         "user_message": "초보라서 캐릭터 부분을 모르겠어요. 쉽게 설명해주세요.",
         "category": "faq",
         "routing_target": "faq_agent",
-        "should_use_rag": true,
         "user_id": 1,
         "account_id": 101
       },
@@ -3017,7 +2986,6 @@
         "user_message": "가이드 가이드 기준으로 제가 먼저 해야 할 일을 알려주세요.",
         "category": "faq",
         "routing_target": "faq_agent",
-        "should_use_rag": true,
         "user_id": 1,
         "account_id": 101
       },
@@ -3070,7 +3038,6 @@
         "user_message": "캐릭터 진행 방법이 헷갈려요. 어떻게 하면 되나요?",
         "category": "faq",
         "routing_target": "faq_agent",
-        "should_use_rag": true,
         "user_id": 1,
         "account_id": 101
       },
@@ -3123,7 +3090,6 @@
         "user_message": "물에 비친 달빛 - 리넷 가이드에서 핵심 진행 방법만 알려주세요.",
         "category": "faq",
         "routing_target": "faq_agent",
-        "should_use_rag": true,
         "user_id": 1,
         "account_id": 101
       },
@@ -3176,7 +3142,6 @@
         "user_message": "초보라서 백악과 부분을 모르겠어요. 쉽게 설명해주세요.",
         "category": "faq",
         "routing_target": "faq_agent",
-        "should_use_rag": true,
         "user_id": 1,
         "account_id": 101
       },
@@ -3232,7 +3197,6 @@
         "user_message": "캐릭터 소개 가이드 기준으로 제가 먼저 해야 할 일을 알려주세요.",
         "category": "faq",
         "routing_target": "faq_agent",
-        "should_use_rag": true,
         "user_id": 1,
         "account_id": 101
       },
@@ -3285,7 +3249,6 @@
         "user_message": "캐릭터 진행 방법이 헷갈려요. 어떻게 하면 되나요?",
         "category": "faq",
         "routing_target": "faq_agent",
-        "should_use_rag": true,
         "user_id": 1,
         "account_id": 101
       },
@@ -3338,7 +3301,6 @@
         "user_message": "5.7 버전 출시 카운트다운——스커크와 관련된 문제를 몇 개나 맞힐 수 있는지 확인해 보세요! 가이드에서 핵심 진행 방법만 알려주세요.",
         "category": "faq",
         "routing_target": "faq_agent",
-        "should_use_rag": true,
         "user_id": 1,
         "account_id": 101
       },
@@ -3391,7 +3353,6 @@
         "user_message": "초보라서 사냥꾼 부분을 모르겠어요. 쉽게 설명해주세요.",
         "category": "faq",
         "routing_target": "faq_agent",
-        "should_use_rag": true,
         "user_id": 1,
         "account_id": 101
       },
@@ -3444,7 +3405,6 @@
         "user_message": "가이드 가이드 기준으로 제가 먼저 해야 할 일을 알려주세요.",
         "category": "faq",
         "routing_target": "faq_agent",
-        "should_use_rag": true,
         "user_id": 1,
         "account_id": 101
       },

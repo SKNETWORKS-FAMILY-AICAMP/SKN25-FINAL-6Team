@@ -79,7 +79,6 @@ def make_state(example: dict[str, Any]) -> dict[str, Any]:
         "normalized_query": message,
         "category": inputs.get("category") or "payment",
         "routing_target": inputs.get("routing_target") or "payment_agent",
-        "should_use_rag": inputs.get("should_use_rag", False),
         "is_actionable": True,
         "user_id": inputs.get("user_id"),
         "account_id": inputs.get("account_id"),

@@ -164,16 +164,19 @@ chatbot/
 
 | 파일 | 설명 |
 |------|------|
-| `agent.py` | LangChain `create_agent` 기반 메인 챗봇 agent |
+| `api/main.py` | FastAPI API 진입점 |
+| `service/chatbot_service.py` | API 요청을 LangGraph workflow state로 변환하고 실행 |
+| `agent.py` | 결제/버그용 LangChain `create_agent` adapter |
 | `schemas.py` | 챗봇 state 스키마와 카테고리/라우팅 타입 정의 |
 | `constants.py` | 카테고리, 라우팅, safety threshold 상수 |
 | `tools/db_tools.py` | DB 조회/저장 tool |
-| `tools/vector_tools.py` | Chroma 기반 문서 embedding/search/rerank tool |
-| `tools/registry.py` | `create_agent`에 주입되는 tool 목록 |
-| `generation/prompts/system_prompt.py` | 챗봇 시스템 프롬프트 |
+| `generation/faq_agent.py` | FAQ/RAG 검색, 근거 구성, 답변 생성 |
+| `generation/payment_agent.py` | 결제/환불/아이템/가챠 DB 기반 답변 생성 |
+| `generation/bug_agent.py` | 버그/오류 문의 답변 및 운영 검토 연결 |
+| `generation/voc_agent.py` | VOC 고정 접수 응답 생성 |
+| `generation/response/ticket_completion.py` | 최종 응답 생성 및 티켓 상태 갱신 |
 | `chains/workflow.py` | LangGraph `StateGraph` 정의 |
 | `chains/routing.py` | category/safety 기반 routing 함수 |
-| `runners/run_chatbot.py` | 단일 턴 실행 함수와 간단 멀티턴 데모 헬퍼 |
 
 ## Baseline Flow
 
@@ -198,7 +201,8 @@ session_id
 account_id
 source_type
 raw_query
-enriched_query
+masked_content
+normalized_query
 conversation_summary
 turn_count
 ```
@@ -278,7 +282,7 @@ PII 포함 여부
 write_safety_results
 ```
 
-현재 safety는 LangGraph의 `safety_layer` 노드에서 처리합니다. `AUTO_RESPONSE`, `MASKING`, `SAFE_FALLBACK`, `BLOCK_RESPONSE`, `REVIEW_REQUIRED` 같은 분기 값은 `final_response_node`가 최종 사용자 응답으로 변환합니다.
+현재 safety는 LangGraph의 `safety_layer` 노드에서 처리합니다. `AUTO_RESPONSE`, `MASKING`, `SAFE_FALLBACK`, `BLOCK_RESPONSE`, `REVIEW_REQUIRED` 같은 분기 값은 `ticket_completion_node`가 최종 사용자 응답과 티켓 상태로 변환합니다.
 
 ## State
 
@@ -292,10 +296,10 @@ write_safety_results
 | `account_id` | 게임 계정 ID |
 | `source_type` | 유입 채널 |
 | `raw_query` | 사용자 문의 원문 |
-| `enriched_query` | 정규화된 문의 내용 |
+| `normalized_query` | 정규화된 문의 내용 |
 | `ticket_id` | QA 티켓 ID |
 | `category` | 문의 카테고리 |
-| `routing_target` | `rag_reply` 또는 실제 agent 라우팅 대상 |
+| `routing_target` | `payment_agent`, `faq_agent`, `bug_agent`, `voc_agent` 중 실제 agent 라우팅 대상 |
 | `draft_id` | 답변 초안 ID |
 | `draft_text` | 답변 초안 |
 | `safety_passed` | safety 통과 여부 |
@@ -326,7 +330,7 @@ result = invoke_payment_agent({
     "account_id": 101,
     "source_type": "chatbot",
     "raw_query": "결제했는데 아이템이 안 들어왔어요.",
-    "enriched_query": "결제했는데 아이템이 안 들어왔어요.",
+    "normalized_query": "결제했는데 아이템이 안 들어왔어요.",
 })
 
 print(result["messages"][-1].content)
@@ -347,46 +351,16 @@ DB 접근 코드는 공통 DB access layer인 `src/common/db/connection.py`를 �
 
 ## 실행 방법
 
-프로젝트 루트에서 실행합니다.
+로컬에서는 FastAPI 앱을 실행한 뒤 `/chat` API를 호출해 전체 LangGraph 흐름을 확인합니다.
 
 ```bash
-python3 runners/run_chatbot.py
+PYTHONPATH=apps/chatbot/backend:packages/common-python/src \
+python -m uvicorn api.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-Windows PowerShell에서는 아래처럼 실행할 수 있습니다.
-
-```powershell
-python runners\run_chatbot.py
-```
-
-또는 Python 코드에서 직접 `chatbot.agent.invoke_payment_agent`,
-`chatbot.agent.invoke_faq_agent`, `chatbot.agent.invoke_bug_agent`를 import해
-카테고리별 agent를 호출할 수 있습니다.
-
-### Python 실행 예시
-
-`runners.run_chatbot.run`은 단일 턴 실행을 위한 얇은 wrapper입니다.
-
-```python
-from runners.run_chatbot import run
-
-answer = run(
-    ticket_id=1001,
-    user_message="결제했는데 아이템이 안 들어왔어요.",
-    account_id=101,
-)
-print(answer)
-```
-
-멀티턴 흐름을 확인할 때는 이전 `messages`를 다음 호출에 넘기는 방식으로 설계합니다. 현재 runner에는 smoke 확인용 `run_multiturn_demo`가 있습니다.
-
-```python
-from runners.run_chatbot import run_multiturn_demo
-
-answers = run_multiturn_demo()
-for answer in answers:
-    print(answer)
-```
+Python 코드에서 직접 확인할 때는 `chatbot.service.chatbot_service.run_chatbot` 또는
+`stream_chatbot`을 사용합니다. 결제/버그 단위 agent만 별도로 확인해야 하는 경우
+`chatbot.agent.invoke_payment_agent`, `chatbot.agent.invoke_bug_agent`를 import할 수 있습니다.
 
 ## 간단 멀티턴 테스트 설계
 

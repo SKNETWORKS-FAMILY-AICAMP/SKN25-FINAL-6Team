@@ -23,7 +23,6 @@ def _is_faq_state(state: ChatbotState) -> bool:
     return (
         str(state.get("category") or "").strip().lower() == "faq"
         or state.get("reasoning_node") == "faq_agent"
-        or state.get("should_use_rag") is True
     )
 
 

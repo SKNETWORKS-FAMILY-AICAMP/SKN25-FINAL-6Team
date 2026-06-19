@@ -41,7 +41,6 @@ class ChatbotState(AgentState):
     routing_target: NotRequired[RoutingTarget | str]
     fallback_routing_target: NotRequired[str | None]
     is_actionable: NotRequired[bool | None]
-    should_use_rag: NotRequired[bool | None]
     fallback_reason: NotRequired[str | None]
 
     # Drafting, retrieval, safety, and review state.
