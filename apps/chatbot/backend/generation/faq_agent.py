@@ -29,6 +29,54 @@ def _active_query(state: ChatbotState) -> str:
     return str(state.get("normalized_query") or state.get("raw_query") or "").strip()
 
 
+def _message_content(message: Any) -> str:
+    if isinstance(message, dict):
+        return str(message.get("content") or "")
+    return str(getattr(message, "content", "") or "")
+
+
+def _message_role(message: Any) -> str:
+    if isinstance(message, dict):
+        return str(message.get("role") or "message")
+    return str(getattr(message, "type", "") or "message")
+
+
+def _compact_text(value: Any) -> str:
+    return " ".join(str(value or "").replace("\\n", "\n").split())
+
+
+def _recent_conversation_context(
+    state: ChatbotState,
+    *,
+    max_messages: int = 4,
+    max_chars: int = 1400,
+) -> str:
+    messages = list(state.get("messages") or [])
+    prior_messages = messages[:-1] if messages else []
+    context_lines: list[str] = []
+
+    summary = _compact_text(state.get("conversation_summary"))
+    if summary:
+        context_lines.append(f"summary: {summary}")
+
+    for message in prior_messages[-max_messages:]:
+        content = _compact_text(_message_content(message))
+        if not content:
+            continue
+        context_lines.append(f"{_message_role(message)}: {content}")
+
+    context = "\n".join(context_lines).strip()
+    if len(context) > max_chars:
+        context = context[-max_chars:]
+    return context
+
+
+def _session_contextual_query(query: str, conversation_context: str) -> str:
+    if not conversation_context:
+        return query
+    return f"{query}\n\nRecent session context:\n{conversation_context}"
+
+
 def _is_latest_notice_query(query: str, state: ChatbotState) -> bool:
     # "최근 공지"는 의미 유사도보다 원문 게시일 정렬이 중요한 조회 의도다.
     haystack = " ".join(
@@ -406,6 +454,65 @@ def _retry_retrieval_with_rewrite(
     }
 
 
+def _retry_retrieval_with_session_context(
+    *,
+    state: ChatbotState,
+    original_query: str,
+    conversation_context: str,
+    final_top_k: int,
+    candidate_top_k: int,
+) -> dict[str, Any] | None:
+    if not conversation_context:
+        return None
+
+    contextual_query = _session_contextual_query(original_query, conversation_context)
+    enriched = enrich_retrieval_query(contextual_query)
+    retrieval_query = enriched.query_text
+    if not retrieval_query or retrieval_query == original_query:
+        return None
+
+    documents = _retrieve_documents(
+        retrieval_query=retrieval_query,
+        enrichment=enriched,
+        final_top_k=final_top_k,
+        candidate_top_k=candidate_top_k,
+        state=state,
+    )
+    _print_retrieval_summary(
+        original_query=original_query,
+        retrieval_query=retrieval_query,
+        documents=documents,
+    )
+
+    low_evidence, low_reason = _is_low_evidence(documents)
+    if low_evidence:
+        return {
+            "accepted": False,
+            "documents": documents,
+            "retrieval_query": retrieval_query,
+            "enrichment": enriched.model_dump(),
+            "failure_reason": low_reason or "low_evidence_after_session_context",
+        }
+
+    relevance_ok, relevance_reason = _passes_relevance_gate(documents)
+    if not relevance_ok:
+        return {
+            "accepted": False,
+            "documents": documents,
+            "retrieval_query": retrieval_query,
+            "enrichment": enriched.model_dump(),
+            "failure_reason": relevance_reason or "session_context_relevance_gate_failed",
+        }
+
+    return {
+        "accepted": True,
+        "documents": documents,
+        "retrieval_query": retrieval_query,
+        "enrichment": enriched.model_dump(),
+        "failure_reason": None,
+    }
+
+
 def _print_retrieval_summary(
     *,
     original_query: str,
@@ -436,6 +543,7 @@ def _generate_evidence_answer(
     original_query: str,
     retrieval_query: str,
     documents: list[dict[str, Any]],
+    conversation_context: str | None = None,
 ) -> str:
     # 최종 evidence 묶음만 사용해 FAQ/RAG 답변 초안을 생성한다.
     api_key = os.environ.get("LLM_API_KEY")
@@ -494,10 +602,18 @@ def _generate_evidence_answer(
             ),
             HumanMessage(
                 content=(
+                    (
+                        f"Recent conversation context:\n{conversation_context}\n\n"
+                        if conversation_context
+                        else ""
+                    )
+                    +
                     f"Customer question:\n{original_query}\n\n"
                     f"Normalized FAQ search question:\n{retrieval_query}\n\n"
                     f"Evidence documents:\n{evidence}\n\n"
                     "Write a concise, polite Korean customer-facing answer. "
+                    "Use the recent conversation context to resolve short follow-up questions, "
+                    "but keep every factual claim grounded in the evidence documents. "
                     "Use the normalized FAQ search question as the intended meaning when it is clearer than the customer's slang."
                 )
             ),
@@ -509,15 +625,17 @@ def _generate_evidence_answer(
 
 def run_faq_rag(state: ChatbotState) -> dict[str, Any]:
     # FAQ/RAG 전체 실행 흐름을 관리한다.
-    query = _active_query(state)
+    current_query = _active_query(state)
+    conversation_context = _recent_conversation_context(state)
+    query = current_query
 
     if state.get("is_actionable") is False:
         reason = str(state.get("fallback_reason") or "rag_not_requested")
-        _record_failed_query(state, query, reason)
+        _record_failed_query(state, current_query, reason)
         return {
             "draft_text": SAFE_FALLBACK_RESPONSE,
             "retrieved_documents": [],
-            "retrieval_query": query,
+            "retrieval_query": current_query,
             "retrieval_enrichment": None,
             "faq_failure_reason": reason,
         }
@@ -526,14 +644,14 @@ def run_faq_rag(state: ChatbotState) -> dict[str, Any]:
     if _is_latest_notice_query(query, state):
         documents = _fetch_latest_notice_documents(final_top_k)
         _print_retrieval_summary(
-            original_query=query,
+            original_query=current_query,
             retrieval_query="latest notice by published_at",
             documents=documents,
         )
         low_evidence, reason = _is_low_evidence(documents)
         if low_evidence:
             reason = reason or "latest_notice_not_found"
-            _record_failed_query(state, query, reason)
+            _record_failed_query(state, current_query, reason)
             return {
                 "draft_text": SAFE_FALLBACK_RESPONSE,
                 "retrieved_documents": documents,
@@ -545,7 +663,7 @@ def run_faq_rag(state: ChatbotState) -> dict[str, Any]:
                 "faq_failure_reason": reason,
             }
         answer = _generate_evidence_answer(
-            original_query=query,
+            original_query=current_query,
             retrieval_query="latest notice by published_at",
             documents=documents,
         )
@@ -561,14 +679,15 @@ def run_faq_rag(state: ChatbotState) -> dict[str, Any]:
         }
 
     enriched = enrich_retrieval_query(query)
+    enriched_dump = enriched.model_dump()
     retrieval_query = enriched.query_text
     if not retrieval_query:
-        _record_failed_query(state, query, "empty_retrieval_query")
+        _record_failed_query(state, current_query, "empty_retrieval_query")
         return {
             "draft_text": SAFE_FALLBACK_RESPONSE,
             "retrieved_documents": [],
             "retrieval_query": retrieval_query,
-            "retrieval_enrichment": enriched.model_dump(),
+            "retrieval_enrichment": enriched_dump,
             "faq_failure_reason": "empty_retrieval_query",
         }
 
@@ -589,9 +708,34 @@ def run_faq_rag(state: ChatbotState) -> dict[str, Any]:
     low_evidence, reason = _is_low_evidence(documents)
     if low_evidence:
         reason = reason or "low_evidence"
+        session_retry = _retry_retrieval_with_session_context(
+            state=state,
+            original_query=current_query,
+            conversation_context=conversation_context,
+            final_top_k=final_top_k,
+            candidate_top_k=candidate_top_k,
+        )
+        if session_retry and session_retry["accepted"]:
+            retrieval_query = session_retry["retrieval_query"]
+            documents = session_retry["documents"]
+            answer = _generate_evidence_answer(
+                original_query=current_query,
+                retrieval_query=retrieval_query,
+                documents=documents,
+                conversation_context=conversation_context,
+            )
+            enrichment_dump = dict(enriched_dump)
+            enrichment_dump["session_context_retry"] = session_retry["enrichment"]
+            return {
+                "draft_text": answer,
+                "retrieved_documents": documents,
+                "retrieval_query": retrieval_query,
+                "retrieval_enrichment": enrichment_dump,
+                "faq_failure_reason": None,
+            }
         retry = _retry_retrieval_with_rewrite(
             state=state,
-            original_query=query,
+            original_query=current_query,
             failed_query=retrieval_query,
             failure_reason=reason,
             final_top_k=final_top_k,
@@ -601,11 +745,11 @@ def run_faq_rag(state: ChatbotState) -> dict[str, Any]:
             retrieval_query = retry["retrieval_query"]
             documents = retry["documents"]
             answer = _generate_evidence_answer(
-                original_query=query,
+                original_query=current_query,
                 retrieval_query=retrieval_query,
                 documents=documents,
             )
-            enrichment_dump = enriched.model_dump()
+            enrichment_dump = dict(enriched_dump)
             enrichment_dump["rewrite_fallback"] = retry["rewrite"]
             return {
                 "draft_text": answer,
@@ -617,7 +761,9 @@ def run_faq_rag(state: ChatbotState) -> dict[str, Any]:
         if retry:
             reason = retry["failure_reason"] or reason
         _record_failed_query(state, retrieval_query, reason)
-        enrichment_dump = enriched.model_dump()
+        enrichment_dump = dict(enriched_dump)
+        if session_retry:
+            enrichment_dump["session_context_retry"] = session_retry["enrichment"]
         if retry:
             enrichment_dump["rewrite_fallback"] = retry["rewrite"]
         return {
@@ -631,9 +777,34 @@ def run_faq_rag(state: ChatbotState) -> dict[str, Any]:
     relevance_ok, relevance_reason = _passes_relevance_gate(documents)
     if not relevance_ok:
         reason = relevance_reason or "retrieval_relevance_gate_failed"
+        session_retry = _retry_retrieval_with_session_context(
+            state=state,
+            original_query=current_query,
+            conversation_context=conversation_context,
+            final_top_k=final_top_k,
+            candidate_top_k=candidate_top_k,
+        )
+        if session_retry and session_retry["accepted"]:
+            retrieval_query = session_retry["retrieval_query"]
+            documents = session_retry["documents"]
+            answer = _generate_evidence_answer(
+                original_query=current_query,
+                retrieval_query=retrieval_query,
+                documents=documents,
+                conversation_context=conversation_context,
+            )
+            enrichment_dump = dict(enriched_dump)
+            enrichment_dump["session_context_retry"] = session_retry["enrichment"]
+            return {
+                "draft_text": answer,
+                "retrieved_documents": documents,
+                "retrieval_query": retrieval_query,
+                "retrieval_enrichment": enrichment_dump,
+                "faq_failure_reason": None,
+            }
         retry = _retry_retrieval_with_rewrite(
             state=state,
-            original_query=query,
+            original_query=current_query,
             failed_query=retrieval_query,
             failure_reason=reason,
             final_top_k=final_top_k,
@@ -643,11 +814,11 @@ def run_faq_rag(state: ChatbotState) -> dict[str, Any]:
             retrieval_query = retry["retrieval_query"]
             documents = retry["documents"]
             answer = _generate_evidence_answer(
-                original_query=query,
+                original_query=current_query,
                 retrieval_query=retrieval_query,
                 documents=documents,
             )
-            enrichment_dump = enriched.model_dump()
+            enrichment_dump = dict(enriched_dump)
             enrichment_dump["rewrite_fallback"] = retry["rewrite"]
             return {
                 "draft_text": answer,
@@ -659,7 +830,9 @@ def run_faq_rag(state: ChatbotState) -> dict[str, Any]:
         if retry:
             reason = retry["failure_reason"] or reason
         _record_failed_query(state, retrieval_query, reason)
-        enrichment_dump = enriched.model_dump()
+        enrichment_dump = dict(enriched_dump)
+        if session_retry:
+            enrichment_dump["session_context_retry"] = session_retry["enrichment"]
         if retry:
             enrichment_dump["rewrite_fallback"] = retry["rewrite"]
         return {
@@ -671,7 +844,7 @@ def run_faq_rag(state: ChatbotState) -> dict[str, Any]:
         }
 
     answer = _generate_evidence_answer(
-        original_query=query,
+        original_query=current_query,
         retrieval_query=retrieval_query,
         documents=documents,
     )
@@ -679,7 +852,7 @@ def run_faq_rag(state: ChatbotState) -> dict[str, Any]:
         "draft_text": answer,
         "retrieved_documents": documents,
         "retrieval_query": retrieval_query,
-        "retrieval_enrichment": enriched.model_dump(),
+        "retrieval_enrichment": enriched_dump,
         "faq_failure_reason": None,
     }
 

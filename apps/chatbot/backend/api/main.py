@@ -17,6 +17,7 @@ from chatbot.service.account_service import get_server_regions, login_with_crede
 from chatbot.service.chatbot_service import run_chatbot
 from chatbot.service.multiturn_service import build_session_context
 from chatbot.repository.ticket_repository import find_collecting_bug_ticket
+from chatbot.retrieval.cache_store import get_cached_session_state, set_cached_session_state
 
 
 app = FastAPI(title="GameOps Chatbot API")
@@ -137,6 +138,82 @@ def _next_session_turn_id(previous_session_id: str | int | None) -> str:
     if separator and base and turn.isdigit():
         return f"{base}-{int(turn) + 1}"
     return f"{session_id}-1"
+
+
+def _clip_session_text(value: Any, limit: int = 1200) -> str:
+    text = " ".join(str(value or "").replace("\\n", "\n").split())
+    if len(text) <= limit:
+        return text
+    return text[: limit - 3] + "..."
+
+
+def _session_messages_from_cache(payload: dict[str, Any]) -> list[dict[str, str]]:
+    messages = payload.get("previous_messages")
+    if not isinstance(messages, list):
+        return []
+    normalized: list[dict[str, str]] = []
+    for message in messages:
+        if not isinstance(message, dict):
+            continue
+        role = str(message.get("role") or "").strip()
+        content = _clip_session_text(message.get("content"), 1200)
+        if role and content:
+            normalized.append({"role": role, "content": content})
+    return normalized
+
+
+def _document_session_meta(documents: Any, limit: int = 5) -> list[dict[str, Any]]:
+    if not isinstance(documents, list):
+        return []
+    result: list[dict[str, Any]] = []
+    for document in documents[:limit]:
+        if not isinstance(document, dict):
+            continue
+        result.append(
+            {
+                "document_id": document.get("document_id") or document.get("documents_id"),
+                "chunk_id": document.get("chunk_id"),
+                "title": document.get("title"),
+                "source_type": document.get("source_type"),
+                "category": document.get("category"),
+                "published_at": document.get("published_at"),
+                "updated_at": document.get("updated_at"),
+            }
+        )
+    return result
+
+
+def _build_session_cache_payload(
+    *,
+    request: ChatRequest,
+    session_id: str,
+    previous_messages: list[dict[str, str]] | None,
+    answer: str,
+    state: dict[str, Any],
+) -> dict[str, Any]:
+    max_messages = int(os.environ.get("CHATBOT_SESSION_MAX_MESSAGES", "40"))
+    messages = list(previous_messages or [])
+    messages.extend(
+        [
+            {"role": "user", "content": _clip_session_text(request.user_message)},
+            {"role": "assistant", "content": _clip_session_text(answer)},
+        ]
+    )
+    messages = messages[-max_messages:]
+    return {
+        "session_id": session_id,
+        "user_id": request.user_id,
+        "account_id": request.account_id,
+        "previous_messages": messages,
+        "conversation_summary": state.get("conversation_summary"),
+        "last_category": state.get("category"),
+        "last_ui_category": state.get("ui_category"),
+        "last_sub_category": state.get("sub_category"),
+        "last_routing_target": state.get("routing_target"),
+        "last_retrieval_query": state.get("retrieval_query"),
+        "last_retrieved_documents": _document_session_meta(state.get("retrieved_documents")),
+        "last_answer": _clip_session_text(answer),
+    }
 
 
 def _is_bug_route(request: ChatRequest) -> bool:
@@ -291,8 +368,10 @@ def chat(request: ChatRequest) -> ChatResponse:
                 bug_collection_status = "collecting"
 
     # 이전 대화가 요청에 없으면 DB에서 같은 session base의 최근 turn을 가져와 멀티턴 context로 사용한다.
-    previous_messages = request.previous_messages
-    conversation_summary = request.conversation_summary
+    session_cache = get_cached_session_state(session_id)
+    cached_messages = _session_messages_from_cache(session_cache)
+    previous_messages = cached_messages or request.previous_messages
+    conversation_summary = request.conversation_summary or session_cache.get("conversation_summary")
     if previous_messages is None:
         context = build_session_context(
             session_id=session_id,
@@ -324,6 +403,16 @@ def chat(request: ChatRequest) -> ChatResponse:
         bug_report_form=bug_report_form,
     )
     state = output["state"]
+    set_cached_session_state(
+        session_id,
+        _build_session_cache_payload(
+            request=request,
+            session_id=session_id,
+            previous_messages=previous_messages,
+            answer=output["answer"],
+            state=state,
+        ),
+    )
 
     # 프론트에는 화면 갱신에 필요한 최소 결과만 응답한다.
     return ChatResponse(
