@@ -486,7 +486,7 @@ def test_safety_layer_does_not_fallback_payment_agent_without_rag_docs(monkeypat
             "retrieved_documents": [],
             "retry_count": 0,
             "category": "결제",
-            "routing_target": "urgent_alert",
+            "routing_target": "payment_agent",
             "reasoning_node": "payment_agent",
         }
     )
@@ -524,7 +524,7 @@ def test_safety_layer_does_not_ground_non_faq_payment_context_documents(monkeypa
             ],
             "retry_count": 0,
             "category": "결제",
-            "routing_target": "urgent_alert",
+            "routing_target": "payment_agent",
             "reasoning_node": "payment_agent",
         }
     )
@@ -797,7 +797,7 @@ def test_dispatch_github_issue_creates_issue_for_review_required_bug(monkeypatch
             "user_id": 3,
             "account_id": 4,
             "category": "bug",
-            "routing_target": "urgent_alert",
+            "routing_target": "bug_agent",
             "reasoning_node": "bug_agent",
             "safety_action": "REVIEW_REQUIRED",
             "review_required": True,
@@ -827,7 +827,7 @@ def test_dispatch_github_issue_skips_for_non_bug(monkeypatch) -> None:
         {
             "ticket_id": 1,
             "category": "payment",
-            "routing_target": "urgent_alert",
+            "routing_target": "payment_agent",
             "reasoning_node": "payment_agent",
             "safety_action": "REVIEW_REQUIRED",
             "review_required": True,
@@ -854,7 +854,7 @@ def test_dispatch_github_issue_skips_duplicate_ticket(monkeypatch) -> None:
         {
             "ticket_id": 1,
             "category": "bug",
-            "routing_target": "urgent_alert",
+            "routing_target": "bug_agent",
             "reasoning_node": "bug_agent",
             "safety_action": "REVIEW_REQUIRED",
             "review_required": True,

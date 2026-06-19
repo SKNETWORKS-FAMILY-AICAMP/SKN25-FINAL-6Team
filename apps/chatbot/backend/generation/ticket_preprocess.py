@@ -9,7 +9,7 @@ from chatbot.utils.query_enrichment import normalize_query_text
 
 
 SUPPORTED_CATEGORIES = {"payment", "bug", "faq", "voc"}
-DEFAULT_ROUTING_TARGET_BY_CATEGORY = {
+CATEGORY_DEFAULT_ROUTING_TARGET = {
     "payment": "payment_agent",
     "bug": "bug_agent",
     "faq": "faq_agent",
@@ -43,7 +43,9 @@ def ticket_preprocess_node(state: ChatbotState) -> dict:
     masked_content = state.get("masked_content") or raw_query
     category = _category_from_user_selection(state.get("category"))
     normalized_query = normalize_query_text(masked_content)
-    routing_target = state.get("routing_target") or DEFAULT_ROUTING_TARGET_BY_CATEGORY[category]
+    # 프론트는 세부 카테고리 선택 후 routing_target을 보내지만,
+    # API/eval 직접 호출에서도 category만으로 같은 흐름에 들어가도록 기본값을 맞춘다.
+    routing_target = state.get("routing_target") or CATEGORY_DEFAULT_ROUTING_TARGET[category]
 
     # 2단계: 원문 문의는 qa_ticket에 저장하고, 이후 노드는 state의 normalized_query를 사용한다.
     _write_qa_ticket(

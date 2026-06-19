@@ -22,8 +22,8 @@ def test_payment_agent_collects_context_by_logged_in_user(monkeypatch) -> None:
         "count": 2,
     }
 
-    def fake_collect_payment_context_by_user(*, user_id, account_id=None):
-        captured["collector_args"] = (user_id, account_id)
+    def fake_collect_payment_context_by_user(*, user_id, account_id=None, query_text=None):
+        captured["collector_args"] = (user_id, account_id, query_text)
         return payment_context
 
     monkeypatch.setattr(payment_agent, "collect_payment_context_by_user", fake_collect_payment_context_by_user)
@@ -40,17 +40,27 @@ def test_payment_agent_collects_context_by_logged_in_user(monkeypatch) -> None:
             "session_id": 1,
             "user_id": 1,
             "account_id": 101,
+            "raw_query": "결제했는데 상품이 안 들어왔어요",
+            "normalized_query": "결제했는데 상품이 안 들어왔어요",
             "messages": [{"role": "user", "content": "결제했는데 상품이 안 들어왔어요"}],
             "category": "결제",
-            "routing_target": "urgent_alert",
+            "routing_target": "payment_agent",
             "retry_count": 0,
         }
     )
 
-    assert captured["collector_args"] == (1, 101)
-    assert captured["agent_state"]["payment_context"] == payment_context
+    assert captured["collector_args"][0:2] == (1, 101)
+    assert "결제했는데 상품이 안 들어왔어요" in captured["collector_args"][2]
+    assert captured["agent_state"]["payment_context"]["status"] == "ok"
+    assert captured["agent_state"]["payment_context"]["data"]["payments"] == payment_context["data"]["payments"]
+    assert (
+        captured["agent_state"]["payment_context"]["data"]["item_delivery_logs"]
+        == payment_context["data"]["item_delivery_logs"]
+    )
     assert "Payment DB context scoped to the logged-in user_id only" in captured["agent_state"]["messages"][-1]["content"]
-    assert result["payment_context"] == payment_context
+    assert result["payment_context"]["status"] == "ok"
+    assert result["payment_context"]["data"]["payments"] == payment_context["data"]["payments"]
+    assert result["payment_context"]["data"]["item_delivery_logs"] == payment_context["data"]["item_delivery_logs"]
     assert {doc["source_type"] for doc in result["retrieved_documents"]} == {"payments", "item_delivery_logs"}
     assert result["draft_text"] == "결제 내역과 지급 로그를 확인했습니다."
 
@@ -73,7 +83,7 @@ def test_payment_agent_does_not_collect_without_user_id(monkeypatch) -> None:
             "account_id": None,
             "messages": [{"role": "user", "content": "결제 내역 확인"}],
             "category": "결제",
-            "routing_target": "urgent_alert",
+            "routing_target": "payment_agent",
             "retry_count": 0,
         }
     )
@@ -114,10 +124,12 @@ def test_collect_payment_context_queries_are_scoped_by_user_and_optional_account
     result = operation_log_repository.collect_payment_context_by_user(user_id=7, account_id=99)
 
     assert result["status"] == "ok"
-    assert len(calls) == 5
+    assert len(calls) == 2
     assert all("a.user_id = %s" in sql for sql, _ in calls)
-    assert all(params == (7, 99, 99) for _, params in calls)
-    assert any("FROM payments p" in sql and "JOIN game_accounts a" in sql for sql, _ in calls)
-    assert any("FROM refunds r" in sql and "JOIN game_accounts a" in sql for sql, _ in calls)
-    assert any("FROM item_delivery_logs d" in sql and "JOIN game_accounts a" in sql for sql, _ in calls)
-    assert any("FROM gacha_logs g" in sql and "JOIN game_accounts a" in sql for sql, _ in calls)
+    assert calls[0][1] == (7, 99, 99, operation_log_repository.PAYMENT_CONTEXT_LIMIT)
+    evidence_sql, evidence_params = calls[1]
+    assert evidence_params[:12] == (7, 99, 99, 7, 99, 99, 7, 99, 99, 7, 99, 99)
+    assert "FROM payments p" in evidence_sql and "JOIN game_accounts a" in evidence_sql
+    assert "FROM refunds r" in evidence_sql and "JOIN game_accounts a" in evidence_sql
+    assert "FROM item_delivery_logs d" in evidence_sql and "JOIN game_accounts a" in evidence_sql
+    assert "FROM gacha_logs g" in evidence_sql and "JOIN game_accounts a" in evidence_sql

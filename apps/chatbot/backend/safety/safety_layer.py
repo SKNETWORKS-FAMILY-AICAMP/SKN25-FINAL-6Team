@@ -24,15 +24,6 @@ from common.observability.logger import estimate_tokens, record_usage
 
 MODERATION_MODEL = "omni-moderation-latest"
 
-MASK_PATTERNS: tuple[tuple[str, str, str], ...] = (
-    ("email", r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b", "[이메일]"),
-    ("phone", r"\b01[016789]-?\d{3,4}-?\d{4}\b", "[전화번호]"),
-    ("card_number", r"\b(?:\d[ -]?){13,19}\b", "[카드번호]"),
-    ("api_key", r"\b(?:sk|rk|pk|sess|token|key)-[A-Za-z0-9_-]{16,}\b", "[인증정보]"),
-    ("account_id", r"\b(?:account_id|user_id|uid|회원번호|계정번호)\s*[:=]\s*[A-Za-z0-9_-]{4,}\b", "[계정정보]"),
-)
-
-
 def _as_dict(value: object) -> dict:
     if hasattr(value, "model_dump"):
         return value.model_dump()
@@ -62,17 +53,7 @@ def _evidence_text(documents: list[dict[str, Any]]) -> str:
     return "\n".join(parts)
 
 
-def _mask_sensitive_text(text: str) -> tuple[str, list[str]]:
-    masked = text
-    applied: list[str] = []
-    for label, pattern, replacement in MASK_PATTERNS:
-        masked, count = re.subn(pattern, replacement, masked, flags=re.IGNORECASE)
-        if count:
-            applied.append(label)
-    return masked, applied
-
-
-MASK_PATTERNS = (
+MASK_PATTERNS: tuple[tuple[str, str, str], ...] = (
     ("email", r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b", "[이메일]"),
     ("phone", r"\b01[016789]-?\d{3,4}-?\d{4}\b", "[전화번호]"),
     ("url", r"\b(?:https?://|www\.)[^\s<>()\[\]{}\"']+", "[홈페이지]"),
