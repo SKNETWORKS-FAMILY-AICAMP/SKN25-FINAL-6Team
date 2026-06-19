@@ -18,7 +18,13 @@ from chatbot.schemas import ChatbotState
 from common.observability.logger import record_chat_model_usage
 
 
-PaymentIntentType = Literal["READ_ONLY", "ACTION_REQUEST"]
+PaymentIntentType = Literal["READ_ONLY", "ACTION_REQUEST", "OUT_OF_SCOPE"]
+
+
+PAYMENT_CLARIFICATION_RESPONSE = (
+    "결제/환불 문의 내용을 조금 더 구체적으로 입력해 주세요.\n"
+    "예: 결제 상품명, 결제 일시, 주문번호, 결제 플랫폼, 환불 또는 미지급 상황"
+)
 
 
 class PaymentIntentResult(BaseModel):
@@ -65,6 +71,30 @@ ACTION_PATTERNS = (
     r"반려(?:해\s*줘|해주세요|처리)",
 )
 
+PAYMENT_DOMAIN_PATTERNS = (
+    r"결제",
+    r"환불",
+    r"취소",
+    r"주문",
+    r"영수증",
+    r"구매",
+    r"상품",
+    r"금액",
+    r"플랫폼",
+    r"카드",
+    r"아이템",
+    r"미지급",
+    r"지급",
+    r"보상",
+    r"우편",
+    r"가챠",
+    r"뽑기",
+    r"재화",
+    r"원석",
+    r"코인",
+    r"패키지",
+)
+
 
 def _normalize_intent_text(text: str) -> str:
     return re.sub(r"\s+", " ", str(text or "").lower()).strip()
@@ -78,10 +108,19 @@ def _classify_payment_intent_by_rule(text: str) -> PaymentIntentResult | None:
     normalized = _normalize_intent_text(text)
     if not normalized:
         return PaymentIntentResult(
-            intent_type="READ_ONLY",
-            confidence=0.75,
+            intent_type="OUT_OF_SCOPE",
+            confidence=0.95,
             method="fallback",
-            reason="empty query defaults to read-only handling",
+            reason="empty query is not a payment inquiry",
+        )
+
+    domain_hits = _matches_intent_patterns(PAYMENT_DOMAIN_PATTERNS, normalized)
+    if not domain_hits:
+        return PaymentIntentResult(
+            intent_type="OUT_OF_SCOPE",
+            confidence=0.95,
+            method="rule",
+            reason="no payment/refund/item/gacha domain signal",
         )
 
     action_hits = _matches_intent_patterns(ACTION_PATTERNS, normalized)
@@ -127,6 +166,8 @@ def _classify_payment_intent_by_llm(text: str) -> PaymentIntentResult | None:
                     "payment/refund/item-delivery/gacha records, status, history, logs, results, or pity count.\n"
                     "Return ACTION_REQUEST only when the user asks the operator or system to perform "
                     "a change or handling action such as refund, cancel, grant, redeliver, recover, compensate, fix, or resolve.\n"
+                    "Return OUT_OF_SCOPE when the message is random text, empty, test input, or not about payment, refund, "
+                    "item delivery, reward, or gacha.\n"
                     "If the message is a status inquiry even with words like 처리 상태 or 어떻게 처리됐는지, classify READ_ONLY."
                 ),
             },
@@ -163,10 +204,10 @@ def classify_payment_intent(text: str) -> dict[str, object]:
         return dict(llm_result)
 
     return PaymentIntentResult(
-        intent_type="READ_ONLY",
+        intent_type="OUT_OF_SCOPE",
         confidence=0.55,
         method="fallback",
-        reason="no high-confidence rule hit and LLM fallback unavailable",
+        reason="no high-confidence payment inquiry signal and LLM fallback unavailable",
     ).dict()
 
 
@@ -408,6 +449,34 @@ def payment_agent_node(state: ChatbotState) -> dict:
     )
     query_text = _query_text_for_matching(state)
     payment_intent = classify_payment_intent(query_text)
+    if payment_intent.get("intent_type") == "OUT_OF_SCOPE":
+        update = {
+            "draft_text": PAYMENT_CLARIFICATION_RESPONSE,
+            "retry_count": state["retry_count"],
+            "category": state["category"],
+            "routing_target": state["routing_target"],
+            "reasoning_node": PAYMENT_POLICY.name,
+            "payment_intent": payment_intent,
+            "payment_intent_type": payment_intent.get("intent_type"),
+            "retrieved_documents": [],
+        }
+        log_event(
+            EVENT_NODE_COMPLETED,
+            ticket_id=state.get("ticket_id"),
+            session_id=state.get("session_id"),
+            node_name=PAYMENT_POLICY.name,
+            category=state.get("category"),
+            routing_target=state.get("routing_target"),
+            metadata={
+                "draft_length": len(update["draft_text"]),
+                "payment_context_count": 0,
+                "payment_evidence_count": 0,
+                "payment_intent_type": payment_intent.get("intent_type"),
+                "payment_intent_method": payment_intent.get("method"),
+            },
+        )
+        return update
+
     payment_context = _annotate_item_delivery_relevance(_collect_payment_context(state), state)
     payment_evidence = _payment_context_to_evidence(payment_context)
 
