@@ -25,6 +25,9 @@ def build_state(
     fallback_routing_target: str | None = None,
     previous_messages: list[dict[str, str]] | None = None,
     conversation_summary: str | None = None,
+    initial_bug_query: str | None = None,
+    bug_collection_status: str | None = None,
+    bug_report_form: str | None = None,
 ) -> dict[str, Any]:
     # 1단계: 사용자 입력을 마스킹/정규화 준비하고 LangGraph가 공유할 초기 state를 만든다.
     preprocessing = preprocess_user_input(user_message)
@@ -71,6 +74,10 @@ def build_state(
         "review_required": None,
         "retry_count": 0,
         "conversation_summary": conversation_summary,
+        "initial_bug_query": initial_bug_query,
+        "bug_collection_status": bug_collection_status,
+        "bug_report_form": bug_report_form,
+        "github_issue_content": None,
         "turn_count": len([message for message in messages if message.get("role") == "user"]),
     }
 
@@ -185,6 +192,9 @@ def run_chatbot(
     fallback_routing_target: str | None = None,
     previous_messages: list[dict[str, str]] | None = None,
     conversation_summary: str | None = None,
+    initial_bug_query: str | None = None,
+    bug_collection_status: str | None = None,
+    bug_report_form: str | None = None,
 ) -> dict[str, Any]:
     # 동기 실행 경로: 초기 state 생성 -> graph.invoke -> 최종 답변 반환.
     from chatbot.chains.workflow import graph
@@ -204,6 +214,9 @@ def run_chatbot(
         fallback_routing_target=fallback_routing_target,
         previous_messages=previous_messages,
         conversation_summary=conversation_summary,
+        initial_bug_query=initial_bug_query,
+        bug_collection_status=bug_collection_status,
+        bug_report_form=bug_report_form,
     )
     result = graph.invoke(state, config=build_runnable_config(state, run_name="chatbot_graph"))
     log_event(
@@ -242,6 +255,9 @@ def stream_chatbot(
     fallback_routing_target: str | None = None,
     previous_messages: list[dict[str, str]] | None = None,
     conversation_summary: str | None = None,
+    initial_bug_query: str | None = None,
+    bug_collection_status: str | None = None,
+    bug_report_form: str | None = None,
 ):
     # 스트리밍 실행 경로: graph.stream의 노드별 update를 누적하면서 진행 상황을 기록한다.
     from chatbot.chains.workflow import graph
@@ -261,6 +277,9 @@ def stream_chatbot(
         fallback_routing_target=fallback_routing_target,
         previous_messages=previous_messages,
         conversation_summary=conversation_summary,
+        initial_bug_query=initial_bug_query,
+        bug_collection_status=bug_collection_status,
+        bug_report_form=bug_report_form,
     )
     result: dict[str, Any] = {}
     node_summaries: list[dict[str, Any]] = []

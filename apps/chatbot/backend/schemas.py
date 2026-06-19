@@ -78,6 +78,12 @@ class ChatbotState(AgentState):
     masking_labels: NotRequired[list[str]]
     notification_result: NotRequired[dict[str, Any] | None]
 
+    # Bug reproduction collection state.
+    initial_bug_query: NotRequired[str | None]
+    bug_collection_status: NotRequired[str | None]
+    bug_report_form: NotRequired[str | None]
+    github_issue_content: NotRequired[str | None]
+
     # Multi-turn bookkeeping.
     retry_count: NotRequired[int]
     conversation_summary: NotRequired[str | None]

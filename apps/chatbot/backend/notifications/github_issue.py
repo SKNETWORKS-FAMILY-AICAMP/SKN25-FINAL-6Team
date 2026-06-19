@@ -16,7 +16,12 @@ BUG_CATEGORY_VALUES = {"bug", "버그", "오류"}
 
 
 def _inquiry_content(state: dict[str, Any]) -> str:
-    return str(state.get("normalized_query") or state.get("raw_query") or "").strip()
+    return str(
+        state.get("github_issue_content")
+        or state.get("normalized_query")
+        or state.get("raw_query")
+        or ""
+    ).strip()
 
 
 def _is_review_required_bug(state: dict[str, Any]) -> bool:
