@@ -22,8 +22,7 @@ USER airflow
 COPY --chown=airflow:root common /opt/airflow/dags/common
 COPY --chown=airflow:root apps/cs_auto/backend /opt/airflow/dags/apps/cs_auto/backend
 COPY --chown=airflow:root apps/weekly_report /opt/airflow/dags/apps/weekly_report
-COPY --chown=airflow:root data/sql /opt/airflow/data/sql
-COPY --chown=airflow:root data/keywords /opt/airflow/data/keywords
+COPY --chown=airflow:root data /opt/airflow/data
 COPY --chown=airflow:root apps/cs_auto/deploy/scripts/start-airflow.sh /usr/local/bin/start-airflow
 
 COPY --chown=airflow:root apps/cs_auto/backend/requirements.txt /tmp/cs-auto-requirements.txt
