@@ -7,6 +7,7 @@ from collections.abc import Sequence
 
 from chatbot.generation.policies import BUG_POLICY, PAYMENT_POLICY
 from chatbot.schemas import ChatbotState
+from common.observability.logger import record_chat_model_usage
 
 
 # 결제/버그 agent를 LangChain create_agent 형태로 실행하기 위한 공통 builder다.
@@ -44,13 +45,17 @@ def _build_and_invoke_agent(
     *,
     system_prompt: str,
     tools: Sequence[Any],
+    usage_component: str,
     agent_instance: Any | None = None,
 ) -> dict[str, Any]:
     runtime_agent = agent_instance or build_chatbot_agent(
         system_prompt=system_prompt,
         tools=tools,
     )
-    return runtime_agent.invoke(state)
+    result = runtime_agent.invoke(state)
+    for message in result.get("messages") or []:
+        record_chat_model_usage(usage_component, os.environ.get("LLM_MODEL"), message)
+    return result
 
 
 # payment_agent 노드에서 결제 전용 prompt/tool 조합으로 agent를 호출할 때 사용하는 adapter다.
@@ -63,6 +68,7 @@ def invoke_payment_agent(
         state,
         system_prompt=PAYMENT_POLICY.system_prompt,
         tools=PAYMENT_POLICY.tools,
+        usage_component="payment_agent",
         agent_instance=agent_instance,
     )
 
@@ -77,5 +83,6 @@ def invoke_bug_agent(
         state,
         system_prompt=BUG_POLICY.system_prompt,
         tools=BUG_POLICY.tools,
+        usage_component="bug_agent",
         agent_instance=agent_instance,
     )

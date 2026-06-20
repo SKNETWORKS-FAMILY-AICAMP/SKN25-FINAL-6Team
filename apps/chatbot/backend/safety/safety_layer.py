@@ -19,18 +19,10 @@ from chatbot.generation.response.fixed_responses import SAFE_FALLBACK_RESPONSE
 from chatbot.observability.logger import EVENT_SAFETY_CHECKED, log_event
 from chatbot.repository.safety_repository import save_safety_results
 from chatbot.schemas import ChatbotState
+from common.observability.logger import estimate_tokens, record_usage
 
 
 MODERATION_MODEL = "omni-moderation-latest"
-
-MASK_PATTERNS: tuple[tuple[str, str, str], ...] = (
-    ("email", r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b", "[이메일]"),
-    ("phone", r"\b01[016789]-?\d{3,4}-?\d{4}\b", "[전화번호]"),
-    ("card_number", r"\b(?:\d[ -]?){13,19}\b", "[카드번호]"),
-    ("api_key", r"\b(?:sk|rk|pk|sess|token|key)-[A-Za-z0-9_-]{16,}\b", "[인증정보]"),
-    ("account_id", r"\b(?:account_id|user_id|uid|회원번호|계정번호)\s*[:=]\s*[A-Za-z0-9_-]{4,}\b", "[계정정보]"),
-)
-
 
 def _as_dict(value: object) -> dict:
     if hasattr(value, "model_dump"):
@@ -61,17 +53,7 @@ def _evidence_text(documents: list[dict[str, Any]]) -> str:
     return "\n".join(parts)
 
 
-def _mask_sensitive_text(text: str) -> tuple[str, list[str]]:
-    masked = text
-    applied: list[str] = []
-    for label, pattern, replacement in MASK_PATTERNS:
-        masked, count = re.subn(pattern, replacement, masked, flags=re.IGNORECASE)
-        if count:
-            applied.append(label)
-    return masked, applied
-
-
-MASK_PATTERNS = (
+MASK_PATTERNS: tuple[tuple[str, str, str], ...] = (
     ("email", r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b", "[이메일]"),
     ("phone", r"\b01[016789]-?\d{3,4}-?\d{4}\b", "[전화번호]"),
     ("url", r"\b(?:https?://|www\.)[^\s<>()\[\]{}\"']+", "[홈페이지]"),
@@ -178,6 +160,14 @@ def _moderation_safety_check(text: str) -> tuple[bool, dict[str, float], str]:
     response = client.moderations.create(
         model=MODERATION_MODEL,
         input=text,
+    )
+    record_usage(
+        component="safety_moderation",
+        model=MODERATION_MODEL,
+        prompt_tokens=estimate_tokens(text, MODERATION_MODEL),
+        completion_tokens=0,
+        successful_requests=1,
+        estimated=True,
     )
     result = response.results[0]
     scores = _as_dict(result.category_scores)
@@ -309,10 +299,11 @@ def _requires_second_pass_safety(
 
 
 def _requires_document_grounding(state: ChatbotState, documents: list[dict[str, Any]]) -> bool:
+    routing_target = str(state.get("routing_target") or "").strip().lower()
     return (
         state.get("reasoning_node") == "faq_agent"
         or str(state.get("category") or "").lower() == "faq"
-        or state.get("should_use_rag") is True
+        or routing_target in {"faq_agent", "rag_reply"}
     )
 
 
@@ -328,6 +319,12 @@ def _payment_context_requires_review(state: ChatbotState) -> tuple[bool, str | N
     context = state.get("payment_context")
     if not isinstance(context, dict):
         return False, None
+
+    if state.get("payment_intent_type") == "READ_ONLY":
+        return False, None
+
+    if state.get("payment_intent_type") == "ACTION_REQUEST":
+        return True, "payment_action_request_requires_operator_review"
 
     data = context.get("data")
     if not isinstance(data, dict):

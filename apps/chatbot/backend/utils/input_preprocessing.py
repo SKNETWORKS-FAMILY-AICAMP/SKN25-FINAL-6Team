@@ -28,6 +28,10 @@ PROMPT_INJECTION_PATTERNS: tuple[re.Pattern[str], ...] = (
         re.IGNORECASE,
     ),
     re.compile(
+        r"(?<![A-Za-z])DAN\s*mode(?![A-Za-z]).{0,40}(거절하지\s*마|거부하지\s*마|거절\s*금지|거부\s*금지|답하고)",
+        re.IGNORECASE,
+    ),
+    re.compile(
         r"\b(\.env|api key|secret|access token|private key|db password|database password)\b.{0,40}\b(show|print|reveal|leak|display|tell me)\b",
         re.IGNORECASE,
     ),
@@ -43,7 +47,7 @@ SENSITIVE_PATTERNS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     ("rrn", re.compile(r"\b\d{6}-?[1-4]\d{6}\b"), "[RRN]"),
     ("card_number", re.compile(r"\b(?:\d[ -]?){13,19}\b"), "[CARD_NUMBER]"),
     ("email", re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"), "[EMAIL]"),
-    ("phone", re.compile(r"\b01[016789]-?\d{3,4}-?\d{4}\b"), "[PHONE]"),
+    ("phone", re.compile(r"(?<!\d)01[016789]-?\d{3,4}-?\d{4}(?!\d)"), "[PHONE]"),
     (
         "api_key",
         re.compile(

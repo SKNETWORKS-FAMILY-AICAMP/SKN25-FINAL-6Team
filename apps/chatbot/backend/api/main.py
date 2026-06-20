@@ -16,6 +16,8 @@ configure_langsmith("chatbot")
 from chatbot.service.account_service import get_server_regions, login_with_credentials
 from chatbot.service.chatbot_service import run_chatbot
 from chatbot.service.multiturn_service import build_session_context
+from chatbot.repository.ticket_repository import find_collecting_bug_ticket
+from chatbot.retrieval.cache_store import get_cached_session_state, set_cached_session_state
 
 
 app = FastAPI(title="GameOps Chatbot API")
@@ -49,7 +51,6 @@ class ChatRequest(BaseModel):
     ui_category: str | None = None
     sub_category: str | None = None
     routing_target: str | None = None
-    should_use_rag: bool | None = None
     fallback_routing_target: str | None = None
     previous_messages: list[dict[str, str]] | None = None
     conversation_summary: str | None = None
@@ -139,6 +140,130 @@ def _next_session_turn_id(previous_session_id: str | int | None) -> str:
     return f"{session_id}-1"
 
 
+def _clip_session_text(value: Any, limit: int = 1200) -> str:
+    text = " ".join(str(value or "").replace("\\n", "\n").split())
+    if len(text) <= limit:
+        return text
+    return text[: limit - 3] + "..."
+
+
+def _session_messages_from_cache(payload: dict[str, Any]) -> list[dict[str, str]]:
+    messages = payload.get("previous_messages")
+    if not isinstance(messages, list):
+        return []
+    normalized: list[dict[str, str]] = []
+    for message in messages:
+        if not isinstance(message, dict):
+            continue
+        role = str(message.get("role") or "").strip()
+        content = _clip_session_text(message.get("content"), 1200)
+        if role and content:
+            normalized.append({"role": role, "content": content})
+    return normalized
+
+
+def _document_session_meta(documents: Any, limit: int = 5) -> list[dict[str, Any]]:
+    if not isinstance(documents, list):
+        return []
+    result: list[dict[str, Any]] = []
+    for document in documents[:limit]:
+        if not isinstance(document, dict):
+            continue
+        result.append(
+            {
+                "document_id": document.get("document_id") or document.get("documents_id"),
+                "chunk_id": document.get("chunk_id"),
+                "title": document.get("title"),
+                "source_type": document.get("source_type"),
+                "category": document.get("category"),
+                "published_at": document.get("published_at"),
+                "updated_at": document.get("updated_at"),
+            }
+        )
+    return result
+
+
+def _build_session_cache_payload(
+    *,
+    request: ChatRequest,
+    session_id: str,
+    previous_messages: list[dict[str, str]] | None,
+    answer: str,
+    state: dict[str, Any],
+) -> dict[str, Any]:
+    max_messages = int(os.environ.get("CHATBOT_SESSION_MAX_MESSAGES", "40"))
+    messages = list(previous_messages or [])
+    messages.extend(
+        [
+            {"role": "user", "content": _clip_session_text(request.user_message)},
+            {"role": "assistant", "content": _clip_session_text(answer)},
+        ]
+    )
+    messages = messages[-max_messages:]
+    return {
+        "session_id": session_id,
+        "user_id": request.user_id,
+        "account_id": request.account_id,
+        "previous_messages": messages,
+        "conversation_summary": state.get("conversation_summary"),
+        "last_category": state.get("category"),
+        "last_ui_category": state.get("ui_category"),
+        "last_sub_category": state.get("sub_category"),
+        "last_routing_target": state.get("routing_target"),
+        "last_retrieval_query": state.get("retrieval_query"),
+        "last_retrieved_documents": _document_session_meta(state.get("retrieved_documents")),
+        "last_answer": _clip_session_text(answer),
+    }
+
+
+def _is_bug_route(request: ChatRequest) -> bool:
+    return (
+        request.category == "bug"
+        or str(request.routing_target or "").strip().lower() == "bug_agent"
+    )
+
+
+def _extract_section(raw_query: str | None, section_name: str) -> str:
+    if not raw_query:
+        return ""
+    marker = f"[{section_name}]"
+    start = raw_query.find(marker)
+    if start == -1:
+        return ""
+    start += len(marker)
+    next_section = raw_query.find("\n[", start)
+    end = next_section if next_section != -1 else len(raw_query)
+    return raw_query[start:end].strip()
+
+
+def _extract_user_text(raw_query: str | None) -> str:
+    if not raw_query:
+        return ""
+    text = str(raw_query)
+    if not text.startswith("User:"):
+        return ""
+    start = len("User:")
+    end = text.find("\nAI:", start)
+    if end == -1:
+        end = len(text)
+    return text[start:end].strip()
+
+
+def _extract_initial_bug_query(raw_query: str | None) -> str:
+    return _extract_section(raw_query, "초기 문의") or _extract_user_text(raw_query)
+
+
+def _looks_like_bug_report_form(text: str) -> bool:
+    labels = (
+        "발생 시점",
+        "오류 메시지",
+        "사용 기기/OS",
+        "사용 기기",
+        "오류 내용",
+    )
+    return sum(1 for label in labels if label in text) >= 2
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     # 배포/헬스체크에서 API 프로세스가 살아 있는지만 빠르게 확인한다.
@@ -210,12 +335,43 @@ def list_tickets(
 
 @app.post("/chat", response_model=ChatResponse)
 def chat(request: ChatRequest) -> ChatResponse:
-    ticket_id = _new_ticket_id()
     session_id = _next_session_turn_id(request.session_id)
+    initial_bug_query: str | None = None
+    bug_collection_status: str | None = None
+    bug_report_form: str | None = None
+
+    collecting_ticket: dict[str, Any] | None = None
+    if _is_bug_route(request):
+        lookup = find_collecting_bug_ticket(
+            {
+                "user_id": request.user_id,
+                "account_id": request.account_id,
+                "session_id": session_id,
+            }
+        )
+        rows = lookup.get("data") or []
+        collecting_ticket = rows[0] if rows else None
+
+    if collecting_ticket:
+        ticket_id = int(collecting_ticket["ticket_id"])
+        initial_bug_query = _extract_initial_bug_query(collecting_ticket.get("raw_query"))
+        bug_collection_status = "ready_for_review"
+        bug_report_form = request.user_message
+    else:
+        ticket_id = _new_ticket_id()
+        if _is_bug_route(request):
+            initial_bug_query = request.user_message
+            if _looks_like_bug_report_form(request.user_message):
+                bug_collection_status = "ready_for_review"
+                bug_report_form = request.user_message
+            else:
+                bug_collection_status = "collecting"
 
     # 이전 대화가 요청에 없으면 DB에서 같은 session base의 최근 turn을 가져와 멀티턴 context로 사용한다.
-    previous_messages = request.previous_messages
-    conversation_summary = request.conversation_summary
+    session_cache = get_cached_session_state(session_id)
+    cached_messages = _session_messages_from_cache(session_cache)
+    previous_messages = cached_messages or request.previous_messages
+    conversation_summary = request.conversation_summary or session_cache.get("conversation_summary")
     if previous_messages is None:
         context = build_session_context(
             session_id=session_id,
@@ -239,12 +395,24 @@ def chat(request: ChatRequest) -> ChatResponse:
         ui_category=request.ui_category,
         sub_category=request.sub_category,
         routing_target=request.routing_target,
-        should_use_rag=request.should_use_rag,
         fallback_routing_target=request.fallback_routing_target,
         previous_messages=previous_messages,
         conversation_summary=conversation_summary,
+        initial_bug_query=initial_bug_query,
+        bug_collection_status=bug_collection_status,
+        bug_report_form=bug_report_form,
     )
     state = output["state"]
+    set_cached_session_state(
+        session_id,
+        _build_session_cache_payload(
+            request=request,
+            session_id=session_id,
+            previous_messages=previous_messages,
+            answer=output["answer"],
+            state=state,
+        ),
+    )
 
     # 프론트에는 화면 갱신에 필요한 최소 결과만 응답한다.
     return ChatResponse(

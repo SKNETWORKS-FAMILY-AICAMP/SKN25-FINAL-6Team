@@ -501,6 +501,7 @@ def fetch_unanalyzed_tickets() -> list[dict[str, object]]:
                 FROM qa_ticket t
                 LEFT JOIN ticket_analysis a ON a.ticket_id = t.ticket_id
                 WHERE a.analysis_id IS NULL
+                  AND LOWER(COALESCE(t.status, '')) <> 'collecting'
                 ORDER BY t.inquiry_created_at ASC NULLS LAST, t.ticket_id ASC
                 LIMIT %s
                 """,

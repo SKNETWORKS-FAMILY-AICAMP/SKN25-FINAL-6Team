@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from datetime import datetime
 import json
@@ -90,11 +90,11 @@ def test_run_faq_rag_blocks_llm_when_no_documents(monkeypatch) -> None:
     assert failed_payloads
 
 
-def test_run_faq_rag_skips_retrieval_when_intent_says_rag_is_not_needed(monkeypatch) -> None:
+def test_run_faq_rag_skips_retrieval_when_state_is_not_actionable(monkeypatch) -> None:
     failed_payloads = []
 
     def fail_enrich(*args, **kwargs):
-        raise AssertionError("RAG should not run when intent gate says should_use_rag=false")
+        raise AssertionError("RAG should not run when the inquiry is not actionable")
 
     monkeypatch.setattr(faq_agent, "enrich_retrieval_query", fail_enrich)
     monkeypatch.setattr(faq_agent, "_write_failed_query", lambda payload: failed_payloads.append(payload) or "{}")
@@ -104,7 +104,6 @@ def test_run_faq_rag_skips_retrieval_when_intent_says_rag_is_not_needed(monkeypa
             **_state(),
             "raw_query": "게임이 너무 어려워요.",
             "is_actionable": False,
-            "should_use_rag": False,
             "fallback_reason": "low_information_complaint",
         }
     )
@@ -234,6 +233,54 @@ def test_run_faq_rag_generates_once_with_evidence(monkeypatch) -> None:
     assert len(calls) == 1
     assert calls[0]["original_query"] == "payment item delivery"
     assert calls[0]["retrieval_query"] == "payment item delivery"
+
+
+def test_run_faq_rag_uses_published_at_for_latest_notice(monkeypatch) -> None:
+    calls = []
+    latest_notice_docs = [
+        {
+            "chunk_id": "notice-2-6-0",
+            "document_id": "NOTICE-2-6",
+            "source_type": "naver_cafe_notice",
+            "category": "공지사항",
+            "title": "자색 정원의 산들바람 2.6 버전 업데이트 공지",
+            "chunk_text": "2.6 버전 업데이트에는 신규 이벤트와 최적화 내용이 포함됩니다.",
+            "score": 1.0,
+            "cosine_score": 1.0,
+            "bm25_score": 1.0,
+            "field_match_score": 1.0,
+        }
+    ]
+
+    def fail_embed(*args, **kwargs):
+        raise AssertionError("latest notice lookup should not use embedding search")
+
+    monkeypatch.setattr(faq_agent, "_embed_query", fail_embed)
+    monkeypatch.setattr(faq_agent, "enrich_retrieval_query", lambda text: (_ for _ in ()).throw(AssertionError("latest notice lookup should skip enrichment")))
+    monkeypatch.setattr(faq_agent, "_fetch_latest_notice_documents", lambda limit: latest_notice_docs)
+    monkeypatch.setattr(
+        faq_agent,
+        "_generate_evidence_answer",
+        lambda **kwargs: calls.append(kwargs) or "latest notice answer",
+    )
+
+    result = faq_agent.run_faq_rag(
+        {
+            **_state(),
+            "raw_query": "가장 최근에 나온 공지사항 알려줘",
+            "normalized_query": "가장 최근에 나온 공지사항 알려줘",
+            "category": "faq",
+            "ui_category": "notice",
+            "sub_category": "notice_event",
+            "routing_target": "faq_agent",
+        }
+    )
+
+    assert result["draft_text"] == "latest notice answer"
+    assert result["retrieved_documents"] == latest_notice_docs
+    assert result["retrieval_query"] == "latest notice by published_at"
+    assert result["retrieval_enrichment"]["method"] == "latest_notice_by_published_at"
+    assert calls[0]["documents"] == latest_notice_docs
 
 
 def test_run_faq_rag_reuses_cached_retrieved_documents(monkeypatch) -> None:
@@ -372,7 +419,6 @@ def test_run_faq_rag_answers_with_canonical_retrieval_query(monkeypatch) -> None
             **_state(),
             "raw_query": "스토리 초기화 문의",
             "normalized_query": "스토리 초기화 문의",
-            "should_use_rag": True,
         }
     )
 
@@ -524,6 +570,54 @@ def test_search_document_chunks_adds_broad_faq_candidates_when_query_candidates_
     assert calls == [(True, True), (True, False)]
     assert results[0]["chunk_id"] == "guide"
     assert results[0]["candidate_scope"] == "faq_broad"
+
+
+def test_search_document_chunks_can_broaden_with_category_filter(monkeypatch) -> None:
+    calls = []
+
+    def fake_fetch_candidate_rows(
+        *,
+        retrieval_query,
+        candidate_limit,
+        faq_only,
+        enrichment=None,
+        use_query_filter=True,
+        query_vector=None,
+    ):
+        calls.append((faq_only, use_query_filter, list(enrichment.preferred_categories or []) if enrichment else []))
+        return [
+            {
+                "chunk_id": "bug-faq",
+                "document_id": "QNA-GSN-51",
+                "source_type": "hoyoverse_qna_common",
+                "category": "bug_faq",
+                "title": "버그, 튕김 관련 FAQ",
+                "chunk_text": "게임을 켜자마자 튕기는 경우 그래픽카드 드라이버를 업데이트합니다.",
+                "embedding_vector": "[1.0,0.0]",
+            }
+        ]
+
+    monkeypatch.setattr(vector_tools, "_fetch_candidate_rows", fake_fetch_candidate_rows)
+    monkeypatch.setenv("RETRIEVAL_MIN_CANDIDATES", "2")
+
+    results = search_document_chunks(
+        embedding_json="[1.0,0.0]",
+        query_text="게임 켜자마자 튕겨요",
+        top_k=1,
+        prefer_faq=False,
+        enrichment=RetrievalQuery(
+            query_text="게임 켜자마자 튕겨요",
+            preferred_source_types=[],
+            preferred_categories=["bug_faq"],
+        ),
+    )
+
+    assert calls == [
+        (False, True, ["bug_faq"]),
+        (False, False, ["bug_faq"]),
+    ]
+    assert results[0]["category"] == "bug_faq"
+    assert results[0]["candidate_scope"] == "filtered_broad"
 
 
 def test_hybrid_rank_documents_prefers_qna_over_adjacent_notice_when_scores_are_close() -> None:

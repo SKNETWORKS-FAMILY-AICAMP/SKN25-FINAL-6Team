@@ -5,6 +5,7 @@ import math
 import os
 import re
 from collections import Counter
+from functools import lru_cache
 from typing import Any
 
 from langchain_core.tools import tool
@@ -14,7 +15,13 @@ from psycopg.rows import dict_row
 from pydantic import BaseModel, Field
 
 from common.db.connection import db_connection
-from common.observability.logger import EVENT_TOOL_COMPLETED, EVENT_TOOL_STARTED, log_event
+from common.observability.logger import (
+    EVENT_TOOL_COMPLETED,
+    EVENT_TOOL_STARTED,
+    log_event,
+    record_chat_model_usage,
+    record_embedding_usage,
+)
 
 
 FAQ_SOURCE_TYPES = (
@@ -102,6 +109,28 @@ def refine_query_text(text: str, max_terms: int = 16) -> str:
     return " ".join(deduped[:max_terms])
 
 
+@lru_cache(maxsize=1)
+def _known_faq_categories() -> frozenset[str]:
+    """Load FAQ document categories from DB once; skip category filters if unavailable."""
+    source_placeholders = ", ".join(["%s"] * len(FAQ_SOURCE_TYPES))
+    try:
+        with db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    SELECT DISTINCT category
+                    FROM documents
+                    WHERE source_type IN ({source_placeholders})
+                      AND category IS NOT NULL
+                      AND category <> ''
+                    """,
+                    list(FAQ_SOURCE_TYPES),
+                )
+                return frozenset(str(row[0]) for row in cur.fetchall() if row[0])
+    except Exception:
+        return frozenset()
+
+
 def _query_patterns(query: str, max_tokens: int = 8) -> list[str]:
     """Generate LIKE patterns used for title/category prefiltering."""
     tokens = list(dict.fromkeys(_tokenize(refine_query_text(query))))
@@ -153,21 +182,29 @@ def enrich_retrieval_query(text: str) -> RetrievalQuery:
             api_key=api_key,
             temperature=0,
             timeout=float(os.environ.get("LLM_TIMEOUT_SECONDS", "60")),
-        ).with_structured_output(RetrievalQuery)
-        result = llm.invoke(
+        ).with_structured_output(RetrievalQuery, include_raw=True)
+        raw_result = llm.invoke(
             [
                 (
                     "system",
                     "You enrich Korean game CS FAQ/RAG search queries. "
-                    "Extract a concise Korean query_text and optional category hints. "
-                    "Normalize slang, typos, and equivalent phrases into the same canonical Korean FAQ search query. "
-                    "For example, similar phrasings about resetting game progress should become one canonical query. "
-                    "Do not preserve vague slang when a clearer FAQ title-style query is possible. "
+                    "Extract a concise Korean query_text and optional category hints for retrieval. "
+                    "Preserve concrete search clues from the user text: exact error messages, quoted phrases, "
+                    "product names, event names, version numbers, character names, currency/item names, and IDs. "
+                    "Normalize slang, typos, and equivalent phrases only when doing so keeps those concrete clues. "
+                    "Avoid over-generalizing into broad labels such as game update, character, account, or payment "
+                    "when the original text contains a more specific title-like phrase. "
+                    "Keep 3 to 8 search-critical Korean terms in query_text when possible. "
+                    "Use preferred_categories only when it exactly matches a known FAQ category. "
                     "Do not answer the user.",
                 ),
                 ("user", text),
             ]
         )
+        record_chat_model_usage("query_enrichment", model, raw_result.get("raw"))
+        result = raw_result.get("parsed")
+        if result is None:
+            return _fallback_enrich_query(text)
         query_text = refine_query_text(result.query_text or text)
         if _query_overlap_ratio(text, query_text) < float(os.environ.get("RETRIEVAL_MIN_QUERY_OVERLAP", "0.2")):
             query_text = refine_query_text(text)
@@ -304,9 +341,9 @@ def _llm_rerank_documents(documents: list[dict[str, Any]], query: str) -> list[d
         api_key=api_key,
         temperature=0,
         timeout=float(os.environ.get("LLM_TIMEOUT_SECONDS", "60")),
-    ).with_structured_output(RerankResult)
+    ).with_structured_output(RerankResult, include_raw=True)
 
-    result = reranker.invoke(
+    raw_result = reranker.invoke(
         [
             (
                 "system",
@@ -322,6 +359,10 @@ def _llm_rerank_documents(documents: list[dict[str, Any]], query: str) -> list[d
             ),
         ]
     )
+    record_chat_model_usage("reranker", model, raw_result.get("raw"))
+    result = raw_result.get("parsed")
+    if result is None:
+        return _fallback_rerank(documents)
 
     by_id = {str(document.get("chunk_id") or ""): document for document in documents}
     seen: set[str] = set()
@@ -450,7 +491,12 @@ def _enrichment_filter_clause(enrichment: RetrievalQuery | None) -> tuple[str, l
         checks.append(f"d.source_type IN ({', '.join(['%s'] * len(source_types))})")
         params.extend(source_types)
 
-    categories = [category for category in enrichment.preferred_categories if category]
+    known_categories = _known_faq_categories()
+    categories = [
+        category
+        for category in enrichment.preferred_categories
+        if category and (not known_categories or category in known_categories)
+    ]
     if categories:
         checks.append("d.category = ANY(%s)")
         params.append(categories)
@@ -630,6 +676,13 @@ def search_document_chunks(
     if isinstance(enrichment, dict):
         enrichment = RetrievalQuery.model_validate(enrichment)
     db_side_query_vec = query_vec if _db_side_vector_search_enabled() else None
+    has_enrichment_scope = bool(
+        enrichment
+        and (
+            getattr(enrichment, "preferred_categories", None)
+            or getattr(enrichment, "preferred_source_types", None)
+        )
+    )
 
     rows = _fetch_candidate_rows(
         retrieval_query=retrieval_query,
@@ -639,7 +692,25 @@ def search_document_chunks(
         use_query_filter=True,
         query_vector=db_side_query_vec,
     )
-    candidate_scope = "faq"
+    if has_enrichment_scope and not prefer_faq:
+        candidate_scope = "filtered"
+    else:
+        candidate_scope = "faq" if prefer_faq else "all"
+
+    if has_enrichment_scope and not prefer_faq and len(rows) < min_candidate_count:
+        broad_rows = _fetch_candidate_rows(
+            retrieval_query=retrieval_query,
+            candidate_limit=broad_candidate_limit,
+            faq_only=prefer_faq,
+            enrichment=enrichment,
+            use_query_filter=False,
+            query_vector=db_side_query_vec,
+        )
+        rows_by_id = {row["chunk_id"]: row for row in rows}
+        for row in broad_rows:
+            rows_by_id.setdefault(row["chunk_id"], row)
+        rows = list(rows_by_id.values())
+        candidate_scope = "filtered_broad"
 
     if prefer_faq and len(rows) < min_candidate_count:
         broad_rows = _fetch_candidate_rows(
@@ -711,6 +782,7 @@ def embed_query(text: str) -> str:
         api_key=os.environ.get("LLM_API_KEY"),
     )
     vector = client.embed_query(text)
+    record_embedding_usage("embedding", _embedding_model_name(), text)
     log_event(
         EVENT_TOOL_COMPLETED,
         tool_name="embed_query",

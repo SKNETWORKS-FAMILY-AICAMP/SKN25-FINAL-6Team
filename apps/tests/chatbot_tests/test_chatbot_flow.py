@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 
@@ -7,7 +7,7 @@ import pytest
 from chatbot.chains.routing import route_after_draft_persistence, route_after_safety, route_by_category
 
 from chatbot.constants import VOC_FIXED_RESPONSE
-from chatbot.generation import ticket_preprocess, voc_agent
+from chatbot.generation import bug_agent, payment_agent, ticket_preprocess, voc_agent
 from chatbot.generation.response.ticket_completion import ticket_completion_node
 from chatbot.generation.response.fixed_responses import (
     BLOCK_RESPONSE,
@@ -47,6 +47,97 @@ def test_preprocess_user_input_masks_sensitive_values_without_dropping_question(
     assert result["detected_labels"] == ["email", "phone", "password"]
 
 
+def test_bug_agent_answers_known_bug_faq_before_collecting_form(monkeypatch) -> None:
+    docs = [
+        {
+            "chunk_id": "QNA-GSN-51::chunk::1",
+            "document_id": "QNA-GSN-51",
+            "source_type": "hoyoverse_qna_common",
+            "category": "bug_faq",
+            "title": "버그, 튕김 관련 FAQ",
+            "chunk_text": "게임을 켜자마자 튕기는 경우 그래픽카드 드라이버 업데이트를 시도합니다.",
+            "cosine_score": 0.91,
+        }
+    ]
+
+    monkeypatch.setattr(bug_agent, "_embed_query", lambda query: "[1.0,0.0]")
+    search_payloads = []
+
+    def fake_search_document_chunks(**kwargs):
+        search_payloads.append(kwargs)
+        return docs
+
+    monkeypatch.setattr(bug_agent, "search_document_chunks", fake_search_document_chunks)
+    monkeypatch.setattr(bug_agent, "_rerank_documents", lambda documents, query: documents)
+    monkeypatch.setattr(
+        bug_agent,
+        "_generate_evidence_answer",
+        lambda **kwargs: "확인된 FAQ 기준으로 안내드립니다.",
+    )
+
+    update = bug_agent.bug_agent_node(
+        {
+            "ticket_id": 1,
+            "session_id": "s-1",
+            "raw_query": "게임 켜자마자 튕겨요",
+            "normalized_query": "게임 켜자마자 튕겨요",
+            "retry_count": 0,
+            "category": "bug",
+            "routing_target": "bug_agent",
+            "bug_collection_status": "collecting",
+        }
+    )
+
+    assert update["draft_text"] == "확인된 FAQ 기준으로 안내드립니다."
+    assert update["bug_collection_status"] is None
+    assert update["retrieved_documents"] == docs
+    assert search_payloads[0]["enrichment"].preferred_categories == ["bug_faq"]
+
+
+def test_bug_agent_accepts_reranked_bug_faq_chunk_with_realistic_scores(monkeypatch) -> None:
+    docs = [
+        {
+            "chunk_id": "QNA-GSN-51::chunk::0",
+            "document_id": "QNA-GSN-51",
+            "source_type": "universe_qna_onlydaily",
+            "category": "bug_faq",
+            "title": "버그, 튕김 관련 FAQ",
+            "chunk_text": "Q: 게임을 켜자마자 튕기는데 어떡해야 하나요?\nA: 지원 기종 확인 후 재설치 등을 시도합니다.",
+            "cosine_score": 0.388024,
+            "bm25_score": 1.387389,
+            "score": 0.038522,
+            "rerank_rank": 1,
+        }
+    ]
+
+    monkeypatch.setattr(bug_agent, "_embed_query", lambda query: "[1.0,0.0]")
+    monkeypatch.setattr(bug_agent, "search_document_chunks", lambda **kwargs: docs)
+    monkeypatch.setattr(bug_agent, "_rerank_documents", lambda documents, query: documents)
+    monkeypatch.setattr(
+        bug_agent,
+        "_generate_evidence_answer",
+        lambda **kwargs: "FAQ 문서 기준으로 답변합니다.",
+    )
+
+    update = bug_agent.bug_agent_node(
+        {
+            "ticket_id": 1,
+            "session_id": "s-1",
+            "raw_query": "게임 켜자마자 튕기는데 어떡해",
+            "normalized_query": "게임 켜자마자 튕기는데 어떡해",
+            "retry_count": 0,
+            "category": "bug",
+            "routing_target": "bug_agent",
+            "bug_collection_status": "collecting",
+        }
+    )
+
+    assert update["draft_text"] == "FAQ 문서 기준으로 답변합니다."
+    assert update["bug_collection_status"] is None
+    assert update["retrieval_enrichment"]["best_cosine_score"] == pytest.approx(0.388024)
+    assert update["retrieval_enrichment"]["best_bm25_score"] == pytest.approx(1.387389)
+
+
 def test_build_state_uses_masked_content_for_runtime_message_but_keeps_raw_query() -> None:
     user_message = "아이템 미지급입니다. test@example.com 010-1234-5678"
 
@@ -66,6 +157,30 @@ def test_build_state_uses_masked_content_for_runtime_message_but_keeps_raw_query
     assert "Selected subcategory: launch_access_error" in state["messages"][-1]["content"]
     assert state["input_masked"] is True
     assert state["input_detected_labels"] == ["email", "phone"]
+
+
+def test_payment_agent_does_not_read_db_for_out_of_scope_input(monkeypatch) -> None:
+    def fail_collect_payment_context(state):
+        raise AssertionError("payment context should not be collected for out-of-scope input")
+
+    monkeypatch.setattr(payment_agent, "_collect_payment_context", fail_collect_payment_context)
+
+    update = payment_agent.payment_agent_node(
+        {
+            "ticket_id": 1,
+            "session_id": "s-1",
+            "raw_query": "sdsdsd",
+            "masked_content": "sdsdsd",
+            "normalized_query": "sdsdsd",
+            "retry_count": 0,
+            "category": "payment",
+            "routing_target": "payment_agent",
+        }
+    )
+
+    assert update["draft_text"].startswith("결제/환불 문의 내용을 조금 더 구체적으로 입력해 주세요.")
+    assert update["payment_intent_type"] == "OUT_OF_SCOPE"
+    assert update["retrieved_documents"] == []
 
 
 def test_ticket_preprocess_persists_raw_query_and_normalizes_masked_content(monkeypatch) -> None:
@@ -395,7 +510,7 @@ def test_safety_layer_does_not_fallback_payment_agent_without_rag_docs(monkeypat
             "retrieved_documents": [],
             "retry_count": 0,
             "category": "결제",
-            "routing_target": "urgent_alert",
+            "routing_target": "payment_agent",
             "reasoning_node": "payment_agent",
         }
     )
@@ -433,9 +548,8 @@ def test_safety_layer_does_not_ground_non_faq_payment_context_documents(monkeypa
             ],
             "retry_count": 0,
             "category": "결제",
-            "routing_target": "urgent_alert",
+            "routing_target": "payment_agent",
             "reasoning_node": "payment_agent",
-            "should_use_rag": False,
         }
     )
 
@@ -581,6 +695,94 @@ def test_ticket_completion_uses_fixed_block_and_review_responses(monkeypatch) ->
     assert [payload["status"] for payload in payloads["ticket"]] == ["resolved", "pending"]
 
 
+def test_ticket_completion_deletes_category_redirect_ticket(monkeypatch) -> None:
+    payloads = {"ticket": [], "notification": [], "delete": []}
+
+    monkeypatch.setattr(
+        "chatbot.generation.response.ticket_completion.update_qa_ticket_raw_query",
+        lambda payload: payloads["ticket"].append(payload) or {"stored": True},
+    )
+    monkeypatch.setattr(
+        "chatbot.generation.response.ticket_completion.dispatch_github_issue_notification",
+        lambda state: payloads["notification"].append(state) or {"status": "ok"},
+    )
+    monkeypatch.setattr(
+        "chatbot.generation.response.ticket_completion.delete_qa_ticket",
+        lambda payload: payloads["delete"].append(payload) or {"status": "ok", "deleted": True},
+    )
+
+    result = ticket_completion_node(
+        {
+            **_final_state("bug", "AUTO_RESPONSE"),
+            "draft_text": "죄송합니다. 이 채널은 버그/오류 문의 전용입니다. 다른 문의는 올바른 카테고리를 선택해 주세요.",
+            "reasoning_node": "bug_agent",
+        }
+    )
+
+    assert result["final_text"].startswith("죄송합니다.")
+    assert result["notification_result"]["status"] == "skipped"
+    assert payloads["delete"] == [{"ticket_id": 1}]
+    assert payloads["ticket"] == []
+    assert payloads["notification"] == []
+
+
+def test_ticket_completion_stores_collecting_bug_form(monkeypatch) -> None:
+    payloads = _patch_ticket_completion_writes(monkeypatch)
+
+    result = ticket_completion_node({
+        **_final_state("bug", "AUTO_RESPONSE"),
+        "routing_target": "bug_agent",
+        "reasoning_node": "bug_agent",
+        "raw_query": "게임이 튕겨요",
+        "initial_bug_query": "게임이 튕겨요",
+        "bug_collection_status": "collecting",
+        "draft_text": "문제 확인을 위해 아래 형식으로 알려주세요.",
+        "review_required": False,
+    })
+
+    assert result["final_text"] == "문제 확인을 위해 아래 형식으로 알려주세요."
+    assert payloads["ticket"][0]["status"] == "collecting"
+    assert payloads["ticket"][0]["raw_query"] == (
+        "User: 게임이 튕겨요\n"
+        "AI: 문제 확인을 위해 아래 형식으로 알려주세요."
+    )
+
+
+def test_ticket_completion_stores_ready_bug_form_for_github(monkeypatch) -> None:
+    payloads = {"ticket": [], "notification": []}
+
+    monkeypatch.setattr(
+        "chatbot.generation.response.ticket_completion.update_qa_ticket_raw_query",
+        lambda payload: payloads["ticket"].append(payload) or {"stored": True, "ticket_id": payload["ticket_id"]},
+    )
+    monkeypatch.setattr(
+        "chatbot.generation.response.ticket_completion.dispatch_github_issue_notification",
+        lambda state: payloads["notification"].append(state) or {"status": "ok"},
+    )
+
+    result = ticket_completion_node({
+        **_final_state("bug", "REVIEW_REQUIRED"),
+        "routing_target": "bug_agent",
+        "reasoning_node": "bug_agent",
+        "raw_query": "발생 시점: 로그인 화면",
+        "initial_bug_query": "게임이 튕겨요",
+        "bug_report_form": "발생 시점: 로그인 화면\n오류 메시지: 없음",
+        "bug_collection_status": "ready_for_review",
+        "draft_text": "제공해주신 내용 기준으로 오류 문의가 접수되었습니다.",
+        "review_required": True,
+    })
+
+    assert result["final_text"] == "제공해주신 내용 기준으로 오류 문의가 접수되었습니다."
+    assert payloads["ticket"][0]["status"] == "pending"
+    assert payloads["ticket"][0]["raw_query"] == (
+        "User: 게임이 튕겨요\n\n"
+        "발생 시점: 로그인 화면\n"
+        "오류 메시지: 없음\n"
+        "AI: 제공해주신 내용 기준으로 오류 문의가 접수되었습니다."
+    )
+    assert payloads["notification"][0]["github_issue_content"] == payloads["ticket"][0]["raw_query"]
+
+
 def test_ticket_completion_does_not_write_chatbot_insight(monkeypatch) -> None:
     _patch_ticket_completion_writes(monkeypatch)
 
@@ -619,7 +821,7 @@ def test_dispatch_github_issue_creates_issue_for_review_required_bug(monkeypatch
             "user_id": 3,
             "account_id": 4,
             "category": "bug",
-            "routing_target": "urgent_alert",
+            "routing_target": "bug_agent",
             "reasoning_node": "bug_agent",
             "safety_action": "REVIEW_REQUIRED",
             "review_required": True,
@@ -649,7 +851,7 @@ def test_dispatch_github_issue_skips_for_non_bug(monkeypatch) -> None:
         {
             "ticket_id": 1,
             "category": "payment",
-            "routing_target": "urgent_alert",
+            "routing_target": "payment_agent",
             "reasoning_node": "payment_agent",
             "safety_action": "REVIEW_REQUIRED",
             "review_required": True,
@@ -676,7 +878,7 @@ def test_dispatch_github_issue_skips_duplicate_ticket(monkeypatch) -> None:
         {
             "ticket_id": 1,
             "category": "bug",
-            "routing_target": "urgent_alert",
+            "routing_target": "bug_agent",
             "reasoning_node": "bug_agent",
             "safety_action": "REVIEW_REQUIRED",
             "review_required": True,
@@ -689,17 +891,16 @@ def test_dispatch_github_issue_skips_duplicate_ticket(monkeypatch) -> None:
     assert not github_calls
 
 
-def test_voc_agent_uses_fallback_for_non_actionable_non_rag_intent(monkeypatch) -> None:
+def test_voc_agent_uses_fallback_for_non_actionable_intent(monkeypatch) -> None:
     result = voc_agent.voc_agent_node(
         {
             "ticket_id": 1,
             "user_id": 1,
             "account_id": 101,
             "normalized_query": "게임 이용 불만",
-            "routing_target": "rag_reply",
+            "routing_target": "voc_agent",
             "retry_count": 0,
             "is_actionable": False,
-            "should_use_rag": False,
             "fallback_reason": "low_information_complaint",
         }
     )
@@ -730,3 +931,18 @@ def test_voc_skips_safety_and_never_retries_from_safety() -> None:
 def test_route_after_draft_persistence_skips_safety_for_voc() -> None:
     assert route_after_draft_persistence({"category": "voc"}) == "ticket_completion"
     assert route_after_draft_persistence({"category": "faq"}) == "safety_layer"
+
+
+def test_route_after_draft_persistence_skips_safety_for_bug_collection() -> None:
+    assert route_after_draft_persistence({
+        "reasoning_node": "bug_agent",
+        "bug_collection_status": "collecting",
+    }) == "ticket_completion"
+
+
+def test_route_after_draft_persistence_sends_bug_faq_rag_to_safety() -> None:
+    assert route_after_draft_persistence({
+        "reasoning_node": "bug_agent",
+        "bug_collection_status": "collecting",
+        "retrieved_documents": [{"chunk_text": "게임 튕김 FAQ"}],
+    }) == "safety_layer"

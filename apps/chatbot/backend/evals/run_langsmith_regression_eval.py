@@ -27,6 +27,28 @@ from chatbot.service.chatbot_service import stream_chatbot
 
 CHATBOT_ROUTES = {"payment_agent", "bug_agent", "faq_agent", "voc_agent"}
 CHATBOT_CATEGORIES = {"payment", "bug", "faq", "voc"}
+UI_SUBCATEGORY_ROUTES = {
+    "payment_history": ("payment", "payment_agent"),
+    "missing_item": ("payment", "payment_agent"),
+    "duplicate_payment": ("payment", "payment_agent"),
+    "payment_method": ("faq", "faq_agent"),
+    "refund_policy": ("faq", "faq_agent"),
+    "login_issue": ("faq", "faq_agent"),
+    "account_recovery": ("faq", "faq_agent"),
+    "account_linking": ("faq", "faq_agent"),
+    "phone_change": ("faq", "faq_agent"),
+    "product_not_delivered": ("payment", "payment_agent"),
+    "mail_reward": ("faq", "faq_agent"),
+    "coupon_usage": ("faq", "faq_agent"),
+    "launch_access_error": ("bug", "bug_agent"),
+    "gameplay_progress_error": ("bug", "bug_agent"),
+    "graphics_sound_error": ("bug", "bug_agent"),
+    "paid_item_missing": ("payment", "payment_agent"),
+    "reward_mail_missing": ("payment", "payment_agent"),
+    "gacha_log_issue": ("payment", "payment_agent"),
+    "notice_event": ("faq", "faq_agent"),
+    "voc_etc": ("voc", "voc_agent"),
+}
 SOURCE_TYPE_EVIDENCE = {
     "hoyoverse_qna_common": "faq_document",
     "hoyoverse_qna_onlygenshin": "faq_document",
@@ -54,7 +76,7 @@ def load_chatbot_langsmith_env() -> None:
 
 def chatbot_target(inputs: dict[str, Any]) -> dict[str, Any]:
     """Run the chatbot workflow for one LangSmith dataset example."""
-    category = str(inputs.get("category") or "")
+    category, routing_target = _resolve_eval_route(inputs)
     if category not in CHATBOT_CATEGORIES:
         return {
             "answer": "",
@@ -62,6 +84,28 @@ def chatbot_target(inputs: dict[str, Any]) -> dict[str, Any]:
             "category": category,
             "routing_target": "external_system",
             "safety_action": "REVIEW_REQUIRED",
+            "safety_passed": None,
+            "cache_events": [],
+            "redis_cache_hit_observed": False,
+            "redis_cache_store_backend": None,
+            "latency_ms": 0.0,
+            "retrieved_document_count": 0,
+            "multihop_accepted": False,
+            "multihop_followup_query": None,
+            "multihop_second_document_count": 0,
+            "payment_context_count": 0,
+            "payment_context_counts": {},
+            "faq_failure_reason": None,
+            "observed_evidence_types": [],
+            "retrieved_contexts": [],
+        }
+    if not inputs.get("user_message"):
+        return {
+            "answer": "",
+            "route": routing_target,
+            "category": category,
+            "routing_target": routing_target,
+            "safety_action": "AUTO_RESPONSE",
             "safety_passed": None,
             "cache_events": [],
             "redis_cache_hit_observed": False,
@@ -103,9 +147,13 @@ def chatbot_target(inputs: dict[str, Any]) -> dict[str, Any]:
         result = stream_chatbot(
             ticket_id=ticket_id,
             user_message=str(inputs["user_message"]),
-            category=inputs.get("category"),
+            category=category,
             user_id=user_id,
             account_id=account_id,
+            ui_category=inputs.get("ui_category"),
+            sub_category=inputs.get("sub_category"),
+            routing_target=routing_target,
+            fallback_routing_target=inputs.get("fallback_routing_target"),
         )
         latency_ms = (time.perf_counter() - started_at) * 1000
     finally:
@@ -146,6 +194,25 @@ def chatbot_target(inputs: dict[str, Any]) -> dict[str, Any]:
         "faq_failure_reason": state.get("faq_failure_reason"),
         "observed_evidence_types": observed_evidence_types,
     }
+
+
+def _resolve_eval_route(inputs: dict[str, Any]) -> tuple[str, str | None]:
+    """Mirror the frontend subcategory contract so evals run the same route as the UI."""
+    category = str(inputs.get("category") or "").strip()
+    routing_target = inputs.get("routing_target")
+
+    sub_category = str(inputs.get("sub_category") or "").strip()
+    if not category and sub_category in UI_SUBCATEGORY_ROUTES:
+        category, routing_target = UI_SUBCATEGORY_ROUTES[sub_category]
+
+    if category and not routing_target:
+        routing_target = {
+            "payment": "payment_agent",
+            "bug": "bug_agent",
+            "faq": "faq_agent",
+            "voc": "voc_agent",
+        }.get(category)
+    return category, routing_target
 
 
 def _retrieved_contexts(retrieved_documents: list[dict[str, Any]]) -> list[str]:

@@ -41,7 +41,6 @@ class ChatbotState(AgentState):
     routing_target: NotRequired[RoutingTarget | str]
     fallback_routing_target: NotRequired[str | None]
     is_actionable: NotRequired[bool | None]
-    should_use_rag: NotRequired[bool | None]
     fallback_reason: NotRequired[str | None]
 
     # Drafting, retrieval, safety, and review state.
@@ -62,6 +61,8 @@ class ChatbotState(AgentState):
     retrieval_cache_key_hash: NotRequired[str | None]
     retrieval_cache_ttl: NotRequired[int | None]
     payment_context: NotRequired[dict[str, Any] | None]
+    payment_intent: NotRequired[dict[str, Any] | None]
+    payment_intent_type: NotRequired[str | None]
     faq_failure_reason: NotRequired[str | None]
     safety_passed: NotRequired[bool | None]
     safety_action: NotRequired[SafetyAction | str | None]
@@ -75,6 +76,13 @@ class ChatbotState(AgentState):
     masking_applied: NotRequired[bool | None]
     masking_labels: NotRequired[list[str]]
     notification_result: NotRequired[dict[str, Any] | None]
+
+    # Bug reproduction collection state.
+    initial_bug_query: NotRequired[str | None]
+    bug_intent: NotRequired[dict[str, Any] | None]
+    bug_collection_status: NotRequired[str | None]
+    bug_report_form: NotRequired[str | None]
+    github_issue_content: NotRequired[str | None]
 
     # Multi-turn bookkeeping.
     retry_count: NotRequired[int]

@@ -1,0 +1,3456 @@
+{
+  "dataset_info": {
+    "name": "gameops-chatbot-faq-agent-db-grounded-40-v1",
+    "version": "v1",
+    "description": "FAQ/RAG agent examples grounded in actual documents and document chunks.",
+    "total_examples": 40,
+    "paper_basis": [
+      "Self-Instruct: generate diverse instruction/input/output examples, then filter invalid or near-duplicate samples.",
+      "Persona-based synthetic user simulation: vary user intent, urgency, expertise, and message style.",
+      "Synthetic user generated text evaluation: include short, noisy, incomplete, and typo-like user messages so evals are not overly clean."
+    ],
+    "generation_note": "Synthetic user messages are generated from actual local DB records/documents. The expected evidence IDs point to the DB rows used to generate each example.",
+    "category_counts": {
+      "faq": 40
+    }
+  },
+  "examples": [
+    {
+      "inputs": {
+        "user_message": "공식 충전센터/PC 클라이언트에서 결제를 시도했는데 「거래가 거부되었습니다. 기타 결제 방식을 선택해주세요」...",
+        "category": "faq",
+        "routing_target": "faq_agent",
+        "user_id": 1,
+        "account_id": 101
+      },
+      "outputs": {
+        "reference_answer": "QNA-COM-30 문서의 '공식 충전센터/PC 클라이언트에서 결제를 시도했는데 「거래가 거부되었습니다. 기타 결제 방식을 선택해주세요」...' 근거에 따라 답해야 합니다. 핵심 근거: 공식 충전센터/PC 클라이언트에서 결제를 시도했는데 「거래가 거부되었습니다. 기타 결제 방식을 선택해주세요」라는 팝업창이 떠요. 어떻게 해야 하나요? 질문: 공식 충전센터/PC 클라이언트에서 결제를 시도했는데 「거래가 거부되었습니다. 기타 결제 방식을 선택해주세요」라는 팝업창이 떠요. 어떻게 해야 하나요? 답변: 은행 카드 정보를 정확하게 입력했는지 확인한 다음 다시 시도해 보실 것을 권장드...",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "faq_document"
+        ],
+        "requires_rag": true,
+        "source_documents": [
+          "QNA-COM-30"
+        ],
+        "expected_chunks": [
+          "QNA-COM-30::chunk::0"
+        ],
+        "acceptable_documents": [
+          "QNA-COM-30"
+        ],
+        "acceptable_chunks": [
+          "QNA-COM-30::chunk::0"
+        ],
+        "acceptable_source_types": [
+          "universe_qna_common"
+        ],
+        "expected_keywords": [
+          "공식",
+          "충전센터",
+          "PC",
+          "클라이언트에서",
+          "결제를"
+        ],
+        "rubrics": {
+          "faithfulness": "QNA-COM-30 / QNA-COM-30::chunk::0 근거 안에서만 답한다.",
+          "source_hit@5": "acceptable_documents/source_types/chunks 중 하나가 top-5 검색 결과에 포함되어야 한다.",
+          "false_fallback_rate": "정답 chunk가 검색 가능한 케이스이므로 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "FAQ-001",
+        "eval_area": "faq_agent",
+        "domain": "결제_관련_이슈",
+        "source_type": "universe_qna_common",
+        "persona": "new_player",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "유니버스 때문에 문의드려요. 어떻게 해야 하나요?",
+        "category": "faq",
+        "routing_target": "faq_agent",
+        "user_id": 1,
+        "account_id": 101
+      },
+      "outputs": {
+        "reference_answer": "QNA-COM-25 문서의 '유니버스 통행증은 어떤 개인정보를 수집하나요?' 근거에 따라 답해야 합니다. 핵심 근거: 유니버스 통행증은 어떤 개인정보를 수집하나요? 질문: 유니버스 통행증은 어떤 개인정보를 수집하나요? 답변: 개인정보 수집 및 보호와 관련된 내용은 당사의 개인정보처리방침(https://account.universe.example)에서 확인할 수 있습니다. 다른 문제가 있을 경우 privacy@universe.example으로 연락해 주시기 바랍니다. 유니버스 산하 게임에서 수집하는 정보와 관...",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "faq_document"
+        ],
+        "requires_rag": true,
+        "source_documents": [
+          "QNA-COM-25"
+        ],
+        "expected_chunks": [
+          "QNA-COM-25::chunk::0"
+        ],
+        "acceptable_documents": [
+          "QNA-COM-25"
+        ],
+        "acceptable_chunks": [
+          "QNA-COM-25::chunk::0"
+        ],
+        "acceptable_source_types": [
+          "universe_qna_common"
+        ],
+        "expected_keywords": [
+          "유니버스",
+          "통행증은",
+          "어떤",
+          "개인정보를",
+          "수집하나요"
+        ],
+        "rubrics": {
+          "faithfulness": "QNA-COM-25 / QNA-COM-25::chunk::0 근거 안에서만 답한다.",
+          "source_hit@5": "acceptable_documents/source_types/chunks 중 하나가 top-5 검색 결과에 포함되어야 한다.",
+          "false_fallback_rate": "정답 chunk가 검색 가능한 케이스이므로 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "FAQ-002",
+        "eval_area": "faq_agent",
+        "domain": "계정보안_이슈",
+        "source_type": "universe_qna_common",
+        "persona": "returning_player",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "유니버스 계정을 삭제하는 방법은? 이런 상황이면 고객센터에서는 어떻게 안내하나요?",
+        "category": "faq",
+        "routing_target": "faq_agent",
+        "user_id": 1,
+        "account_id": 101
+      },
+      "outputs": {
+        "reference_answer": "QNA-COM-14 문서의 '유니버스 계정을 삭제하는 방법은?' 근거에 따라 답해야 합니다. 핵심 근거: 유니버스 계정을 삭제하는 방법은? 질문: 유니버스 계정을 삭제하는 방법은? 답변: 모든 삭제 프로세스를 완료하면 귀하의 유니버스 통행증(계정 내 개인 데이터 및 해당 계정으로 유니버스 제품을 플레이하며 생성된 데이터 포함, 이하 「계정」)이 영구적으로 삭제되어 복구할 수 없게 되오니 신중히 진행해 주세요. 게임이나 애플리케이션의 데이터는 단독으로 삭제할 수 없습니다. 게임 계정을 삭제할 경우...",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "faq_document"
+        ],
+        "requires_rag": true,
+        "source_documents": [
+          "QNA-COM-14"
+        ],
+        "expected_chunks": [
+          "QNA-COM-14::chunk::0"
+        ],
+        "acceptable_documents": [
+          "QNA-COM-14"
+        ],
+        "acceptable_chunks": [
+          "QNA-COM-14::chunk::0"
+        ],
+        "acceptable_source_types": [
+          "universe_qna_common"
+        ],
+        "expected_keywords": [
+          "유니버스",
+          "계정을",
+          "삭제하는",
+          "방법은",
+          "유니버스_통행증_이슈"
+        ],
+        "rubrics": {
+          "faithfulness": "QNA-COM-14 / QNA-COM-14::chunk::0 근거 안에서만 답한다.",
+          "source_hit@5": "acceptable_documents/source_types/chunks 중 하나가 top-5 검색 결과에 포함되어야 한다.",
+          "false_fallback_rate": "정답 chunk가 검색 가능한 케이스이므로 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "FAQ-003",
+        "eval_area": "faq_agent",
+        "domain": "유니버스_통행증_이슈",
+        "source_type": "universe_qna_common",
+        "persona": "impatient_payer",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "모바일에서 급하게 확인 중인데 새로운 관련해서 바로 알려주세요.",
+        "category": "faq",
+        "routing_target": "faq_agent",
+        "user_id": 1,
+        "account_id": 101
+      },
+      "outputs": {
+        "reference_answer": "QNA-COM-11 문서의 '새로운 디바이스에서 Google이나 Apple 계정으로 유니버스 계정에 로그인할 수 없는데, 어떻게 해야 하...' 근거에 따라 답해야 합니다. 핵심 근거: 새로운 디바이스에서 Google이나 Apple 계정으로 유니버스 계정에 로그인할 수 없는데, 어떻게 해야 하나요? 질문: 새로운 디바이스에서 Google이나 Apple 계정으로 유니버스 계정에 로그인할 수 없는데, 어떻게 해야 하나요? 답변: 유니버스 계정이 Google Play나 Apple 계정에만 연동된 상태에서는 새로운 휴대폰으로 교체 후 게임에 로그인할 수 없는 문제가 발생할 수 있습...",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "faq_document"
+        ],
+        "requires_rag": true,
+        "source_documents": [
+          "QNA-COM-11"
+        ],
+        "expected_chunks": [
+          "QNA-COM-11::chunk::0"
+        ],
+        "acceptable_documents": [
+          "QNA-COM-11"
+        ],
+        "acceptable_chunks": [
+          "QNA-COM-11::chunk::0"
+        ],
+        "acceptable_source_types": [
+          "universe_qna_common"
+        ],
+        "expected_keywords": [
+          "새로운",
+          "디바이스에서",
+          "Google이나",
+          "Apple",
+          "계정으로"
+        ],
+        "rubrics": {
+          "faithfulness": "QNA-COM-11 / QNA-COM-11::chunk::0 근거 안에서만 답한다.",
+          "source_hit@5": "acceptable_documents/source_types/chunks 중 하나가 top-5 검색 결과에 포함되어야 한다.",
+          "false_fallback_rate": "정답 chunk가 검색 가능한 케이스이므로 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "FAQ-004",
+        "eval_area": "faq_agent",
+        "domain": "유니버스_통행증_이슈",
+        "source_type": "universe_qna_common",
+        "persona": "detail_reporter",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "결제를 했는데 계정에 반영이 되지 않아요. 어떻게 해야 하나요? 이거 제가 직접 해결할 수 있는 건가요?",
+        "category": "faq",
+        "routing_target": "faq_agent",
+        "user_id": 1,
+        "account_id": 101
+      },
+      "outputs": {
+        "reference_answer": "QNA-COM-26 문서의 '결제를 했는데 계정에 반영이 되지 않아요. 어떻게 해야 하나요?' 근거에 따라 답해야 합니다. 핵심 근거: 결제를 했는데 계정에 반영이 되지 않아요. 어떻게 해야 하나요? 질문: 결제를 했는데 계정에 반영이 되지 않아요. 어떻게 해야 하나요? 답변: Google Play 또는 Apple Pay에서 결제한 경우: 결제 시 사용한 디바이스로 게임에 로그인한 다음, 결제했으나 계정으로 지급되지 않은 상품을 선택해서 주문을 활성화해 주세요. (이때 결제는 하지 않도록 유의해 주세요.) Galaxy Sto...",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "faq_document"
+        ],
+        "requires_rag": true,
+        "source_documents": [
+          "QNA-COM-26"
+        ],
+        "expected_chunks": [
+          "QNA-COM-26::chunk::0"
+        ],
+        "acceptable_documents": [
+          "QNA-COM-26"
+        ],
+        "acceptable_chunks": [
+          "QNA-COM-26::chunk::0"
+        ],
+        "acceptable_source_types": [
+          "universe_qna_common"
+        ],
+        "expected_keywords": [
+          "결제를",
+          "했는데",
+          "계정에",
+          "반영이",
+          "되지"
+        ],
+        "rubrics": {
+          "faithfulness": "QNA-COM-26 / QNA-COM-26::chunk::0 근거 안에서만 답한다.",
+          "source_hit@5": "acceptable_documents/source_types/chunks 중 하나가 top-5 검색 결과에 포함되어야 한다.",
+          "false_fallback_rate": "정답 chunk가 검색 가능한 케이스이므로 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "FAQ-005",
+        "eval_area": "faq_agent",
+        "domain": "결제_관련_이슈",
+        "source_type": "universe_qna_common",
+        "persona": "short_mobile_user",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "게임 내에서 상품이 로드되지 않는데, 어떻게 해야 하나요?",
+        "category": "faq",
+        "routing_target": "faq_agent",
+        "user_id": 1,
+        "account_id": 101
+      },
+      "outputs": {
+        "reference_answer": "QNA-COM-29 문서의 '게임 내에서 상품이 로드되지 않는데, 어떻게 해야 하나요?' 근거에 따라 답해야 합니다. 핵심 근거: 게임 내에서 상품이 로드되지 않는데, 어떻게 해야 하나요? 질문: 게임 내에서 상품이 로드되지 않는데, 어떻게 해야 하나요? 답변: Google Play에서 구매한 경우 다음 방법을 시도해 보시기 바랍니다. 방법 1: 배터리 최적화 설정 비활성화하기 설정창 열기-> Google Play 검색하기 「배터리」를 선택한 다음 「백그라운드 실행 허용」 기능 활성화하기 「배터리 사용량 최적화」를 선택...",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "faq_document"
+        ],
+        "requires_rag": true,
+        "source_documents": [
+          "QNA-COM-29"
+        ],
+        "expected_chunks": [
+          "QNA-COM-29::chunk::0"
+        ],
+        "acceptable_documents": [
+          "QNA-COM-29"
+        ],
+        "acceptable_chunks": [
+          "QNA-COM-29::chunk::0"
+        ],
+        "acceptable_source_types": [
+          "universe_qna_common"
+        ],
+        "expected_keywords": [
+          "게임",
+          "내에서",
+          "상품이",
+          "로드되지",
+          "않는데"
+        ],
+        "rubrics": {
+          "faithfulness": "QNA-COM-29 / QNA-COM-29::chunk::0 근거 안에서만 답한다.",
+          "source_hit@5": "acceptable_documents/source_types/chunks 중 하나가 top-5 검색 결과에 포함되어야 한다.",
+          "false_fallback_rate": "정답 chunk가 검색 가능한 케이스이므로 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "FAQ-006",
+        "eval_area": "faq_agent",
+        "domain": "결제_관련_이슈",
+        "source_type": "universe_qna_common",
+        "persona": "new_player",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "게임 때문에 문의드려요. 어떻게 해야 하나요?",
+        "category": "faq",
+        "routing_target": "faq_agent",
+        "user_id": 1,
+        "account_id": 101
+      },
+      "outputs": {
+        "reference_answer": "QNA-COM-8 문서의 '게임 UID와 유니버스 통행증 ID는 무슨 관련이 있나요? 서로 같은 건가요?' 근거에 따라 답해야 합니다. 핵심 근거: 게임 UID와 유니버스 통행증 ID는 무슨 관련이 있나요? 서로 같은 건가요? 질문: 게임 UID와 유니버스 통행증 ID는 무슨 관련이 있나요? 서로 같은 건가요? 답변: 통행증 ID와 UID는 ID의 유형이 다릅니다. 통행증 ID는 귀하의 유니버스 계정 ID이고, UID는 각 유니버스 산하 게임에 쓰이는 ID입니다. 통행증 ID 하나에는 여러 UID가 포함될 수 있습니다.",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "faq_document"
+        ],
+        "requires_rag": true,
+        "source_documents": [
+          "QNA-COM-8"
+        ],
+        "expected_chunks": [
+          "QNA-COM-8::chunk::0"
+        ],
+        "acceptable_documents": [
+          "QNA-COM-8"
+        ],
+        "acceptable_chunks": [
+          "QNA-COM-8::chunk::0"
+        ],
+        "acceptable_source_types": [
+          "universe_qna_common"
+        ],
+        "expected_keywords": [
+          "게임",
+          "UID와",
+          "유니버스",
+          "통행증",
+          "ID는"
+        ],
+        "rubrics": {
+          "faithfulness": "QNA-COM-8 / QNA-COM-8::chunk::0 근거 안에서만 답한다.",
+          "source_hit@5": "acceptable_documents/source_types/chunks 중 하나가 top-5 검색 결과에 포함되어야 한다.",
+          "false_fallback_rate": "정답 chunk가 검색 가능한 케이스이므로 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "FAQ-007",
+        "eval_area": "faq_agent",
+        "domain": "유니버스_통행증_이슈",
+        "source_type": "universe_qna_common",
+        "persona": "returning_player",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "월드 레벨/모험 등급 관련 FAQ 이런 상황이면 고객센터에서는 어떻게 안내하나요?",
+        "category": "faq",
+        "routing_target": "faq_agent",
+        "user_id": 1,
+        "account_id": 101
+      },
+      "outputs": {
+        "reference_answer": "QNA-GSN-49 문서의 '월드 레벨/모험 등급 관련 FAQ' 근거에 따라 답해야 합니다. 핵심 근거: 월드 레벨/모험 등급 관련 FAQ 질문: 월드 레벨/모험 등급 관련 FAQ 답변: Q: 모험 경력이 초과되었는데 모험 등급이 올라가지 않습니다. 이유가 뭔가요? A: 모험 등급 Lv.25/Lv.35/Lv.45/Lv.50/Lv.58을 달성할 때마다 임무 리스트에 자동으로 모험 등급 돌파 임무가 나타나고, 돌파 임무를 완료해야 계속해서 모험 등급을 레벨업할 수 있습니다. 초과된 모험 경력은 일단...",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "faq_document"
+        ],
+        "requires_rag": true,
+        "source_documents": [
+          "QNA-GSN-49"
+        ],
+        "expected_chunks": [
+          "QNA-GSN-49::chunk::0"
+        ],
+        "acceptable_documents": [
+          "QNA-GSN-49"
+        ],
+        "acceptable_chunks": [
+          "QNA-GSN-49::chunk::0"
+        ],
+        "acceptable_source_types": [
+          "universe_qna_onlydaily"
+        ],
+        "expected_keywords": [
+          "월드",
+          "레벨",
+          "모험",
+          "등급",
+          "관련"
+        ],
+        "rubrics": {
+          "faithfulness": "QNA-GSN-49 / QNA-GSN-49::chunk::0 근거 안에서만 답한다.",
+          "source_hit@5": "acceptable_documents/source_types/chunks 중 하나가 top-5 검색 결과에 포함되어야 한다.",
+          "false_fallback_rate": "정답 chunk가 검색 가능한 케이스이므로 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "FAQ-008",
+        "eval_area": "faq_agent",
+        "domain": "게임_문제",
+        "source_type": "universe_qna_onlydaily",
+        "persona": "impatient_payer",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "모바일에서 급하게 확인 중인데 별바다 관련해서 바로 알려주세요.",
+        "category": "faq",
+        "routing_target": "faq_agent",
+        "user_id": 1,
+        "account_id": 101
+      },
+      "outputs": {
+        "reference_answer": "QNA-GSN-22 문서의 '별바다 세계 스테이지 내 문제 피드백 가이드' 근거에 따라 답해야 합니다. 핵심 근거: 별바다 세계 스테이지 내 문제 피드백 가이드 질문: 별바다 세계 스테이지 내 문제 피드백 가이드 답변: 별바다 세계 스테이지에서 문제가 발생한 경우, 스테이지 클리어 후 상세 화면의 좌측 하단에 있는 [별세계 리뷰] 버튼을 누르면 크리에이터(별바다 창작자)에게 피드백을 남길 수 있습니다. 별바다 세계를 향한 관심과 성원에 감사드립니다.",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "faq_document"
+        ],
+        "requires_rag": true,
+        "source_documents": [
+          "QNA-GSN-22"
+        ],
+        "expected_chunks": [
+          "QNA-GSN-22::chunk::0"
+        ],
+        "acceptable_documents": [
+          "QNA-GSN-22"
+        ],
+        "acceptable_chunks": [
+          "QNA-GSN-22::chunk::0"
+        ],
+        "acceptable_source_types": [
+          "universe_qna_onlydaily"
+        ],
+        "expected_keywords": [
+          "별바다",
+          "세계",
+          "스테이지",
+          "문제",
+          "피드백"
+        ],
+        "rubrics": {
+          "faithfulness": "QNA-GSN-22 / QNA-GSN-22::chunk::0 근거 안에서만 답한다.",
+          "source_hit@5": "acceptable_documents/source_types/chunks 중 하나가 top-5 검색 결과에 포함되어야 한다.",
+          "false_fallback_rate": "정답 chunk가 검색 가능한 케이스이므로 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "FAQ-009",
+        "eval_area": "faq_agent",
+        "domain": "게임_문제",
+        "source_type": "universe_qna_onlydaily",
+        "persona": "detail_reporter",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "버그, 튕김 관련 FAQ 이거 제가 직접 해결할 수 있는 건가요?",
+        "category": "faq",
+        "routing_target": "faq_agent",
+        "user_id": 1,
+        "account_id": 101
+      },
+      "outputs": {
+        "reference_answer": "QNA-GSN-51 문서의 '버그, 튕김 관련 FAQ' 근거에 따라 답해야 합니다. 핵심 근거: 버그, 튕김 관련 FAQ 질문: 버그, 튕김 관련 FAQ 답변: Q: 게임에서 튕기는 현상으로 고객센터에 문의하려는데 output_log.txt 및 DriverError.log 파일을 제출하라고 합니다. 이 파일은 어디에 저장되나요? A: ① output_log.txt 및 output_log.txt.last 저장 경로: C:\\Users\\xxx\\AppData\\LocalLow\\Universe\\D...",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "faq_document"
+        ],
+        "requires_rag": true,
+        "source_documents": [
+          "QNA-GSN-51"
+        ],
+        "expected_chunks": [
+          "QNA-GSN-51::chunk::0"
+        ],
+        "acceptable_documents": [
+          "QNA-GSN-51"
+        ],
+        "acceptable_chunks": [
+          "QNA-GSN-51::chunk::0",
+          "QNA-GSN-51::chunk::1"
+        ],
+        "acceptable_source_types": [
+          "universe_qna_onlydaily"
+        ],
+        "expected_keywords": [
+          "버그",
+          "튕김",
+          "관련",
+          "FAQ",
+          "클라이언트_문제"
+        ],
+        "rubrics": {
+          "faithfulness": "QNA-GSN-51 / QNA-GSN-51::chunk::0 근거 안에서만 답한다.",
+          "source_hit@5": "acceptable_documents/source_types/chunks 중 하나가 top-5 검색 결과에 포함되어야 한다.",
+          "false_fallback_rate": "정답 chunk가 검색 가능한 케이스이므로 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "FAQ-010",
+        "eval_area": "faq_agent",
+        "domain": "클라이언트_문제",
+        "source_type": "universe_qna_onlydaily",
+        "persona": "short_mobile_user",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "바람 멎은 산, 공간의 신전 지역 관련 FAQ",
+        "category": "faq",
+        "routing_target": "faq_agent",
+        "user_id": 1,
+        "account_id": 101
+      },
+      "outputs": {
+        "reference_answer": "QNA-GSN-15 문서의 '바람 멎은 산, 공간의 신전 지역 관련 FAQ' 근거에 따라 답해야 합니다. 핵심 근거: 바람 멎은 산, 공간의 신전 지역 관련 FAQ 질문: 바람 멎은 산, 공간의 신전 지역 관련 FAQ 답변: Q: 예시 이미지에 보이는 하르파스툼과 상호작용하면 어떤 효과가 있나요? A: 하르파스툼과 상호작용하면 잠시 동안 공간 나방으로 변신할 수 있습니다. 이때 대시 또는 상승 키를 홀드하면 공중에서 지속적으로 가속 비행할 수 있습니다. 대시 및 고도 상승 시에는 공간 나방의 스태미나가 소모...",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "faq_document"
+        ],
+        "requires_rag": true,
+        "source_documents": [
+          "QNA-GSN-15"
+        ],
+        "expected_chunks": [
+          "QNA-GSN-15::chunk::0"
+        ],
+        "acceptable_documents": [
+          "QNA-GSN-15"
+        ],
+        "acceptable_chunks": [
+          "QNA-GSN-15::chunk::0"
+        ],
+        "acceptable_source_types": [
+          "universe_qna_onlydaily"
+        ],
+        "expected_keywords": [
+          "바람",
+          "멎은",
+          "공간의",
+          "신전",
+          "지역"
+        ],
+        "rubrics": {
+          "faithfulness": "QNA-GSN-15 / QNA-GSN-15::chunk::0 근거 안에서만 답한다.",
+          "source_hit@5": "acceptable_documents/source_types/chunks 중 하나가 top-5 검색 결과에 포함되어야 한다.",
+          "false_fallback_rate": "정답 chunk가 검색 가능한 케이스이므로 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "FAQ-011",
+        "eval_area": "faq_agent",
+        "domain": "게임_문제",
+        "source_type": "universe_qna_onlydaily",
+        "persona": "new_player",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "기기 때문에 문의드려요. 어떻게 해야 하나요?",
+        "category": "faq",
+        "routing_target": "faq_agent",
+        "user_id": 1,
+        "account_id": 101
+      },
+      "outputs": {
+        "reference_answer": "QNA-GSN-52 문서의 '기기 하나로 계정 여러 개를 플레이할 수 있나요?' 근거에 따라 답해야 합니다. 핵심 근거: 기기 하나로 계정 여러 개를 플레이할 수 있나요? 질문: 기기 하나로 계정 여러 개를 플레이할 수 있나요? 답변: 현재 한 기기로 여러 개의 계정을 동시 접속할 수 없습니다",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "faq_document"
+        ],
+        "requires_rag": true,
+        "source_documents": [
+          "QNA-GSN-52"
+        ],
+        "expected_chunks": [
+          "QNA-GSN-52::chunk::0"
+        ],
+        "acceptable_documents": [
+          "QNA-GSN-52"
+        ],
+        "acceptable_chunks": [
+          "QNA-GSN-52::chunk::0"
+        ],
+        "acceptable_source_types": [
+          "universe_qna_onlydaily"
+        ],
+        "expected_keywords": [
+          "기기",
+          "하나로",
+          "계정",
+          "여러",
+          "개를"
+        ],
+        "rubrics": {
+          "faithfulness": "QNA-GSN-52 / QNA-GSN-52::chunk::0 근거 안에서만 답한다.",
+          "source_hit@5": "acceptable_documents/source_types/chunks 중 하나가 top-5 검색 결과에 포함되어야 한다.",
+          "false_fallback_rate": "정답 chunk가 검색 가능한 케이스이므로 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "FAQ-012",
+        "eval_area": "faq_agent",
+        "domain": "클라이언트_문제",
+        "source_type": "universe_qna_onlydaily",
+        "persona": "returning_player",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "〈일상〉 유니버스 통행증과 Microsoft 계정 크로스 세이브에 관한 FAQ (1/2) 이런 상황이면 고객센터에서는 어떻게 안내하나요?",
+        "category": "faq",
+        "routing_target": "faq_agent",
+        "user_id": 1,
+        "account_id": 101
+      },
+      "outputs": {
+        "reference_answer": "QNA-GSN-1 문서의 '〈일상〉 유니버스 통행증과 Microsoft 계정 크로스 세이브에 관한 FAQ (1/2)' 근거에 따라 답해야 합니다. 핵심 근거: 〈일상〉 유니버스 통행증과 Microsoft 계정 크로스 세이브에 관한 FAQ (1/2) Q: Microsoft 계정을 연동하고 나면 iOS/Android/PC 플랫폼을 통해 Xbox 플랫폼에서 생성한 [유니버스 통행증]에 창세의 결정을 결제할 수 있나요? 혹은 Xbox 플랫폼을 통해 iOS/Android/PC 플랫폼에서 생성한 [유니버스 통행증]에 창세의 결정을 결제할 수 있나요? A: X...",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "faq_document"
+        ],
+        "requires_rag": true,
+        "source_documents": [
+          "QNA-GSN-1"
+        ],
+        "expected_chunks": [
+          "QNA-GSN-1::chunk::1"
+        ],
+        "acceptable_documents": [
+          "QNA-GSN-1"
+        ],
+        "acceptable_chunks": [
+          "QNA-GSN-1::chunk::0",
+          "QNA-GSN-1::chunk::1"
+        ],
+        "acceptable_source_types": [
+          "universe_qna_onlydaily"
+        ],
+        "expected_keywords": [
+          "일상",
+          "유니버스",
+          "통행증과",
+          "Microsoft",
+          "계정"
+        ],
+        "rubrics": {
+          "faithfulness": "QNA-GSN-1 / QNA-GSN-1::chunk::1 근거 안에서만 답한다.",
+          "source_hit@5": "acceptable_documents/source_types/chunks 중 하나가 top-5 검색 결과에 포함되어야 한다.",
+          "false_fallback_rate": "정답 chunk가 검색 가능한 케이스이므로 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "FAQ-013",
+        "eval_area": "faq_agent",
+        "domain": "계정_문제",
+        "source_type": "universe_qna_onlydaily",
+        "persona": "impatient_payer",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "모바일에서 급하게 확인 중인데 캐릭터 관련해서 바로 알려주세요.",
+        "category": "faq",
+        "routing_target": "faq_agent",
+        "user_id": 1,
+        "account_id": 101
+      },
+      "outputs": {
+        "reference_answer": "QNA-GSN-13 문서의 '「캐릭터 이벤트 기원」 FAQ' 근거에 따라 답해야 합니다. 핵심 근거: 「캐릭터 이벤트 기원」 FAQ 질문: 「캐릭터 이벤트 기원」 FAQ 답변: Q: 캐릭터 이벤트 기원에서는 캐릭터만 나오는 건가요? A: 아닙니다. 보다 자세히 말씀드리자면, ★5 아이템은 캐릭터만, ★4 아이템은 캐릭터와 무기가, ★3 아이템은 무기만 나옵니다. Q: 「캐릭터 이벤트 기원」은 천장이 있나요? 또 천장이 계승되기도 하나요? A: [★5 아이템] ★5 캐릭터 기원의 기본 획득 확...",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "faq_document"
+        ],
+        "requires_rag": true,
+        "source_documents": [
+          "QNA-GSN-13"
+        ],
+        "expected_chunks": [
+          "QNA-GSN-13::chunk::0"
+        ],
+        "acceptable_documents": [
+          "QNA-GSN-13"
+        ],
+        "acceptable_chunks": [
+          "QNA-GSN-13::chunk::0"
+        ],
+        "acceptable_source_types": [
+          "universe_qna_onlydaily"
+        ],
+        "expected_keywords": [
+          "캐릭터",
+          "이벤트",
+          "기원",
+          "FAQ",
+          "게임_문제"
+        ],
+        "rubrics": {
+          "faithfulness": "QNA-GSN-13 / QNA-GSN-13::chunk::0 근거 안에서만 답한다.",
+          "source_hit@5": "acceptable_documents/source_types/chunks 중 하나가 top-5 검색 결과에 포함되어야 한다.",
+          "false_fallback_rate": "정답 chunk가 검색 가능한 케이스이므로 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "FAQ-014",
+        "eval_area": "faq_agent",
+        "domain": "게임_문제",
+        "source_type": "universe_qna_onlydaily",
+        "persona": "detail_reporter",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "계정 정보나 결제 정보가 정책상 어떻게 쓰이는지 알려주세요.",
+        "category": "faq",
+        "routing_target": "faq_agent",
+        "user_id": 1,
+        "account_id": 101
+      },
+      "outputs": {
+        "reference_answer": "HYV-PRI-1 문서의 '유니버스 개인정보처리방침' 근거에 따라 답해야 합니다. 핵심 근거: 유니버스 개인정보처리방침 Section: table-2-row1~2 Table 2 | 아동의 개인 정보 | 수집 목적 | 업무상 보관 필요성 | 삭제 기한 | | --- | --- | --- | --- | | 서비스 제공을 위해 처리되는 기술 및 디바이스 정보 | 서비스 운영 및 유지 보수, 시스템 보안 및 안정성 확보, 사기 및 악용 행위 감지, 기술적 문제 진단을 위해 사용됩니다. | 데...",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "policy_document"
+        ],
+        "requires_rag": true,
+        "source_documents": [
+          "HYV-PRI-1"
+        ],
+        "expected_chunks": [
+          "HYV-PRI-1::chunk::49"
+        ],
+        "acceptable_documents": [
+          "HYV-PRI-1"
+        ],
+        "acceptable_chunks": [
+          "HYV-PRI-1::chunk::0",
+          "HYV-PRI-1::chunk::1",
+          "HYV-PRI-1::chunk::2",
+          "HYV-PRI-1::chunk::3",
+          "HYV-PRI-1::chunk::4",
+          "HYV-PRI-1::chunk::5",
+          "HYV-PRI-1::chunk::6",
+          "HYV-PRI-1::chunk::7",
+          "HYV-PRI-1::chunk::8",
+          "HYV-PRI-1::chunk::9",
+          "HYV-PRI-1::chunk::10",
+          "HYV-PRI-1::chunk::11",
+          "HYV-PRI-1::chunk::12",
+          "HYV-PRI-1::chunk::13",
+          "HYV-PRI-1::chunk::14",
+          "HYV-PRI-1::chunk::15",
+          "HYV-PRI-1::chunk::16",
+          "HYV-PRI-1::chunk::17",
+          "HYV-PRI-1::chunk::18",
+          "HYV-PRI-1::chunk::19",
+          "HYV-PRI-1::chunk::20",
+          "HYV-PRI-1::chunk::21",
+          "HYV-PRI-1::chunk::22",
+          "HYV-PRI-1::chunk::23",
+          "HYV-PRI-1::chunk::24",
+          "HYV-PRI-1::chunk::25",
+          "HYV-PRI-1::chunk::26",
+          "HYV-PRI-1::chunk::27",
+          "HYV-PRI-1::chunk::28",
+          "HYV-PRI-1::chunk::29",
+          "HYV-PRI-1::chunk::30",
+          "HYV-PRI-1::chunk::31",
+          "HYV-PRI-1::chunk::32",
+          "HYV-PRI-1::chunk::33",
+          "HYV-PRI-1::chunk::34",
+          "HYV-PRI-1::chunk::35",
+          "HYV-PRI-1::chunk::36",
+          "HYV-PRI-1::chunk::37",
+          "HYV-PRI-1::chunk::38",
+          "HYV-PRI-1::chunk::39",
+          "HYV-PRI-1::chunk::40",
+          "HYV-PRI-1::chunk::41",
+          "HYV-PRI-1::chunk::42",
+          "HYV-PRI-1::chunk::43",
+          "HYV-PRI-1::chunk::44",
+          "HYV-PRI-1::chunk::45",
+          "HYV-PRI-1::chunk::46",
+          "HYV-PRI-1::chunk::47",
+          "HYV-PRI-1::chunk::48",
+          "HYV-PRI-1::chunk::49",
+          "HYV-PRI-1::chunk::50",
+          "HYV-PRI-1::chunk::51",
+          "HYV-PRI-1::chunk::52",
+          "HYV-PRI-1::chunk::53",
+          "HYV-PRI-1::chunk::54"
+        ],
+        "acceptable_source_types": [
+          "universe_policy"
+        ],
+        "expected_keywords": [
+          "유니버스",
+          "개인정보처리방침",
+          "privacy",
+          "Section",
+          "table"
+        ],
+        "rubrics": {
+          "faithfulness": "HYV-PRI-1 / HYV-PRI-1::chunk::49 근거 안에서만 답한다.",
+          "source_hit@5": "acceptable_documents/source_types/chunks 중 하나가 top-5 검색 결과에 포함되어야 한다.",
+          "false_fallback_rate": "정답 chunk가 검색 가능한 케이스이므로 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "FAQ-015",
+        "eval_area": "faq_agent",
+        "domain": "privacy",
+        "source_type": "universe_policy",
+        "persona": "short_mobile_user",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "유니버스 개인정보처리방침 기준으로 제가 확인해야 할 권리나 주의사항이 있나요?",
+        "category": "faq",
+        "routing_target": "faq_agent",
+        "user_id": 1,
+        "account_id": 101
+      },
+      "outputs": {
+        "reference_answer": "HYV-PRI-1 문서의 '유니버스 개인정보처리방침' 근거에 따라 답해야 합니다. 핵심 근거: 유니버스 개인정보처리방침 Section: 2 2. 귀하의 개인정보를 수집 및 처리하는 이유 귀하에게 서비스를 제공하고 다음과 같은 목적을 달성(본 정책 제2조 및 제13조에 명시된 내용을 포함하되 이에 국한되지 않음)하기 위해 당사는 귀하의 개인정보를 수집 및 처리합니다.",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "policy_document"
+        ],
+        "requires_rag": true,
+        "source_documents": [
+          "HYV-PRI-1"
+        ],
+        "expected_chunks": [
+          "HYV-PRI-1::chunk::9"
+        ],
+        "acceptable_documents": [
+          "HYV-PRI-1"
+        ],
+        "acceptable_chunks": [
+          "HYV-PRI-1::chunk::0",
+          "HYV-PRI-1::chunk::1",
+          "HYV-PRI-1::chunk::2",
+          "HYV-PRI-1::chunk::3",
+          "HYV-PRI-1::chunk::4",
+          "HYV-PRI-1::chunk::5",
+          "HYV-PRI-1::chunk::6",
+          "HYV-PRI-1::chunk::7",
+          "HYV-PRI-1::chunk::8",
+          "HYV-PRI-1::chunk::9",
+          "HYV-PRI-1::chunk::10",
+          "HYV-PRI-1::chunk::11",
+          "HYV-PRI-1::chunk::12",
+          "HYV-PRI-1::chunk::13",
+          "HYV-PRI-1::chunk::14",
+          "HYV-PRI-1::chunk::15",
+          "HYV-PRI-1::chunk::16",
+          "HYV-PRI-1::chunk::17",
+          "HYV-PRI-1::chunk::18",
+          "HYV-PRI-1::chunk::19",
+          "HYV-PRI-1::chunk::20",
+          "HYV-PRI-1::chunk::21",
+          "HYV-PRI-1::chunk::22",
+          "HYV-PRI-1::chunk::23",
+          "HYV-PRI-1::chunk::24",
+          "HYV-PRI-1::chunk::25",
+          "HYV-PRI-1::chunk::26",
+          "HYV-PRI-1::chunk::27",
+          "HYV-PRI-1::chunk::28",
+          "HYV-PRI-1::chunk::29",
+          "HYV-PRI-1::chunk::30",
+          "HYV-PRI-1::chunk::31",
+          "HYV-PRI-1::chunk::32",
+          "HYV-PRI-1::chunk::33",
+          "HYV-PRI-1::chunk::34",
+          "HYV-PRI-1::chunk::35",
+          "HYV-PRI-1::chunk::36",
+          "HYV-PRI-1::chunk::37",
+          "HYV-PRI-1::chunk::38",
+          "HYV-PRI-1::chunk::39",
+          "HYV-PRI-1::chunk::40",
+          "HYV-PRI-1::chunk::41",
+          "HYV-PRI-1::chunk::42",
+          "HYV-PRI-1::chunk::43",
+          "HYV-PRI-1::chunk::44",
+          "HYV-PRI-1::chunk::45",
+          "HYV-PRI-1::chunk::46",
+          "HYV-PRI-1::chunk::47",
+          "HYV-PRI-1::chunk::48",
+          "HYV-PRI-1::chunk::49",
+          "HYV-PRI-1::chunk::50",
+          "HYV-PRI-1::chunk::51",
+          "HYV-PRI-1::chunk::52",
+          "HYV-PRI-1::chunk::53",
+          "HYV-PRI-1::chunk::54"
+        ],
+        "acceptable_source_types": [
+          "universe_policy"
+        ],
+        "expected_keywords": [
+          "유니버스",
+          "개인정보처리방침",
+          "privacy",
+          "Section",
+          "귀하의"
+        ],
+        "rubrics": {
+          "faithfulness": "HYV-PRI-1 / HYV-PRI-1::chunk::9 근거 안에서만 답한다.",
+          "source_hit@5": "acceptable_documents/source_types/chunks 중 하나가 top-5 검색 결과에 포함되어야 한다.",
+          "false_fallback_rate": "정답 chunk가 검색 가능한 케이스이므로 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "FAQ-016",
+        "eval_area": "faq_agent",
+        "domain": "privacy",
+        "source_type": "universe_policy",
+        "persona": "new_player",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "개인정보나 계정 데이터가 어떻게 처리되는지 궁금해요. 유니버스 부분 설명해주세요.",
+        "category": "faq",
+        "routing_target": "faq_agent",
+        "user_id": 1,
+        "account_id": 101
+      },
+      "outputs": {
+        "reference_answer": "HYV-PRI-1 문서의 '유니버스 개인정보처리방침' 근거에 따라 답해야 합니다. 핵심 근거: 유니버스 개인정보처리방침 Section: 4-iv 4. 광고와 선택권 iv. 제2조 및 제13조에서 언급된 기타 관련 기능 또는 목적을 위해 사용합니다. 당사 또는 당사의 승인을 받은 계약업체는 서비스 제공 및 개인화, 부정행위 방지 및 상술한 기타 목적을 달성하기 위해 쿠키 및 이와 유사한 기술을 사용할 수 있습니다. 당사의 쿠키 정책은 https://privacy.universe.exam...",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "policy_document"
+        ],
+        "requires_rag": true,
+        "source_documents": [
+          "HYV-PRI-1"
+        ],
+        "expected_chunks": [
+          "HYV-PRI-1::chunk::19"
+        ],
+        "acceptable_documents": [
+          "HYV-PRI-1"
+        ],
+        "acceptable_chunks": [
+          "HYV-PRI-1::chunk::0",
+          "HYV-PRI-1::chunk::1",
+          "HYV-PRI-1::chunk::2",
+          "HYV-PRI-1::chunk::3",
+          "HYV-PRI-1::chunk::4",
+          "HYV-PRI-1::chunk::5",
+          "HYV-PRI-1::chunk::6",
+          "HYV-PRI-1::chunk::7",
+          "HYV-PRI-1::chunk::8",
+          "HYV-PRI-1::chunk::9",
+          "HYV-PRI-1::chunk::10",
+          "HYV-PRI-1::chunk::11",
+          "HYV-PRI-1::chunk::12",
+          "HYV-PRI-1::chunk::13",
+          "HYV-PRI-1::chunk::14",
+          "HYV-PRI-1::chunk::15",
+          "HYV-PRI-1::chunk::16",
+          "HYV-PRI-1::chunk::17",
+          "HYV-PRI-1::chunk::18",
+          "HYV-PRI-1::chunk::19",
+          "HYV-PRI-1::chunk::20",
+          "HYV-PRI-1::chunk::21",
+          "HYV-PRI-1::chunk::22",
+          "HYV-PRI-1::chunk::23",
+          "HYV-PRI-1::chunk::24",
+          "HYV-PRI-1::chunk::25",
+          "HYV-PRI-1::chunk::26",
+          "HYV-PRI-1::chunk::27",
+          "HYV-PRI-1::chunk::28",
+          "HYV-PRI-1::chunk::29",
+          "HYV-PRI-1::chunk::30",
+          "HYV-PRI-1::chunk::31",
+          "HYV-PRI-1::chunk::32",
+          "HYV-PRI-1::chunk::33",
+          "HYV-PRI-1::chunk::34",
+          "HYV-PRI-1::chunk::35",
+          "HYV-PRI-1::chunk::36",
+          "HYV-PRI-1::chunk::37",
+          "HYV-PRI-1::chunk::38",
+          "HYV-PRI-1::chunk::39",
+          "HYV-PRI-1::chunk::40",
+          "HYV-PRI-1::chunk::41",
+          "HYV-PRI-1::chunk::42",
+          "HYV-PRI-1::chunk::43",
+          "HYV-PRI-1::chunk::44",
+          "HYV-PRI-1::chunk::45",
+          "HYV-PRI-1::chunk::46",
+          "HYV-PRI-1::chunk::47",
+          "HYV-PRI-1::chunk::48",
+          "HYV-PRI-1::chunk::49",
+          "HYV-PRI-1::chunk::50",
+          "HYV-PRI-1::chunk::51",
+          "HYV-PRI-1::chunk::52",
+          "HYV-PRI-1::chunk::53",
+          "HYV-PRI-1::chunk::54"
+        ],
+        "acceptable_source_types": [
+          "universe_policy"
+        ],
+        "expected_keywords": [
+          "유니버스",
+          "개인정보처리방침",
+          "privacy",
+          "Section",
+          "iv"
+        ],
+        "rubrics": {
+          "faithfulness": "HYV-PRI-1 / HYV-PRI-1::chunk::19 근거 안에서만 답한다.",
+          "source_hit@5": "acceptable_documents/source_types/chunks 중 하나가 top-5 검색 결과에 포함되어야 한다.",
+          "false_fallback_rate": "정답 chunk가 검색 가능한 케이스이므로 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "FAQ-017",
+        "eval_area": "faq_agent",
+        "domain": "privacy",
+        "source_type": "universe_policy",
+        "persona": "returning_player",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "일상 관련 정책이 어떻게 되어 있나요?",
+        "category": "faq",
+        "routing_target": "faq_agent",
+        "user_id": 1,
+        "account_id": 101
+      },
+      "outputs": {
+        "reference_answer": "HYV-TER-1 문서의 '일상 이용약관' 근거에 따라 답해야 합니다. 핵심 근거: 일상 이용약관 제8조 이용 신청의 제한 13) 회사의 승인을 받지 않고 다른 사용자의 개인정보를 수집 또는 저장하는 행위 14) 범죄와 결부된다고 객관적으로 판단되는 행위 15) 불법 프로그램을 사용하는 것을 홍보하거나, 프리 서버, 트로이 목마 등 관련된 내용을 유포하는 행위 16) COGNOSPHERE PTE. LTD.가 합당하지 않다고 판단하는 혹은 COGNOSPHERE PTE. LTD...",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "policy_document"
+        ],
+        "requires_rag": true,
+        "source_documents": [
+          "HYV-TER-1"
+        ],
+        "expected_chunks": [
+          "HYV-TER-1::chunk::10"
+        ],
+        "acceptable_documents": [
+          "HYV-TER-1"
+        ],
+        "acceptable_chunks": [
+          "HYV-TER-1::chunk::0",
+          "HYV-TER-1::chunk::1",
+          "HYV-TER-1::chunk::2",
+          "HYV-TER-1::chunk::3",
+          "HYV-TER-1::chunk::4",
+          "HYV-TER-1::chunk::5",
+          "HYV-TER-1::chunk::6",
+          "HYV-TER-1::chunk::7",
+          "HYV-TER-1::chunk::8",
+          "HYV-TER-1::chunk::9",
+          "HYV-TER-1::chunk::10",
+          "HYV-TER-1::chunk::11",
+          "HYV-TER-1::chunk::12",
+          "HYV-TER-1::chunk::13",
+          "HYV-TER-1::chunk::14",
+          "HYV-TER-1::chunk::15",
+          "HYV-TER-1::chunk::16",
+          "HYV-TER-1::chunk::17",
+          "HYV-TER-1::chunk::18",
+          "HYV-TER-1::chunk::19",
+          "HYV-TER-1::chunk::20",
+          "HYV-TER-1::chunk::21",
+          "HYV-TER-1::chunk::22",
+          "HYV-TER-1::chunk::23",
+          "HYV-TER-1::chunk::24",
+          "HYV-TER-1::chunk::25",
+          "HYV-TER-1::chunk::26",
+          "HYV-TER-1::chunk::27",
+          "HYV-TER-1::chunk::28",
+          "HYV-TER-1::chunk::29",
+          "HYV-TER-1::chunk::30",
+          "HYV-TER-1::chunk::31",
+          "HYV-TER-1::chunk::32",
+          "HYV-TER-1::chunk::33",
+          "HYV-TER-1::chunk::34",
+          "HYV-TER-1::chunk::35",
+          "HYV-TER-1::chunk::36",
+          "HYV-TER-1::chunk::37",
+          "HYV-TER-1::chunk::38",
+          "HYV-TER-1::chunk::39",
+          "HYV-TER-1::chunk::40",
+          "HYV-TER-1::chunk::41"
+        ],
+        "acceptable_source_types": [
+          "universe_policy"
+        ],
+        "expected_keywords": [
+          "일상",
+          "이용약관",
+          "terms",
+          "제8조",
+          "이용"
+        ],
+        "rubrics": {
+          "faithfulness": "HYV-TER-1 / HYV-TER-1::chunk::10 근거 안에서만 답한다.",
+          "source_hit@5": "acceptable_documents/source_types/chunks 중 하나가 top-5 검색 결과에 포함되어야 한다.",
+          "false_fallback_rate": "정답 chunk가 검색 가능한 케이스이므로 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "FAQ-018",
+        "eval_area": "faq_agent",
+        "domain": "terms",
+        "source_type": "universe_policy",
+        "persona": "impatient_payer",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "계정 정보나 결제 정보가 정책상 어떻게 쓰이는지 알려주세요.",
+        "category": "faq",
+        "routing_target": "faq_agent",
+        "user_id": 1,
+        "account_id": 101
+      },
+      "outputs": {
+        "reference_answer": "HYV-PRI-1 문서의 '유니버스 개인정보처리방침' 근거에 따라 답해야 합니다. 핵심 근거: 유니버스 개인정보처리방침 Section: 4-i~iii 4. 광고와 선택권 i. 광고 송출, 타겟 설정 및/또는 ii. 광고를 비롯한 기타 마케팅 및 프로모션 이벤트 개선 당사 또는 관련 법률이 허용하는 경우, 당사의 승인을 받은 계약업체가 광고, 마케팅 또는 홍보성 커뮤니케이션을 발송할 수 있습니다. 이러한 정보의 수신을 원하지 않는 경우, 당사 또는 당사의 계약업체에게 연락처 목록에서 귀...",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "policy_document"
+        ],
+        "requires_rag": true,
+        "source_documents": [
+          "HYV-PRI-1"
+        ],
+        "expected_chunks": [
+          "HYV-PRI-1::chunk::18"
+        ],
+        "acceptable_documents": [
+          "HYV-PRI-1"
+        ],
+        "acceptable_chunks": [
+          "HYV-PRI-1::chunk::0",
+          "HYV-PRI-1::chunk::1",
+          "HYV-PRI-1::chunk::2",
+          "HYV-PRI-1::chunk::3",
+          "HYV-PRI-1::chunk::4",
+          "HYV-PRI-1::chunk::5",
+          "HYV-PRI-1::chunk::6",
+          "HYV-PRI-1::chunk::7",
+          "HYV-PRI-1::chunk::8",
+          "HYV-PRI-1::chunk::9",
+          "HYV-PRI-1::chunk::10",
+          "HYV-PRI-1::chunk::11",
+          "HYV-PRI-1::chunk::12",
+          "HYV-PRI-1::chunk::13",
+          "HYV-PRI-1::chunk::14",
+          "HYV-PRI-1::chunk::15",
+          "HYV-PRI-1::chunk::16",
+          "HYV-PRI-1::chunk::17",
+          "HYV-PRI-1::chunk::18",
+          "HYV-PRI-1::chunk::19",
+          "HYV-PRI-1::chunk::20",
+          "HYV-PRI-1::chunk::21",
+          "HYV-PRI-1::chunk::22",
+          "HYV-PRI-1::chunk::23",
+          "HYV-PRI-1::chunk::24",
+          "HYV-PRI-1::chunk::25",
+          "HYV-PRI-1::chunk::26",
+          "HYV-PRI-1::chunk::27",
+          "HYV-PRI-1::chunk::28",
+          "HYV-PRI-1::chunk::29",
+          "HYV-PRI-1::chunk::30",
+          "HYV-PRI-1::chunk::31",
+          "HYV-PRI-1::chunk::32",
+          "HYV-PRI-1::chunk::33",
+          "HYV-PRI-1::chunk::34",
+          "HYV-PRI-1::chunk::35",
+          "HYV-PRI-1::chunk::36",
+          "HYV-PRI-1::chunk::37",
+          "HYV-PRI-1::chunk::38",
+          "HYV-PRI-1::chunk::39",
+          "HYV-PRI-1::chunk::40",
+          "HYV-PRI-1::chunk::41",
+          "HYV-PRI-1::chunk::42",
+          "HYV-PRI-1::chunk::43",
+          "HYV-PRI-1::chunk::44",
+          "HYV-PRI-1::chunk::45",
+          "HYV-PRI-1::chunk::46",
+          "HYV-PRI-1::chunk::47",
+          "HYV-PRI-1::chunk::48",
+          "HYV-PRI-1::chunk::49",
+          "HYV-PRI-1::chunk::50",
+          "HYV-PRI-1::chunk::51",
+          "HYV-PRI-1::chunk::52",
+          "HYV-PRI-1::chunk::53",
+          "HYV-PRI-1::chunk::54"
+        ],
+        "acceptable_source_types": [
+          "universe_policy"
+        ],
+        "expected_keywords": [
+          "유니버스",
+          "개인정보처리방침",
+          "privacy",
+          "Section",
+          "iii"
+        ],
+        "rubrics": {
+          "faithfulness": "HYV-PRI-1 / HYV-PRI-1::chunk::18 근거 안에서만 답한다.",
+          "source_hit@5": "acceptable_documents/source_types/chunks 중 하나가 top-5 검색 결과에 포함되어야 한다.",
+          "false_fallback_rate": "정답 chunk가 검색 가능한 케이스이므로 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "FAQ-019",
+        "eval_area": "faq_agent",
+        "domain": "privacy",
+        "source_type": "universe_policy",
+        "persona": "detail_reporter",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "유니버스 개인정보처리방침 기준으로 제가 확인해야 할 권리나 주의사항이 있나요?",
+        "category": "faq",
+        "routing_target": "faq_agent",
+        "user_id": 1,
+        "account_id": 101
+      },
+      "outputs": {
+        "reference_answer": "HYV-PRI-1 문서의 '유니버스 개인정보처리방침' 근거에 따라 답해야 합니다. 핵심 근거: 유니버스 개인정보처리방침 Section: 2-xxvi~xxx 2. 귀하의 개인정보를 수집 및 처리하는 이유 xxvi. 서비스 품질 향상 및 더 나은 경험 제공을 목적으로 수집된 모든 데이터(통합형과 맞춤형 방식의 구분 없이)를 분석, 프로파일링, 세분화, 통합 및/또는 업데이트하기 위해 xxvii. 당사의 서비스 또는 이용자의 무결성, 정보 보안 및 금융 보안을 지키고, 법적 의무를 준수하고...",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "policy_document"
+        ],
+        "requires_rag": true,
+        "source_documents": [
+          "HYV-PRI-1"
+        ],
+        "expected_chunks": [
+          "HYV-PRI-1::chunk::15"
+        ],
+        "acceptable_documents": [
+          "HYV-PRI-1"
+        ],
+        "acceptable_chunks": [
+          "HYV-PRI-1::chunk::0",
+          "HYV-PRI-1::chunk::1",
+          "HYV-PRI-1::chunk::2",
+          "HYV-PRI-1::chunk::3",
+          "HYV-PRI-1::chunk::4",
+          "HYV-PRI-1::chunk::5",
+          "HYV-PRI-1::chunk::6",
+          "HYV-PRI-1::chunk::7",
+          "HYV-PRI-1::chunk::8",
+          "HYV-PRI-1::chunk::9",
+          "HYV-PRI-1::chunk::10",
+          "HYV-PRI-1::chunk::11",
+          "HYV-PRI-1::chunk::12",
+          "HYV-PRI-1::chunk::13",
+          "HYV-PRI-1::chunk::14",
+          "HYV-PRI-1::chunk::15",
+          "HYV-PRI-1::chunk::16",
+          "HYV-PRI-1::chunk::17",
+          "HYV-PRI-1::chunk::18",
+          "HYV-PRI-1::chunk::19",
+          "HYV-PRI-1::chunk::20",
+          "HYV-PRI-1::chunk::21",
+          "HYV-PRI-1::chunk::22",
+          "HYV-PRI-1::chunk::23",
+          "HYV-PRI-1::chunk::24",
+          "HYV-PRI-1::chunk::25",
+          "HYV-PRI-1::chunk::26",
+          "HYV-PRI-1::chunk::27",
+          "HYV-PRI-1::chunk::28",
+          "HYV-PRI-1::chunk::29",
+          "HYV-PRI-1::chunk::30",
+          "HYV-PRI-1::chunk::31",
+          "HYV-PRI-1::chunk::32",
+          "HYV-PRI-1::chunk::33",
+          "HYV-PRI-1::chunk::34",
+          "HYV-PRI-1::chunk::35",
+          "HYV-PRI-1::chunk::36",
+          "HYV-PRI-1::chunk::37",
+          "HYV-PRI-1::chunk::38",
+          "HYV-PRI-1::chunk::39",
+          "HYV-PRI-1::chunk::40",
+          "HYV-PRI-1::chunk::41",
+          "HYV-PRI-1::chunk::42",
+          "HYV-PRI-1::chunk::43",
+          "HYV-PRI-1::chunk::44",
+          "HYV-PRI-1::chunk::45",
+          "HYV-PRI-1::chunk::46",
+          "HYV-PRI-1::chunk::47",
+          "HYV-PRI-1::chunk::48",
+          "HYV-PRI-1::chunk::49",
+          "HYV-PRI-1::chunk::50",
+          "HYV-PRI-1::chunk::51",
+          "HYV-PRI-1::chunk::52",
+          "HYV-PRI-1::chunk::53",
+          "HYV-PRI-1::chunk::54"
+        ],
+        "acceptable_source_types": [
+          "universe_policy"
+        ],
+        "expected_keywords": [
+          "유니버스",
+          "개인정보처리방침",
+          "privacy",
+          "Section",
+          "xxvi"
+        ],
+        "rubrics": {
+          "faithfulness": "HYV-PRI-1 / HYV-PRI-1::chunk::15 근거 안에서만 답한다.",
+          "source_hit@5": "acceptable_documents/source_types/chunks 중 하나가 top-5 검색 결과에 포함되어야 한다.",
+          "false_fallback_rate": "정답 chunk가 검색 가능한 케이스이므로 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "FAQ-020",
+        "eval_area": "faq_agent",
+        "domain": "privacy",
+        "source_type": "universe_policy",
+        "persona": "short_mobile_user",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "「옥빛 아래 속세의 노래」 1.5 버전 업데이트 상세안내 공지에서 제가 알아야 할 내용이 뭐예요?",
+        "category": "faq",
+        "routing_target": "faq_agent",
+        "user_id": 1,
+        "account_id": 101
+      },
+      "outputs": {
+        "reference_answer": "NVC-NOT-334 문서의 '「옥빛 아래 속세의 노래」 1.5 버전 업데이트 상세안내' 근거에 따라 답해야 합니다. 핵심 근거: 「옥빛 아래 속세의 노래」 1.5 버전 업데이트 상세안내 =====문제 수정===== 4. 캐릭터 「단죄의 황녀!!·피슬(번개)」의 첫 번째 운명의 자리 「그윽한 까마귀 눈」의 까마귀 눈이 일정 확률로 피해를 주지 않던 문제 수정",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "notice_document"
+        ],
+        "requires_rag": true,
+        "source_documents": [
+          "NVC-NOT-334"
+        ],
+        "expected_chunks": [
+          "NVC-NOT-334::chunk::93"
+        ],
+        "acceptable_documents": [
+          "NVC-NOT-334"
+        ],
+        "acceptable_chunks": [
+          "NVC-NOT-334::chunk::0",
+          "NVC-NOT-334::chunk::1",
+          "NVC-NOT-334::chunk::2",
+          "NVC-NOT-334::chunk::3",
+          "NVC-NOT-334::chunk::4",
+          "NVC-NOT-334::chunk::5",
+          "NVC-NOT-334::chunk::6",
+          "NVC-NOT-334::chunk::7",
+          "NVC-NOT-334::chunk::8",
+          "NVC-NOT-334::chunk::9",
+          "NVC-NOT-334::chunk::10",
+          "NVC-NOT-334::chunk::11",
+          "NVC-NOT-334::chunk::12",
+          "NVC-NOT-334::chunk::13",
+          "NVC-NOT-334::chunk::14",
+          "NVC-NOT-334::chunk::15",
+          "NVC-NOT-334::chunk::16",
+          "NVC-NOT-334::chunk::17",
+          "NVC-NOT-334::chunk::18",
+          "NVC-NOT-334::chunk::19",
+          "NVC-NOT-334::chunk::20",
+          "NVC-NOT-334::chunk::21",
+          "NVC-NOT-334::chunk::22",
+          "NVC-NOT-334::chunk::23",
+          "NVC-NOT-334::chunk::24",
+          "NVC-NOT-334::chunk::25",
+          "NVC-NOT-334::chunk::26",
+          "NVC-NOT-334::chunk::27",
+          "NVC-NOT-334::chunk::28",
+          "NVC-NOT-334::chunk::29",
+          "NVC-NOT-334::chunk::30",
+          "NVC-NOT-334::chunk::31",
+          "NVC-NOT-334::chunk::32",
+          "NVC-NOT-334::chunk::33",
+          "NVC-NOT-334::chunk::34",
+          "NVC-NOT-334::chunk::35",
+          "NVC-NOT-334::chunk::36",
+          "NVC-NOT-334::chunk::37",
+          "NVC-NOT-334::chunk::38",
+          "NVC-NOT-334::chunk::39",
+          "NVC-NOT-334::chunk::40",
+          "NVC-NOT-334::chunk::41",
+          "NVC-NOT-334::chunk::42",
+          "NVC-NOT-334::chunk::43",
+          "NVC-NOT-334::chunk::44",
+          "NVC-NOT-334::chunk::45",
+          "NVC-NOT-334::chunk::46",
+          "NVC-NOT-334::chunk::47",
+          "NVC-NOT-334::chunk::48",
+          "NVC-NOT-334::chunk::49",
+          "NVC-NOT-334::chunk::50",
+          "NVC-NOT-334::chunk::51",
+          "NVC-NOT-334::chunk::52",
+          "NVC-NOT-334::chunk::53",
+          "NVC-NOT-334::chunk::54",
+          "NVC-NOT-334::chunk::55",
+          "NVC-NOT-334::chunk::56",
+          "NVC-NOT-334::chunk::57",
+          "NVC-NOT-334::chunk::58",
+          "NVC-NOT-334::chunk::59",
+          "NVC-NOT-334::chunk::60",
+          "NVC-NOT-334::chunk::61",
+          "NVC-NOT-334::chunk::62",
+          "NVC-NOT-334::chunk::63",
+          "NVC-NOT-334::chunk::64",
+          "NVC-NOT-334::chunk::65",
+          "NVC-NOT-334::chunk::66",
+          "NVC-NOT-334::chunk::67",
+          "NVC-NOT-334::chunk::68",
+          "NVC-NOT-334::chunk::69",
+          "NVC-NOT-334::chunk::70",
+          "NVC-NOT-334::chunk::71",
+          "NVC-NOT-334::chunk::72",
+          "NVC-NOT-334::chunk::73",
+          "NVC-NOT-334::chunk::74",
+          "NVC-NOT-334::chunk::75",
+          "NVC-NOT-334::chunk::76",
+          "NVC-NOT-334::chunk::77",
+          "NVC-NOT-334::chunk::78",
+          "NVC-NOT-334::chunk::79",
+          "NVC-NOT-334::chunk::80",
+          "NVC-NOT-334::chunk::81",
+          "NVC-NOT-334::chunk::82",
+          "NVC-NOT-334::chunk::83",
+          "NVC-NOT-334::chunk::84",
+          "NVC-NOT-334::chunk::85",
+          "NVC-NOT-334::chunk::86",
+          "NVC-NOT-334::chunk::87",
+          "NVC-NOT-334::chunk::88",
+          "NVC-NOT-334::chunk::89",
+          "NVC-NOT-334::chunk::90",
+          "NVC-NOT-334::chunk::91",
+          "NVC-NOT-334::chunk::92",
+          "NVC-NOT-334::chunk::93",
+          "NVC-NOT-334::chunk::94",
+          "NVC-NOT-334::chunk::95",
+          "NVC-NOT-334::chunk::96",
+          "NVC-NOT-334::chunk::97",
+          "NVC-NOT-334::chunk::98",
+          "NVC-NOT-334::chunk::99",
+          "NVC-NOT-334::chunk::100",
+          "NVC-NOT-334::chunk::101",
+          "NVC-NOT-334::chunk::102",
+          "NVC-NOT-334::chunk::103",
+          "NVC-NOT-334::chunk::104",
+          "NVC-NOT-334::chunk::105",
+          "NVC-NOT-334::chunk::106",
+          "NVC-NOT-334::chunk::107",
+          "NVC-NOT-334::chunk::108",
+          "NVC-NOT-334::chunk::109",
+          "NVC-NOT-334::chunk::110",
+          "NVC-NOT-334::chunk::111",
+          "NVC-NOT-334::chunk::112",
+          "NVC-NOT-334::chunk::113",
+          "NVC-NOT-334::chunk::114",
+          "NVC-NOT-334::chunk::115",
+          "NVC-NOT-334::chunk::116",
+          "NVC-NOT-334::chunk::117",
+          "NVC-NOT-334::chunk::118",
+          "NVC-NOT-334::chunk::119"
+        ],
+        "acceptable_source_types": [
+          "naver_cafe_notice"
+        ],
+        "expected_keywords": [
+          "옥빛",
+          "아래",
+          "속세의",
+          "노래",
+          "버전"
+        ],
+        "rubrics": {
+          "faithfulness": "NVC-NOT-334 / NVC-NOT-334::chunk::93 근거 안에서만 답한다.",
+          "source_hit@5": "acceptable_documents/source_types/chunks 중 하나가 top-5 검색 결과에 포함되어야 한다.",
+          "false_fallback_rate": "정답 chunk가 검색 가능한 케이스이므로 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "FAQ-021",
+        "eval_area": "faq_agent",
+        "domain": "공지사항",
+        "source_type": "naver_cafe_notice",
+        "persona": "new_player",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "여명을 관련 공지가 있던데 핵심만 알려주세요.",
+        "category": "faq",
+        "routing_target": "faq_agent",
+        "user_id": 1,
+        "account_id": 101
+      },
+      "outputs": {
+        "reference_answer": "NVC-NOT-203 문서의 '「여명을 밝히는 천 송이 장미」 3.0 버전 업데이트 상세안내' 근거에 따라 답해야 합니다. 핵심 근거: 「여명을 밝히는 천 송이 장미」 3.0 버전 업데이트 상세안내 =====업데이트 내용===== 3. 신규 명함: 「타이나리·이슬 오일」: 타이나리의 호감도 Lv.10 달성 시 획득 「콜레이·표변」: 콜레이의 호감도 Lv.10 달성 시 획득 「도리·요술 램프」: 도리의 호감도 Lv.10 달성 시 획득 「기행·깊은 숲」: 기행 시스템 보상 획득 「업적·만행」: 「속세 순유·제3집」의 모든 업적...",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "notice_document"
+        ],
+        "requires_rag": true,
+        "source_documents": [
+          "NVC-NOT-203"
+        ],
+        "expected_chunks": [
+          "NVC-NOT-203::chunk::86"
+        ],
+        "acceptable_documents": [
+          "NVC-NOT-203"
+        ],
+        "acceptable_chunks": [
+          "NVC-NOT-203::chunk::0",
+          "NVC-NOT-203::chunk::1",
+          "NVC-NOT-203::chunk::2",
+          "NVC-NOT-203::chunk::3",
+          "NVC-NOT-203::chunk::4",
+          "NVC-NOT-203::chunk::5",
+          "NVC-NOT-203::chunk::6",
+          "NVC-NOT-203::chunk::7",
+          "NVC-NOT-203::chunk::8",
+          "NVC-NOT-203::chunk::9",
+          "NVC-NOT-203::chunk::10",
+          "NVC-NOT-203::chunk::11",
+          "NVC-NOT-203::chunk::12",
+          "NVC-NOT-203::chunk::13",
+          "NVC-NOT-203::chunk::14",
+          "NVC-NOT-203::chunk::15",
+          "NVC-NOT-203::chunk::16",
+          "NVC-NOT-203::chunk::17",
+          "NVC-NOT-203::chunk::18",
+          "NVC-NOT-203::chunk::19",
+          "NVC-NOT-203::chunk::20",
+          "NVC-NOT-203::chunk::21",
+          "NVC-NOT-203::chunk::22",
+          "NVC-NOT-203::chunk::23",
+          "NVC-NOT-203::chunk::24",
+          "NVC-NOT-203::chunk::25",
+          "NVC-NOT-203::chunk::26",
+          "NVC-NOT-203::chunk::27",
+          "NVC-NOT-203::chunk::28",
+          "NVC-NOT-203::chunk::29",
+          "NVC-NOT-203::chunk::30",
+          "NVC-NOT-203::chunk::31",
+          "NVC-NOT-203::chunk::32",
+          "NVC-NOT-203::chunk::33",
+          "NVC-NOT-203::chunk::34",
+          "NVC-NOT-203::chunk::35",
+          "NVC-NOT-203::chunk::36",
+          "NVC-NOT-203::chunk::37",
+          "NVC-NOT-203::chunk::38",
+          "NVC-NOT-203::chunk::39",
+          "NVC-NOT-203::chunk::40",
+          "NVC-NOT-203::chunk::41",
+          "NVC-NOT-203::chunk::42",
+          "NVC-NOT-203::chunk::43",
+          "NVC-NOT-203::chunk::44",
+          "NVC-NOT-203::chunk::45",
+          "NVC-NOT-203::chunk::46",
+          "NVC-NOT-203::chunk::47",
+          "NVC-NOT-203::chunk::48",
+          "NVC-NOT-203::chunk::49",
+          "NVC-NOT-203::chunk::50",
+          "NVC-NOT-203::chunk::51",
+          "NVC-NOT-203::chunk::52",
+          "NVC-NOT-203::chunk::53",
+          "NVC-NOT-203::chunk::54",
+          "NVC-NOT-203::chunk::55",
+          "NVC-NOT-203::chunk::56",
+          "NVC-NOT-203::chunk::57",
+          "NVC-NOT-203::chunk::58",
+          "NVC-NOT-203::chunk::59",
+          "NVC-NOT-203::chunk::60",
+          "NVC-NOT-203::chunk::61",
+          "NVC-NOT-203::chunk::62",
+          "NVC-NOT-203::chunk::63",
+          "NVC-NOT-203::chunk::64",
+          "NVC-NOT-203::chunk::65",
+          "NVC-NOT-203::chunk::66",
+          "NVC-NOT-203::chunk::67",
+          "NVC-NOT-203::chunk::68",
+          "NVC-NOT-203::chunk::69",
+          "NVC-NOT-203::chunk::70",
+          "NVC-NOT-203::chunk::71",
+          "NVC-NOT-203::chunk::72",
+          "NVC-NOT-203::chunk::73",
+          "NVC-NOT-203::chunk::74",
+          "NVC-NOT-203::chunk::75",
+          "NVC-NOT-203::chunk::76",
+          "NVC-NOT-203::chunk::77",
+          "NVC-NOT-203::chunk::78",
+          "NVC-NOT-203::chunk::79",
+          "NVC-NOT-203::chunk::80",
+          "NVC-NOT-203::chunk::81",
+          "NVC-NOT-203::chunk::82",
+          "NVC-NOT-203::chunk::83",
+          "NVC-NOT-203::chunk::84",
+          "NVC-NOT-203::chunk::85",
+          "NVC-NOT-203::chunk::86",
+          "NVC-NOT-203::chunk::87",
+          "NVC-NOT-203::chunk::88",
+          "NVC-NOT-203::chunk::89",
+          "NVC-NOT-203::chunk::90",
+          "NVC-NOT-203::chunk::91",
+          "NVC-NOT-203::chunk::92",
+          "NVC-NOT-203::chunk::93",
+          "NVC-NOT-203::chunk::94",
+          "NVC-NOT-203::chunk::95",
+          "NVC-NOT-203::chunk::96",
+          "NVC-NOT-203::chunk::97",
+          "NVC-NOT-203::chunk::98",
+          "NVC-NOT-203::chunk::99",
+          "NVC-NOT-203::chunk::100",
+          "NVC-NOT-203::chunk::101",
+          "NVC-NOT-203::chunk::102",
+          "NVC-NOT-203::chunk::103",
+          "NVC-NOT-203::chunk::104",
+          "NVC-NOT-203::chunk::105",
+          "NVC-NOT-203::chunk::106",
+          "NVC-NOT-203::chunk::107",
+          "NVC-NOT-203::chunk::108",
+          "NVC-NOT-203::chunk::109",
+          "NVC-NOT-203::chunk::110",
+          "NVC-NOT-203::chunk::111",
+          "NVC-NOT-203::chunk::112",
+          "NVC-NOT-203::chunk::113",
+          "NVC-NOT-203::chunk::114",
+          "NVC-NOT-203::chunk::115",
+          "NVC-NOT-203::chunk::116",
+          "NVC-NOT-203::chunk::117",
+          "NVC-NOT-203::chunk::118",
+          "NVC-NOT-203::chunk::119",
+          "NVC-NOT-203::chunk::120",
+          "NVC-NOT-203::chunk::121",
+          "NVC-NOT-203::chunk::122",
+          "NVC-NOT-203::chunk::123",
+          "NVC-NOT-203::chunk::124",
+          "NVC-NOT-203::chunk::125",
+          "NVC-NOT-203::chunk::126",
+          "NVC-NOT-203::chunk::127",
+          "NVC-NOT-203::chunk::128",
+          "NVC-NOT-203::chunk::129",
+          "NVC-NOT-203::chunk::130",
+          "NVC-NOT-203::chunk::131",
+          "NVC-NOT-203::chunk::132",
+          "NVC-NOT-203::chunk::133",
+          "NVC-NOT-203::chunk::134",
+          "NVC-NOT-203::chunk::135",
+          "NVC-NOT-203::chunk::136",
+          "NVC-NOT-203::chunk::137",
+          "NVC-NOT-203::chunk::138",
+          "NVC-NOT-203::chunk::139",
+          "NVC-NOT-203::chunk::140",
+          "NVC-NOT-203::chunk::141",
+          "NVC-NOT-203::chunk::142",
+          "NVC-NOT-203::chunk::143",
+          "NVC-NOT-203::chunk::144",
+          "NVC-NOT-203::chunk::145",
+          "NVC-NOT-203::chunk::146",
+          "NVC-NOT-203::chunk::147",
+          "NVC-NOT-203::chunk::148",
+          "NVC-NOT-203::chunk::149",
+          "NVC-NOT-203::chunk::150",
+          "NVC-NOT-203::chunk::151",
+          "NVC-NOT-203::chunk::152",
+          "NVC-NOT-203::chunk::153",
+          "NVC-NOT-203::chunk::154",
+          "NVC-NOT-203::chunk::155",
+          "NVC-NOT-203::chunk::156",
+          "NVC-NOT-203::chunk::157",
+          "NVC-NOT-203::chunk::158",
+          "NVC-NOT-203::chunk::159",
+          "NVC-NOT-203::chunk::160",
+          "NVC-NOT-203::chunk::161",
+          "NVC-NOT-203::chunk::162",
+          "NVC-NOT-203::chunk::163",
+          "NVC-NOT-203::chunk::164",
+          "NVC-NOT-203::chunk::165",
+          "NVC-NOT-203::chunk::166",
+          "NVC-NOT-203::chunk::167",
+          "NVC-NOT-203::chunk::168",
+          "NVC-NOT-203::chunk::169",
+          "NVC-NOT-203::chunk::170",
+          "NVC-NOT-203::chunk::171",
+          "NVC-NOT-203::chunk::172",
+          "NVC-NOT-203::chunk::173",
+          "NVC-NOT-203::chunk::174",
+          "NVC-NOT-203::chunk::175",
+          "NVC-NOT-203::chunk::176",
+          "NVC-NOT-203::chunk::177",
+          "NVC-NOT-203::chunk::178",
+          "NVC-NOT-203::chunk::179",
+          "NVC-NOT-203::chunk::180",
+          "NVC-NOT-203::chunk::181",
+          "NVC-NOT-203::chunk::182",
+          "NVC-NOT-203::chunk::183",
+          "NVC-NOT-203::chunk::184",
+          "NVC-NOT-203::chunk::185",
+          "NVC-NOT-203::chunk::186",
+          "NVC-NOT-203::chunk::187",
+          "NVC-NOT-203::chunk::188",
+          "NVC-NOT-203::chunk::189",
+          "NVC-NOT-203::chunk::190",
+          "NVC-NOT-203::chunk::191"
+        ],
+        "acceptable_source_types": [
+          "naver_cafe_notice"
+        ],
+        "expected_keywords": [
+          "여명을",
+          "밝히는",
+          "송이",
+          "장미",
+          "버전"
+        ],
+        "rubrics": {
+          "faithfulness": "NVC-NOT-203 / NVC-NOT-203::chunk::86 근거 안에서만 답한다.",
+          "source_hit@5": "acceptable_documents/source_types/chunks 중 하나가 top-5 검색 결과에 포함되어야 한다.",
+          "false_fallback_rate": "정답 chunk가 검색 가능한 케이스이므로 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "FAQ-022",
+        "eval_area": "faq_agent",
+        "domain": "공지사항",
+        "source_type": "naver_cafe_notice",
+        "persona": "returning_player",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "이벤트/점검 공지 확인 중인데 「밤하늘을 수놓은 등불」 1.3 버전 업데이트 상세안내 (최적화-오디오-6번 추가) 내용이 궁금해요.",
+        "category": "faq",
+        "routing_target": "faq_agent",
+        "user_id": 1,
+        "account_id": 101
+      },
+      "outputs": {
+        "reference_answer": "NVC-NOT-357 문서의 '「밤하늘을 수놓은 등불」 1.3 버전 업데이트 상세안내 (최적화-오디오-6번 추가)' 근거에 따라 답해야 합니다. 핵심 근거: 「밤하늘을 수놓은 등불」 1.3 버전 업데이트 상세안내 (최적화-오디오-6번 추가) =====문제 수정===== 4. 다인 모드에서 다른 여행자가 월드에 진입한 이후 일부 캐릭터의 스킬이 몬스터 보호막 파괴에 가하던 효과가 개인 모드와 일치하지 않던 문제 수정",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "notice_document"
+        ],
+        "requires_rag": true,
+        "source_documents": [
+          "NVC-NOT-357"
+        ],
+        "expected_chunks": [
+          "NVC-NOT-357::chunk::78"
+        ],
+        "acceptable_documents": [
+          "NVC-NOT-357"
+        ],
+        "acceptable_chunks": [
+          "NVC-NOT-357::chunk::0",
+          "NVC-NOT-357::chunk::1",
+          "NVC-NOT-357::chunk::2",
+          "NVC-NOT-357::chunk::3",
+          "NVC-NOT-357::chunk::4",
+          "NVC-NOT-357::chunk::5",
+          "NVC-NOT-357::chunk::6",
+          "NVC-NOT-357::chunk::7",
+          "NVC-NOT-357::chunk::8",
+          "NVC-NOT-357::chunk::9",
+          "NVC-NOT-357::chunk::10",
+          "NVC-NOT-357::chunk::11",
+          "NVC-NOT-357::chunk::12",
+          "NVC-NOT-357::chunk::13",
+          "NVC-NOT-357::chunk::14",
+          "NVC-NOT-357::chunk::15",
+          "NVC-NOT-357::chunk::16",
+          "NVC-NOT-357::chunk::17",
+          "NVC-NOT-357::chunk::18",
+          "NVC-NOT-357::chunk::19",
+          "NVC-NOT-357::chunk::20",
+          "NVC-NOT-357::chunk::21",
+          "NVC-NOT-357::chunk::22",
+          "NVC-NOT-357::chunk::23",
+          "NVC-NOT-357::chunk::24",
+          "NVC-NOT-357::chunk::25",
+          "NVC-NOT-357::chunk::26",
+          "NVC-NOT-357::chunk::27",
+          "NVC-NOT-357::chunk::28",
+          "NVC-NOT-357::chunk::29",
+          "NVC-NOT-357::chunk::30",
+          "NVC-NOT-357::chunk::31",
+          "NVC-NOT-357::chunk::32",
+          "NVC-NOT-357::chunk::33",
+          "NVC-NOT-357::chunk::34",
+          "NVC-NOT-357::chunk::35",
+          "NVC-NOT-357::chunk::36",
+          "NVC-NOT-357::chunk::37",
+          "NVC-NOT-357::chunk::38",
+          "NVC-NOT-357::chunk::39",
+          "NVC-NOT-357::chunk::40",
+          "NVC-NOT-357::chunk::41",
+          "NVC-NOT-357::chunk::42",
+          "NVC-NOT-357::chunk::43",
+          "NVC-NOT-357::chunk::44",
+          "NVC-NOT-357::chunk::45",
+          "NVC-NOT-357::chunk::46",
+          "NVC-NOT-357::chunk::47",
+          "NVC-NOT-357::chunk::48",
+          "NVC-NOT-357::chunk::49",
+          "NVC-NOT-357::chunk::50",
+          "NVC-NOT-357::chunk::51",
+          "NVC-NOT-357::chunk::52",
+          "NVC-NOT-357::chunk::53",
+          "NVC-NOT-357::chunk::54",
+          "NVC-NOT-357::chunk::55",
+          "NVC-NOT-357::chunk::56",
+          "NVC-NOT-357::chunk::57",
+          "NVC-NOT-357::chunk::58",
+          "NVC-NOT-357::chunk::59",
+          "NVC-NOT-357::chunk::60",
+          "NVC-NOT-357::chunk::61",
+          "NVC-NOT-357::chunk::62",
+          "NVC-NOT-357::chunk::63",
+          "NVC-NOT-357::chunk::64",
+          "NVC-NOT-357::chunk::65",
+          "NVC-NOT-357::chunk::66",
+          "NVC-NOT-357::chunk::67",
+          "NVC-NOT-357::chunk::68",
+          "NVC-NOT-357::chunk::69",
+          "NVC-NOT-357::chunk::70",
+          "NVC-NOT-357::chunk::71",
+          "NVC-NOT-357::chunk::72",
+          "NVC-NOT-357::chunk::73",
+          "NVC-NOT-357::chunk::74",
+          "NVC-NOT-357::chunk::75",
+          "NVC-NOT-357::chunk::76",
+          "NVC-NOT-357::chunk::77",
+          "NVC-NOT-357::chunk::78",
+          "NVC-NOT-357::chunk::79",
+          "NVC-NOT-357::chunk::80",
+          "NVC-NOT-357::chunk::81",
+          "NVC-NOT-357::chunk::82",
+          "NVC-NOT-357::chunk::83",
+          "NVC-NOT-357::chunk::84",
+          "NVC-NOT-357::chunk::85",
+          "NVC-NOT-357::chunk::86",
+          "NVC-NOT-357::chunk::87",
+          "NVC-NOT-357::chunk::88",
+          "NVC-NOT-357::chunk::89",
+          "NVC-NOT-357::chunk::90",
+          "NVC-NOT-357::chunk::91",
+          "NVC-NOT-357::chunk::92",
+          "NVC-NOT-357::chunk::93",
+          "NVC-NOT-357::chunk::94",
+          "NVC-NOT-357::chunk::95",
+          "NVC-NOT-357::chunk::96",
+          "NVC-NOT-357::chunk::97",
+          "NVC-NOT-357::chunk::98",
+          "NVC-NOT-357::chunk::99",
+          "NVC-NOT-357::chunk::100",
+          "NVC-NOT-357::chunk::101",
+          "NVC-NOT-357::chunk::102",
+          "NVC-NOT-357::chunk::103",
+          "NVC-NOT-357::chunk::104",
+          "NVC-NOT-357::chunk::105",
+          "NVC-NOT-357::chunk::106",
+          "NVC-NOT-357::chunk::107",
+          "NVC-NOT-357::chunk::108",
+          "NVC-NOT-357::chunk::109",
+          "NVC-NOT-357::chunk::110",
+          "NVC-NOT-357::chunk::111",
+          "NVC-NOT-357::chunk::112",
+          "NVC-NOT-357::chunk::113",
+          "NVC-NOT-357::chunk::114",
+          "NVC-NOT-357::chunk::115",
+          "NVC-NOT-357::chunk::116",
+          "NVC-NOT-357::chunk::117",
+          "NVC-NOT-357::chunk::118",
+          "NVC-NOT-357::chunk::119",
+          "NVC-NOT-357::chunk::120",
+          "NVC-NOT-357::chunk::121",
+          "NVC-NOT-357::chunk::122",
+          "NVC-NOT-357::chunk::123",
+          "NVC-NOT-357::chunk::124",
+          "NVC-NOT-357::chunk::125",
+          "NVC-NOT-357::chunk::126",
+          "NVC-NOT-357::chunk::127",
+          "NVC-NOT-357::chunk::128",
+          "NVC-NOT-357::chunk::129",
+          "NVC-NOT-357::chunk::130",
+          "NVC-NOT-357::chunk::131",
+          "NVC-NOT-357::chunk::132",
+          "NVC-NOT-357::chunk::133",
+          "NVC-NOT-357::chunk::134",
+          "NVC-NOT-357::chunk::135",
+          "NVC-NOT-357::chunk::136",
+          "NVC-NOT-357::chunk::137",
+          "NVC-NOT-357::chunk::138",
+          "NVC-NOT-357::chunk::139",
+          "NVC-NOT-357::chunk::140",
+          "NVC-NOT-357::chunk::141",
+          "NVC-NOT-357::chunk::142",
+          "NVC-NOT-357::chunk::143",
+          "NVC-NOT-357::chunk::144",
+          "NVC-NOT-357::chunk::145",
+          "NVC-NOT-357::chunk::146",
+          "NVC-NOT-357::chunk::147",
+          "NVC-NOT-357::chunk::148",
+          "NVC-NOT-357::chunk::149"
+        ],
+        "acceptable_source_types": [
+          "naver_cafe_notice"
+        ],
+        "expected_keywords": [
+          "밤하늘을",
+          "수놓은",
+          "등불",
+          "버전",
+          "업데이트"
+        ],
+        "rubrics": {
+          "faithfulness": "NVC-NOT-357 / NVC-NOT-357::chunk::78 근거 안에서만 답한다.",
+          "source_hit@5": "acceptable_documents/source_types/chunks 중 하나가 top-5 검색 결과에 포함되어야 한다.",
+          "false_fallback_rate": "정답 chunk가 검색 가능한 케이스이므로 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "FAQ-023",
+        "eval_area": "faq_agent",
+        "domain": "공지사항",
+        "source_type": "naver_cafe_notice",
+        "persona": "impatient_payer",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "공지사항 공지에서 기간이나 보상 관련해서 중요한 점 알려주세요.",
+        "category": "faq",
+        "routing_target": "faq_agent",
+        "user_id": 1,
+        "account_id": 101
+      },
+      "outputs": {
+        "reference_answer": "NVC-NOT-279 문서의 '2.3 버전 발견한 오류 & 업데이트 공지 (12월 23일)' 근거에 따라 답해야 합니다. 핵심 근거: 2.3 버전 발견한 오류 & 업데이트 공지 (12월 23일) 더욱 나은 게임 환경을 제공하기 위해 개발진에서 2.3버전 「눈보라 속 그림자」 업데이트 이후 발견된 오류, 그리고 수정한 부분에 대해서 직접 여행자에게 알려준대~! 여행자들이 앞으로 발견된 오류 및 수정한 내용을 한 번에 확인할 수 있도록 해당 게시글에 계속해서 업데이트할 거야~",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "notice_document"
+        ],
+        "requires_rag": true,
+        "source_documents": [
+          "NVC-NOT-279"
+        ],
+        "expected_chunks": [
+          "NVC-NOT-279::chunk::0"
+        ],
+        "acceptable_documents": [
+          "NVC-NOT-279"
+        ],
+        "acceptable_chunks": [
+          "NVC-NOT-279::chunk::0",
+          "NVC-NOT-279::chunk::1",
+          "NVC-NOT-279::chunk::2"
+        ],
+        "acceptable_source_types": [
+          "naver_cafe_notice"
+        ],
+        "expected_keywords": [
+          "버전",
+          "발견한",
+          "오류",
+          "업데이트",
+          "공지"
+        ],
+        "rubrics": {
+          "faithfulness": "NVC-NOT-279 / NVC-NOT-279::chunk::0 근거 안에서만 답한다.",
+          "source_hit@5": "acceptable_documents/source_types/chunks 중 하나가 top-5 검색 결과에 포함되어야 한다.",
+          "false_fallback_rate": "정답 chunk가 검색 가능한 케이스이므로 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "FAQ-024",
+        "eval_area": "faq_agent",
+        "domain": "공지사항",
+        "source_type": "naver_cafe_notice",
+        "persona": "detail_reporter",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "최근 발생한 〈일상〉 핵 프로그램 문제 관련 조치 안내 공지에서 제가 알아야 할 내용이 뭐예요?",
+        "category": "faq",
+        "routing_target": "faq_agent",
+        "user_id": 1,
+        "account_id": 101
+      },
+      "outputs": {
+        "reference_answer": "NVC-NOT-139 문서의 '최근 발생한 〈일상〉 핵 프로그램 문제 관련 조치 안내' 근거에 따라 답해야 합니다. 핵심 근거: 최근 발생한 〈일상〉 핵 프로그램 문제 관련 조치 안내 여행자님, 최근 일부 여행자가 핵 프로그램을 사용해 게임 데이터를 변경하고 악의적으로 다른 여행자의 플레이 경험을 저하시킨 문제를 발견했습니다. 구체적으로는, 다인 모드에서 핵 프로그램을 사용해 다른 여행자의 월드 내 오브젝트를 삭제하여, 해당 여행자의 정상적인 플레이에 지장을 미치는 정황을 포착했습니다. 개발진은 8월 25일경 관련 문...",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "notice_document"
+        ],
+        "requires_rag": true,
+        "source_documents": [
+          "NVC-NOT-139"
+        ],
+        "expected_chunks": [
+          "NVC-NOT-139::chunk::0"
+        ],
+        "acceptable_documents": [
+          "NVC-NOT-139"
+        ],
+        "acceptable_chunks": [
+          "NVC-NOT-139::chunk::0"
+        ],
+        "acceptable_source_types": [
+          "naver_cafe_notice"
+        ],
+        "expected_keywords": [
+          "최근",
+          "발생한",
+          "일상",
+          "프로그램",
+          "문제"
+        ],
+        "rubrics": {
+          "faithfulness": "NVC-NOT-139 / NVC-NOT-139::chunk::0 근거 안에서만 답한다.",
+          "source_hit@5": "acceptable_documents/source_types/chunks 중 하나가 top-5 검색 결과에 포함되어야 한다.",
+          "false_fallback_rate": "정답 chunk가 검색 가능한 케이스이므로 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "FAQ-025",
+        "eval_area": "faq_agent",
+        "domain": "공지사항",
+        "source_type": "naver_cafe_notice",
+        "persona": "short_mobile_user",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "여명을 관련 공지가 있던데 핵심만 알려주세요.",
+        "category": "faq",
+        "routing_target": "faq_agent",
+        "user_id": 1,
+        "account_id": 101
+      },
+      "outputs": {
+        "reference_answer": "NVC-NOT-203 문서의 '「여명을 밝히는 천 송이 장미」 3.0 버전 업데이트 상세안내' 근거에 따라 답해야 합니다. 핵심 근거: 「여명을 밝히는 천 송이 장미」 3.0 버전 업데이트 상세안내 =====조정 및 최적화===== 2. 물 원소 공명 효과 「치유의 물」 조정: '불 원소의 부착 지속 시간이 40% 감소합니다. HP 최대치가 25% 증가합니다",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "notice_document"
+        ],
+        "requires_rag": true,
+        "source_documents": [
+          "NVC-NOT-203"
+        ],
+        "expected_chunks": [
+          "NVC-NOT-203::chunk::127"
+        ],
+        "acceptable_documents": [
+          "NVC-NOT-203"
+        ],
+        "acceptable_chunks": [
+          "NVC-NOT-203::chunk::0",
+          "NVC-NOT-203::chunk::1",
+          "NVC-NOT-203::chunk::2",
+          "NVC-NOT-203::chunk::3",
+          "NVC-NOT-203::chunk::4",
+          "NVC-NOT-203::chunk::5",
+          "NVC-NOT-203::chunk::6",
+          "NVC-NOT-203::chunk::7",
+          "NVC-NOT-203::chunk::8",
+          "NVC-NOT-203::chunk::9",
+          "NVC-NOT-203::chunk::10",
+          "NVC-NOT-203::chunk::11",
+          "NVC-NOT-203::chunk::12",
+          "NVC-NOT-203::chunk::13",
+          "NVC-NOT-203::chunk::14",
+          "NVC-NOT-203::chunk::15",
+          "NVC-NOT-203::chunk::16",
+          "NVC-NOT-203::chunk::17",
+          "NVC-NOT-203::chunk::18",
+          "NVC-NOT-203::chunk::19",
+          "NVC-NOT-203::chunk::20",
+          "NVC-NOT-203::chunk::21",
+          "NVC-NOT-203::chunk::22",
+          "NVC-NOT-203::chunk::23",
+          "NVC-NOT-203::chunk::24",
+          "NVC-NOT-203::chunk::25",
+          "NVC-NOT-203::chunk::26",
+          "NVC-NOT-203::chunk::27",
+          "NVC-NOT-203::chunk::28",
+          "NVC-NOT-203::chunk::29",
+          "NVC-NOT-203::chunk::30",
+          "NVC-NOT-203::chunk::31",
+          "NVC-NOT-203::chunk::32",
+          "NVC-NOT-203::chunk::33",
+          "NVC-NOT-203::chunk::34",
+          "NVC-NOT-203::chunk::35",
+          "NVC-NOT-203::chunk::36",
+          "NVC-NOT-203::chunk::37",
+          "NVC-NOT-203::chunk::38",
+          "NVC-NOT-203::chunk::39",
+          "NVC-NOT-203::chunk::40",
+          "NVC-NOT-203::chunk::41",
+          "NVC-NOT-203::chunk::42",
+          "NVC-NOT-203::chunk::43",
+          "NVC-NOT-203::chunk::44",
+          "NVC-NOT-203::chunk::45",
+          "NVC-NOT-203::chunk::46",
+          "NVC-NOT-203::chunk::47",
+          "NVC-NOT-203::chunk::48",
+          "NVC-NOT-203::chunk::49",
+          "NVC-NOT-203::chunk::50",
+          "NVC-NOT-203::chunk::51",
+          "NVC-NOT-203::chunk::52",
+          "NVC-NOT-203::chunk::53",
+          "NVC-NOT-203::chunk::54",
+          "NVC-NOT-203::chunk::55",
+          "NVC-NOT-203::chunk::56",
+          "NVC-NOT-203::chunk::57",
+          "NVC-NOT-203::chunk::58",
+          "NVC-NOT-203::chunk::59",
+          "NVC-NOT-203::chunk::60",
+          "NVC-NOT-203::chunk::61",
+          "NVC-NOT-203::chunk::62",
+          "NVC-NOT-203::chunk::63",
+          "NVC-NOT-203::chunk::64",
+          "NVC-NOT-203::chunk::65",
+          "NVC-NOT-203::chunk::66",
+          "NVC-NOT-203::chunk::67",
+          "NVC-NOT-203::chunk::68",
+          "NVC-NOT-203::chunk::69",
+          "NVC-NOT-203::chunk::70",
+          "NVC-NOT-203::chunk::71",
+          "NVC-NOT-203::chunk::72",
+          "NVC-NOT-203::chunk::73",
+          "NVC-NOT-203::chunk::74",
+          "NVC-NOT-203::chunk::75",
+          "NVC-NOT-203::chunk::76",
+          "NVC-NOT-203::chunk::77",
+          "NVC-NOT-203::chunk::78",
+          "NVC-NOT-203::chunk::79",
+          "NVC-NOT-203::chunk::80",
+          "NVC-NOT-203::chunk::81",
+          "NVC-NOT-203::chunk::82",
+          "NVC-NOT-203::chunk::83",
+          "NVC-NOT-203::chunk::84",
+          "NVC-NOT-203::chunk::85",
+          "NVC-NOT-203::chunk::86",
+          "NVC-NOT-203::chunk::87",
+          "NVC-NOT-203::chunk::88",
+          "NVC-NOT-203::chunk::89",
+          "NVC-NOT-203::chunk::90",
+          "NVC-NOT-203::chunk::91",
+          "NVC-NOT-203::chunk::92",
+          "NVC-NOT-203::chunk::93",
+          "NVC-NOT-203::chunk::94",
+          "NVC-NOT-203::chunk::95",
+          "NVC-NOT-203::chunk::96",
+          "NVC-NOT-203::chunk::97",
+          "NVC-NOT-203::chunk::98",
+          "NVC-NOT-203::chunk::99",
+          "NVC-NOT-203::chunk::100",
+          "NVC-NOT-203::chunk::101",
+          "NVC-NOT-203::chunk::102",
+          "NVC-NOT-203::chunk::103",
+          "NVC-NOT-203::chunk::104",
+          "NVC-NOT-203::chunk::105",
+          "NVC-NOT-203::chunk::106",
+          "NVC-NOT-203::chunk::107",
+          "NVC-NOT-203::chunk::108",
+          "NVC-NOT-203::chunk::109",
+          "NVC-NOT-203::chunk::110",
+          "NVC-NOT-203::chunk::111",
+          "NVC-NOT-203::chunk::112",
+          "NVC-NOT-203::chunk::113",
+          "NVC-NOT-203::chunk::114",
+          "NVC-NOT-203::chunk::115",
+          "NVC-NOT-203::chunk::116",
+          "NVC-NOT-203::chunk::117",
+          "NVC-NOT-203::chunk::118",
+          "NVC-NOT-203::chunk::119",
+          "NVC-NOT-203::chunk::120",
+          "NVC-NOT-203::chunk::121",
+          "NVC-NOT-203::chunk::122",
+          "NVC-NOT-203::chunk::123",
+          "NVC-NOT-203::chunk::124",
+          "NVC-NOT-203::chunk::125",
+          "NVC-NOT-203::chunk::126",
+          "NVC-NOT-203::chunk::127",
+          "NVC-NOT-203::chunk::128",
+          "NVC-NOT-203::chunk::129",
+          "NVC-NOT-203::chunk::130",
+          "NVC-NOT-203::chunk::131",
+          "NVC-NOT-203::chunk::132",
+          "NVC-NOT-203::chunk::133",
+          "NVC-NOT-203::chunk::134",
+          "NVC-NOT-203::chunk::135",
+          "NVC-NOT-203::chunk::136",
+          "NVC-NOT-203::chunk::137",
+          "NVC-NOT-203::chunk::138",
+          "NVC-NOT-203::chunk::139",
+          "NVC-NOT-203::chunk::140",
+          "NVC-NOT-203::chunk::141",
+          "NVC-NOT-203::chunk::142",
+          "NVC-NOT-203::chunk::143",
+          "NVC-NOT-203::chunk::144",
+          "NVC-NOT-203::chunk::145",
+          "NVC-NOT-203::chunk::146",
+          "NVC-NOT-203::chunk::147",
+          "NVC-NOT-203::chunk::148",
+          "NVC-NOT-203::chunk::149",
+          "NVC-NOT-203::chunk::150",
+          "NVC-NOT-203::chunk::151",
+          "NVC-NOT-203::chunk::152",
+          "NVC-NOT-203::chunk::153",
+          "NVC-NOT-203::chunk::154",
+          "NVC-NOT-203::chunk::155",
+          "NVC-NOT-203::chunk::156",
+          "NVC-NOT-203::chunk::157",
+          "NVC-NOT-203::chunk::158",
+          "NVC-NOT-203::chunk::159",
+          "NVC-NOT-203::chunk::160",
+          "NVC-NOT-203::chunk::161",
+          "NVC-NOT-203::chunk::162",
+          "NVC-NOT-203::chunk::163",
+          "NVC-NOT-203::chunk::164",
+          "NVC-NOT-203::chunk::165",
+          "NVC-NOT-203::chunk::166",
+          "NVC-NOT-203::chunk::167",
+          "NVC-NOT-203::chunk::168",
+          "NVC-NOT-203::chunk::169",
+          "NVC-NOT-203::chunk::170",
+          "NVC-NOT-203::chunk::171",
+          "NVC-NOT-203::chunk::172",
+          "NVC-NOT-203::chunk::173",
+          "NVC-NOT-203::chunk::174",
+          "NVC-NOT-203::chunk::175",
+          "NVC-NOT-203::chunk::176",
+          "NVC-NOT-203::chunk::177",
+          "NVC-NOT-203::chunk::178",
+          "NVC-NOT-203::chunk::179",
+          "NVC-NOT-203::chunk::180",
+          "NVC-NOT-203::chunk::181",
+          "NVC-NOT-203::chunk::182",
+          "NVC-NOT-203::chunk::183",
+          "NVC-NOT-203::chunk::184",
+          "NVC-NOT-203::chunk::185",
+          "NVC-NOT-203::chunk::186",
+          "NVC-NOT-203::chunk::187",
+          "NVC-NOT-203::chunk::188",
+          "NVC-NOT-203::chunk::189",
+          "NVC-NOT-203::chunk::190",
+          "NVC-NOT-203::chunk::191"
+        ],
+        "acceptable_source_types": [
+          "naver_cafe_notice"
+        ],
+        "expected_keywords": [
+          "여명을",
+          "밝히는",
+          "송이",
+          "장미",
+          "버전"
+        ],
+        "rubrics": {
+          "faithfulness": "NVC-NOT-203 / NVC-NOT-203::chunk::127 근거 안에서만 답한다.",
+          "source_hit@5": "acceptable_documents/source_types/chunks 중 하나가 top-5 검색 결과에 포함되어야 한다.",
+          "false_fallback_rate": "정답 chunk가 검색 가능한 케이스이므로 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "FAQ-026",
+        "eval_area": "faq_agent",
+        "domain": "공지사항",
+        "source_type": "naver_cafe_notice",
+        "persona": "new_player",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "이벤트/점검 공지 확인 중인데 2.8 버전 발견한 오류 & 업데이트 공지 (8월 8일) 내용이 궁금해요.",
+        "category": "faq",
+        "routing_target": "faq_agent",
+        "user_id": 1,
+        "account_id": 101
+      },
+      "outputs": {
+        "reference_answer": "NVC-NOT-229 문서의 '2.8 버전 발견한 오류 & 업데이트 공지 (8월 8일)' 근거에 따라 답해야 합니다. 핵심 근거: 2.8 버전 발견한 오류 & 업데이트 공지 (8월 8일) =====발견한 문제===== 1. 현재 특정 상황에서 월드 임무 「네 개의 암초 보물 탐험기」 완료 후 나타나는 보물상자를 제때 수령하지 않으면 보물상자가 비정상적으로 사라지는 문제가 있습니다. 이에 따라, 매주 게임 내 우편을 통해 2.8 버전 기간 내 해당 주에 문제를 겪은 여행자에게 관련 보물상자 보상을 지급할 예정입니다. ※보...",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "notice_document"
+        ],
+        "requires_rag": true,
+        "source_documents": [
+          "NVC-NOT-229"
+        ],
+        "expected_chunks": [
+          "NVC-NOT-229::chunk::2"
+        ],
+        "acceptable_documents": [
+          "NVC-NOT-229"
+        ],
+        "acceptable_chunks": [
+          "NVC-NOT-229::chunk::0",
+          "NVC-NOT-229::chunk::1",
+          "NVC-NOT-229::chunk::2",
+          "NVC-NOT-229::chunk::3",
+          "NVC-NOT-229::chunk::4",
+          "NVC-NOT-229::chunk::5",
+          "NVC-NOT-229::chunk::6",
+          "NVC-NOT-229::chunk::7",
+          "NVC-NOT-229::chunk::8",
+          "NVC-NOT-229::chunk::9",
+          "NVC-NOT-229::chunk::10",
+          "NVC-NOT-229::chunk::11",
+          "NVC-NOT-229::chunk::12",
+          "NVC-NOT-229::chunk::13",
+          "NVC-NOT-229::chunk::14",
+          "NVC-NOT-229::chunk::15",
+          "NVC-NOT-229::chunk::16",
+          "NVC-NOT-229::chunk::17",
+          "NVC-NOT-229::chunk::18",
+          "NVC-NOT-229::chunk::19",
+          "NVC-NOT-229::chunk::20",
+          "NVC-NOT-229::chunk::21",
+          "NVC-NOT-229::chunk::22",
+          "NVC-NOT-229::chunk::23",
+          "NVC-NOT-229::chunk::24",
+          "NVC-NOT-229::chunk::25",
+          "NVC-NOT-229::chunk::26",
+          "NVC-NOT-229::chunk::27",
+          "NVC-NOT-229::chunk::28",
+          "NVC-NOT-229::chunk::29",
+          "NVC-NOT-229::chunk::30",
+          "NVC-NOT-229::chunk::31",
+          "NVC-NOT-229::chunk::32",
+          "NVC-NOT-229::chunk::33",
+          "NVC-NOT-229::chunk::34",
+          "NVC-NOT-229::chunk::35",
+          "NVC-NOT-229::chunk::36",
+          "NVC-NOT-229::chunk::37",
+          "NVC-NOT-229::chunk::38",
+          "NVC-NOT-229::chunk::39",
+          "NVC-NOT-229::chunk::40",
+          "NVC-NOT-229::chunk::41",
+          "NVC-NOT-229::chunk::42",
+          "NVC-NOT-229::chunk::43",
+          "NVC-NOT-229::chunk::44"
+        ],
+        "acceptable_source_types": [
+          "naver_cafe_notice"
+        ],
+        "expected_keywords": [
+          "버전",
+          "발견한",
+          "오류",
+          "업데이트",
+          "공지"
+        ],
+        "rubrics": {
+          "faithfulness": "NVC-NOT-229 / NVC-NOT-229::chunk::2 근거 안에서만 답한다.",
+          "source_hit@5": "acceptable_documents/source_types/chunks 중 하나가 top-5 검색 결과에 포함되어야 한다.",
+          "false_fallback_rate": "정답 chunk가 검색 가능한 케이스이므로 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "FAQ-027",
+        "eval_area": "faq_agent",
+        "domain": "공지사항",
+        "source_type": "naver_cafe_notice",
+        "persona": "returning_player",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "공지사항 공지에서 기간이나 보상 관련해서 중요한 점 알려주세요.",
+        "category": "faq",
+        "routing_target": "faq_agent",
+        "user_id": 1,
+        "account_id": 101
+      },
+      "outputs": {
+        "reference_answer": "NVC-NOT-280 문서의 '「눈보라 속 그림자」 2.3 버전 업데이트 상세안내' 근거에 따라 답해야 합니다. 핵심 근거: 「눈보라 속 그림자」 2.3 버전 업데이트 상세안내 =====업데이트 시간===== 2021년 11월 24일 07:00(한국시간)에 시작해 예상 소요 시간은 5시간이야",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "notice_document"
+        ],
+        "requires_rag": true,
+        "source_documents": [
+          "NVC-NOT-280"
+        ],
+        "expected_chunks": [
+          "NVC-NOT-280::chunk::3"
+        ],
+        "acceptable_documents": [
+          "NVC-NOT-280"
+        ],
+        "acceptable_chunks": [
+          "NVC-NOT-280::chunk::0",
+          "NVC-NOT-280::chunk::1",
+          "NVC-NOT-280::chunk::2",
+          "NVC-NOT-280::chunk::3",
+          "NVC-NOT-280::chunk::4",
+          "NVC-NOT-280::chunk::5",
+          "NVC-NOT-280::chunk::6",
+          "NVC-NOT-280::chunk::7",
+          "NVC-NOT-280::chunk::8",
+          "NVC-NOT-280::chunk::9",
+          "NVC-NOT-280::chunk::10",
+          "NVC-NOT-280::chunk::11",
+          "NVC-NOT-280::chunk::12",
+          "NVC-NOT-280::chunk::13",
+          "NVC-NOT-280::chunk::14",
+          "NVC-NOT-280::chunk::15",
+          "NVC-NOT-280::chunk::16",
+          "NVC-NOT-280::chunk::17",
+          "NVC-NOT-280::chunk::18",
+          "NVC-NOT-280::chunk::19",
+          "NVC-NOT-280::chunk::20",
+          "NVC-NOT-280::chunk::21",
+          "NVC-NOT-280::chunk::22",
+          "NVC-NOT-280::chunk::23",
+          "NVC-NOT-280::chunk::24",
+          "NVC-NOT-280::chunk::25",
+          "NVC-NOT-280::chunk::26",
+          "NVC-NOT-280::chunk::27",
+          "NVC-NOT-280::chunk::28",
+          "NVC-NOT-280::chunk::29",
+          "NVC-NOT-280::chunk::30",
+          "NVC-NOT-280::chunk::31",
+          "NVC-NOT-280::chunk::32",
+          "NVC-NOT-280::chunk::33",
+          "NVC-NOT-280::chunk::34",
+          "NVC-NOT-280::chunk::35",
+          "NVC-NOT-280::chunk::36",
+          "NVC-NOT-280::chunk::37",
+          "NVC-NOT-280::chunk::38",
+          "NVC-NOT-280::chunk::39",
+          "NVC-NOT-280::chunk::40",
+          "NVC-NOT-280::chunk::41",
+          "NVC-NOT-280::chunk::42",
+          "NVC-NOT-280::chunk::43",
+          "NVC-NOT-280::chunk::44",
+          "NVC-NOT-280::chunk::45",
+          "NVC-NOT-280::chunk::46",
+          "NVC-NOT-280::chunk::47",
+          "NVC-NOT-280::chunk::48",
+          "NVC-NOT-280::chunk::49",
+          "NVC-NOT-280::chunk::50",
+          "NVC-NOT-280::chunk::51",
+          "NVC-NOT-280::chunk::52",
+          "NVC-NOT-280::chunk::53",
+          "NVC-NOT-280::chunk::54",
+          "NVC-NOT-280::chunk::55",
+          "NVC-NOT-280::chunk::56",
+          "NVC-NOT-280::chunk::57",
+          "NVC-NOT-280::chunk::58",
+          "NVC-NOT-280::chunk::59",
+          "NVC-NOT-280::chunk::60",
+          "NVC-NOT-280::chunk::61",
+          "NVC-NOT-280::chunk::62",
+          "NVC-NOT-280::chunk::63",
+          "NVC-NOT-280::chunk::64",
+          "NVC-NOT-280::chunk::65",
+          "NVC-NOT-280::chunk::66",
+          "NVC-NOT-280::chunk::67",
+          "NVC-NOT-280::chunk::68",
+          "NVC-NOT-280::chunk::69",
+          "NVC-NOT-280::chunk::70",
+          "NVC-NOT-280::chunk::71",
+          "NVC-NOT-280::chunk::72",
+          "NVC-NOT-280::chunk::73",
+          "NVC-NOT-280::chunk::74",
+          "NVC-NOT-280::chunk::75",
+          "NVC-NOT-280::chunk::76",
+          "NVC-NOT-280::chunk::77",
+          "NVC-NOT-280::chunk::78",
+          "NVC-NOT-280::chunk::79",
+          "NVC-NOT-280::chunk::80",
+          "NVC-NOT-280::chunk::81",
+          "NVC-NOT-280::chunk::82",
+          "NVC-NOT-280::chunk::83",
+          "NVC-NOT-280::chunk::84",
+          "NVC-NOT-280::chunk::85",
+          "NVC-NOT-280::chunk::86",
+          "NVC-NOT-280::chunk::87",
+          "NVC-NOT-280::chunk::88",
+          "NVC-NOT-280::chunk::89",
+          "NVC-NOT-280::chunk::90",
+          "NVC-NOT-280::chunk::91",
+          "NVC-NOT-280::chunk::92",
+          "NVC-NOT-280::chunk::93",
+          "NVC-NOT-280::chunk::94",
+          "NVC-NOT-280::chunk::95",
+          "NVC-NOT-280::chunk::96",
+          "NVC-NOT-280::chunk::97",
+          "NVC-NOT-280::chunk::98",
+          "NVC-NOT-280::chunk::99",
+          "NVC-NOT-280::chunk::100",
+          "NVC-NOT-280::chunk::101",
+          "NVC-NOT-280::chunk::102",
+          "NVC-NOT-280::chunk::103",
+          "NVC-NOT-280::chunk::104",
+          "NVC-NOT-280::chunk::105",
+          "NVC-NOT-280::chunk::106",
+          "NVC-NOT-280::chunk::107",
+          "NVC-NOT-280::chunk::108",
+          "NVC-NOT-280::chunk::109",
+          "NVC-NOT-280::chunk::110",
+          "NVC-NOT-280::chunk::111",
+          "NVC-NOT-280::chunk::112",
+          "NVC-NOT-280::chunk::113",
+          "NVC-NOT-280::chunk::114",
+          "NVC-NOT-280::chunk::115",
+          "NVC-NOT-280::chunk::116",
+          "NVC-NOT-280::chunk::117",
+          "NVC-NOT-280::chunk::118",
+          "NVC-NOT-280::chunk::119",
+          "NVC-NOT-280::chunk::120",
+          "NVC-NOT-280::chunk::121",
+          "NVC-NOT-280::chunk::122"
+        ],
+        "acceptable_source_types": [
+          "naver_cafe_notice"
+        ],
+        "expected_keywords": [
+          "눈보라",
+          "그림자",
+          "버전",
+          "업데이트",
+          "상세안내"
+        ],
+        "rubrics": {
+          "faithfulness": "NVC-NOT-280 / NVC-NOT-280::chunk::3 근거 안에서만 답한다.",
+          "source_hit@5": "acceptable_documents/source_types/chunks 중 하나가 top-5 검색 결과에 포함되어야 한다.",
+          "false_fallback_rate": "정답 chunk가 검색 가능한 케이스이므로 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "FAQ-028",
+        "eval_area": "faq_agent",
+        "domain": "공지사항",
+        "source_type": "naver_cafe_notice",
+        "persona": "impatient_payer",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "「『공월의 노래·도입』 눈보라와 푸른숲의 춤」 「첫 번째 달」 버전 업데이트 안내 공지에서 제가 알아야 할 내용이 뭐예요?",
+        "category": "faq",
+        "routing_target": "faq_agent",
+        "user_id": 1,
+        "account_id": 101
+      },
+      "outputs": {
+        "reference_answer": "NVC-NOT-22 문서의 '「『공월의 노래·도입』 눈보라와 푸른숲의 춤」 「첫 번째 달」 버전 업데이트 안내' 근거에 따라 답해야 합니다. 핵심 근거: 「『공월의 노래·도입』 눈보라와 푸른숲의 춤」 「첫 번째 달」 버전 업데이트 안내 =====조정 및 최적화===== ● 비경 캐릭터/무기 이벤트 기원이 오픈된 첫 주에는 해금이 완료된 「비경·무기 돌파 소재」 및 「비경·특성 돌파 소재」가 전일 개방됩니다. (버전 업데이트 이후 열리는 첫 번째 기원을 예로 들면, 비경 전일 개방 기간은 버전 업데이트 후 ~ 서버 시간 기준 2025년 9월 1...",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "notice_document"
+        ],
+        "requires_rag": true,
+        "source_documents": [
+          "NVC-NOT-22"
+        ],
+        "expected_chunks": [
+          "NVC-NOT-22::chunk::98"
+        ],
+        "acceptable_documents": [
+          "NVC-NOT-22"
+        ],
+        "acceptable_chunks": [
+          "NVC-NOT-22::chunk::0",
+          "NVC-NOT-22::chunk::1",
+          "NVC-NOT-22::chunk::2",
+          "NVC-NOT-22::chunk::3",
+          "NVC-NOT-22::chunk::4",
+          "NVC-NOT-22::chunk::5",
+          "NVC-NOT-22::chunk::6",
+          "NVC-NOT-22::chunk::7",
+          "NVC-NOT-22::chunk::8",
+          "NVC-NOT-22::chunk::9",
+          "NVC-NOT-22::chunk::10",
+          "NVC-NOT-22::chunk::11",
+          "NVC-NOT-22::chunk::12",
+          "NVC-NOT-22::chunk::13",
+          "NVC-NOT-22::chunk::14",
+          "NVC-NOT-22::chunk::15",
+          "NVC-NOT-22::chunk::16",
+          "NVC-NOT-22::chunk::17",
+          "NVC-NOT-22::chunk::18",
+          "NVC-NOT-22::chunk::19",
+          "NVC-NOT-22::chunk::20",
+          "NVC-NOT-22::chunk::21",
+          "NVC-NOT-22::chunk::22",
+          "NVC-NOT-22::chunk::23",
+          "NVC-NOT-22::chunk::24",
+          "NVC-NOT-22::chunk::25",
+          "NVC-NOT-22::chunk::26",
+          "NVC-NOT-22::chunk::27",
+          "NVC-NOT-22::chunk::28",
+          "NVC-NOT-22::chunk::29",
+          "NVC-NOT-22::chunk::30",
+          "NVC-NOT-22::chunk::31",
+          "NVC-NOT-22::chunk::32",
+          "NVC-NOT-22::chunk::33",
+          "NVC-NOT-22::chunk::34",
+          "NVC-NOT-22::chunk::35",
+          "NVC-NOT-22::chunk::36",
+          "NVC-NOT-22::chunk::37",
+          "NVC-NOT-22::chunk::38",
+          "NVC-NOT-22::chunk::39",
+          "NVC-NOT-22::chunk::40",
+          "NVC-NOT-22::chunk::41",
+          "NVC-NOT-22::chunk::42",
+          "NVC-NOT-22::chunk::43",
+          "NVC-NOT-22::chunk::44",
+          "NVC-NOT-22::chunk::45",
+          "NVC-NOT-22::chunk::46",
+          "NVC-NOT-22::chunk::47",
+          "NVC-NOT-22::chunk::48",
+          "NVC-NOT-22::chunk::49",
+          "NVC-NOT-22::chunk::50",
+          "NVC-NOT-22::chunk::51",
+          "NVC-NOT-22::chunk::52",
+          "NVC-NOT-22::chunk::53",
+          "NVC-NOT-22::chunk::54",
+          "NVC-NOT-22::chunk::55",
+          "NVC-NOT-22::chunk::56",
+          "NVC-NOT-22::chunk::57",
+          "NVC-NOT-22::chunk::58",
+          "NVC-NOT-22::chunk::59",
+          "NVC-NOT-22::chunk::60",
+          "NVC-NOT-22::chunk::61",
+          "NVC-NOT-22::chunk::62",
+          "NVC-NOT-22::chunk::63",
+          "NVC-NOT-22::chunk::64",
+          "NVC-NOT-22::chunk::65",
+          "NVC-NOT-22::chunk::66",
+          "NVC-NOT-22::chunk::67",
+          "NVC-NOT-22::chunk::68",
+          "NVC-NOT-22::chunk::69",
+          "NVC-NOT-22::chunk::70",
+          "NVC-NOT-22::chunk::71",
+          "NVC-NOT-22::chunk::72",
+          "NVC-NOT-22::chunk::73",
+          "NVC-NOT-22::chunk::74",
+          "NVC-NOT-22::chunk::75",
+          "NVC-NOT-22::chunk::76",
+          "NVC-NOT-22::chunk::77",
+          "NVC-NOT-22::chunk::78",
+          "NVC-NOT-22::chunk::79",
+          "NVC-NOT-22::chunk::80",
+          "NVC-NOT-22::chunk::81",
+          "NVC-NOT-22::chunk::82",
+          "NVC-NOT-22::chunk::83",
+          "NVC-NOT-22::chunk::84",
+          "NVC-NOT-22::chunk::85",
+          "NVC-NOT-22::chunk::86",
+          "NVC-NOT-22::chunk::87",
+          "NVC-NOT-22::chunk::88",
+          "NVC-NOT-22::chunk::89",
+          "NVC-NOT-22::chunk::90",
+          "NVC-NOT-22::chunk::91",
+          "NVC-NOT-22::chunk::92",
+          "NVC-NOT-22::chunk::93",
+          "NVC-NOT-22::chunk::94",
+          "NVC-NOT-22::chunk::95",
+          "NVC-NOT-22::chunk::96",
+          "NVC-NOT-22::chunk::97",
+          "NVC-NOT-22::chunk::98",
+          "NVC-NOT-22::chunk::99",
+          "NVC-NOT-22::chunk::100",
+          "NVC-NOT-22::chunk::101",
+          "NVC-NOT-22::chunk::102",
+          "NVC-NOT-22::chunk::103",
+          "NVC-NOT-22::chunk::104"
+        ],
+        "acceptable_source_types": [
+          "naver_cafe_notice"
+        ],
+        "expected_keywords": [
+          "공월의",
+          "노래",
+          "도입",
+          "눈보라와",
+          "푸른숲의"
+        ],
+        "rubrics": {
+          "faithfulness": "NVC-NOT-22 / NVC-NOT-22::chunk::98 근거 안에서만 답한다.",
+          "source_hit@5": "acceptable_documents/source_types/chunks 중 하나가 top-5 검색 결과에 포함되어야 한다.",
+          "false_fallback_rate": "정답 chunk가 검색 가능한 케이스이므로 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "FAQ-029",
+        "eval_area": "faq_agent",
+        "domain": "업데이트",
+        "source_type": "naver_cafe_notice",
+        "persona": "detail_reporter",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "옥빛 관련 공지가 있던데 핵심만 알려주세요.",
+        "category": "faq",
+        "routing_target": "faq_agent",
+        "user_id": 1,
+        "account_id": 101
+      },
+      "outputs": {
+        "reference_answer": "NVC-NOT-334 문서의 '「옥빛 아래 속세의 노래」 1.5 버전 업데이트 상세안내' 근거에 따라 답해야 합니다. 핵심 근거: 「옥빛 아래 속세의 노래」 1.5 버전 업데이트 상세안내 =====문제 수정===== 5. 캐릭터 「단죄의 황녀!!·피슬(번개)」이 원소 폭발 「암야의 환상」을 발동할 때 일부 대형 몬스터를 비정상적으로 통과하던 문제 수정",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "notice_document"
+        ],
+        "requires_rag": true,
+        "source_documents": [
+          "NVC-NOT-334"
+        ],
+        "expected_chunks": [
+          "NVC-NOT-334::chunk::94"
+        ],
+        "acceptable_documents": [
+          "NVC-NOT-334"
+        ],
+        "acceptable_chunks": [
+          "NVC-NOT-334::chunk::0",
+          "NVC-NOT-334::chunk::1",
+          "NVC-NOT-334::chunk::2",
+          "NVC-NOT-334::chunk::3",
+          "NVC-NOT-334::chunk::4",
+          "NVC-NOT-334::chunk::5",
+          "NVC-NOT-334::chunk::6",
+          "NVC-NOT-334::chunk::7",
+          "NVC-NOT-334::chunk::8",
+          "NVC-NOT-334::chunk::9",
+          "NVC-NOT-334::chunk::10",
+          "NVC-NOT-334::chunk::11",
+          "NVC-NOT-334::chunk::12",
+          "NVC-NOT-334::chunk::13",
+          "NVC-NOT-334::chunk::14",
+          "NVC-NOT-334::chunk::15",
+          "NVC-NOT-334::chunk::16",
+          "NVC-NOT-334::chunk::17",
+          "NVC-NOT-334::chunk::18",
+          "NVC-NOT-334::chunk::19",
+          "NVC-NOT-334::chunk::20",
+          "NVC-NOT-334::chunk::21",
+          "NVC-NOT-334::chunk::22",
+          "NVC-NOT-334::chunk::23",
+          "NVC-NOT-334::chunk::24",
+          "NVC-NOT-334::chunk::25",
+          "NVC-NOT-334::chunk::26",
+          "NVC-NOT-334::chunk::27",
+          "NVC-NOT-334::chunk::28",
+          "NVC-NOT-334::chunk::29",
+          "NVC-NOT-334::chunk::30",
+          "NVC-NOT-334::chunk::31",
+          "NVC-NOT-334::chunk::32",
+          "NVC-NOT-334::chunk::33",
+          "NVC-NOT-334::chunk::34",
+          "NVC-NOT-334::chunk::35",
+          "NVC-NOT-334::chunk::36",
+          "NVC-NOT-334::chunk::37",
+          "NVC-NOT-334::chunk::38",
+          "NVC-NOT-334::chunk::39",
+          "NVC-NOT-334::chunk::40",
+          "NVC-NOT-334::chunk::41",
+          "NVC-NOT-334::chunk::42",
+          "NVC-NOT-334::chunk::43",
+          "NVC-NOT-334::chunk::44",
+          "NVC-NOT-334::chunk::45",
+          "NVC-NOT-334::chunk::46",
+          "NVC-NOT-334::chunk::47",
+          "NVC-NOT-334::chunk::48",
+          "NVC-NOT-334::chunk::49",
+          "NVC-NOT-334::chunk::50",
+          "NVC-NOT-334::chunk::51",
+          "NVC-NOT-334::chunk::52",
+          "NVC-NOT-334::chunk::53",
+          "NVC-NOT-334::chunk::54",
+          "NVC-NOT-334::chunk::55",
+          "NVC-NOT-334::chunk::56",
+          "NVC-NOT-334::chunk::57",
+          "NVC-NOT-334::chunk::58",
+          "NVC-NOT-334::chunk::59",
+          "NVC-NOT-334::chunk::60",
+          "NVC-NOT-334::chunk::61",
+          "NVC-NOT-334::chunk::62",
+          "NVC-NOT-334::chunk::63",
+          "NVC-NOT-334::chunk::64",
+          "NVC-NOT-334::chunk::65",
+          "NVC-NOT-334::chunk::66",
+          "NVC-NOT-334::chunk::67",
+          "NVC-NOT-334::chunk::68",
+          "NVC-NOT-334::chunk::69",
+          "NVC-NOT-334::chunk::70",
+          "NVC-NOT-334::chunk::71",
+          "NVC-NOT-334::chunk::72",
+          "NVC-NOT-334::chunk::73",
+          "NVC-NOT-334::chunk::74",
+          "NVC-NOT-334::chunk::75",
+          "NVC-NOT-334::chunk::76",
+          "NVC-NOT-334::chunk::77",
+          "NVC-NOT-334::chunk::78",
+          "NVC-NOT-334::chunk::79",
+          "NVC-NOT-334::chunk::80",
+          "NVC-NOT-334::chunk::81",
+          "NVC-NOT-334::chunk::82",
+          "NVC-NOT-334::chunk::83",
+          "NVC-NOT-334::chunk::84",
+          "NVC-NOT-334::chunk::85",
+          "NVC-NOT-334::chunk::86",
+          "NVC-NOT-334::chunk::87",
+          "NVC-NOT-334::chunk::88",
+          "NVC-NOT-334::chunk::89",
+          "NVC-NOT-334::chunk::90",
+          "NVC-NOT-334::chunk::91",
+          "NVC-NOT-334::chunk::92",
+          "NVC-NOT-334::chunk::93",
+          "NVC-NOT-334::chunk::94",
+          "NVC-NOT-334::chunk::95",
+          "NVC-NOT-334::chunk::96",
+          "NVC-NOT-334::chunk::97",
+          "NVC-NOT-334::chunk::98",
+          "NVC-NOT-334::chunk::99",
+          "NVC-NOT-334::chunk::100",
+          "NVC-NOT-334::chunk::101",
+          "NVC-NOT-334::chunk::102",
+          "NVC-NOT-334::chunk::103",
+          "NVC-NOT-334::chunk::104",
+          "NVC-NOT-334::chunk::105",
+          "NVC-NOT-334::chunk::106",
+          "NVC-NOT-334::chunk::107",
+          "NVC-NOT-334::chunk::108",
+          "NVC-NOT-334::chunk::109",
+          "NVC-NOT-334::chunk::110",
+          "NVC-NOT-334::chunk::111",
+          "NVC-NOT-334::chunk::112",
+          "NVC-NOT-334::chunk::113",
+          "NVC-NOT-334::chunk::114",
+          "NVC-NOT-334::chunk::115",
+          "NVC-NOT-334::chunk::116",
+          "NVC-NOT-334::chunk::117",
+          "NVC-NOT-334::chunk::118",
+          "NVC-NOT-334::chunk::119"
+        ],
+        "acceptable_source_types": [
+          "naver_cafe_notice"
+        ],
+        "expected_keywords": [
+          "옥빛",
+          "아래",
+          "속세의",
+          "노래",
+          "버전"
+        ],
+        "rubrics": {
+          "faithfulness": "NVC-NOT-334 / NVC-NOT-334::chunk::94 근거 안에서만 답한다.",
+          "source_hit@5": "acceptable_documents/source_types/chunks 중 하나가 top-5 검색 결과에 포함되어야 한다.",
+          "false_fallback_rate": "정답 chunk가 검색 가능한 케이스이므로 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "FAQ-030",
+        "eval_area": "faq_agent",
+        "domain": "공지사항",
+        "source_type": "naver_cafe_notice",
+        "persona": "short_mobile_user",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "초보라서 캐릭터 부분을 모르겠어요. 쉽게 설명해주세요.",
+        "category": "faq",
+        "routing_target": "faq_agent",
+        "user_id": 1,
+        "account_id": 101
+      },
+      "outputs": {
+        "reference_answer": "NVC-GDE-108 문서의 '캐릭터 소개 - 라우마 ‧ 달에게 바치는 찬가' 근거에 따라 답해야 합니다. 핵심 근거: 캐릭터 소개 - 라우마 ‧ 달에게 바치는 찬가 ※게임에 확률형 아이템 포함 ★라우마 ‧ 달에게 바치는 찬가★ 「우리 마음씨 좋은 달을 읊는 사자님의 보호 아래에서는 그 어떤 사람도, 동물도 다치지 않을 거야. 다만… 약육강식의 법칙 역시 힘을 잃기 때문에, 고기를 좋아하는 짐승들은 힘든 시간을 보내게 되지」 ——네페르 ★이름: 라우마 ★호칭: 달에게 바치는 찬가 ★푸른 숲의 성녀 ★달의 륜:...",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "game_guide"
+        ],
+        "requires_rag": true,
+        "source_documents": [
+          "NVC-GDE-108"
+        ],
+        "expected_chunks": [
+          "NVC-GDE-108::chunk::0"
+        ],
+        "acceptable_documents": [
+          "NVC-GDE-108"
+        ],
+        "acceptable_chunks": [
+          "NVC-GDE-108::chunk::0"
+        ],
+        "acceptable_source_types": [
+          "naver_cafe_guide"
+        ],
+        "expected_keywords": [
+          "캐릭터",
+          "소개",
+          "라우마",
+          "달에게",
+          "바치는"
+        ],
+        "rubrics": {
+          "faithfulness": "NVC-GDE-108 / NVC-GDE-108::chunk::0 근거 안에서만 답한다.",
+          "source_hit@5": "acceptable_documents/source_types/chunks 중 하나가 top-5 검색 결과에 포함되어야 한다.",
+          "false_fallback_rate": "정답 chunk가 검색 가능한 케이스이므로 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "FAQ-031",
+        "eval_area": "faq_agent",
+        "domain": "캐릭터 소개",
+        "source_type": "naver_cafe_guide",
+        "persona": "new_player",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "가이드 가이드 기준으로 제가 먼저 해야 할 일을 알려주세요.",
+        "category": "faq",
+        "routing_target": "faq_agent",
+        "user_id": 1,
+        "account_id": 101
+      },
+      "outputs": {
+        "reference_answer": "NVC-GDE-432 문서의 '수메르 모험 노트: 모래바다 수색 편 - 003: 이 이상한 삼각형은…' 근거에 따라 답해야 합니다. 핵심 근거: 수메르 모험 노트: 모래바다 수색 편 - 003: 이 이상한 삼각형은… 이번 모험 노트에서는 사막 지역의 새로운 적에 대해서 알아보자구~! P.S: 이번 노트는 일부 적의 소개만 수록되니깐 신규 지역에 관한 더 많은 내용은 신규 버전에서 직접 체험해 봐~",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "game_guide"
+        ],
+        "requires_rag": true,
+        "source_documents": [
+          "NVC-GDE-432"
+        ],
+        "expected_chunks": [
+          "NVC-GDE-432::chunk::0"
+        ],
+        "acceptable_documents": [
+          "NVC-GDE-432"
+        ],
+        "acceptable_chunks": [
+          "NVC-GDE-432::chunk::0"
+        ],
+        "acceptable_source_types": [
+          "naver_cafe_guide"
+        ],
+        "expected_keywords": [
+          "수메르",
+          "모험",
+          "노트",
+          "모래바다",
+          "수색"
+        ],
+        "rubrics": {
+          "faithfulness": "NVC-GDE-432 / NVC-GDE-432::chunk::0 근거 안에서만 답한다.",
+          "source_hit@5": "acceptable_documents/source_types/chunks 중 하나가 top-5 검색 결과에 포함되어야 한다.",
+          "false_fallback_rate": "정답 chunk가 검색 가능한 케이스이므로 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "FAQ-032",
+        "eval_area": "faq_agent",
+        "domain": "가이드",
+        "source_type": "naver_cafe_guide",
+        "persona": "returning_player",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "캐릭터 진행 방법이 헷갈려요. 어떻게 하면 되나요?",
+        "category": "faq",
+        "routing_target": "faq_agent",
+        "user_id": 1,
+        "account_id": 101
+      },
+      "outputs": {
+        "reference_answer": "NVC-GDE-151 문서의 '캐릭터 소개 - 이파·생명을 잇는 바람' 근거에 따라 답해야 합니다. 핵심 근거: 캐릭터 소개 - 이파·생명을 잇는 바람 ※게임에 확률형 아이템 포함 ★이파·생명을 잇는 바람★ 「지난번에 이파가 우리 집에 들렀을 때 꿀 두 통을 가져가더라. 아마 어린 용들에게 쿠키를 만들어 주려는 거겠지. 아, 오해는 하지 마. 불평하는 건 아니니까. 그냥… 내 몫도 좀 남겨줬으면 했을 뿐이야」 ——올로룬 ★이름: 이파 ★호칭: 생명을 잇는 바람 ★틀라로칸의 수의사 ★신의 눈: 바람 ★운...",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "game_guide"
+        ],
+        "requires_rag": true,
+        "source_documents": [
+          "NVC-GDE-151"
+        ],
+        "expected_chunks": [
+          "NVC-GDE-151::chunk::0"
+        ],
+        "acceptable_documents": [
+          "NVC-GDE-151"
+        ],
+        "acceptable_chunks": [
+          "NVC-GDE-151::chunk::0"
+        ],
+        "acceptable_source_types": [
+          "naver_cafe_guide"
+        ],
+        "expected_keywords": [
+          "캐릭터",
+          "소개",
+          "이파",
+          "생명을",
+          "잇는"
+        ],
+        "rubrics": {
+          "faithfulness": "NVC-GDE-151 / NVC-GDE-151::chunk::0 근거 안에서만 답한다.",
+          "source_hit@5": "acceptable_documents/source_types/chunks 중 하나가 top-5 검색 결과에 포함되어야 한다.",
+          "false_fallback_rate": "정답 chunk가 검색 가능한 케이스이므로 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "FAQ-033",
+        "eval_area": "faq_agent",
+        "domain": "캐릭터 소개",
+        "source_type": "naver_cafe_guide",
+        "persona": "impatient_payer",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "물에 비친 달빛 - 리넷 가이드에서 핵심 진행 방법만 알려주세요.",
+        "category": "faq",
+        "routing_target": "faq_agent",
+        "user_id": 1,
+        "account_id": 101
+      },
+      "outputs": {
+        "reference_answer": "NVC-GDE-323 문서의 '물에 비친 달빛 - 리넷' 근거에 따라 답해야 합니다. 핵심 근거: 물에 비친 달빛 - 리넷 ★리넷 · 그림자 속 우아한 걸음★ 「곤란해할 필요도, 습관을 고칠 필요도 없다. 진정한 이해라는 건 바란다고 되는 게 아니야. 『신호』를 읽어낼 수 있어야만 동료인 거지」 ——아를레키노 ★ 리넷 ★ 그림자 속 우아한 걸음 ★ 「다기능 마술 조수」 ★ 신의눈: 바람 ★ 운명의 자리: 흰꼬리고양이자리 「부프 데테 저택」 3인조 중 리넷은 팀이 원활하게 굴러갈 수 있게...",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "game_guide"
+        ],
+        "requires_rag": true,
+        "source_documents": [
+          "NVC-GDE-323"
+        ],
+        "expected_chunks": [
+          "NVC-GDE-323::chunk::0"
+        ],
+        "acceptable_documents": [
+          "NVC-GDE-323"
+        ],
+        "acceptable_chunks": [
+          "NVC-GDE-323::chunk::0"
+        ],
+        "acceptable_source_types": [
+          "naver_cafe_guide"
+        ],
+        "expected_keywords": [
+          "물에",
+          "비친",
+          "달빛",
+          "리넷",
+          "캐릭터"
+        ],
+        "rubrics": {
+          "faithfulness": "NVC-GDE-323 / NVC-GDE-323::chunk::0 근거 안에서만 답한다.",
+          "source_hit@5": "acceptable_documents/source_types/chunks 중 하나가 top-5 검색 결과에 포함되어야 한다.",
+          "false_fallback_rate": "정답 chunk가 검색 가능한 케이스이므로 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "FAQ-034",
+        "eval_area": "faq_agent",
+        "domain": "캐릭터 소개",
+        "source_type": "naver_cafe_guide",
+        "persona": "detail_reporter",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "초보라서 백악과 부분을 모르겠어요. 쉽게 설명해주세요.",
+        "category": "faq",
+        "routing_target": "faq_agent",
+        "user_id": 1,
+        "account_id": 101
+      },
+      "outputs": {
+        "reference_answer": "NVC-GDE-643 문서의 '「백악과 흑룡」 이벤트 설명' 근거에 따라 답해야 합니다. 핵심 근거: 「백악과 흑룡」 이벤트 설명 지정된 시간 내에 「부활한 얼음 나무」를 처치하면 도전 성공! 도전 성공 후 여행자는 「기적의 정수」를 획득 가능하며, 획득한 정수 개수는 여행자의 월드 등급에 따라 정산돼. 「기적의 정수」는 이벤트 상점에서 「부식된 용의 정수」, 특성 육성 소재, 영웅의 경험 등 보상으로 교환하는데 사용할 수 있어! 이번 「백악과 흑룡」 이벤트 소개는 여기까지야~ 끝까지 읽어줘...",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "game_guide"
+        ],
+        "requires_rag": true,
+        "source_documents": [
+          "NVC-GDE-643"
+        ],
+        "expected_chunks": [
+          "NVC-GDE-643::chunk::3"
+        ],
+        "acceptable_documents": [
+          "NVC-GDE-643"
+        ],
+        "acceptable_chunks": [
+          "NVC-GDE-643::chunk::0",
+          "NVC-GDE-643::chunk::1",
+          "NVC-GDE-643::chunk::2",
+          "NVC-GDE-643::chunk::3"
+        ],
+        "acceptable_source_types": [
+          "naver_cafe_guide"
+        ],
+        "expected_keywords": [
+          "백악과",
+          "흑룡",
+          "이벤트",
+          "설명",
+          "가이드"
+        ],
+        "rubrics": {
+          "faithfulness": "NVC-GDE-643 / NVC-GDE-643::chunk::3 근거 안에서만 답한다.",
+          "source_hit@5": "acceptable_documents/source_types/chunks 중 하나가 top-5 검색 결과에 포함되어야 한다.",
+          "false_fallback_rate": "정답 chunk가 검색 가능한 케이스이므로 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "FAQ-035",
+        "eval_area": "faq_agent",
+        "domain": "이벤트 가이드",
+        "source_type": "naver_cafe_guide",
+        "persona": "short_mobile_user",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "캐릭터 소개 가이드 기준으로 제가 먼저 해야 할 일을 알려주세요.",
+        "category": "faq",
+        "routing_target": "faq_agent",
+        "user_id": 1,
+        "account_id": 101
+      },
+      "outputs": {
+        "reference_answer": "NVC-GDE-613 문서의 '캐릭터 소개 - 로자리아' 근거에 따라 답해야 합니다. 핵심 근거: 캐릭터 소개 - 로자리아 오늘 여행자들에게 로자리아 ‧ 가시관의 은혜에 대해서 소개해 줄게~ ★로자리아 ‧ 가시관의 은혜★ ★ 「어디 가신 거지…? 큰일이네요, 로자리아 수녀님 보신 분이 없으신가요? 오늘 성가대 활동이 있어서 무슨 일이 있어도 불러와야 한다며 달리아 부제님께서 신신당부하셨는데!」——바바라 ★ 가시관의 은혜 ★ 사람들과 어울리지 않는 수녀 ★ 신의 눈: 얼음 ★ 운명의 자리:...",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "game_guide"
+        ],
+        "requires_rag": true,
+        "source_documents": [
+          "NVC-GDE-613"
+        ],
+        "expected_chunks": [
+          "NVC-GDE-613::chunk::0"
+        ],
+        "acceptable_documents": [
+          "NVC-GDE-613"
+        ],
+        "acceptable_chunks": [
+          "NVC-GDE-613::chunk::0"
+        ],
+        "acceptable_source_types": [
+          "naver_cafe_guide"
+        ],
+        "expected_keywords": [
+          "캐릭터",
+          "소개",
+          "로자리아",
+          "오늘",
+          "여행자들에게"
+        ],
+        "rubrics": {
+          "faithfulness": "NVC-GDE-613 / NVC-GDE-613::chunk::0 근거 안에서만 답한다.",
+          "source_hit@5": "acceptable_documents/source_types/chunks 중 하나가 top-5 검색 결과에 포함되어야 한다.",
+          "false_fallback_rate": "정답 chunk가 검색 가능한 케이스이므로 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "FAQ-036",
+        "eval_area": "faq_agent",
+        "domain": "캐릭터 소개",
+        "source_type": "naver_cafe_guide",
+        "persona": "new_player",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "캐릭터 진행 방법이 헷갈려요. 어떻게 하면 되나요?",
+        "category": "faq",
+        "routing_target": "faq_agent",
+        "user_id": 1,
+        "account_id": 101
+      },
+      "outputs": {
+        "reference_answer": "NVC-GDE-425 문서의 '캐릭터 소개 - 나히다 ‧ 정화의 하얀 풀(수정)' 근거에 따라 답해야 합니다. 핵심 근거: 캐릭터 소개 - 나히다 ‧ 정화의 하얀 풀(수정) 나히다 ‧ 정화의 하얀 풀에 대해 알아보자~! ★나히다 ‧ 정화의 하얀 풀★ 「그녀는 백성을 지나치게 신경 쓰거나 애지중지하는 등의 문제가 있지만, 수메르 신으로서의 책임감은 인정할 만해. 가장 젊은 신도 이러한데, 그 히스테리나 부리는 녀석은….」——폰타인 최고 심판관 느비예트 ★정화의 하얀 풀 ★「작은 쿠사나리 화신(化神)」 ★신의 심장:...",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "game_guide"
+        ],
+        "requires_rag": true,
+        "source_documents": [
+          "NVC-GDE-425"
+        ],
+        "expected_chunks": [
+          "NVC-GDE-425::chunk::0"
+        ],
+        "acceptable_documents": [
+          "NVC-GDE-425"
+        ],
+        "acceptable_chunks": [
+          "NVC-GDE-425::chunk::0"
+        ],
+        "acceptable_source_types": [
+          "naver_cafe_guide"
+        ],
+        "expected_keywords": [
+          "캐릭터",
+          "소개",
+          "나히다",
+          "정화의",
+          "하얀"
+        ],
+        "rubrics": {
+          "faithfulness": "NVC-GDE-425 / NVC-GDE-425::chunk::0 근거 안에서만 답한다.",
+          "source_hit@5": "acceptable_documents/source_types/chunks 중 하나가 top-5 검색 결과에 포함되어야 한다.",
+          "false_fallback_rate": "정답 chunk가 검색 가능한 케이스이므로 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "FAQ-037",
+        "eval_area": "faq_agent",
+        "domain": "가이드",
+        "source_type": "naver_cafe_guide",
+        "persona": "returning_player",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "5.7 버전 출시 카운트다운——스커크와 관련된 문제를 몇 개나 맞힐 수 있는지 확인해 보세요! 가이드에서 핵심 진행 방법만 알려주세요.",
+        "category": "faq",
+        "routing_target": "faq_agent",
+        "user_id": 1,
+        "account_id": 101
+      },
+      "outputs": {
+        "reference_answer": "NVC-GDE-132 문서의 '5.7 버전 출시 카운트다운——스커크와 관련된 문제를 몇 개나 맞힐 수 있는지 확인해 보세요!' 근거에 따라 답해야 합니다. 핵심 근거: 5.7 버전 출시 카운트다운——스커크와 관련된 문제를 몇 개나 맞힐 수 있는지 확인해 보세요! 신규 버전까지 앞으로 하루밖에 남지 않았다구! 이번에는 지금까지 공개된 스커크 관련 정보를 바탕으로 「퀴즈 챌린지」를 준비했어! 과연 몇 문제나 맞힐 수 있는지 지금 바로 확인해 봐~",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "game_guide"
+        ],
+        "requires_rag": true,
+        "source_documents": [
+          "NVC-GDE-132"
+        ],
+        "expected_chunks": [
+          "NVC-GDE-132::chunk::0"
+        ],
+        "acceptable_documents": [
+          "NVC-GDE-132"
+        ],
+        "acceptable_chunks": [
+          "NVC-GDE-132::chunk::0"
+        ],
+        "acceptable_source_types": [
+          "naver_cafe_guide"
+        ],
+        "expected_keywords": [
+          "버전",
+          "출시",
+          "카운트다운",
+          "스커크와",
+          "관련된"
+        ],
+        "rubrics": {
+          "faithfulness": "NVC-GDE-132 / NVC-GDE-132::chunk::0 근거 안에서만 답한다.",
+          "source_hit@5": "acceptable_documents/source_types/chunks 중 하나가 top-5 검색 결과에 포함되어야 한다.",
+          "false_fallback_rate": "정답 chunk가 검색 가능한 케이스이므로 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "FAQ-038",
+        "eval_area": "faq_agent",
+        "domain": "기타",
+        "source_type": "naver_cafe_guide",
+        "persona": "impatient_payer",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "초보라서 사냥꾼 부분을 모르겠어요. 쉽게 설명해주세요.",
+        "category": "faq",
+        "routing_target": "faq_agent",
+        "user_id": 1,
+        "account_id": 101
+      },
+      "outputs": {
+        "reference_answer": "NVC-GDE-69 문서의 '달 사냥꾼' 근거에 따라 답해야 합니다. 핵심 근거: 달 사냥꾼 「죄악」은 과거를 물들였고, 「운명」은 미래를 지배한다. 그러나 그의 이야기는 아직 끝나지 않았다. 레리르의 집념은 세상의 이치마저 흔들고 있으니, 그것이 바로 죄인의 힘이다. ——「예언가」 베드르폴니르",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "game_guide"
+        ],
+        "requires_rag": true,
+        "source_documents": [
+          "NVC-GDE-69"
+        ],
+        "expected_chunks": [
+          "NVC-GDE-69::chunk::0"
+        ],
+        "acceptable_documents": [
+          "NVC-GDE-69"
+        ],
+        "acceptable_chunks": [
+          "NVC-GDE-69::chunk::0"
+        ],
+        "acceptable_source_types": [
+          "naver_cafe_guide"
+        ],
+        "expected_keywords": [
+          "사냥꾼",
+          "기타",
+          "죄악",
+          "과거를",
+          "물들였고"
+        ],
+        "rubrics": {
+          "faithfulness": "NVC-GDE-69 / NVC-GDE-69::chunk::0 근거 안에서만 답한다.",
+          "source_hit@5": "acceptable_documents/source_types/chunks 중 하나가 top-5 검색 결과에 포함되어야 한다.",
+          "false_fallback_rate": "정답 chunk가 검색 가능한 케이스이므로 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "FAQ-039",
+        "eval_area": "faq_agent",
+        "domain": "기타",
+        "source_type": "naver_cafe_guide",
+        "persona": "detail_reporter",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "가이드 가이드 기준으로 제가 먼저 해야 할 일을 알려주세요.",
+        "category": "faq",
+        "routing_target": "faq_agent",
+        "user_id": 1,
+        "account_id": 101
+      },
+      "outputs": {
+        "reference_answer": "NVC-GDE-314 문서의 '「도도코 모험기, 시작!」——「도도코 쾅쾅 모험기」 이벤트 Tips' 근거에 따라 답해야 합니다. 핵심 근거: 「도도코 모험기, 시작!」——「도도코 쾅쾅 모험기」 이벤트 Tips 새로운 게임 「도도코 쾅쾅 모험기」를 즐길 준비는 됐어? 페보니우스 기사단이 참가자를 위해 플레이 가이드를 준비했대. 함께 살펴보자~",
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "game_guide"
+        ],
+        "requires_rag": true,
+        "source_documents": [
+          "NVC-GDE-314"
+        ],
+        "expected_chunks": [
+          "NVC-GDE-314::chunk::0"
+        ],
+        "acceptable_documents": [
+          "NVC-GDE-314"
+        ],
+        "acceptable_chunks": [
+          "NVC-GDE-314::chunk::0"
+        ],
+        "acceptable_source_types": [
+          "naver_cafe_guide"
+        ],
+        "expected_keywords": [
+          "도도코",
+          "모험기",
+          "시작",
+          "쾅쾅",
+          "이벤트"
+        ],
+        "rubrics": {
+          "faithfulness": "NVC-GDE-314 / NVC-GDE-314::chunk::0 근거 안에서만 답한다.",
+          "source_hit@5": "acceptable_documents/source_types/chunks 중 하나가 top-5 검색 결과에 포함되어야 한다.",
+          "false_fallback_rate": "정답 chunk가 검색 가능한 케이스이므로 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "FAQ-040",
+        "eval_area": "faq_agent",
+        "domain": "가이드",
+        "source_type": "naver_cafe_guide",
+        "persona": "short_mobile_user",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    }
+  ]
+}

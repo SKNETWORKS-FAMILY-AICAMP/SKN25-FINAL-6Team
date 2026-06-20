@@ -15,6 +15,7 @@ class RetrievalCacheLookupResult(TypedDict, total=False):
 
 
 _RETRIEVAL_CACHE: dict[str, tuple[list[dict], float]] = {}
+_SESSION_STATE_CACHE: dict[str, tuple[dict, float]] = {}
 
 
 # 환경변수에서 boolean 값을 읽는 공통 helper다.
@@ -30,6 +31,19 @@ def _env_flag(name: str, default: bool = False) -> bool:
 def _cache_key(query_hash: str, *, namespace: str = "answer") -> str:
     prefix = os.environ.get("CACHE_KEY_PREFIX", "chatbot").strip() or "chatbot"
     return f"{prefix}:faq:{namespace}:v1:{query_hash}"
+
+
+def _session_base(session_id: str | int | None) -> str:
+    text = str(session_id or "").strip()
+    base, separator, turn = text.rpartition("-")
+    if separator and base and turn.isdigit():
+        return base
+    return text
+
+
+def _session_key(session_id: str | int | None) -> str:
+    prefix = os.environ.get("CACHE_KEY_PREFIX", "chatbot").strip() or "chatbot"
+    return f"{prefix}:session:v1:{_session_base(session_id)}"
 
 
 @lru_cache(maxsize=1)
@@ -74,6 +88,67 @@ def _set_memory_retrieval_cache(query_hash: str, documents: list[dict], ttl: int
 
 # retrieval cache 조회 순서: Redis -> memory fallback.
 # cache hit이어도 이후 answer generation/safety는 동일하게 실행된다.
+def _get_memory_session_state(session_id: str | int | None) -> dict:
+    key = _session_key(session_id)
+    entry = _SESSION_STATE_CACHE.get(key)
+    if entry is None:
+        return {}
+
+    payload, expires_at = entry
+    if time.time() > expires_at:
+        _SESSION_STATE_CACHE.pop(key, None)
+        return {}
+    return payload
+
+
+def _set_memory_session_state(session_id: str | int | None, payload: dict, ttl: int) -> None:
+    _SESSION_STATE_CACHE[_session_key(session_id)] = (payload, time.time() + ttl)
+
+
+def get_cached_session_state(session_id: str | int | None) -> dict:
+    if not session_id:
+        return {}
+
+    client = _redis_client()
+    if client is not None:
+        try:
+            cached_json = client.get(_session_key(session_id))
+            if cached_json is not None:
+                return json.loads(cached_json)
+        except Exception:
+            pass
+
+    return _get_memory_session_state(session_id)
+
+
+def set_cached_session_state(session_id: str | int | None, payload: dict, ttl: int | None = None) -> dict[str, object]:
+    if not session_id:
+        return {"status": "skipped", "reason": "missing_session_id"}
+
+    ttl = ttl or int(os.environ.get("CHATBOT_SESSION_CACHE_TTL", "1209600"))
+    client = _redis_client()
+    backend = "memory"
+    if client is not None:
+        try:
+            client.setex(
+                _session_key(session_id),
+                ttl,
+                json.dumps(payload, ensure_ascii=False, default=str),
+            )
+            backend = "redis"
+        except Exception:
+            _set_memory_session_state(session_id, payload, ttl)
+    else:
+        _set_memory_session_state(session_id, payload, ttl)
+
+    return {
+        "status": "ok",
+        "backend": backend,
+        "ttl": ttl,
+        "session_base": _session_base(session_id),
+    }
+
+
 def get_cached_retrieval(query_hash: str) -> RetrievalCacheLookupResult:
     client = _redis_client()
     if client is not None:

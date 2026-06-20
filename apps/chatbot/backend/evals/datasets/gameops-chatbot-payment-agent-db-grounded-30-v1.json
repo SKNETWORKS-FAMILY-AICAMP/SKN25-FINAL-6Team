@@ -1,0 +1,1219 @@
+{
+  "dataset_info": {
+    "name": "gameops-chatbot-payment-agent-db-grounded-30-v1",
+    "version": "v1",
+    "description": "Payment agent examples grounded in actual payment/refund/item delivery/gacha rows.",
+    "total_examples": 30,
+    "paper_basis": [
+      "Self-Instruct: generate diverse instruction/input/output examples, then filter invalid or near-duplicate samples.",
+      "Persona-based synthetic user simulation: vary user intent, urgency, expertise, and message style.",
+      "Synthetic user generated text evaluation: include short, noisy, incomplete, and typo-like user messages so evals are not overly clean."
+    ],
+    "generation_note": "Synthetic user messages are generated from actual local DB records/documents. The expected evidence IDs point to the DB rows used to generate each example.",
+    "category_counts": {
+      "payment": 30
+    }
+  },
+  "examples": [
+    {
+      "inputs": {
+        "user_message": "진주 기행 결제 상태 확인해주세요. 주문/거래번호는 TXN000912735 입니다.",
+        "category": "payment",
+        "routing_target": "payment_agent",
+        "user_id": 6355,
+        "account_id": 6455
+      },
+      "outputs": {
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "payments"
+        ],
+        "expected_records": {
+          "payments": [
+            912735
+          ]
+        },
+        "db_lookup_accuracy": {
+          "user_id": 6355,
+          "account_id": 6455,
+          "must_scope_to_logged_in_user": true
+        },
+        "false_fallback_expected": false,
+        "rubrics": {
+          "action_match": "사용자가 결제/환불/아이템 지급/가챠 내역의 상태·로그·기록 확인만 요청하면 AUTO_RESPONSE를 기대한다. 환불/취소/지급/복구/보상/조치처럼 실제 처리를 요구하는 경우에만 REVIEW_REQUIRED를 기대한다.",
+          "db_lookup_accuracy": "expected_records에 포함된 실제 DB row가 payment_context에 포함되어야 한다.",
+          "false_fallback_rate": "필요 DB 근거가 존재하므로 근거 조회 실패가 아닌 일반 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "PAY-001",
+        "eval_area": "payment_agent",
+        "record_kind": "payments",
+        "persona": "impatient_payer",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "창세의 결정 980개 결제 상태 확인해주세요. 주문/거래번호는 TXN000912669 입니다.",
+        "category": "payment",
+        "routing_target": "payment_agent",
+        "user_id": 6879,
+        "account_id": 6979
+      },
+      "outputs": {
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "payments"
+        ],
+        "expected_records": {
+          "payments": [
+            912669
+          ]
+        },
+        "db_lookup_accuracy": {
+          "user_id": 6879,
+          "account_id": 6979,
+          "must_scope_to_logged_in_user": true
+        },
+        "false_fallback_expected": false,
+        "rubrics": {
+          "action_match": "사용자가 결제/환불/아이템 지급/가챠 내역의 상태·로그·기록 확인만 요청하면 AUTO_RESPONSE를 기대한다. 환불/취소/지급/복구/보상/조치처럼 실제 처리를 요구하는 경우에만 REVIEW_REQUIRED를 기대한다.",
+          "db_lookup_accuracy": "expected_records에 포함된 실제 DB row가 payment_context에 포함되어야 한다.",
+          "false_fallback_rate": "필요 DB 근거가 존재하므로 근거 조회 실패가 아닌 일반 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "PAY-002",
+        "eval_area": "payment_agent",
+        "record_kind": "payments",
+        "persona": "detail_reporter",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "창세의 결정 1980개 결제 상태 확인해주세요. 주문/거래번호는 TXN00910439 입니다.",
+        "category": "payment",
+        "routing_target": "payment_agent",
+        "user_id": 15,
+        "account_id": 115
+      },
+      "outputs": {
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "payments"
+        ],
+        "expected_records": {
+          "payments": [
+            910439
+          ]
+        },
+        "db_lookup_accuracy": {
+          "user_id": 15,
+          "account_id": 115,
+          "must_scope_to_logged_in_user": true
+        },
+        "false_fallback_expected": false,
+        "rubrics": {
+          "action_match": "사용자가 결제/환불/아이템 지급/가챠 내역의 상태·로그·기록 확인만 요청하면 AUTO_RESPONSE를 기대한다. 환불/취소/지급/복구/보상/조치처럼 실제 처리를 요구하는 경우에만 REVIEW_REQUIRED를 기대한다.",
+          "db_lookup_accuracy": "expected_records에 포함된 실제 DB row가 payment_context에 포함되어야 한다.",
+          "false_fallback_rate": "필요 DB 근거가 존재하므로 근거 조회 실패가 아닌 일반 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "PAY-003",
+        "eval_area": "payment_agent",
+        "record_kind": "payments",
+        "persona": "short_mobile_user",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "공월 축복 결제 상태 확인해주세요. 주문/거래번호는 TXN000910852 입니다.",
+        "category": "payment",
+        "routing_target": "payment_agent",
+        "user_id": 3528,
+        "account_id": 3628
+      },
+      "outputs": {
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "payments"
+        ],
+        "expected_records": {
+          "payments": [
+            910852
+          ]
+        },
+        "db_lookup_accuracy": {
+          "user_id": 3528,
+          "account_id": 3628,
+          "must_scope_to_logged_in_user": true
+        },
+        "false_fallback_expected": false,
+        "rubrics": {
+          "action_match": "사용자가 결제/환불/아이템 지급/가챠 내역의 상태·로그·기록 확인만 요청하면 AUTO_RESPONSE를 기대한다. 환불/취소/지급/복구/보상/조치처럼 실제 처리를 요구하는 경우에만 REVIEW_REQUIRED를 기대한다.",
+          "db_lookup_accuracy": "expected_records에 포함된 실제 DB row가 payment_context에 포함되어야 한다.",
+          "false_fallback_rate": "필요 DB 근거가 존재하므로 근거 조회 실패가 아닌 일반 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "PAY-004",
+        "eval_area": "payment_agent",
+        "record_kind": "payments",
+        "persona": "new_player",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "진주의 노래 결제 상태 확인해주세요. 주문/거래번호는 TXN000912589 입니다.",
+        "category": "payment",
+        "routing_target": "payment_agent",
+        "user_id": 6477,
+        "account_id": 6577
+      },
+      "outputs": {
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "payments"
+        ],
+        "expected_records": {
+          "payments": [
+            912589
+          ]
+        },
+        "db_lookup_accuracy": {
+          "user_id": 6477,
+          "account_id": 6577,
+          "must_scope_to_logged_in_user": true
+        },
+        "false_fallback_expected": false,
+        "rubrics": {
+          "action_match": "사용자가 결제/환불/아이템 지급/가챠 내역의 상태·로그·기록 확인만 요청하면 AUTO_RESPONSE를 기대한다. 환불/취소/지급/복구/보상/조치처럼 실제 처리를 요구하는 경우에만 REVIEW_REQUIRED를 기대한다.",
+          "db_lookup_accuracy": "expected_records에 포함된 실제 DB row가 payment_context에 포함되어야 한다.",
+          "false_fallback_rate": "필요 DB 근거가 존재하므로 근거 조회 실패가 아닌 일반 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "PAY-005",
+        "eval_area": "payment_agent",
+        "record_kind": "payments",
+        "persona": "returning_player",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "창세의 결정 980개 결제 상태 확인해주세요. 주문/거래번호는 TXN000912319 입니다.",
+        "category": "payment",
+        "routing_target": "payment_agent",
+        "user_id": 5450,
+        "account_id": 5550
+      },
+      "outputs": {
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "payments"
+        ],
+        "expected_records": {
+          "payments": [
+            912319
+          ]
+        },
+        "db_lookup_accuracy": {
+          "user_id": 5450,
+          "account_id": 5550,
+          "must_scope_to_logged_in_user": true
+        },
+        "false_fallback_expected": false,
+        "rubrics": {
+          "action_match": "사용자가 결제/환불/아이템 지급/가챠 내역의 상태·로그·기록 확인만 요청하면 AUTO_RESPONSE를 기대한다. 환불/취소/지급/복구/보상/조치처럼 실제 처리를 요구하는 경우에만 REVIEW_REQUIRED를 기대한다.",
+          "db_lookup_accuracy": "expected_records에 포함된 실제 DB row가 payment_context에 포함되어야 한다.",
+          "false_fallback_rate": "필요 DB 근거가 존재하므로 근거 조회 실패가 아닌 일반 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "PAY-006",
+        "eval_area": "payment_agent",
+        "record_kind": "payments",
+        "persona": "impatient_payer",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "진주의 노래 결제 상태 확인해주세요. 주문/거래번호는 TXN000910728 입니다.",
+        "category": "payment",
+        "routing_target": "payment_agent",
+        "user_id": 335,
+        "account_id": 435
+      },
+      "outputs": {
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "payments"
+        ],
+        "expected_records": {
+          "payments": [
+            910728
+          ]
+        },
+        "db_lookup_accuracy": {
+          "user_id": 335,
+          "account_id": 435,
+          "must_scope_to_logged_in_user": true
+        },
+        "false_fallback_expected": false,
+        "rubrics": {
+          "action_match": "사용자가 결제/환불/아이템 지급/가챠 내역의 상태·로그·기록 확인만 요청하면 AUTO_RESPONSE를 기대한다. 환불/취소/지급/복구/보상/조치처럼 실제 처리를 요구하는 경우에만 REVIEW_REQUIRED를 기대한다.",
+          "db_lookup_accuracy": "expected_records에 포함된 실제 DB row가 payment_context에 포함되어야 한다.",
+          "false_fallback_rate": "필요 DB 근거가 존재하므로 근거 조회 실패가 아닌 일반 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "PAY-007",
+        "eval_area": "payment_agent",
+        "record_kind": "payments",
+        "persona": "detail_reporter",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "공월 축복 결제 상태 확인해주세요. 주문/거래번호는 TXN000912292 입니다.",
+        "category": "payment",
+        "routing_target": "payment_agent",
+        "user_id": 6778,
+        "account_id": 6878
+      },
+      "outputs": {
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "payments"
+        ],
+        "expected_records": {
+          "payments": [
+            912292
+          ]
+        },
+        "db_lookup_accuracy": {
+          "user_id": 6778,
+          "account_id": 6878,
+          "must_scope_to_logged_in_user": true
+        },
+        "false_fallback_expected": false,
+        "rubrics": {
+          "action_match": "사용자가 결제/환불/아이템 지급/가챠 내역의 상태·로그·기록 확인만 요청하면 AUTO_RESPONSE를 기대한다. 환불/취소/지급/복구/보상/조치처럼 실제 처리를 요구하는 경우에만 REVIEW_REQUIRED를 기대한다.",
+          "db_lookup_accuracy": "expected_records에 포함된 실제 DB row가 payment_context에 포함되어야 한다.",
+          "false_fallback_rate": "필요 DB 근거가 존재하므로 근거 조회 실패가 아닌 일반 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "PAY-008",
+        "eval_area": "payment_agent",
+        "record_kind": "payments",
+        "persona": "short_mobile_user",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "공월 축복 결제 상태 확인해주세요. 주문/거래번호는 TXN000911722 입니다.",
+        "category": "payment",
+        "routing_target": "payment_agent",
+        "user_id": 6847,
+        "account_id": 6947
+      },
+      "outputs": {
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "payments"
+        ],
+        "expected_records": {
+          "payments": [
+            911722
+          ]
+        },
+        "db_lookup_accuracy": {
+          "user_id": 6847,
+          "account_id": 6947,
+          "must_scope_to_logged_in_user": true
+        },
+        "false_fallback_expected": false,
+        "rubrics": {
+          "action_match": "사용자가 결제/환불/아이템 지급/가챠 내역의 상태·로그·기록 확인만 요청하면 AUTO_RESPONSE를 기대한다. 환불/취소/지급/복구/보상/조치처럼 실제 처리를 요구하는 경우에만 REVIEW_REQUIRED를 기대한다.",
+          "db_lookup_accuracy": "expected_records에 포함된 실제 DB row가 payment_context에 포함되어야 한다.",
+          "false_fallback_rate": "필요 DB 근거가 존재하므로 근거 조회 실패가 아닌 일반 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "PAY-009",
+        "eval_area": "payment_agent",
+        "record_kind": "payments",
+        "persona": "new_player",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "창세의 결정 980개 결제 상태 확인해주세요. 주문/거래번호는 TXN000912898 입니다.",
+        "category": "payment",
+        "routing_target": "payment_agent",
+        "user_id": 6737,
+        "account_id": 6837
+      },
+      "outputs": {
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "payments"
+        ],
+        "expected_records": {
+          "payments": [
+            912898
+          ]
+        },
+        "db_lookup_accuracy": {
+          "user_id": 6737,
+          "account_id": 6837,
+          "must_scope_to_logged_in_user": true
+        },
+        "false_fallback_expected": false,
+        "rubrics": {
+          "action_match": "사용자가 결제/환불/아이템 지급/가챠 내역의 상태·로그·기록 확인만 요청하면 AUTO_RESPONSE를 기대한다. 환불/취소/지급/복구/보상/조치처럼 실제 처리를 요구하는 경우에만 REVIEW_REQUIRED를 기대한다.",
+          "db_lookup_accuracy": "expected_records에 포함된 실제 DB row가 payment_context에 포함되어야 한다.",
+          "false_fallback_rate": "필요 DB 근거가 존재하므로 근거 조회 실패가 아닌 일반 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "PAY-010",
+        "eval_area": "payment_agent",
+        "record_kind": "payments",
+        "persona": "returning_player",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "창세의 결정 60개 결제 상태 확인해주세요. 주문/거래번호는 TXN000913130 입니다.",
+        "category": "payment",
+        "routing_target": "payment_agent",
+        "user_id": 3852,
+        "account_id": 3952
+      },
+      "outputs": {
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "payments"
+        ],
+        "expected_records": {
+          "payments": [
+            913130
+          ]
+        },
+        "db_lookup_accuracy": {
+          "user_id": 3852,
+          "account_id": 3952,
+          "must_scope_to_logged_in_user": true
+        },
+        "false_fallback_expected": false,
+        "rubrics": {
+          "action_match": "사용자가 결제/환불/아이템 지급/가챠 내역의 상태·로그·기록 확인만 요청하면 AUTO_RESPONSE를 기대한다. 환불/취소/지급/복구/보상/조치처럼 실제 처리를 요구하는 경우에만 REVIEW_REQUIRED를 기대한다.",
+          "db_lookup_accuracy": "expected_records에 포함된 실제 DB row가 payment_context에 포함되어야 한다.",
+          "false_fallback_rate": "필요 DB 근거가 존재하므로 근거 조회 실패가 아닌 일반 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "PAY-011",
+        "eval_area": "payment_agent",
+        "record_kind": "payments",
+        "persona": "impatient_payer",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "창세의 결정 1980개 결제 상태 확인해주세요. 주문/거래번호는 TXN000914894 입니다.",
+        "category": "payment",
+        "routing_target": "payment_agent",
+        "user_id": 6814,
+        "account_id": 6914
+      },
+      "outputs": {
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "payments"
+        ],
+        "expected_records": {
+          "payments": [
+            914894
+          ]
+        },
+        "db_lookup_accuracy": {
+          "user_id": 6814,
+          "account_id": 6914,
+          "must_scope_to_logged_in_user": true
+        },
+        "false_fallback_expected": false,
+        "rubrics": {
+          "action_match": "사용자가 결제/환불/아이템 지급/가챠 내역의 상태·로그·기록 확인만 요청하면 AUTO_RESPONSE를 기대한다. 환불/취소/지급/복구/보상/조치처럼 실제 처리를 요구하는 경우에만 REVIEW_REQUIRED를 기대한다.",
+          "db_lookup_accuracy": "expected_records에 포함된 실제 DB row가 payment_context에 포함되어야 한다.",
+          "false_fallback_rate": "필요 DB 근거가 존재하므로 근거 조회 실패가 아닌 일반 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "PAY-012",
+        "eval_area": "payment_agent",
+        "record_kind": "payments",
+        "persona": "detail_reporter",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "공월 축복 환불 요청이 어떻게 처리됐는지 알고 싶어요.",
+        "category": "payment",
+        "routing_target": "payment_agent",
+        "user_id": 1158,
+        "account_id": 1258
+      },
+      "outputs": {
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "payments",
+          "refunds"
+        ],
+        "expected_records": {
+          "payments": [
+            912880
+          ],
+          "refunds": [
+            910135
+          ]
+        },
+        "db_lookup_accuracy": {
+          "user_id": 1158,
+          "account_id": 1258,
+          "must_scope_to_logged_in_user": true
+        },
+        "false_fallback_expected": false,
+        "rubrics": {
+          "action_match": "사용자가 결제/환불/아이템 지급/가챠 내역의 상태·로그·기록 확인만 요청하면 AUTO_RESPONSE를 기대한다. 환불/취소/지급/복구/보상/조치처럼 실제 처리를 요구하는 경우에만 REVIEW_REQUIRED를 기대한다.",
+          "db_lookup_accuracy": "expected_records에 포함된 실제 DB row가 payment_context에 포함되어야 한다.",
+          "false_fallback_rate": "필요 DB 근거가 존재하므로 근거 조회 실패가 아닌 일반 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "PAY-013",
+        "eval_area": "payment_agent",
+        "record_kind": "refunds",
+        "persona": "short_mobile_user",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "창세의 결정 60개 환불 요청이 어떻게 처리됐는지 알고 싶어요.",
+        "category": "payment",
+        "routing_target": "payment_agent",
+        "user_id": 7020,
+        "account_id": 7120
+      },
+      "outputs": {
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "payments",
+          "refunds"
+        ],
+        "expected_records": {
+          "payments": [
+            913183
+          ],
+          "refunds": [
+            910272
+          ]
+        },
+        "db_lookup_accuracy": {
+          "user_id": 7020,
+          "account_id": 7120,
+          "must_scope_to_logged_in_user": true
+        },
+        "false_fallback_expected": false,
+        "rubrics": {
+          "action_match": "사용자가 결제/환불/아이템 지급/가챠 내역의 상태·로그·기록 확인만 요청하면 AUTO_RESPONSE를 기대한다. 환불/취소/지급/복구/보상/조치처럼 실제 처리를 요구하는 경우에만 REVIEW_REQUIRED를 기대한다.",
+          "db_lookup_accuracy": "expected_records에 포함된 실제 DB row가 payment_context에 포함되어야 한다.",
+          "false_fallback_rate": "필요 DB 근거가 존재하므로 근거 조회 실패가 아닌 일반 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "PAY-014",
+        "eval_area": "payment_agent",
+        "record_kind": "refunds",
+        "persona": "new_player",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "창세의 결정 300개 환불 요청이 어떻게 처리됐는지 알고 싶어요.",
+        "category": "payment",
+        "routing_target": "payment_agent",
+        "user_id": 4858,
+        "account_id": 4958
+      },
+      "outputs": {
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "payments",
+          "refunds"
+        ],
+        "expected_records": {
+          "payments": [
+            912852
+          ],
+          "refunds": [
+            910211
+          ]
+        },
+        "db_lookup_accuracy": {
+          "user_id": 4858,
+          "account_id": 4958,
+          "must_scope_to_logged_in_user": true
+        },
+        "false_fallback_expected": false,
+        "rubrics": {
+          "action_match": "사용자가 결제/환불/아이템 지급/가챠 내역의 상태·로그·기록 확인만 요청하면 AUTO_RESPONSE를 기대한다. 환불/취소/지급/복구/보상/조치처럼 실제 처리를 요구하는 경우에만 REVIEW_REQUIRED를 기대한다.",
+          "db_lookup_accuracy": "expected_records에 포함된 실제 DB row가 payment_context에 포함되어야 한다.",
+          "false_fallback_rate": "필요 DB 근거가 존재하므로 근거 조회 실패가 아닌 일반 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "PAY-015",
+        "eval_area": "payment_agent",
+        "record_kind": "refunds",
+        "persona": "returning_player",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "공월 축복 환불 요청이 어떻게 처리됐는지 알고 싶어요.",
+        "category": "payment",
+        "routing_target": "payment_agent",
+        "user_id": 1507,
+        "account_id": 1607
+      },
+      "outputs": {
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "payments",
+          "refunds"
+        ],
+        "expected_records": {
+          "payments": [
+            910046
+          ],
+          "refunds": [
+            910051
+          ]
+        },
+        "db_lookup_accuracy": {
+          "user_id": 1507,
+          "account_id": 1607,
+          "must_scope_to_logged_in_user": true
+        },
+        "false_fallback_expected": false,
+        "rubrics": {
+          "action_match": "사용자가 결제/환불/아이템 지급/가챠 내역의 상태·로그·기록 확인만 요청하면 AUTO_RESPONSE를 기대한다. 환불/취소/지급/복구/보상/조치처럼 실제 처리를 요구하는 경우에만 REVIEW_REQUIRED를 기대한다.",
+          "db_lookup_accuracy": "expected_records에 포함된 실제 DB row가 payment_context에 포함되어야 한다.",
+          "false_fallback_rate": "필요 DB 근거가 존재하므로 근거 조회 실패가 아닌 일반 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "PAY-016",
+        "eval_area": "payment_agent",
+        "record_kind": "refunds",
+        "persona": "impatient_payer",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "창세의 결정 1980개 환불 요청이 어떻게 처리됐는지 알고 싶어요.",
+        "category": "payment",
+        "routing_target": "payment_agent",
+        "user_id": 6741,
+        "account_id": 6841
+      },
+      "outputs": {
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "payments",
+          "refunds"
+        ],
+        "expected_records": {
+          "payments": [
+            910899
+          ],
+          "refunds": [
+            910147
+          ]
+        },
+        "db_lookup_accuracy": {
+          "user_id": 6741,
+          "account_id": 6841,
+          "must_scope_to_logged_in_user": true
+        },
+        "false_fallback_expected": false,
+        "rubrics": {
+          "action_match": "사용자가 결제/환불/아이템 지급/가챠 내역의 상태·로그·기록 확인만 요청하면 AUTO_RESPONSE를 기대한다. 환불/취소/지급/복구/보상/조치처럼 실제 처리를 요구하는 경우에만 REVIEW_REQUIRED를 기대한다.",
+          "db_lookup_accuracy": "expected_records에 포함된 실제 DB row가 payment_context에 포함되어야 한다.",
+          "false_fallback_rate": "필요 DB 근거가 존재하므로 근거 조회 실패가 아닌 일반 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "PAY-017",
+        "eval_area": "payment_agent",
+        "record_kind": "refunds",
+        "persona": "detail_reporter",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "창세의 결정 980개 환불 요청이 어떻게 처리됐는지 알고 싶어요.",
+        "category": "payment",
+        "routing_target": "payment_agent",
+        "user_id": 2176,
+        "account_id": 2276
+      },
+      "outputs": {
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "payments",
+          "refunds"
+        ],
+        "expected_records": {
+          "payments": [
+            910192
+          ],
+          "refunds": [
+            910241
+          ]
+        },
+        "db_lookup_accuracy": {
+          "user_id": 2176,
+          "account_id": 2276,
+          "must_scope_to_logged_in_user": true
+        },
+        "false_fallback_expected": false,
+        "rubrics": {
+          "action_match": "사용자가 결제/환불/아이템 지급/가챠 내역의 상태·로그·기록 확인만 요청하면 AUTO_RESPONSE를 기대한다. 환불/취소/지급/복구/보상/조치처럼 실제 처리를 요구하는 경우에만 REVIEW_REQUIRED를 기대한다.",
+          "db_lookup_accuracy": "expected_records에 포함된 실제 DB row가 payment_context에 포함되어야 한다.",
+          "false_fallback_rate": "필요 DB 근거가 존재하므로 근거 조회 실패가 아닌 일반 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "PAY-018",
+        "eval_area": "payment_agent",
+        "record_kind": "refunds",
+        "persona": "short_mobile_user",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "창세의 결정 980개 환불 요청이 어떻게 처리됐는지 알고 싶어요.",
+        "category": "payment",
+        "routing_target": "payment_agent",
+        "user_id": 6360,
+        "account_id": 6460
+      },
+      "outputs": {
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "payments",
+          "refunds"
+        ],
+        "expected_records": {
+          "payments": [
+            912009
+          ],
+          "refunds": [
+            910228
+          ]
+        },
+        "db_lookup_accuracy": {
+          "user_id": 6360,
+          "account_id": 6460,
+          "must_scope_to_logged_in_user": true
+        },
+        "false_fallback_expected": false,
+        "rubrics": {
+          "action_match": "사용자가 결제/환불/아이템 지급/가챠 내역의 상태·로그·기록 확인만 요청하면 AUTO_RESPONSE를 기대한다. 환불/취소/지급/복구/보상/조치처럼 실제 처리를 요구하는 경우에만 REVIEW_REQUIRED를 기대한다.",
+          "db_lookup_accuracy": "expected_records에 포함된 실제 DB row가 payment_context에 포함되어야 한다.",
+          "false_fallback_rate": "필요 DB 근거가 존재하므로 근거 조회 실패가 아닌 일반 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "PAY-019",
+        "eval_area": "payment_agent",
+        "record_kind": "refunds",
+        "persona": "new_player",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "창세의 결정 300개 환불 요청이 어떻게 처리됐는지 알고 싶어요.",
+        "category": "payment",
+        "routing_target": "payment_agent",
+        "user_id": 6321,
+        "account_id": 6421
+      },
+      "outputs": {
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "payments",
+          "refunds"
+        ],
+        "expected_records": {
+          "payments": [
+            913859
+          ],
+          "refunds": [
+            910130
+          ]
+        },
+        "db_lookup_accuracy": {
+          "user_id": 6321,
+          "account_id": 6421,
+          "must_scope_to_logged_in_user": true
+        },
+        "false_fallback_expected": false,
+        "rubrics": {
+          "action_match": "사용자가 결제/환불/아이템 지급/가챠 내역의 상태·로그·기록 확인만 요청하면 AUTO_RESPONSE를 기대한다. 환불/취소/지급/복구/보상/조치처럼 실제 처리를 요구하는 경우에만 REVIEW_REQUIRED를 기대한다.",
+          "db_lookup_accuracy": "expected_records에 포함된 실제 DB row가 payment_context에 포함되어야 한다.",
+          "false_fallback_rate": "필요 DB 근거가 존재하므로 근거 조회 실패가 아닌 일반 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "PAY-020",
+        "eval_area": "payment_agent",
+        "record_kind": "refunds",
+        "persona": "returning_player",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "원석 아이템이 아직 안 들어온 것 같아요. 지급 로그 확인해주세요.",
+        "category": "payment",
+        "routing_target": "payment_agent",
+        "user_id": 6830,
+        "account_id": 6930
+      },
+      "outputs": {
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "payments",
+          "item_delivery_logs"
+        ],
+        "expected_records": {
+          "item_delivery_logs": [
+            919710
+          ],
+          "payments": [
+            914733
+          ]
+        },
+        "db_lookup_accuracy": {
+          "user_id": 6830,
+          "account_id": 6930,
+          "must_scope_to_logged_in_user": true
+        },
+        "false_fallback_expected": false,
+        "rubrics": {
+          "action_match": "사용자가 결제/환불/아이템 지급/가챠 내역의 상태·로그·기록 확인만 요청하면 AUTO_RESPONSE를 기대한다. 환불/취소/지급/복구/보상/조치처럼 실제 처리를 요구하는 경우에만 REVIEW_REQUIRED를 기대한다.",
+          "db_lookup_accuracy": "expected_records에 포함된 실제 DB row가 payment_context에 포함되어야 한다.",
+          "false_fallback_rate": "필요 DB 근거가 존재하므로 근거 조회 실패가 아닌 일반 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "PAY-021",
+        "eval_area": "payment_agent",
+        "record_kind": "deliveries",
+        "persona": "impatient_payer",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "원석 아이템이 아직 안 들어온 것 같아요. 지급 로그 확인해주세요.",
+        "category": "payment",
+        "routing_target": "payment_agent",
+        "user_id": 7003,
+        "account_id": 7103
+      },
+      "outputs": {
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "item_delivery_logs"
+        ],
+        "expected_records": {
+          "item_delivery_logs": [
+            919815
+          ]
+        },
+        "db_lookup_accuracy": {
+          "user_id": 7003,
+          "account_id": 7103,
+          "must_scope_to_logged_in_user": true
+        },
+        "false_fallback_expected": false,
+        "rubrics": {
+          "action_match": "사용자가 결제/환불/아이템 지급/가챠 내역의 상태·로그·기록 확인만 요청하면 AUTO_RESPONSE를 기대한다. 환불/취소/지급/복구/보상/조치처럼 실제 처리를 요구하는 경우에만 REVIEW_REQUIRED를 기대한다.",
+          "db_lookup_accuracy": "expected_records에 포함된 실제 DB row가 payment_context에 포함되어야 한다.",
+          "false_fallback_rate": "필요 DB 근거가 존재하므로 근거 조회 실패가 아닌 일반 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "PAY-022",
+        "eval_area": "payment_agent",
+        "record_kind": "deliveries",
+        "persona": "detail_reporter",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "창세의 결정 아이템이 아직 안 들어온 것 같아요. 지급 로그 확인해주세요.",
+        "category": "payment",
+        "routing_target": "payment_agent",
+        "user_id": 6370,
+        "account_id": 6470
+      },
+      "outputs": {
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "payments",
+          "item_delivery_logs"
+        ],
+        "expected_records": {
+          "item_delivery_logs": [
+            912735
+          ],
+          "payments": [
+            913194
+          ]
+        },
+        "db_lookup_accuracy": {
+          "user_id": 6370,
+          "account_id": 6470,
+          "must_scope_to_logged_in_user": true
+        },
+        "false_fallback_expected": false,
+        "rubrics": {
+          "action_match": "사용자가 결제/환불/아이템 지급/가챠 내역의 상태·로그·기록 확인만 요청하면 AUTO_RESPONSE를 기대한다. 환불/취소/지급/복구/보상/조치처럼 실제 처리를 요구하는 경우에만 REVIEW_REQUIRED를 기대한다.",
+          "db_lookup_accuracy": "expected_records에 포함된 실제 DB row가 payment_context에 포함되어야 한다.",
+          "false_fallback_rate": "필요 DB 근거가 존재하므로 근거 조회 실패가 아닌 일반 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "PAY-023",
+        "eval_area": "payment_agent",
+        "record_kind": "deliveries",
+        "persona": "short_mobile_user",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "창세의 결정 아이템이 아직 안 들어온 것 같아요. 지급 로그 확인해주세요.",
+        "category": "payment",
+        "routing_target": "payment_agent",
+        "user_id": 458,
+        "account_id": 558
+      },
+      "outputs": {
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "payments",
+          "item_delivery_logs"
+        ],
+        "expected_records": {
+          "item_delivery_logs": [
+            912669
+          ],
+          "payments": [
+            911697
+          ]
+        },
+        "db_lookup_accuracy": {
+          "user_id": 458,
+          "account_id": 558,
+          "must_scope_to_logged_in_user": true
+        },
+        "false_fallback_expected": false,
+        "rubrics": {
+          "action_match": "사용자가 결제/환불/아이템 지급/가챠 내역의 상태·로그·기록 확인만 요청하면 AUTO_RESPONSE를 기대한다. 환불/취소/지급/복구/보상/조치처럼 실제 처리를 요구하는 경우에만 REVIEW_REQUIRED를 기대한다.",
+          "db_lookup_accuracy": "expected_records에 포함된 실제 DB row가 payment_context에 포함되어야 한다.",
+          "false_fallback_rate": "필요 DB 근거가 존재하므로 근거 조회 실패가 아닌 일반 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "PAY-024",
+        "eval_area": "payment_agent",
+        "record_kind": "deliveries",
+        "persona": "new_player",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "창세의 결정 아이템이 아직 안 들어온 것 같아요. 지급 로그 확인해주세요.",
+        "category": "payment",
+        "routing_target": "payment_agent",
+        "user_id": 4948,
+        "account_id": 5048
+      },
+      "outputs": {
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "payments",
+          "item_delivery_logs"
+        ],
+        "expected_records": {
+          "item_delivery_logs": [
+            919348
+          ],
+          "payments": [
+            913598
+          ]
+        },
+        "db_lookup_accuracy": {
+          "user_id": 4948,
+          "account_id": 5048,
+          "must_scope_to_logged_in_user": true
+        },
+        "false_fallback_expected": false,
+        "rubrics": {
+          "action_match": "사용자가 결제/환불/아이템 지급/가챠 내역의 상태·로그·기록 확인만 요청하면 AUTO_RESPONSE를 기대한다. 환불/취소/지급/복구/보상/조치처럼 실제 처리를 요구하는 경우에만 REVIEW_REQUIRED를 기대한다.",
+          "db_lookup_accuracy": "expected_records에 포함된 실제 DB row가 payment_context에 포함되어야 한다.",
+          "false_fallback_rate": "필요 DB 근거가 존재하므로 근거 조회 실패가 아닌 일반 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "PAY-025",
+        "eval_area": "payment_agent",
+        "record_kind": "deliveries",
+        "persona": "returning_player",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "창세의 결정 아이템이 아직 안 들어온 것 같아요. 지급 로그 확인해주세요.",
+        "category": "payment",
+        "routing_target": "payment_agent",
+        "user_id": 2196,
+        "account_id": 2296
+      },
+      "outputs": {
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "payments",
+          "item_delivery_logs"
+        ],
+        "expected_records": {
+          "item_delivery_logs": [
+            910439
+          ],
+          "payments": [
+            911099
+          ]
+        },
+        "db_lookup_accuracy": {
+          "user_id": 2196,
+          "account_id": 2296,
+          "must_scope_to_logged_in_user": true
+        },
+        "false_fallback_expected": false,
+        "rubrics": {
+          "action_match": "사용자가 결제/환불/아이템 지급/가챠 내역의 상태·로그·기록 확인만 요청하면 AUTO_RESPONSE를 기대한다. 환불/취소/지급/복구/보상/조치처럼 실제 처리를 요구하는 경우에만 REVIEW_REQUIRED를 기대한다.",
+          "db_lookup_accuracy": "expected_records에 포함된 실제 DB row가 payment_context에 포함되어야 한다.",
+          "false_fallback_rate": "필요 DB 근거가 존재하므로 근거 조회 실패가 아닌 일반 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "PAY-026",
+        "eval_area": "payment_agent",
+        "record_kind": "deliveries",
+        "persona": "impatient_payer",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "원석 아이템이 아직 안 들어온 것 같아요. 지급 로그 확인해주세요.",
+        "category": "payment",
+        "routing_target": "payment_agent",
+        "user_id": 6477,
+        "account_id": 6577
+      },
+      "outputs": {
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "payments",
+          "item_delivery_logs"
+        ],
+        "expected_records": {
+          "item_delivery_logs": [
+            910852
+          ],
+          "payments": [
+            913932
+          ]
+        },
+        "db_lookup_accuracy": {
+          "user_id": 6477,
+          "account_id": 6577,
+          "must_scope_to_logged_in_user": true
+        },
+        "false_fallback_expected": false,
+        "rubrics": {
+          "action_match": "사용자가 결제/환불/아이템 지급/가챠 내역의 상태·로그·기록 확인만 요청하면 AUTO_RESPONSE를 기대한다. 환불/취소/지급/복구/보상/조치처럼 실제 처리를 요구하는 경우에만 REVIEW_REQUIRED를 기대한다.",
+          "db_lookup_accuracy": "expected_records에 포함된 실제 DB row가 payment_context에 포함되어야 한다.",
+          "false_fallback_rate": "필요 DB 근거가 존재하므로 근거 조회 실패가 아닌 일반 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "PAY-027",
+        "eval_area": "payment_agent",
+        "record_kind": "deliveries",
+        "persona": "detail_reporter",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "원석 아이템이 아직 안 들어온 것 같아요. 지급 로그 확인해주세요.",
+        "category": "payment",
+        "routing_target": "payment_agent",
+        "user_id": 612,
+        "account_id": 712
+      },
+      "outputs": {
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "payments",
+          "item_delivery_logs"
+        ],
+        "expected_records": {
+          "item_delivery_logs": [
+            917976
+          ],
+          "payments": [
+            910405
+          ]
+        },
+        "db_lookup_accuracy": {
+          "user_id": 612,
+          "account_id": 712,
+          "must_scope_to_logged_in_user": true
+        },
+        "false_fallback_expected": false,
+        "rubrics": {
+          "action_match": "사용자가 결제/환불/아이템 지급/가챠 내역의 상태·로그·기록 확인만 요청하면 AUTO_RESPONSE를 기대한다. 환불/취소/지급/복구/보상/조치처럼 실제 처리를 요구하는 경우에만 REVIEW_REQUIRED를 기대한다.",
+          "db_lookup_accuracy": "expected_records에 포함된 실제 DB row가 payment_context에 포함되어야 한다.",
+          "false_fallback_rate": "필요 DB 근거가 존재하므로 근거 조회 실패가 아닌 일반 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "PAY-028",
+        "eval_area": "payment_agent",
+        "record_kind": "deliveries",
+        "persona": "short_mobile_user",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "무기 이벤트 기원 뽑기 기록에서 제례 대검 결과가 맞는지 확인해주세요. 천장 카운트도 같이 봐주세요.",
+        "category": "payment",
+        "routing_target": "payment_agent",
+        "user_id": 6643,
+        "account_id": 6743
+      },
+      "outputs": {
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "gacha_logs"
+        ],
+        "expected_records": {
+          "gacha_logs": [
+            925818
+          ]
+        },
+        "db_lookup_accuracy": {
+          "user_id": 6643,
+          "account_id": 6743,
+          "must_scope_to_logged_in_user": true
+        },
+        "false_fallback_expected": false,
+        "rubrics": {
+          "action_match": "사용자가 결제/환불/아이템 지급/가챠 내역의 상태·로그·기록 확인만 요청하면 AUTO_RESPONSE를 기대한다. 환불/취소/지급/복구/보상/조치처럼 실제 처리를 요구하는 경우에만 REVIEW_REQUIRED를 기대한다.",
+          "db_lookup_accuracy": "expected_records에 포함된 실제 DB row가 payment_context에 포함되어야 한다.",
+          "false_fallback_rate": "필요 DB 근거가 존재하므로 근거 조회 실패가 아닌 일반 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "PAY-029",
+        "eval_area": "payment_agent",
+        "record_kind": "gachas",
+        "persona": "new_player",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    },
+    {
+      "inputs": {
+        "user_message": "무기 이벤트 기원 뽑기 기록에서 설탕 결과가 맞는지 확인해주세요. 천장 카운트도 같이 봐주세요.",
+        "category": "payment",
+        "routing_target": "payment_agent",
+        "user_id": 1474,
+        "account_id": 1574
+      },
+      "outputs": {
+        "expected_action": "AUTO_RESPONSE",
+        "required_evidence_types": [
+          "gacha_logs"
+        ],
+        "expected_records": {
+          "gacha_logs": [
+            919710
+          ]
+        },
+        "db_lookup_accuracy": {
+          "user_id": 1474,
+          "account_id": 1574,
+          "must_scope_to_logged_in_user": true
+        },
+        "false_fallback_expected": false,
+        "rubrics": {
+          "action_match": "사용자가 결제/환불/아이템 지급/가챠 내역의 상태·로그·기록 확인만 요청하면 AUTO_RESPONSE를 기대한다. 환불/취소/지급/복구/보상/조치처럼 실제 처리를 요구하는 경우에만 REVIEW_REQUIRED를 기대한다.",
+          "db_lookup_accuracy": "expected_records에 포함된 실제 DB row가 payment_context에 포함되어야 한다.",
+          "false_fallback_rate": "필요 DB 근거가 존재하므로 근거 조회 실패가 아닌 일반 fallback이면 실패로 본다."
+        }
+      },
+      "metadata": {
+        "test_id": "PAY-030",
+        "eval_area": "payment_agent",
+        "record_kind": "gachas",
+        "persona": "returning_player",
+        "synthetic_method": "db_grounded_persona_self_instruct"
+      }
+    }
+  ]
+}

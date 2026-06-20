@@ -1,0 +1,29 @@
+{
+  "datasets": [
+    {
+      "name": "gameops-chatbot-preprocess-safety-20-v1",
+      "path": "C:\\Users\\playdata2\\Desktop\\final\\SKN25-FINAL-6Team\\apps\\chatbot\\backend\\evals\\datasets\\gameops-chatbot-preprocess-safety-20-v1.json",
+      "examples": 20
+    },
+    {
+      "name": "gameops-chatbot-category-mapping-contract-20-v1",
+      "path": "C:\\Users\\playdata2\\Desktop\\final\\SKN25-FINAL-6Team\\apps\\chatbot\\backend\\evals\\datasets\\gameops-chatbot-category-mapping-contract-20-v1.json",
+      "examples": 20
+    },
+    {
+      "name": "gameops-chatbot-faq-agent-db-grounded-40-v1",
+      "path": "C:\\Users\\playdata2\\Desktop\\final\\SKN25-FINAL-6Team\\apps\\chatbot\\backend\\evals\\datasets\\gameops-chatbot-faq-agent-db-grounded-40-v1.json",
+      "examples": 40
+    },
+    {
+      "name": "gameops-chatbot-payment-agent-db-grounded-30-v1",
+      "path": "C:\\Users\\playdata2\\Desktop\\final\\SKN25-FINAL-6Team\\apps\\chatbot\\backend\\evals\\datasets\\gameops-chatbot-payment-agent-db-grounded-30-v1.json",
+      "examples": 30
+    },
+    {
+      "name": "gameops-chatbot-bug-agent-synthetic-20-v1",
+      "path": "C:\\Users\\playdata2\\Desktop\\final\\SKN25-FINAL-6Team\\apps\\chatbot\\backend\\evals\\datasets\\gameops-chatbot-bug-agent-synthetic-20-v1.json",
+      "examples": 20
+    }
+  ]
+}

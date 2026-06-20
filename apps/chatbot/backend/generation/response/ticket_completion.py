@@ -8,7 +8,7 @@ from chatbot.generation.response.fixed_responses import (
 from chatbot.notifications.github_issue import dispatch_github_issue_notification
 from chatbot.observability.logger import EVENT_TICKET_COMPLETION_COMPLETED, log_event
 from chatbot.repository.failed_query_repository import save_failed_query
-from chatbot.repository.ticket_repository import update_qa_ticket_raw_query
+from chatbot.repository.ticket_repository import delete_qa_ticket, update_qa_ticket_raw_query
 from chatbot.schemas import ChatbotState
 
 
@@ -19,11 +19,52 @@ def _ticket_status_for_decision(decision: str, review_required: bool | None = No
     return "resolved"
 
 
+def _ticket_status_for_state(state: ChatbotState, decision: str) -> str:
+    if state.get("bug_collection_status") == "collecting":
+        return "collecting"
+    return _ticket_status_for_decision(decision, state.get("review_required"))
+
+
+def _format_bug_collection_user_text(state: ChatbotState) -> str | None:
+    status = state.get("bug_collection_status")
+    if status not in {"collecting", "ready_for_review"}:
+        return None
+
+    initial_query = str(state.get("initial_bug_query") or state.get("raw_query") or "").strip()
+    if status == "collecting":
+        return initial_query
+
+    reproduction_info = str(state.get("bug_report_form") or state.get("raw_query") or "").strip()
+    return "\n\n".join(part for part in [initial_query, reproduction_info] if part)
+
+
+def _is_category_redirect_response(final_text: str) -> bool:
+    text = " ".join(str(final_text or "").split())
+    if not text:
+        return False
+
+    redirect_markers = (
+        "다른 카테고리",
+        "올바른 카테고리",
+        "알맞은 카테고리",
+        "카테고리를 선택",
+        "카테고리에 문의",
+        "카테고리로 문의",
+        "이 채널은",
+        "채널은",
+        "문의 전용",
+        "전용입니다",
+    )
+    inquiry_markers = ("문의", "질문", "카테고리", "채널")
+    return any(marker in text for marker in redirect_markers) and any(marker in text for marker in inquiry_markers)
+
+
 def _is_faq_state(state: ChatbotState) -> bool:
+    routing_target = str(state.get("routing_target") or "").strip().lower()
     return (
         str(state.get("category") or "").strip().lower() == "faq"
         or state.get("reasoning_node") == "faq_agent"
-        or state.get("should_use_rag") is True
+        or routing_target in {"faq_agent", "rag_reply"}
     )
 
 
@@ -63,16 +104,46 @@ def ticket_completion_node(state: ChatbotState) -> dict:
         final_text = draft_text
 
     # 2단계: 검토가 필요한 버그성 문의면 GitHub issue를 만들고, 아니면 skipped 결과만 남긴다.
-    notification_result = dispatch_github_issue_notification({**state, "final_text": final_text})
+    if _is_category_redirect_response(final_text):
+        delete_result = delete_qa_ticket({"ticket_id": state["ticket_id"]})
+        log_event(
+            EVENT_TICKET_COMPLETION_COMPLETED,
+            ticket_id=state.get("ticket_id"),
+            session_id=state.get("session_id"),
+            node_name="ticket_completion",
+            category=state.get("category"),
+            routing_target=state.get("routing_target"),
+            status="skipped",
+            metadata={
+                "skip_reason": "category_redirect_response",
+                "delete_result": delete_result,
+            },
+        )
+        return {
+            "final_text": final_text,
+            "notification_result": {"status": "skipped", "reason": "category redirect response"},
+            "failed_query_result": None,
+            "ticket_status_result": delete_result,
+        }
+
+    raw_query = state.get("raw_query") or ""
+    formatted_user_text = _format_bug_collection_user_text(state)
+    formatted_raw_query = f"User: {formatted_user_text or raw_query}\nAI: {final_text}"
+    notification_result = dispatch_github_issue_notification(
+        {
+            **state,
+            "final_text": final_text,
+            "github_issue_content": formatted_raw_query if formatted_user_text else None,
+        }
+    )
     failed_query_result = _record_faq_safe_fallback_query(state, decision)
 
     # 3단계: 문의 내역 화면에서 볼 수 있도록 User/AI 최종 대화를 qa_ticket에 반영한다.
-    raw_query = state.get("raw_query") or ""
     ticket_status_result = update_qa_ticket_raw_query(
         {
             "ticket_id": state["ticket_id"],
-            "raw_query": f"User: {raw_query}\nAI: {final_text}",
-            "status": _ticket_status_for_decision(decision, state.get("review_required")),
+            "raw_query": formatted_raw_query or f"User: {raw_query}\nAI: {final_text}",
+            "status": _ticket_status_for_state(state, decision),
         }
     )
 
