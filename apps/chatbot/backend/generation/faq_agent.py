@@ -10,11 +10,11 @@ from langchain_openai import ChatOpenAI
 
 from common.db.connection import db_connection
 from common.observability.logger import record_chat_model_usage
+from common.retrieval.cache_store import get_cached_retrieval, set_cached_retrieval
 from chatbot.generation.policies import FAQ_POLICY
 from chatbot.generation.response.fixed_responses import SAFE_FALLBACK_RESPONSE
 from chatbot.observability.logger import EVENT_NODE_COMPLETED, EVENT_NODE_STARTED, EVENT_TOOL_COMPLETED, log_event
 from chatbot.repository.failed_query_repository import save_failed_query
-from chatbot.retrieval.cache_store import get_cached_retrieval, set_cached_retrieval
 from common.retrieval.vector_tools import embed_query, enrich_retrieval_query, rerank_documents, search_document_chunks
 from chatbot.schemas import ChatbotState
 from chatbot.utils.query_enrichment import rewrite_query_with_llm

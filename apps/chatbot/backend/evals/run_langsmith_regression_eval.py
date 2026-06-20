@@ -593,7 +593,7 @@ def main() -> None:
         os.environ["FAQ_RETRIEVAL_CACHE_ENABLED"] = "false"
 
     if args.clear_cache:
-        from chatbot.retrieval.cache_store import clear_faq_cache
+        from common.retrieval.cache_store import clear_faq_cache
 
         namespace = None if args.cache_namespace == "all" else args.cache_namespace
         print(f"Cleared FAQ cache: {clear_faq_cache(namespace)}")

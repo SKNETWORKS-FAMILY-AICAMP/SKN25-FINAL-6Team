@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 
 from common.db.connection import db_connection
 from common.observability.langsmith import configure_langsmith
+from common.retrieval.cache_store import get_cached_session_state, set_cached_session_state
 
 configure_langsmith("chatbot")
 
@@ -17,7 +18,6 @@ from chatbot.service.account_service import get_server_regions, login_with_crede
 from chatbot.service.chatbot_service import run_chatbot
 from chatbot.service.multiturn_service import build_session_context
 from chatbot.repository.ticket_repository import find_collecting_bug_ticket
-from chatbot.retrieval.cache_store import get_cached_session_state, set_cached_session_state
 
 
 app = FastAPI(title="GameOps Chatbot API")
