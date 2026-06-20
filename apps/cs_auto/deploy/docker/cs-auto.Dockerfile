@@ -19,6 +19,7 @@ RUN python -m pip install --upgrade pip \
 
 COPY common ./common
 COPY apps/cs_auto/backend ./apps/cs_auto/backend
+COPY data/prompts ./data/prompts
 COPY data/sql ./data/sql
 COPY data/keywords ./data/keywords
 COPY apps/cs_auto/deploy/scripts/start-cs-auto.sh /usr/local/bin/start-cs-auto
