@@ -3,7 +3,7 @@ FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
-    PYTHONPATH=/app/packages/common-python/src:/app/apps/cs_auto/backend \
+    PYTHONPATH=/app:/app/apps/cs_auto/backend \
     CS_AUTO_UVICORN_HOST=0.0.0.0 \
     CS_AUTO_UVICORN_PORT=8000
 
@@ -17,7 +17,7 @@ COPY apps/cs_auto/backend/requirements.txt /tmp/cs-auto-requirements.txt
 RUN python -m pip install --upgrade pip \
     && python -m pip install -r /tmp/cs-auto-requirements.txt
 
-COPY packages/common-python/src ./packages/common-python/src
+COPY common ./common
 COPY apps/cs_auto/backend ./apps/cs_auto/backend
 COPY data/sql ./data/sql
 COPY data/keywords ./data/keywords

@@ -25,7 +25,7 @@ from psycopg.rows import dict_row
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 REPO_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO_ROOT / "packages" / "common-python" / "src"))
+sys.path.insert(0, str(REPO_ROOT))
 
 from common.db.connection import db_connection  # noqa: E402
 from common.documents_processing.types import ChunkRecord  # noqa: E402

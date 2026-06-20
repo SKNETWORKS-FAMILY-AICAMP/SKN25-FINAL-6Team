@@ -34,8 +34,8 @@ pytest `
   apps\tests\weekly_report_tests\test_weekly_report_db.py `
   apps\tests\weekly_report_tests\test_weekly_report_slack.py `
   apps\tests\weekly_report_tests\test_weekly_report_utils.py `
-  packages\common-python\tests\test_documents_processing.py `
-  packages\common-python\tests\test_retrieval_routing.py
+  common\tests\test_documents_processing.py `
+  common\tests\test_retrieval_routing.py
 ```
 
 ### 2. monkeypatch 기반 통합테스트 포함
@@ -52,7 +52,7 @@ pytest `
 ### 3. 실환경 연동 테스트
 
 ```powershell
-pytest packages\common-python\tests\test_db_connection.py
+pytest common\tests\test_db_connection.py
 pytest apps\tests\chatbot_tests\test_db_schema.py
 ```
 
@@ -168,14 +168,14 @@ pytest apps\tests\cs-auto_tests\test_answer_agent.py -k live
 
 #### 단위테스트
 
-- [packages/common-python/tests/test_documents_processing.py](/C:/SKN25-FINAL-6Team/packages/common-python/tests/test_documents_processing.py)
+- [common/tests/test_documents_processing.py](/C:/SKN25-FINAL-6Team/common/tests/test_documents_processing.py)
   - normalize, chunking, pipeline 집계를 fake repository/embedder로 검증한다.
-- [packages/common-python/tests/test_retrieval_routing.py](/C:/SKN25-FINAL-6Team/packages/common-python/tests/test_retrieval_routing.py)
+- [common/tests/test_retrieval_routing.py](/C:/SKN25-FINAL-6Team/common/tests/test_retrieval_routing.py)
   - 상태값 조회와 routing helper 분기를 검증한다.
 
 #### 실환경 연동 테스트
 
-- [packages/common-python/tests/test_db_connection.py](/C:/SKN25-FINAL-6Team/packages/common-python/tests/test_db_connection.py)
+- [common/tests/test_db_connection.py](/C:/SKN25-FINAL-6Team/common/tests/test_db_connection.py)
   - 실제 Postgres 연결 후 `SELECT 1`을 수행한다.
   - `DB_PASSWORD`가 없으면 skip된다.
 

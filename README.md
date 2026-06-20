@@ -5,7 +5,7 @@
 - `apps/chatbot`: 사용자용 문의 접수 및 답변 생성 챗봇
 - `apps/cs_auto`: 운영자용 문의 검토, 초안 수정, 승인 화면과 백엔드
 - `apps/weekly_report`: 주간 운영 리포트 생성 및 Slack 발송
-- `packages/common-python`: DB 연결, 문서 처리, 검색, 관측성 등 공용 코드
+- `common`: DB 연결, 문서 처리, 검색, 관측성 등 공용 코드
 
 ## Repository Layout
 
@@ -24,8 +24,7 @@
 │  │  ├─ api
 │  │  └─ ...
 │  └─ tests
-├─ packages
-│  └─ common-python
+├─ common
 ├─ data
 │  ├─ keywords
 │  └─ sql
@@ -105,7 +104,7 @@
 
 ## Environment Variables
 
-공용 DB 연결은 [packages/common-python/src/common/db/connection.py](/C:/SKN25-FINAL-6Team/packages/common-python/src/common/db/connection.py) 에서 `.env`를 읽습니다.
+공용 DB 연결은 [common/db/connection.py](/C:/SKN25-FINAL-6Team/common/db/connection.py) 에서 `.env`를 읽습니다.
 
 기본 `.env` 예시는 [deploy/.env.example](/C:/SKN25-FINAL-6Team/deploy/.env.example) 를 참고하면 됩니다.
 
@@ -189,7 +188,7 @@ python -m pip install -r apps\weekly_report\requirements.txt
 ### 1. Chatbot Backend
 
 ```powershell
-$env:PYTHONPATH="C:\SKN25-FINAL-6Team\packages\common-python\src;C:\SKN25-FINAL-6Team\apps\chatbot\backend"
+$env:PYTHONPATH="C:\SKN25-FINAL-6Team;C:\SKN25-FINAL-6Team\apps\chatbot\backend"
 python -m uvicorn api.main:app --host 127.0.0.1 --port 8000
 ```
 
@@ -214,7 +213,7 @@ python -m http.server 5173
 ### 3. CS Auto Backend
 
 ```powershell
-$env:PYTHONPATH="C:\SKN25-FINAL-6Team\packages\common-python\src;C:\SKN25-FINAL-6Team\apps\cs_auto\backend"
+$env:PYTHONPATH="C:\SKN25-FINAL-6Team;C:\SKN25-FINAL-6Team\apps\cs_auto\backend"
 python -m uvicorn api.main:app --host 127.0.0.1 --port 8001
 ```
 
@@ -242,7 +241,7 @@ http://127.0.0.1:5174/cs_automation.html
 ### 5. Weekly Report API
 
 ```powershell
-$env:PYTHONPATH="C:\SKN25-FINAL-6Team\packages\common-python\src;C:\SKN25-FINAL-6Team\apps\weekly_report"
+$env:PYTHONPATH="C:\SKN25-FINAL-6Team;C:\SKN25-FINAL-6Team\apps\weekly_report"
 python -m uvicorn api.main:app --host 127.0.0.1 --port 8002
 ```
 
@@ -276,12 +275,12 @@ Invoke-WebRequest -Method POST http://127.0.0.1:8002/report/trigger
 
 문서 청킹 및 임베딩 재생성 CLI:
 
-- 엔트리포인트: [packages/common-python/src/common/documents_processing/cli.py](/C:/SKN25-FINAL-6Team/packages/common-python/src/common/documents_processing/cli.py)
+- 엔트리포인트: [common/documents_processing/cli.py](/C:/SKN25-FINAL-6Team/common/documents_processing/cli.py)
 
 예시:
 
 ```powershell
-$env:PYTHONPATH="C:\SKN25-FINAL-6Team\packages\common-python\src"
+$env:PYTHONPATH="C:\SKN25-FINAL-6Team"
 python -m common.documents_processing.cli --source-type faq --limit 10
 ```
 
@@ -305,7 +304,7 @@ pytest
 pytest apps\tests\chatbot_tests
 pytest apps\tests\cs-auto_tests
 pytest apps\tests\weekly_report_tests
-pytest packages\common-python\tests
+pytest common\tests
 ```
 
 주의:

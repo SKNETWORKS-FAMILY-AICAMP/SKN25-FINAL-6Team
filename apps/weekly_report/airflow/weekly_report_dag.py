@@ -12,9 +12,9 @@ from airflow.decorators import dag, task
 # 현재 파일(apps/weekly_report/airflow/)을 기준으로 모듈 경로를 등록한다.
 # cs_auto와 병합하여 DAG 파일 위치가 바뀌면 아래 두 경로 상수를 갱신한다.
 _APP_DIR = Path(__file__).resolve().parents[1]           # apps/weekly_report/
-_COMMON_DIR = _APP_DIR.parents[1] / "packages" / "common-python" / "src"
+_REPO_ROOT = _APP_DIR.parents[1]
 
-for _p in (_APP_DIR, _COMMON_DIR):
+for _p in (_APP_DIR, _REPO_ROOT):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 

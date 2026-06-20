@@ -22,10 +22,10 @@ KST = pendulum.timezone("Asia/Seoul")
 DEFAULT_ARGS = {"owner": "cs_auto"}
 
 
-# 매일 새벽 1시에 문의 분석 agent를 실행하는 DAG.
+# 매일 새벽 4시에 문의 분석 agent를 실행하는 DAG.
 @dag(
     dag_id="cs_auto_analysis_agent_daily",
-    schedule="0 1 * * *",
+    schedule="0 4 * * *",
     start_date=pendulum.datetime(2026, 1, 1, tz=KST),
     catchup=False,
     default_args=DEFAULT_ARGS,

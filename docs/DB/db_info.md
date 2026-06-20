@@ -27,7 +27,7 @@ The connection test loads environment variables with `python-dotenv` and uses `p
 
 ```powershell
 $env:DB_PASSWORD = "<password>"
-python -m unittest packages.common-python.tests.test_db_connection
+python -m unittest common.tests.test_db_connection
 ```
 
 If `DB_PASSWORD` is not set, the DB smoke test is skipped.

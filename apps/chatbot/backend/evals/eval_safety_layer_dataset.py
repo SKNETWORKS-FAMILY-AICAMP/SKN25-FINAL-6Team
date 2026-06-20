@@ -14,8 +14,7 @@ from dotenv import load_dotenv
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = PROJECT_ROOT.parents[2]
-COMMON_SRC_DIR = REPO_ROOT / "packages" / "common-python" / "src"
-for path in (PROJECT_ROOT, COMMON_SRC_DIR):
+for path in (PROJECT_ROOT, REPO_ROOT):
     path_str = str(path)
     if path_str not in sys.path:
         sys.path.insert(0, path_str)
