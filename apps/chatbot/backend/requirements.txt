@@ -1,6 +1,9 @@
--e ../../../packages/common-python
 fastapi==0.122.0
 uvicorn==0.38.0
+langchain-core==1.4.0
+psycopg[binary]==3.3.4
+pydantic==2.12.5
+python-dotenv==1.2.2
 langchain
 langgraph==1.2.0
 langchain-openai==1.1.3

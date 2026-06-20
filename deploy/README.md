@@ -17,8 +17,6 @@ There is no shared external Docker network and no shared `web-nginx`.
 - `.env.chatbot.example`: chatbot server example
 - `.env.cs-auto.example`: cs_auto server example
 - `.env.airflow.example`: airflow server example
-- `deploy-all.sh`: starts all stacks on one host
-- `deploy-down.sh`: stops all stacks on one host
 
 ## First Run
 
@@ -43,6 +41,9 @@ CS_AUTO_AIRFLOW_PORT=18080
 ```
 
 When running each stack on its own EC2 instance, keeping `80` is fine.
+
+All compose files assume the build context is the repository root (`..` from this directory).
+They copy shared code from `common/`, so run compose commands from `deploy/` or keep the same `--project-directory`/file layout.
 
 ## Start
 
@@ -69,12 +70,6 @@ If you want the weekly report DAG to send Slack messages, also set:
 ```sh
 DASHBOARD_WEEKLY_REPORT_CHANNEL=<channel id or name>
 DASHBOARD_SLACK_BOT_TOKEN=<bot token>
-```
-
-Single-host convenience:
-
-```sh
-sh ./deploy-all.sh
 ```
 
 ## Status

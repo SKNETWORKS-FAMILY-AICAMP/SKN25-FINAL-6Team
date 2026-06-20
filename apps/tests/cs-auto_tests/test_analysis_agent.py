@@ -13,8 +13,8 @@ os.environ.setdefault("CS_AUTO_KEYWORD_DIR", str(ROOT_DIR / "data" / "keywords")
 os.environ.setdefault("CS_AUTO_PROMPT_DIR", str(ROOT_DIR / "data" / "prompts" / "cs_auto"))
 for path in reversed(
     [
+        ROOT_DIR,
         ROOT_DIR / "apps" / "cs_auto" / "backend",
-        ROOT_DIR / "packages" / "common-python" / "src",
     ]
 ):
     path_text = str(path)

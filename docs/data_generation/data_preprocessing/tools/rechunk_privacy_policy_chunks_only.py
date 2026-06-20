@@ -23,7 +23,7 @@ from dotenv import load_dotenv
 from psycopg.rows import dict_row
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "packages" / "common-python" / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from common.db.connection import db_connection  # noqa: E402
 
