@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from chatbot.generation.prompts.system_prompt import CHATBOT_SYSTEM_PROMPT
+from data.prompts.chatbot.system_prompt import CHATBOT_SYSTEM_PROMPT
 
 
 # payment agent가 결제/환불 범위 밖 질문에 답하지 않도록 scope rule을 먼저 적용한다.

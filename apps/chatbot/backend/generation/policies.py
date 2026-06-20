@@ -3,9 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from chatbot.generation.prompts.bug_prompt import BUG_AGENT_PROMPT
-from chatbot.generation.prompts.faq_prompt import FAQ_AGENT_PROMPT
-from chatbot.generation.prompts.payment_prompt import PAYMENT_AGENT_PROMPT
+from data.prompts.chatbot.bug_prompt import BUG_AGENT_PROMPT
+from data.prompts.chatbot.faq_prompt import FAQ_AGENT_PROMPT
+from data.prompts.chatbot.payment_prompt import PAYMENT_AGENT_PROMPT
 from chatbot.tools.db_tools import collect_user_payment_context, read_gacha_logs, read_item_delivery_logs
 
 

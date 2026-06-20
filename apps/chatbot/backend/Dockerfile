@@ -10,7 +10,7 @@ WORKDIR /app/apps/chatbot/backend
 RUN python -m pip install --upgrade pip \
     && python -m pip install -r requirements.txt
 
-ENV PYTHONPATH=/app/packages/common-python/src:/app/apps/chatbot/backend
+ENV PYTHONPATH=/app:/app/packages/common-python/src:/app/apps/chatbot/backend
 
 EXPOSE 8000
 

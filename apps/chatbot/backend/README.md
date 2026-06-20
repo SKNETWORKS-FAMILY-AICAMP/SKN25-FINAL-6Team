@@ -146,7 +146,7 @@ chatbot/
 ├── agent.py
 ├── schemas.py
 ├── constants.py
-├── generation/prompts/
+├── ../../../data/prompts/chatbot/
 ├── chains/
 ├── generation/
 ├── retrieval/
@@ -354,7 +354,7 @@ DB 접근 코드는 공통 DB access layer인 `src/common/db/connection.py`를 �
 로컬에서는 FastAPI 앱을 실행한 뒤 `/chat` API를 호출해 전체 LangGraph 흐름을 확인합니다.
 
 ```bash
-PYTHONPATH=apps/chatbot/backend:packages/common-python/src \
+PYTHONPATH=.:apps/chatbot/backend:packages/common-python/src \
 python -m uvicorn api.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 

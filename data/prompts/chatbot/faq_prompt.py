@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from chatbot.generation.prompts.system_prompt import CHATBOT_SYSTEM_PROMPT
+from data.prompts.chatbot.system_prompt import CHATBOT_SYSTEM_PROMPT
 
 
 # FAQ/RAG 답변이 제공된 evidence 범위를 벗어나지 않도록 제한하는 prompt다.
