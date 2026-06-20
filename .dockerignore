@@ -19,7 +19,6 @@ assets
 apps/tests
 data/raw
 data/tests
-data/prompts
 artifacts
 outputs
 tmp
