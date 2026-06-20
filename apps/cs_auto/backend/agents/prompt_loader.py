@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Any
+
+import yaml
 
 
 PROMPT_ROOT = Path(
@@ -14,7 +17,12 @@ PROMPT_ROOT = Path(
 
 def load_prompt_template(relative_path: str) -> str:
     path = PROMPT_ROOT / relative_path
-    return path.read_text(encoding="utf-8").strip()
+    raw_data: Any = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if isinstance(raw_data, str):
+        return raw_data.strip()
+    if isinstance(raw_data, dict) and isinstance(raw_data.get("template"), str):
+        return raw_data["template"].strip()
+    raise ValueError(f"Prompt YAML must be a string or contain 'template': {path}")
 
 
 def render_prompt_template(relative_path: str, **kwargs: object) -> str:

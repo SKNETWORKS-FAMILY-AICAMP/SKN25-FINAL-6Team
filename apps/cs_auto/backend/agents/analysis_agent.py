@@ -137,7 +137,7 @@ CATEGORY_DECISION_PARSER = PydanticOutputParser(pydantic_object=CategoryDecision
 CATEGORY_PROMPT = PromptTemplate(
     input_variables=["context_json"],
     partial_variables={"format_instructions": CATEGORY_DECISION_PARSER.get_format_instructions()},
-    template=load_prompt_template("analysis/category_prompt.txt"),
+    template=load_prompt_template("analysis/category_prompt.yaml"),
 )
 
 
@@ -262,7 +262,7 @@ ROUTING_DECISION_PARSER = PydanticOutputParser(pydantic_object=RoutingDecision)
 ROUTING_PROMPT = PromptTemplate(
     input_variables=["context_json"],
     partial_variables={"format_instructions": ROUTING_DECISION_PARSER.get_format_instructions()},
-    template=load_prompt_template("analysis/routing_prompt.txt"),
+    template=load_prompt_template("analysis/routing_prompt.yaml"),
 )
 
 

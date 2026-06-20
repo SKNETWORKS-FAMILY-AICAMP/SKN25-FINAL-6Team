@@ -109,13 +109,13 @@ ANSWER_DRAFT_PARSER = PydanticOutputParser(pydantic_object=AnswerDraftResult)
 ANSWER_DRAFT_PROMPT = PromptTemplate(
     input_variables=["context_json"],
     partial_variables={"format_instructions": ANSWER_DRAFT_PARSER.get_format_instructions()},
-    template=load_prompt_template("answer/draft_prompt.txt"),
+    template=load_prompt_template("answer/draft_prompt.yaml"),
 )
 ANSWER_SAFETY_PARSER = PydanticOutputParser(pydantic_object=AnswerSafetyResult)
 ANSWER_SAFETY_PROMPT = PromptTemplate(
     input_variables=["context_json"],
     partial_variables={"format_instructions": ANSWER_SAFETY_PARSER.get_format_instructions()},
-    template=load_prompt_template("answer/safety_prompt.txt"),
+    template=load_prompt_template("answer/safety_prompt.yaml"),
 )
 
 def _next_integer_id(cur: Any, table_name: str, id_column: str) -> int:

@@ -63,9 +63,9 @@ DISALLOWED_SQL_PATTERNS = (
 # backend 하위 tool 모듈 경로를 기준으로 프로젝트 루트의 data/sql을 바라보게 맞춘다.
 SQL_ROOT = Path(os.environ.get("CS_AUTO_SQL_DIR", Path(__file__).resolve().parents[5] / "data" / "sql"))
 
-QUERY_TYPE_DECISION_SYSTEM_PROMPT = load_prompt_template("dbsearch/query_type_decision_system.txt")
+QUERY_TYPE_DECISION_SYSTEM_PROMPT = load_prompt_template("dbsearch/query_type_decision_system.yaml")
 
-TEXT_TO_SQL_SYSTEM_PROMPT = load_prompt_template("dbsearch/text_to_sql_system.txt")
+TEXT_TO_SQL_SYSTEM_PROMPT = load_prompt_template("dbsearch/text_to_sql_system.yaml")
 
 
 # ticket_analysis에서 DB 검색 경로에 필요한 필드만 추린 모델이다.
@@ -289,7 +289,7 @@ def _build_query_type_decision_user_prompt(
     schema_context: dict[str, object],
 ) -> str:
     return render_prompt_template(
-        "dbsearch/query_type_decision_user.txt",
+        "dbsearch/query_type_decision_user.yaml",
         question=str(question or "").strip()[:2000],
         category=str(analysis.get("category") or "general"),
         summary=str(analysis.get("summary") or "").strip()[:1000],
@@ -307,7 +307,7 @@ def _build_text_to_sql_user_prompt(
     schema_context: dict[str, object],
 ) -> str:
     return render_prompt_template(
-        "dbsearch/text_to_sql_user.txt",
+        "dbsearch/text_to_sql_user.yaml",
         question=str(question or "").strip()[:2000],
         category=str(analysis.get("category") or "general"),
         summary=str(analysis.get("summary") or "").strip()[:1000],

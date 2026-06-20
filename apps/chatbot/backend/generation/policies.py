@@ -1,12 +1,36 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import os
+from pathlib import Path
 from typing import Any
 
-from data.prompts.chatbot.bug_prompt import BUG_AGENT_PROMPT
-from data.prompts.chatbot.faq_prompt import FAQ_AGENT_PROMPT
-from data.prompts.chatbot.payment_prompt import PAYMENT_AGENT_PROMPT
+import yaml
+
 from chatbot.tools.db_tools import collect_user_payment_context, read_gacha_logs, read_item_delivery_logs
+
+
+PROMPT_ROOT = Path(
+    os.environ.get(
+        "CHATBOT_PROMPT_DIR",
+        Path(__file__).resolve().parents[4] / "data" / "prompts" / "chatbot",
+    )
+)
+
+
+def _load_system_prompt(prompt_name: str) -> str:
+    path = PROMPT_ROOT / f"{prompt_name}.yaml"
+    raw_data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    if isinstance(raw_data, str):
+        return raw_data.strip()
+    if isinstance(raw_data, dict) and isinstance(raw_data.get("template"), str):
+        return raw_data["template"].strip()
+    raise ValueError(f"Chatbot prompt YAML must be a string or contain 'template': {path}")
+
+
+PAYMENT_AGENT_PROMPT = _load_system_prompt("payment_prompt")
+FAQ_AGENT_PROMPT = _load_system_prompt("faq_prompt")
+BUG_AGENT_PROMPT = _load_system_prompt("bug_prompt")
 
 
 @dataclass(frozen=True)
