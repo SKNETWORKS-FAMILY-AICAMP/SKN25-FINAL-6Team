@@ -468,7 +468,7 @@ async function loadTicketDetailFromApi(ticketId, shouldRender = true) {
 async function loadTicketsFromApi() {
   // 서버 페이지네이션 버전은 목록 미노출 이슈로 중단한다.
   // const data = await window.CSAutoApi.getTickets(buildTicketQueryParams(page));
-  const data = await window.CSAutoApi.getTickets(50);
+  const data = await window.CSAutoApi.getTickets(150);
   if (Array.isArray(data.tickets) && data.tickets.length > 0) {
     appState.tickets = data.tickets.map(mapApiTicketToUiTicket);
     appState.selectedTicketId = appState.tickets[0].id;
