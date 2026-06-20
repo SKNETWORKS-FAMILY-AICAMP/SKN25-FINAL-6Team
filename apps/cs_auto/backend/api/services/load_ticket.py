@@ -92,7 +92,6 @@ def fetch_tickets(
                     t.status,
                     t.inquiry_created_at,
                     t.session_id,
-                    t.responder_type,
                     t.assignee_admin_id,
                     u.nickname,
                     u.email,
@@ -116,7 +115,7 @@ def fetch_tickets(
                 FROM qa_ticket t
                 LEFT JOIN community_users u ON u.user_id = t.user_id
                 LEFT JOIN admin_users au ON au.admin_id = t.assignee_admin_id
-                JOIN LATERAL (
+                LEFT JOIN LATERAL (
                     SELECT
                         ta.analysis_id,
                         ta.category,
