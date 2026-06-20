@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pendulum
 from airflow.decorators import dag, task
+from common.observability.langfuse import configure_langfuse
 
 # 현재 파일(apps/weekly_report/airflow/)을 기준으로 모듈 경로를 등록한다.
 # cs_auto와 병합하여 DAG 파일 위치가 바뀌면 아래 두 경로 상수를 갱신한다.
@@ -19,6 +20,7 @@ for _p in (_APP_DIR, _REPO_ROOT):
         sys.path.insert(0, str(_p))
 
 KST = pendulum.timezone("Asia/Seoul")
+configure_langfuse("weekly-report", default_tags=["weekly-report", "airflow"])
 
 # cs_auto 병합 시: owner → "cs_auto", tags에 "cs_auto" 추가
 DEFAULT_ARGS = {"owner": "weekly_report"}

@@ -73,7 +73,7 @@ def login_with_credentials(email: str, password: str, server_region: str) -> dic
     return response
 
 def _log_login_result(login_result: dict[str, Any], **extra_metadata: Any) -> None:
-    # 로그인 성공/실패를 admin log와 LangSmith trace에서 추적할 수 있게 이벤트로 남긴다.
+    # 로그인 성공/실패를 admin log와 Langfuse trace에서 추적할 수 있게 이벤트로 남긴다.
     log_event(
         "game_account_login_completed",
         status="ok" if login_result.get("login_success") else "failed",

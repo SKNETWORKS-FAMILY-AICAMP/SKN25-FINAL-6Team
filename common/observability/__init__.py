@@ -1,6 +1,14 @@
 """Observability helpers shared across services."""
 
-from common.observability.langsmith import configure_langsmith
+from common.observability.langfuse import (
+    build_trace_metadata,
+    build_trace_tags,
+    configure_langfuse,
+    get_langfuse_config,
+    langfuse_enabled,
+    link_current_trace,
+    observe_if_enabled,
+)
 from common.observability.logger import (
     EVENT_AGENT_DRAFTED,
     EVENT_DB_READ_COMPLETED,
@@ -37,6 +45,12 @@ __all__ = [
     "EVENT_TOOL_COMPLETED",
     "EVENT_TOOL_STARTED",
     "build_log_event",
-    "configure_langsmith",
+    "build_trace_metadata",
+    "build_trace_tags",
+    "configure_langfuse",
+    "get_langfuse_config",
+    "langfuse_enabled",
+    "link_current_trace",
     "log_event",
+    "observe_if_enabled",
 ]

@@ -9,10 +9,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from common.db.connection import db_connection
-from common.observability.langsmith import configure_langsmith
+from common.observability.langfuse import configure_langfuse
 from common.retrieval.cache_store import get_cached_session_state, set_cached_session_state
 
-configure_langsmith("chatbot")
+configure_langfuse("chatbot", default_tags=["chatbot", "api"])
 
 from chatbot.service.account_service import get_server_regions, login_with_credentials
 from chatbot.service.chatbot_service import run_chatbot

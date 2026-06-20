@@ -5,7 +5,6 @@ import os
 import re
 from typing import Any, Literal
 
-from langsmith import traceable
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
@@ -15,6 +14,7 @@ from chatbot.generation.policies import PAYMENT_POLICY
 from chatbot.observability.logger import EVENT_NODE_COMPLETED, EVENT_NODE_STARTED, log_event
 from chatbot.repository.operation_log_repository import collect_payment_context_by_user
 from chatbot.schemas import ChatbotState
+from common.observability.langfuse import link_current_trace, observe_if_enabled
 from common.observability.logger import record_chat_model_usage
 
 
@@ -406,15 +406,19 @@ def _summarize_payment_context_outputs(outputs: dict[str, Any]) -> dict[str, Any
     }
 
 
-@traceable(
+@observe_if_enabled(
     name="collect_payment_context",
-    run_type="tool",
-    tags=["chatbot", "db", "payment"],
-    process_inputs=_summarize_payment_context_inputs,
-    process_outputs=_summarize_payment_context_outputs,
+    as_type="tool",
+    tags=["chatbot", "feature:payment", "feature:retrieval", "db"],
 )
 def _collect_payment_context(state: ChatbotState) -> dict[str, Any]:
     # 로그인된 user_id/account_id 기준으로 결제 관련 DB context를 한 번에 조회한다.
+    link_current_trace(
+        user_id=state.get("user_id"),
+        session_id=state.get("session_id"),
+        tags=["chatbot", "feature:payment", "feature:retrieval"],
+        input_payload=_summarize_payment_context_inputs({"state": state}),
+    )
     user_id = state.get("user_id")
     if user_id is None:
         return {
@@ -430,11 +434,18 @@ def _collect_payment_context(state: ChatbotState) -> dict[str, Any]:
             "counts": {},
             "count": 0,
         }
-    return collect_payment_context_by_user(
+    result = collect_payment_context_by_user(
         user_id=int(user_id),
         account_id=state.get("account_id"),
         query_text=_query_text_for_matching(state),
     )
+    link_current_trace(
+        user_id=state.get("user_id"),
+        session_id=state.get("session_id"),
+        tags=["chatbot", "feature:payment", "feature:retrieval"],
+        output_payload=_summarize_payment_context_outputs(result),
+    )
+    return result
 
 
 def payment_agent_node(state: ChatbotState) -> dict:

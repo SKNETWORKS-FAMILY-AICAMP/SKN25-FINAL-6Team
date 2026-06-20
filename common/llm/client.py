@@ -10,22 +10,9 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from pydantic import BaseModel
 
-
 load_dotenv()
 
 StructuredModel = TypeVar("StructuredModel", bound=BaseModel)
-
-
-def _disable_tracing_without_langsmith_key() -> None:
-    """Prevent tracing auth noise when LangSmith is not configured."""
-
-    if os.environ.get("LANGSMITH_API_KEY", "").strip() or os.environ.get("LANGCHAIN_API_KEY", "").strip():
-        return
-    os.environ["LANGSMITH_TRACING"] = "false"
-    os.environ["LANGCHAIN_TRACING_V2"] = "false"
-
-
-_disable_tracing_without_langsmith_key()
 
 
 def get_query_embedding(query: str) -> list[float] | None:
