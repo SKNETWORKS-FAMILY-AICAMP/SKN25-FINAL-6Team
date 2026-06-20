@@ -65,6 +65,16 @@ Airflow machine:
 docker compose --env-file .env -f docker-compose.airflow.yml up -d --build
 ```
 
+Airflow admin login is now applied from `.env` on every container start. Set:
+
+```sh
+AIRFLOW_ADMIN_USERNAME=admin
+AIRFLOW_ADMIN_PASSWORD=change-me
+AIRFLOW_ADMIN_FIRSTNAME=Admin
+AIRFLOW_ADMIN_LASTNAME=User
+AIRFLOW_ADMIN_EMAIL=admin@example.com
+```
+
 If you want the weekly report DAG to send Slack messages, also set:
 
 ```sh
