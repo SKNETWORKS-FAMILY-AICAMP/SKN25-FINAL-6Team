@@ -15,13 +15,13 @@ from typing import Any, Literal, cast
 
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.prompts import PromptTemplate
-from langchain_openai import ChatOpenAI
 from psycopg.rows import dict_row
 from pydantic import BaseModel, ConfigDict
 import yaml
 
 from agents.prompt_loader import load_prompt_template
 from common.db.connection import db_connection
+from common.llm.client import get_chat_llm
 from common.observability.langsmith import configure_langsmith
 
 
@@ -123,83 +123,12 @@ CATEGORY_KEYWORDS: dict[Category, tuple[str, ...]] = {
 NEGATIVE_KEYWORDS = _load_keyword_list("sentiment/negative.yaml")
 POSITIVE_KEYWORDS = _load_keyword_list("sentiment/positive.yaml")
 HIGH_RISK_KEYWORDS = _load_keyword_list("risk/high.yaml")
-ROUTING_DB_CLUE_KEYWORDS = (
-    "uid",
-    "계정",
-    "로그인",
-    "연동",
-    "비밀번호",
-    "해킹",
-    "결제",
-    "구매",
-    "주문",
-    "영수증",
-    "환불",
-    "취소",
-    "회수",
-    "미지급",
-    "누락",
-    "중복 결제",
-    "청구",
-)
-ROUTING_DOC_CLUE_KEYWORDS = (
-    "공지",
-    "안내",
-    "가이드",
-    "약관",
-    "정책",
-    "운영정책",
-    "업데이트",
-    "점검",
-    "확률",
-    "설명",
-    "기준",
-    "지원",
-)
-ROUTING_STATUS_LOOKUP_KEYWORDS = (
-    "확인",
-    "조회",
-    "복구",
-    "지급",
-    "재지급",
-    "처리",
-    "해금",
-    "회수",
-    "취소",
-    "환불",
-    "보상",
-)
-ROUTING_POLICY_LOOKUP_KEYWORDS = (
-    "약관",
-    "정책",
-    "운영정책",
-    "규정",
-    "공지",
-    "안내",
-    "가이드",
-    "확률",
-    "기준",
-    "원래",
-    "가능한가",
-    "지원",
-)
-ROUTING_SANCTION_OR_EXCEPTION_KEYWORDS = (
-    "정지",
-    "제재",
-    "제한",
-    "회수",
-    "환수",
-    "고소",
-    "보상",
-    "예외",
-    "억울",
-)
-ROUTING_FIXED_ANSWER_HINT_KEYWORDS = (
-    "오타",
-    "냉무",
-    "오류제보",
-    "버그또찾았다",
-)
+ROUTING_DB_CLUE_KEYWORDS = _load_keyword_list("routing/db_clue.yaml")
+ROUTING_DOC_CLUE_KEYWORDS = _load_keyword_list("routing/doc_clue.yaml")
+ROUTING_STATUS_LOOKUP_KEYWORDS = _load_keyword_list("routing/status_lookup.yaml")
+ROUTING_POLICY_LOOKUP_KEYWORDS = _load_keyword_list("routing/policy_lookup.yaml")
+ROUTING_SANCTION_OR_EXCEPTION_KEYWORDS = _load_keyword_list("routing/sanction_or_exception.yaml")
+ROUTING_FIXED_ANSWER_HINT_KEYWORDS = _load_keyword_list("routing/fixed_answer_hint.yaml")
 
 
 ## 카테고리 분류!  - YAML 유지보수?
@@ -377,25 +306,15 @@ def _build_category_prompt_input(enriched: EnrichedTicket) -> dict[str, str]:
 LLM이 두 모델이 같다면, 파라미터만 다르게 사용한다면, 하나의 함수만 선언하기!
 """
 
-def _routing_llm() -> ChatOpenAI:
+def _routing_llm():
     # 라우팅 판단 전용 LLM 설정이다. 별도 모델이 없으면 공통 LLM_MODEL을 사용한다.
     model = os.environ.get("CS_AUTO_ROUTING_MODEL") or os.environ["LLM_MODEL"]
-    return ChatOpenAI(
-        model=model,
-        api_key=os.environ["LLM_API_KEY"],
-        temperature=0,
-        timeout=float(os.environ.get("LLM_TIMEOUT_SECONDS", "60")),
-    )
+    return get_chat_llm(model=model)
 
 
-def _category_llm() -> ChatOpenAI:
+def _category_llm():
     model = os.environ.get("CS_AUTO_CATEGORY_MODEL") or os.environ.get("CS_AUTO_ROUTING_MODEL") or os.environ["LLM_MODEL"]
-    return ChatOpenAI(
-        model=model,
-        api_key=os.environ["LLM_API_KEY"],
-        temperature=0,
-        timeout=float(os.environ.get("LLM_TIMEOUT_SECONDS", "60")),
-    )
+    return get_chat_llm(model=model)
 
 
 def _classify_category(enriched: EnrichedTicket) -> Category:
