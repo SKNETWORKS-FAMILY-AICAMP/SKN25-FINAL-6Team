@@ -3,6 +3,7 @@ FROM python:3.12-slim
 WORKDIR /app
 
 COPY common /app/common
+COPY data /app/data
 COPY apps/chatbot/backend /app/apps/chatbot/backend
 
 WORKDIR /app/apps/chatbot/backend
