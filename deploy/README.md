@@ -65,6 +65,9 @@ Airflow machine:
 docker compose --env-file .env -f docker-compose.airflow.yml up -d --build
 ```
 
+The Airflow container uses a custom entrypoint script that applies
+`AIRFLOW_ADMIN_*` values before starting the webserver/scheduler.
+
 Airflow admin login is now applied from `.env` on every container start. Set:
 
 ```sh

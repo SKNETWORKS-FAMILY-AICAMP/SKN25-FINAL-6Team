@@ -44,7 +44,7 @@ services:
       WEEKLY_REPORT_LANGFUSE_SECRET_KEY: ${WEEKLY_REPORT_LANGFUSE_SECRET_KEY:-}
       WEEKLY_REPORT_LANGFUSE_HOST: ${WEEKLY_REPORT_LANGFUSE_HOST:-}
       WEEKLY_REPORT_LANGFUSE_PROJECT: ${WEEKLY_REPORT_LANGFUSE_PROJECT:-weekly-report}
-    command: /usr/local/bin/start-airflow
+    entrypoint: ["/bin/bash", "/usr/local/bin/start-airflow"]
     ports:
       - "${CS_AUTO_AIRFLOW_PORT:-18080}:8080"
     volumes:
