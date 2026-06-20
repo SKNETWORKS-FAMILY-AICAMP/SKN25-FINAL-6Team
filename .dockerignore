@@ -14,6 +14,16 @@ notebooks
 .env
 .env.*
 !.env.example
+docs
+assets
+apps/tests
+data/raw
+data/tests
+data/prompts
+artifacts
+outputs
+tmp
+temp
 
 .pytest_cache
 **/.pytest_cache

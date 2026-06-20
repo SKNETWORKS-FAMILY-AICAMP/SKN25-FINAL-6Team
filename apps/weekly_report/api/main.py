@@ -9,6 +9,9 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
 from common.db.connection import db_connection
+from common.observability.langfuse import configure_langfuse
+
+configure_langfuse("weekly-report", default_tags=["weekly-report", "api"])
 
 app = FastAPI(title="Weekly Report API")
 

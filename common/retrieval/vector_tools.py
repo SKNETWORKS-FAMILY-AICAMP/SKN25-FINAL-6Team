@@ -10,11 +10,11 @@ from typing import Any
 
 from langchain_core.tools import tool
 from langchain_openai import OpenAIEmbeddings
-from langsmith import traceable
 from psycopg.rows import dict_row
 from pydantic import BaseModel, Field
 
 from common.db.connection import db_connection
+from common.observability.langfuse import build_trace_metadata, link_current_trace, observe_if_enabled
 from common.observability.logger import (
     EVENT_TOOL_COMPLETED,
     EVENT_TOOL_STARTED,
@@ -651,12 +651,10 @@ def _summarize_retrieval_outputs(outputs: list[dict[str, Any]]) -> dict[str, Any
     }
 
 
-@traceable(
+@observe_if_enabled(
     name="search_document_chunks",
-    run_type="retriever",
-    tags=["rag", "vector_search", "postgres"],
-    process_inputs=_summarize_retrieval_inputs,
-    process_outputs=_summarize_retrieval_outputs,
+    as_type="retriever",
+    tags=["feature:retrieval", "rag", "vector_search", "postgres"],
 )
 def search_document_chunks(
     *,
@@ -667,6 +665,24 @@ def search_document_chunks(
     enrichment: RetrievalQuery | dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """Search FAQ-first and broaden the candidate scope if recall is too low."""
+    trace_enrichment = enrichment.model_dump() if hasattr(enrichment, "model_dump") else enrichment
+    link_current_trace(
+        tags=["feature:retrieval", "rag"],
+        metadata=build_trace_metadata(
+            {"retrieval_query": query_text, "retrieved_count": top_k},
+            prefer_faq=prefer_faq,
+            enrichment=trace_enrichment,
+        ),
+        input_payload=_summarize_retrieval_inputs(
+            {
+                "embedding_json": embedding_json,
+                "query_text": query_text,
+                "top_k": top_k,
+                "prefer_faq": prefer_faq,
+                "enrichment": trace_enrichment,
+            }
+        ),
+    )
     k = top_k or int(os.environ.get("RETRIEVAL_TOP_K", "3"))
     candidate_limit = int(os.environ.get("RETRIEVAL_CANDIDATE_LIMIT", "300"))
     broad_candidate_limit = int(os.environ.get("RETRIEVAL_BROAD_CANDIDATE_LIMIT", "2000"))
@@ -746,6 +762,14 @@ def search_document_chunks(
     )
     for result in results:
         result["candidate_scope"] = candidate_scope
+    link_current_trace(
+        tags=["feature:retrieval", "rag"],
+        metadata=build_trace_metadata(
+            {"retrieval_query": retrieval_query, "retrieved_count": len(results)},
+            candidate_scope=candidate_scope,
+        ),
+        output_payload=_summarize_retrieval_outputs(results),
+    )
     return results
 
 

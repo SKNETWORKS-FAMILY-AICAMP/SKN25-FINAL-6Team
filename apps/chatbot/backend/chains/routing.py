@@ -3,10 +3,9 @@ from __future__ import annotations
 from time import perf_counter
 from typing import Any
 
-from langsmith import traceable
-
 from chatbot.constants import MAX_MASKING_RETRY, MAX_SAFETY_RETRY
 from chatbot.schemas import ChatbotState
+from common.observability.langfuse import link_current_trace, observe_if_enabled
 
 
 CATEGORY_NODE_BY_NAME = {
@@ -74,20 +73,24 @@ def _summarize_dispatch_outputs(outputs: dict[str, Any]) -> dict[str, Any]:
     return outputs
 
 
-@traceable(
+@observe_if_enabled(
     name="category_dispatch",
-    run_type="chain",
-    tags=["chatbot", "routing", "dispatch"],
-    process_inputs=_summarize_dispatch_inputs,
-    process_outputs=_summarize_dispatch_outputs,
+    as_type="chain",
+    tags=["chatbot", "feature:routing", "dispatch"],
 )
 def _trace_category_dispatch(state: ChatbotState, *, started_at: float) -> dict[str, Any]:
+    link_current_trace(
+        user_id=state.get("user_id"),
+        session_id=state.get("session_id"),
+        tags=["chatbot", "feature:routing"],
+        input_payload=_summarize_dispatch_inputs({"state": state}),
+    )
     category = str(state.get("category") or "").strip().lower()
     routing_target = str(state.get("routing_target") or "").strip().lower()
     target_node = ROUTING_NODE_BY_TARGET.get(routing_target) or CATEGORY_NODE_BY_NAME.get(category)
     dispatch_valid = target_node is not None
 
-    return {
+    result = {
         "selected_category": category,
         "routing_target": routing_target,
         "target_node": target_node or "voc_agent",
@@ -95,6 +98,13 @@ def _trace_category_dispatch(state: ChatbotState, *, started_at: float) -> dict[
         "dispatch_match": dispatch_valid,
         "latency_ms": round((perf_counter() - started_at) * 1000, 3),
     }
+    link_current_trace(
+        user_id=state.get("user_id"),
+        session_id=state.get("session_id"),
+        tags=["chatbot", "feature:routing"],
+        output_payload=_summarize_dispatch_outputs(result),
+    )
+    return result
 
 
 def route_after_preprocess(state: ChatbotState) -> str:

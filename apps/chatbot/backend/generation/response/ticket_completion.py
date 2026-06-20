@@ -147,7 +147,7 @@ def ticket_completion_node(state: ChatbotState) -> dict:
         }
     )
 
-    # 5단계: LangSmith/admin log에서 최종 처리 결과를 추적할 수 있게 이벤트를 남긴다.
+    # 5단계: Langfuse/admin log에서 최종 처리 결과를 추적할 수 있게 이벤트를 남긴다.
     log_event(
         EVENT_TICKET_COMPLETION_COMPLETED,
         ticket_id=state.get("ticket_id"),

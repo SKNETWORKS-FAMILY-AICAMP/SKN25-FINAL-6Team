@@ -3,11 +3,10 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from langsmith import traceable
-
-from chatbot.observability.langsmith import build_runnable_config, build_trace_metadata
+from chatbot.observability.langfuse import build_chatbot_trace_metadata
 from chatbot.observability.logger import EVENT_NODE_COMPLETED, log_event
 from chatbot.utils.input_preprocessing import preprocess_user_input
+from common.observability.langfuse import link_current_trace, observe_if_enabled
 
 
 def build_state(
@@ -168,12 +167,10 @@ def _chat_trace_outputs(output: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-@traceable(
-    run_type="chain",
+@observe_if_enabled(
     name="chatbot_request",
-    tags=["chatbot", "request"],
-    process_inputs=_chat_trace_inputs,
-    process_outputs=_chat_trace_outputs,
+    as_type="chain",
+    tags=["chatbot", "feature:generation"],
 )
 def run_chatbot(
     ticket_id: int,
@@ -214,15 +211,29 @@ def run_chatbot(
         bug_collection_status=bug_collection_status,
         bug_report_form=bug_report_form,
     )
-    result = graph.invoke(state, config=build_runnable_config(state, run_name="chatbot_graph"))
+    link_current_trace(
+        user_id=user_id,
+        session_id=session_id,
+        tags=["chatbot", "feature:generation"],
+        metadata=build_chatbot_trace_metadata(state),
+        input_payload=_chat_trace_inputs({"user_message": user_message}),
+    )
+    result = graph.invoke(state)
     log_event(
-        "langsmith_trace_metadata_linked",
+        "langfuse_trace_metadata_linked",
         ticket_id=ticket_id,
         session_id=session_id,
         category=result.get("category"),
         routing_target=result.get("routing_target"),
         status="ok",
-        metadata=build_trace_metadata(result),
+        metadata=build_chatbot_trace_metadata(result),
+    )
+    link_current_trace(
+        user_id=user_id,
+        session_id=session_id,
+        tags=["chatbot", "feature:generation", "feature:persistence"],
+        metadata=build_chatbot_trace_metadata(result),
+        output_payload=_chat_trace_outputs({"answer": last_message_text(result)}),
     )
 
     if os.getenv("CHATBOT_DEBUG_ROUTING", "").lower() in ("1", "true", "yes"):
@@ -236,6 +247,11 @@ def run_chatbot(
     }
 
 
+@observe_if_enabled(
+    name="chatbot_stream_request",
+    as_type="chain",
+    tags=["chatbot", "feature:generation", "feature:stream"],
+)
 def stream_chatbot(
     ticket_id: int,
     user_message: str,
@@ -275,12 +291,18 @@ def stream_chatbot(
         bug_collection_status=bug_collection_status,
         bug_report_form=bug_report_form,
     )
+    link_current_trace(
+        user_id=user_id,
+        session_id=session_id,
+        tags=["chatbot", "feature:generation", "feature:stream"],
+        metadata=build_chatbot_trace_metadata(state),
+        input_payload=_chat_trace_inputs({"user_message": user_message}),
+    )
     result: dict[str, Any] = {}
     node_summaries: list[dict[str, Any]] = []
 
     for chunk in graph.stream(
         state,
-        config=build_runnable_config(state, run_name="chatbot_stream_request"),
         stream_mode="updates",
     ):
         for node_name, node_update in chunk.items():
@@ -298,13 +320,20 @@ def stream_chatbot(
             result.update(node_update)
 
     log_event(
-        "langsmith_trace_metadata_linked",
+        "langfuse_trace_metadata_linked",
         ticket_id=ticket_id,
         session_id=session_id,
         category=result.get("category"),
         routing_target=result.get("routing_target"),
         status="ok",
-        metadata=build_trace_metadata({**state, **result}),
+        metadata=build_chatbot_trace_metadata({**state, **result}),
+    )
+    link_current_trace(
+        user_id=user_id,
+        session_id=session_id,
+        tags=["chatbot", "feature:generation", "feature:stream"],
+        metadata=build_chatbot_trace_metadata({**state, **result}),
+        output_payload=_chat_trace_outputs({"answer": last_message_text(result)}),
     )
 
     return {

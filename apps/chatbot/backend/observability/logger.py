@@ -21,7 +21,7 @@ EVENT_NOTIFICATION_DISPATCHED = "notification_dispatched"
 EVENT_NOTIFICATION_FAILED = "notification_failed"
 
 
-# admin_event_log/콘솔/LangSmith metadata에서 공통으로 읽을 수 있는 구조화 이벤트를 만든다.
+# admin_event_log/콘솔/Langfuse metadata에서 공통으로 읽을 수 있는 구조화 이벤트를 만든다.
 def build_log_event(event_type: str, **payload: Any) -> dict[str, Any]:
     return {
         "event_type": event_type,

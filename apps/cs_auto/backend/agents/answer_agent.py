@@ -25,10 +25,14 @@ from agents.tool.dbsearch import DbSearchRouter
 from agents.tool.docsearch import DocumentRetriever
 from common.db.connection import db_connection
 from common.llm.client import get_chat_llm
-from common.observability.langsmith import configure_langsmith
+from common.observability.langfuse import (
+    build_trace_metadata,
+    configure_langfuse,
+    link_current_trace,
+    observe_if_enabled,
+)
 
-
-configure_langsmith("operation")
+configure_langfuse("cs-auto", default_tags=["cs-auto", "answer"])
 
 logger = logging.getLogger(__name__)
 
@@ -263,7 +267,15 @@ class AnswerEvidenceCollector:
         self.db_router = DbSearchRouter()
         self.doc_retriever = DocumentRetriever()
 
+    @observe_if_enabled(name="cs_auto_collect_answer_evidence", as_type="tool", tags=["feature:answer", "feature:evidence"])
     def collect(self, target: AnswerTarget) -> list[dict[str, object]]:
+        link_current_trace(
+            user_id=target.user_id,
+            session_id=target.ticket_id,
+            tags=["feature:answer", "feature:evidence"],
+            metadata=build_trace_metadata(target.model_dump(), answer_stage="collect_evidence"),
+            input_payload={"ticket_id": target.ticket_id, "routing_target": target.routing_target},
+        )
         ticket = self._ticket_payload(target)
         analysis = self._analysis_payload(target)
         routing_target = str(target.routing_target or "fixed_answer")
@@ -356,7 +368,18 @@ class AnswerDraftGenerator:
         }
         return {"context_json": json.dumps(payload, ensure_ascii=False)}
 
+    @observe_if_enabled(name="cs_auto_generate_answer_draft_text", as_type="generation", tags=["feature:answer"])
     def generate(self, context: AnswerDraftContext) -> AnswerDraftResult:
+        link_current_trace(
+            user_id=context.ticket.user_id,
+            session_id=context.ticket.ticket_id,
+            tags=["feature:answer"],
+            metadata=build_trace_metadata(
+                context.ticket.model_dump(),
+                answer_stage="generate_draft",
+                evidence_count=len(context.evidence_docs),
+            ),
+        )
         return AnswerDraftResult.model_validate(self.chain.invoke(context))
 
 
@@ -397,6 +420,7 @@ class AnswerSafetyEvaluator:
         }
         return {"context_json": json.dumps(payload, ensure_ascii=False)}
 
+    @observe_if_enabled(name="cs_auto_evaluate_answer_safety", as_type="generation", tags=["feature:answer", "feature:safety"])
     def evaluate(self, context: AnswerDraftContext, draft: AnswerDraftResult) -> AnswerSafetyResult:
         result = AnswerSafetyResult.model_validate(self.chain.invoke({"context": context, "draft": draft}))
         average_score = (
@@ -461,6 +485,7 @@ class AnswerSafetyRouter:
 class AnswerDraftRepository:
     """Persist answer drafts and linked evidence rows."""
 
+    @observe_if_enabled(name="cs_auto_save_answer_draft", as_type="tool", tags=["feature:answer", "feature:persistence"])
     def save_draft(self, target: AnswerTarget, result: AnswerDraftResult) -> int:
         with db_connection() as conn:
             with conn.cursor() as cur:
@@ -487,7 +512,19 @@ class AnswerDraftRepository:
                 row = cur.fetchone()
         if row is None:
             raise ValueError("Failed to create answer_draft row")
-        return int(row[0])
+        draft_id = int(row[0])
+        link_current_trace(
+            user_id=target.user_id,
+            session_id=target.ticket_id,
+            tags=["feature:answer", "feature:persistence"],
+            metadata=build_trace_metadata(
+                target.model_dump(),
+                answer_stage="save_draft",
+                draft_id=draft_id,
+            ),
+            output_payload={"draft_id": draft_id},
+        )
+        return draft_id
 
     def save_evidence_docs(self, draft_id: int, evidence_docs: list[dict[str, object]]) -> None:
         if not evidence_docs:
@@ -591,8 +628,16 @@ class AnswerAgent:
         self.safety_router = AnswerSafetyRouter()
         self.draft_repository = AnswerDraftRepository()
 
+    @observe_if_enabled(name="cs_auto_generate_answer_draft", as_type="chain", tags=["feature:answer"])
     def generate_answer_draft(self, ticket_id: int) -> dict[str, object]:
         target = self.target_repository.fetch(ticket_id)
+        link_current_trace(
+            user_id=target.user_id,
+            session_id=target.ticket_id,
+            tags=["feature:answer"],
+            metadata=build_trace_metadata(target.model_dump(), answer_stage="generate_answer_draft"),
+            input_payload={"ticket_id": ticket_id},
+        )
         evidence_docs = self.evidence_collector.collect(target)
         context = AnswerDraftContext(ticket=target, evidence_docs=evidence_docs)
         draft_result = self.draft_generator.generate(context)
@@ -603,7 +648,7 @@ class AnswerAgent:
         self.draft_repository.save_evidence_docs(draft_id, evidence_docs)
         safety_id = self.draft_repository.save_safety_results(draft_id, safety_result)
 
-        return {
+        result_payload = {
             "ticket_id": target.ticket_id,
             "draft_id": draft_id,
             "safety_id": safety_id,
@@ -614,8 +659,22 @@ class AnswerAgent:
             "safety": safety_result.model_dump(),
             "metadata": result.metadata,
         }
+        link_current_trace(
+            user_id=target.user_id,
+            session_id=target.ticket_id,
+            tags=["feature:answer", "feature:safety", "feature:persistence"],
+            metadata=build_trace_metadata({**target.model_dump(), **result_payload}),
+            output_payload={
+                "ticket_id": target.ticket_id,
+                "draft_id": draft_id,
+                "safety_id": safety_id,
+                "safety_label": result_payload["safety_label"],
+            },
+        )
+        return result_payload
 
 
+@observe_if_enabled(name="cs_auto_run_answer_agent", as_type="chain", tags=["feature:answer"])
 def run_answer_agent() -> None:
     """Generate answer drafts for analyzed tickets that do not have one yet."""
 

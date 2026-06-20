@@ -22,10 +22,14 @@ import yaml
 from agents.prompt_loader import load_prompt_template
 from common.db.connection import db_connection
 from common.llm.client import get_chat_llm
-from common.observability.langsmith import configure_langsmith
+from common.observability.langfuse import (
+    build_trace_metadata,
+    configure_langfuse,
+    link_current_trace,
+    observe_if_enabled,
+)
 
-
-configure_langsmith("operation")
+configure_langfuse("cs-auto", default_tags=["cs-auto", "analysis"])
 
 
 Category = Literal["payment", "refund", "account", "bug", "gacha", "policy", "general"]
@@ -353,11 +357,22 @@ def _summarize(
     )
 
 
+@observe_if_enabled(name="cs_auto_build_analysis_result", as_type="generation", tags=["feature:analysis"])
 def build_analysis_result(ticket: dict[str, object] | TicketPayload) -> AnalysisResult:
     """문의 1건을 AnalysisResult로 변환한다."""
 
     # 1. 원본 티켓을 검증하고 제목+본문을 분석 가능한 텍스트로 정규화한다.
     enriched = _build_enriched_ticket(_to_ticket_payload(ticket))
+    link_current_trace(
+        user_id=enriched.ticket.user_id,
+        session_id=enriched.ticket.session_id,
+        tags=["feature:analysis"],
+        metadata=build_trace_metadata(
+            enriched.ticket.model_dump(),
+            analysis_stage="build_analysis_result",
+        ),
+        input_payload={"ticket_id": enriched.ticket.ticket_id},
+    )
 
     # 2. 키워드 기반으로 카테고리, 감성, 위험도를 먼저 계산한다.
     category = _classify_category(enriched)
@@ -376,7 +391,7 @@ def build_analysis_result(ticket: dict[str, object] | TicketPayload) -> Analysis
     routing_target = routed["routing_target"]
 
     # 4. ticket_analysis 테이블에 저장할 최종 분석 모델을 만든다.
-    return AnalysisResult(
+    result = AnalysisResult(
         ticket_id=enriched.ticket.ticket_id,
         category=category,
         enriched_query=enriched.enriched_query,
@@ -385,8 +400,17 @@ def build_analysis_result(ticket: dict[str, object] | TicketPayload) -> Analysis
         routing_target=routing_target,
         summary=_summarize(enriched, category, routing_target, sentiment, risk_level),
     )
+    link_current_trace(
+        user_id=enriched.ticket.user_id,
+        session_id=enriched.ticket.session_id,
+        tags=["feature:analysis"],
+        metadata=build_trace_metadata(result.model_dump(), analysis_stage="build_analysis_result"),
+        output_payload={"ticket_id": result.ticket_id, "category": result.category},
+    )
+    return result
 
 
+@observe_if_enabled(name="cs_auto_run_analysis_agent", as_type="chain", tags=["feature:analysis"])
 def run_analysis_agent() -> None:
     """분석되지 않은 문의를 순차 처리한다."""
 
@@ -428,12 +452,22 @@ def fetch_unanalyzed_tickets() -> list[dict[str, object]]:
             )
 
 
+@observe_if_enabled(name="cs_auto_analyze_ticket", as_type="generation", tags=["feature:analysis"])
 def analyze_ticket(ticket: dict[str, object]) -> dict[str, object]:
     """분석 파이프라인을 실행해 저장 가능한 dict payload를 만든다."""
 
-    return build_analysis_result(ticket).model_dump()
+    result = build_analysis_result(ticket).model_dump()
+    link_current_trace(
+        user_id=ticket.get("user_id"),
+        session_id=ticket.get("session_id"),
+        tags=["feature:analysis"],
+        metadata=build_trace_metadata(result, analysis_stage="analyze_ticket"),
+        output_payload={"ticket_id": result.get("ticket_id"), "category": result.get("category")},
+    )
+    return result
 
 
+@observe_if_enabled(name="cs_auto_save_ticket_analysis", as_type="tool", tags=["feature:analysis", "feature:persistence"])
 def save_ticket_analysis(payload: dict[str, object]) -> dict[str, object]:
     """분석 결과를 ticket_analysis에 저장한다."""
 
@@ -471,7 +505,13 @@ def save_ticket_analysis(payload: dict[str, object]) -> dict[str, object]:
                 ),
             )
             row = cur.fetchone()
-    return dict(row)
+    result = dict(row)
+    link_current_trace(
+        tags=["feature:analysis", "feature:persistence"],
+        metadata=build_trace_metadata({**payload, **result}, analysis_stage="save_ticket_analysis"),
+        output_payload=result,
+    )
+    return result
 
 
 def mark_ticket_analysis_completed(ticket_id: int) -> None:

@@ -72,17 +72,19 @@ safety_action
 review_required
 ```
 
-### LangSmith 연결
+### Langfuse 연결
 
 `.env`에 다음 값을 설정합니다.
 
 ```text
-LANGSMITH_TRACING=true
-LANGSMITH_API_KEY=<your_key>
-LANGSMITH_PROJECT=game_cs_chatbot
+CHATBOT_LANGFUSE_ENABLED=true
+CHATBOT_LANGFUSE_PUBLIC_KEY=<your_public_key>
+CHATBOT_LANGFUSE_SECRET_KEY=<your_secret_key>
+CHATBOT_LANGFUSE_HOST=<optional_host>
+CHATBOT_LANGFUSE_PROJECT=chatbot
 ```
 
-구버전 LangChain 환경과 맞출 때는 `LANGCHAIN_TRACING_V2=true`, `LANGCHAIN_API_KEY`, `LANGCHAIN_PROJECT=game_cs_chatbot`도 함께 설정할 수 있습니다. 로그인은 `game_account_login` run으로 기록되며 output에서 `login_success`, `user_id`, `account_id`, `game_id`, `email`, `server_region`을 확인합니다. 비밀번호는 trace와 운영 로그에 남기지 않습니다. 챗봇 서비스는 LangGraph 실행 config에 `ticket_id`, `session_id`, `user_id`, `account_id`, `category`, `routing_target`, `draft_id`를 metadata로 넣습니다. 운영 로그와 LangSmith trace는 같은 `ticket_id` 태그와 metadata로 대조합니다.
+Langfuse 프로젝트는 public/secret key pair에 묶이므로 앱별 프로젝트 분리를 원하면 챗봇 전용 key pair를 사용해야 합니다. 로그인은 `game_account_login` run으로 기록되며 output과 trace metadata에서 `login_success`, `user_id`, `account_id`, `game_id`, `email`, `server_region`, `ticket_id`, `session_id`, `routing_target`를 확인합니다. 비밀번호는 trace와 운영 로그에 남기지 않습니다.
 
 ### 디버깅 체크
 
