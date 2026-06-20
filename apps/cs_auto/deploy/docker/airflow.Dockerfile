@@ -4,7 +4,8 @@ ENV PYTHONPATH=/opt/airflow/dags:/opt/airflow/dags/apps/cs_auto/backend:/opt/air
     AIRFLOW__CORE__LOAD_EXAMPLES=False \
     AIRFLOW__CORE__DAGS_FOLDER=/opt/airflow/dags \
     CS_AUTO_KEYWORD_DIR=/opt/airflow/data/keywords \
-    CS_AUTO_SQL_DIR=/opt/airflow/data/sql
+    CS_AUTO_SQL_DIR=/opt/airflow/data/sql \
+    CS_AUTO_PROMPT_DIR=/opt/airflow/data/prompts/cs_auto
 
 USER root
 
