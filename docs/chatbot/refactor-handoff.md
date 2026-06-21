@@ -486,14 +486,14 @@ final_response
 
 ```text
 apps/chatbot/backend/evals/audit_db_grounded_dataset.py
-apps/chatbot/backend/evals/run_langsmith_regression_eval.py
-apps/chatbot/backend/evals/upload_langsmith_dataset.py
+apps/chatbot/backend/evals/run_chatbot_regression_eval.py
+apps/chatbot/backend/evals/normalize_chatbot_eval_dataset.py
 ```
 
 주의:
 
 - 현재 파일 목록에 없는 eval script 이름을 문서나 실행 가이드에 남기지 말 것.
-- RAGAS/LangSmith 평가는 `run_langsmith_regression_eval.py` 기준으로 확인할 것.
+- RAGAS/로컬 회귀 평가는 `run_chatbot_regression_eval.py` 기준으로 확인할 것.
 
 ## 18. Docker 배포
 
