@@ -5,15 +5,12 @@ import os
 from common.observability.langfuse import configure_langfuse
 
 
-def test_configure_langfuse_reads_app_specific_env_and_disables_legacy(monkeypatch) -> None:
+def test_configure_langfuse_reads_app_specific_env(monkeypatch) -> None:
     monkeypatch.setenv("CS_AUTO_LANGFUSE_ENABLED", "true")
     monkeypatch.setenv("CS_AUTO_LANGFUSE_PUBLIC_KEY", "pk-test")
     monkeypatch.setenv("CS_AUTO_LANGFUSE_SECRET_KEY", "sk-test")
     monkeypatch.setenv("CS_AUTO_LANGFUSE_HOST", "https://cloud.langfuse.com")
     monkeypatch.setenv("CS_AUTO_LANGFUSE_PROJECT", "cs-auto")
-    monkeypatch.setenv("LANGSMITH_TRACING", "true")
-    monkeypatch.setenv("LANGSMITH_API_KEY", "legacy-key")
-    monkeypatch.setenv("LANGCHAIN_TRACING_V2", "true")
 
     config = configure_langfuse("cs-auto", default_tags=["cs-auto", "api"])
 
@@ -25,6 +22,4 @@ def test_configure_langfuse_reads_app_specific_env_and_disables_legacy(monkeypat
     assert config["default_tags"] == ["cs-auto", "api"]
     assert isinstance(config["enabled"], bool)
     assert isinstance(config["sdk_available"], bool)
-    assert os.environ["LANGSMITH_TRACING"] == "false"
-    assert os.environ["LANGCHAIN_TRACING_V2"] == "false"
-    assert os.environ["LANGSMITH_API_KEY"] == ""
+    assert os.environ["LANGFUSE_ENABLED"] in {"true", "false"}

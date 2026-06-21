@@ -1,27 +1,37 @@
 from __future__ import annotations
 
 import argparse
-import asyncio
 import json
 import os
 import sys
 import time
-from functools import lru_cache
 from importlib.util import find_spec
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from dotenv import load_dotenv
-from langsmith import evaluate
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = PROJECT_ROOT.parents[2]
+DATASET_DIR = Path(__file__).parent / "datasets"
+DEFAULT_DATASET = DATASET_DIR / "gameops-chatbot-e2e-workflow-22-v1.json"
+DEFAULT_OUTPUT = Path(__file__).parent / "outputs" / "gameops_chatbot_regression_eval.json"
+
 for path in (PROJECT_ROOT, REPO_ROOT):
     path_str = str(path)
     if path_str not in sys.path:
         sys.path.insert(0, path_str)
 
 from chatbot.service.chatbot_service import stream_chatbot
+from common.observability.langfuse import (
+    build_trace_metadata,
+    configure_langfuse,
+    link_current_trace,
+    observe_if_enabled,
+)
+
+
+configure_langfuse("chatbot", default_tags=["chatbot", "eval", "regression"])
 
 
 CHATBOT_ROUTES = {"payment_agent", "bug_agent", "faq_agent", "voc_agent"}
@@ -57,146 +67,19 @@ SOURCE_TYPE_EVIDENCE = {
 }
 
 
-def load_chatbot_langsmith_env() -> None:
-    """Load repo .env and map chatbot-specific LangSmith env names to SDK names."""
+def load_chatbot_env() -> None:
     load_dotenv(REPO_ROOT / ".env", override=True)
-    mappings = {
-        "CHATBOT_LANGSMITH_API_KEY": "LANGSMITH_API_KEY",
-        "CHATBOT_LANGSMITH_PROJECT": "LANGSMITH_PROJECT",
-        "CHATBOT_LANGSMITH_TRACING": "LANGSMITH_TRACING",
-    }
-    for source, target in mappings.items():
-        value = os.environ.get(source)
-        if value:
-            os.environ[target] = value
-    if os.environ.get("LANGSMITH_TRACING"):
-        os.environ["LANGCHAIN_TRACING_V2"] = os.environ["LANGSMITH_TRACING"]
 
 
-def chatbot_target(inputs: dict[str, Any]) -> dict[str, Any]:
-    """Run the chatbot workflow for one LangSmith dataset example."""
-    category, routing_target = _resolve_eval_route(inputs)
-    if category not in CHATBOT_CATEGORIES:
-        return {
-            "answer": "",
-            "route": "out_of_chatbot_scope",
-            "category": category,
-            "routing_target": "external_system",
-            "safety_action": "REVIEW_REQUIRED",
-            "safety_passed": None,
-            "cache_events": [],
-            "redis_cache_hit_observed": False,
-            "redis_cache_store_backend": None,
-            "latency_ms": 0.0,
-            "retrieved_document_count": 0,
-            "multihop_accepted": False,
-            "multihop_followup_query": None,
-            "multihop_second_document_count": 0,
-            "payment_context_count": 0,
-            "payment_context_counts": {},
-            "faq_failure_reason": None,
-            "observed_evidence_types": [],
-            "retrieved_contexts": [],
-        }
-    if not inputs.get("user_message"):
-        return {
-            "answer": "",
-            "route": routing_target,
-            "category": category,
-            "routing_target": routing_target,
-            "safety_action": "AUTO_RESPONSE",
-            "safety_passed": None,
-            "cache_events": [],
-            "redis_cache_hit_observed": False,
-            "redis_cache_store_backend": None,
-            "latency_ms": 0.0,
-            "retrieved_document_count": 0,
-            "multihop_accepted": False,
-            "multihop_followup_query": None,
-            "multihop_second_document_count": 0,
-            "payment_context_count": 0,
-            "payment_context_counts": {},
-            "faq_failure_reason": None,
-            "observed_evidence_types": [],
-            "retrieved_contexts": [],
-        }
-
-    raw_account_id = inputs.get("account_id")
-    account_id = (
-        int(raw_account_id)
-        if category == "payment" and raw_account_id not in (None, "")
-        else None
-    )
-    user_id = int(inputs.get("user_id") or 0)
-    ticket_id = int(inputs.get("ticket_id") or int(time.time() * 1000) % 1_000_000_000)
-
-    from chatbot.generation import faq_agent
-
-    cache_events: list[dict[str, Any]] = []
-    original_log_event = faq_agent.log_event
-
-    def capture_log_event(event_type: str, **kwargs: Any) -> Any:
-        if kwargs.get("tool_name") == "faq_retrieval_cache":
-            cache_events.append(dict(kwargs.get("metadata") or {}))
-        return original_log_event(event_type, **kwargs)
-
-    faq_agent.log_event = capture_log_event
-    try:
-        started_at = time.perf_counter()
-        result = stream_chatbot(
-            ticket_id=ticket_id,
-            user_message=str(inputs["user_message"]),
-            category=category,
-            user_id=user_id,
-            account_id=account_id,
-            ui_category=inputs.get("ui_category"),
-            sub_category=inputs.get("sub_category"),
-            routing_target=routing_target,
-            fallback_routing_target=inputs.get("fallback_routing_target"),
-        )
-        latency_ms = (time.perf_counter() - started_at) * 1000
-    finally:
-        faq_agent.log_event = original_log_event
-
-    state = result.get("state") or {}
-    retrieved_documents = state.get("retrieved_documents") or []
-    multihop_result = state.get("multihop_result") or {}
-    payment_context = state.get("payment_context") or {}
-    payment_counts = payment_context.get("counts") or {}
-    observed_evidence_types = _observed_evidence_types(
-        retrieved_documents=retrieved_documents,
-        payment_counts=payment_counts,
-        route=state.get("reasoning_node"),
-        cache_events=cache_events,
-    )
-    return {
-        "answer": result.get("answer"),
-        "route": state.get("reasoning_node"),
-        "category": state.get("category"),
-        "routing_target": state.get("routing_target"),
-        "safety_action": state.get("safety_action"),
-        "safety_passed": state.get("safety_passed"),
-        "cache_events": cache_events,
-        "redis_cache_hit_observed": any(event.get("cache_hit") for event in cache_events),
-        "redis_cache_store_backend": next(
-            (event.get("cache_backend") for event in cache_events if event.get("cache_backend")),
-            None,
-        ),
-        "latency_ms": latency_ms,
-        "retrieved_document_count": len(retrieved_documents),
-        "retrieved_contexts": _retrieved_contexts(retrieved_documents),
-        "multihop_accepted": bool(multihop_result.get("accepted")),
-        "multihop_followup_query": multihop_result.get("followup_query"),
-        "multihop_second_document_count": len(multihop_result.get("second_documents") or []),
-        "payment_context_count": payment_context.get("count", 0),
-        "payment_context_counts": payment_counts,
-        "faq_failure_reason": state.get("faq_failure_reason"),
-        "observed_evidence_types": observed_evidence_types,
-    }
+def load_examples(path: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    examples = payload.get("examples") if isinstance(payload, dict) else payload
+    if not isinstance(examples, list):
+        raise ValueError(f"Unsupported dataset shape: {path}")
+    return payload if isinstance(payload, dict) else {}, examples
 
 
 def _resolve_eval_route(inputs: dict[str, Any]) -> tuple[str, str | None]:
-    """Mirror the frontend subcategory contract so evals run the same route as the UI."""
     category = str(inputs.get("category") or "").strip()
     routing_target = inputs.get("routing_target")
 
@@ -302,7 +185,6 @@ def answer_non_empty(outputs: dict[str, Any]) -> dict[str, Any]:
     return {"key": "answer_non_empty", "score": bool(str(outputs.get("answer") or "").strip())}
 
 
-@lru_cache(maxsize=1)
 def _ragas_judges() -> dict[str, Any]:
     api_key = os.environ.get("LLM_API_KEY") or os.environ.get("OPENAI_API_KEY")
     if api_key:
@@ -327,7 +209,6 @@ def _ragas_judges() -> dict[str, Any]:
 
 
 def _ragas_string_rubrics(rubrics: dict[str, Any]) -> dict[str, str]:
-    """RAGAS InstanceRubrics expects rubrics as dict[str, str]."""
     normalized: dict[str, str] = {}
     for key, value in rubrics.items():
         if value is None:
@@ -376,6 +257,7 @@ def _ragas_metric_result(
             from ragas.metrics import AnswerRelevancy
         except ImportError:
             from ragas.metrics import ResponseRelevancy
+
             AnswerRelevancy = ResponseRelevancy
     except ImportError:
         return {"key": key, "value": "not_applicable"}
@@ -388,10 +270,7 @@ def _ragas_metric_result(
         "context_recall": LLMContextRecall,
         "instance_rubrics": InstanceRubrics,
     }
-    metric_cls = metric_by_name[metric_name]
-    if metric_cls is None:
-        return {"key": key, "value": "not_available_in_ragas_version"}
-    metric = metric_cls()
+    metric = metric_by_name[metric_name]()
     judges = _ragas_judges()
     if hasattr(metric, "llm"):
         metric.llm = judges["llm"]
@@ -408,13 +287,11 @@ def _ragas_metric_result(
         sample_kwargs["rubrics"] = _ragas_string_rubrics(rubrics)
     sample = SingleTurnSample(**sample_kwargs)
     try:
+        score = metric.single_turn_score(sample)
+    except AttributeError:
+        import asyncio
+
         score = asyncio.run(metric.single_turn_ascore(sample))
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        try:
-            score = loop.run_until_complete(metric.single_turn_ascore(sample))
-        finally:
-            loop.close()
     except Exception as exc:
         return {"key": key, "value": f"ragas_error:{type(exc).__name__}"}
     return {"key": key, "score": float(score), "value": round(float(score), 3)}
@@ -563,30 +440,260 @@ def redis_cache_observed(outputs: dict[str, Any], reference_outputs: dict[str, A
     return {"key": "redis_cache_observed", "value": "not_applicable"}
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Run LangSmith regression evaluation for the chatbot.")
-    parser.add_argument("--dataset-name", default="gameops-chatbot-regression-v1")
-    parser.add_argument("--experiment-prefix", default="gameops-chatbot-regression")
-    parser.add_argument("--max-concurrency", type=int, default=1)
-    parser.add_argument("--limit", type=int, help="Evaluate only the first N examples after slicing locally.")
-    parser.add_argument("--test-type", help="Evaluate only examples whose metadata.test_type matches this value.")
-    parser.add_argument("--eval-slice", help="Evaluate only examples whose metadata.eval_slice matches this value.")
-    parser.add_argument("--enable-ragas", action="store_true", help="Run RAGAS judge metrics for RAG examples.")
-    parser.add_argument(
-        "--disable-retrieval-cache",
-        action="store_true",
-        help="Disable FAQ/RAG retrieval cache for this evaluation run.",
+def chatbot_target(inputs: dict[str, Any]) -> dict[str, Any]:
+    category, routing_target = _resolve_eval_route(inputs)
+    if category not in CHATBOT_CATEGORIES:
+        return {
+            "answer": "",
+            "route": "out_of_chatbot_scope",
+            "category": category,
+            "routing_target": "external_system",
+            "safety_action": "REVIEW_REQUIRED",
+            "safety_passed": None,
+            "cache_events": [],
+            "redis_cache_hit_observed": False,
+            "redis_cache_store_backend": None,
+            "latency_ms": 0.0,
+            "retrieved_document_count": 0,
+            "observed_evidence_types": [],
+            "retrieved_contexts": [],
+        }
+    if not inputs.get("user_message"):
+        return {
+            "answer": "",
+            "route": routing_target,
+            "category": category,
+            "routing_target": routing_target,
+            "safety_action": "AUTO_RESPONSE",
+            "safety_passed": None,
+            "cache_events": [],
+            "redis_cache_hit_observed": False,
+            "redis_cache_store_backend": None,
+            "latency_ms": 0.0,
+            "retrieved_document_count": 0,
+            "observed_evidence_types": [],
+            "retrieved_contexts": [],
+        }
+
+    raw_account_id = inputs.get("account_id")
+    account_id = int(raw_account_id) if category == "payment" and raw_account_id not in (None, "") else None
+    user_id = int(inputs.get("user_id") or 0)
+    ticket_id = int(inputs.get("ticket_id") or int(time.time() * 1000) % 1_000_000_000)
+
+    from chatbot.generation import faq_agent
+
+    cache_events: list[dict[str, Any]] = []
+    original_log_event = faq_agent.log_event
+
+    def capture_log_event(event_type: str, **kwargs: Any) -> Any:
+        if kwargs.get("tool_name") == "faq_retrieval_cache":
+            cache_events.append(dict(kwargs.get("metadata") or {}))
+        return original_log_event(event_type, **kwargs)
+
+    faq_agent.log_event = capture_log_event
+    try:
+        started_at = time.perf_counter()
+        result = stream_chatbot(
+            ticket_id=ticket_id,
+            user_message=str(inputs["user_message"]),
+            category=category,
+            user_id=user_id,
+            account_id=account_id,
+            ui_category=inputs.get("ui_category"),
+            sub_category=inputs.get("sub_category"),
+            routing_target=routing_target,
+            fallback_routing_target=inputs.get("fallback_routing_target"),
+        )
+        latency_ms = (time.perf_counter() - started_at) * 1000
+    finally:
+        faq_agent.log_event = original_log_event
+
+    state = result.get("state") or {}
+    retrieved_documents = state.get("retrieved_documents") or []
+    payment_context = state.get("payment_context") or {}
+    payment_counts = payment_context.get("counts") or {}
+    observed_evidence_types = _observed_evidence_types(
+        retrieved_documents=retrieved_documents,
+        payment_counts=payment_counts,
+        route=state.get("reasoning_node"),
+        cache_events=cache_events,
     )
-    parser.add_argument("--clear-cache", action="store_true", help="Clear chatbot FAQ cache before running evaluation.")
+    return {
+        "answer": result.get("answer"),
+        "route": state.get("reasoning_node"),
+        "category": state.get("category"),
+        "routing_target": state.get("routing_target"),
+        "safety_action": state.get("safety_action"),
+        "safety_passed": state.get("safety_passed"),
+        "cache_events": cache_events,
+        "redis_cache_hit_observed": any(event.get("cache_hit") for event in cache_events),
+        "redis_cache_store_backend": next(
+            (event.get("cache_backend") for event in cache_events if event.get("cache_backend")),
+            None,
+        ),
+        "latency_ms": latency_ms,
+        "retrieved_document_count": len(retrieved_documents),
+        "retrieved_contexts": _retrieved_contexts(retrieved_documents),
+        "observed_evidence_types": observed_evidence_types,
+    }
+
+
+Evaluator = Callable[[dict[str, Any], dict[str, Any], dict[str, Any]], dict[str, Any]]
+
+
+def _run_output_only(metric: Callable[[dict[str, Any]], dict[str, Any]], outputs: dict[str, Any]) -> dict[str, Any]:
+    return metric(outputs)
+
+
+def _evaluate_example(
+    *,
+    index: int,
+    inputs: dict[str, Any],
+    reference_outputs: dict[str, Any],
+    evaluators: list[Evaluator],
+) -> dict[str, Any]:
+    outputs = chatbot_target(inputs)
+    metrics = [evaluator(inputs, outputs, reference_outputs) for evaluator in evaluators]
+    return {
+        "example_index": index,
+        "inputs": inputs,
+        "reference_outputs": reference_outputs,
+        "outputs": outputs,
+        "metrics": metrics,
+    }
+
+
+def _summarize_metric(metrics: list[dict[str, Any]]) -> dict[str, Any]:
+    scored = [metric for metric in metrics if "score" in metric]
+    passed = [metric for metric in scored if bool(metric.get("score"))]
+    numeric_scores = [
+        float(metric["score"])
+        for metric in scored
+        if isinstance(metric.get("score"), (int, float))
+    ]
+    return {
+        "count": len(metrics),
+        "scored_count": len(scored),
+        "pass_count": len(passed),
+        "avg_score": round(sum(numeric_scores) / len(numeric_scores), 4) if numeric_scores else None,
+    }
+
+
+@observe_if_enabled(
+    name="chatbot_regression_eval",
+    as_type="chain",
+    tags=["chatbot", "eval", "regression"],
+)
+def run_regression_eval(
+    *,
+    dataset_path: Path,
+    output_path: Path,
+    limit: int | None,
+    test_type: str | None,
+    eval_slice: str | None,
+    enable_ragas: bool,
+) -> dict[str, Any]:
+    dataset_info, examples = load_examples(dataset_path)
+    if test_type:
+        examples = [example for example in examples if (example.get("metadata") or {}).get("test_type") == test_type]
+    if eval_slice:
+        examples = [example for example in examples if (example.get("metadata") or {}).get("eval_slice") == eval_slice]
+    if limit is not None:
+        examples = examples[:limit]
+
+    evaluators: list[Evaluator] = [
+        lambda inputs, outputs, ref: route_accuracy(outputs, ref),
+        lambda inputs, outputs, ref: tool_db_call_accuracy(outputs, ref),
+        lambda inputs, outputs, ref: safety_pass_accuracy(outputs, ref),
+        lambda inputs, outputs, ref: latency(outputs),
+        lambda inputs, outputs, ref: invalid_category_handling(outputs),
+        lambda inputs, outputs, ref: action_match(outputs, ref),
+        lambda inputs, outputs, ref: answer_non_empty(outputs),
+        lambda inputs, outputs, ref: instance_rubrics(inputs, outputs, ref),
+        lambda inputs, outputs, ref: redis_cache_observed(outputs, ref),
+    ]
+    if enable_ragas and find_spec("ragas") is not None:
+        evaluators[1:1] = [
+            answer_correctness,
+            answer_relevancy,
+            faithfulness,
+            context_precision,
+            context_recall,
+        ]
+
+    link_current_trace(
+        tags=["chatbot", "eval", "regression"],
+        metadata=build_trace_metadata(
+            {},
+            dataset_path=str(dataset_path),
+            example_count=len(examples),
+            test_type=test_type,
+            eval_slice=eval_slice,
+            enable_ragas=enable_ragas,
+        ),
+        input_payload={
+            "dataset_path": str(dataset_path),
+            "limit": limit,
+            "test_type": test_type,
+            "eval_slice": eval_slice,
+            "enable_ragas": enable_ragas,
+        },
+    )
+
+    results = []
+    for index, example in enumerate(examples, start=1):
+        results.append(
+            _evaluate_example(
+                index=index,
+                inputs=dict(example.get("inputs") or {}),
+                reference_outputs=dict(example.get("outputs") or {}),
+                evaluators=evaluators,
+            )
+        )
+
+    metric_groups: dict[str, list[dict[str, Any]]] = {}
+    for result in results:
+        for metric in result["metrics"]:
+            metric_groups.setdefault(str(metric["key"]), []).append(metric)
+
+    report = {
+        "dataset": dataset_info.get("dataset_info") or {"path": str(dataset_path)},
+        "summary": {key: _summarize_metric(values) for key, values in sorted(metric_groups.items())},
+        "results": results,
+    }
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    link_current_trace(
+        tags=["chatbot", "eval", "regression"],
+        metadata=build_trace_metadata({}, output_path=str(output_path), evaluated_count=len(results)),
+        output_payload={
+            "output_path": str(output_path),
+            "evaluated_count": len(results),
+            "metric_keys": sorted(metric_groups),
+        },
+    )
+    return report
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Run local chatbot regression evaluation with Langfuse tracing.")
+    parser.add_argument("--dataset", type=Path, default=DEFAULT_DATASET)
+    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument("--limit", type=int)
+    parser.add_argument("--test-type")
+    parser.add_argument("--eval-slice")
+    parser.add_argument("--enable-ragas", action="store_true")
+    parser.add_argument("--disable-retrieval-cache", action="store_true")
+    parser.add_argument("--clear-cache", action="store_true")
     parser.add_argument(
         "--cache-namespace",
         choices=["answer", "retrieval", "all"],
         default="all",
-        help="FAQ cache namespace to clear when --clear-cache is set.",
     )
     args = parser.parse_args()
 
-    load_chatbot_langsmith_env()
+    load_chatbot_env()
     os.environ.setdefault("CHATBOT_DEBUG_ROUTING", "false")
     if args.disable_retrieval_cache:
         os.environ["FAQ_RETRIEVAL_CACHE_ENABLED"] = "false"
@@ -597,50 +704,16 @@ def main() -> None:
         namespace = None if args.cache_namespace == "all" else args.cache_namespace
         print(f"Cleared FAQ cache: {clear_faq_cache(namespace)}")
 
-    data: Any = args.dataset_name
-    if args.limit is not None or args.test_type or args.eval_slice:
-        from langsmith import Client
-
-        client = Client()
-        examples = list(client.list_examples(dataset_name=args.dataset_name))
-        if args.test_type:
-            examples = [example for example in examples if (example.metadata or {}).get("test_type") == args.test_type]
-        if args.eval_slice:
-            examples = [example for example in examples if (example.metadata or {}).get("eval_slice") == args.eval_slice]
-        if args.limit is not None:
-            examples = examples[: args.limit]
-        data = examples
-
-    evaluators = [
-        route_accuracy,
-        tool_db_call_accuracy,
-        safety_pass_accuracy,
-        latency,
-        invalid_category_handling,
-        action_match,
-        answer_non_empty,
-        instance_rubrics,
-        redis_cache_observed,
-    ]
-    if args.enable_ragas and find_spec("ragas") is not None:
-        evaluators[1:1] = [
-            answer_correctness,
-            answer_relevancy,
-            faithfulness,
-            context_precision,
-            context_recall,
-        ]
-    elif args.enable_ragas:
-        print("Skipped RAGAS evaluators: ragas is not installed.")
-
-    results = evaluate(
-        chatbot_target,
-        data=data,
-        evaluators=evaluators,
-        experiment_prefix=args.experiment_prefix,
-        max_concurrency=args.max_concurrency,
+    report = run_regression_eval(
+        dataset_path=args.dataset,
+        output_path=args.output,
+        limit=args.limit,
+        test_type=args.test_type,
+        eval_slice=args.eval_slice,
+        enable_ragas=args.enable_ragas,
     )
-    print(results)
+    print(json.dumps(report["summary"], ensure_ascii=False, indent=2))
+    print(f"Wrote {args.output}")
 
 
 if __name__ == "__main__":

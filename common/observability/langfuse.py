@@ -89,15 +89,6 @@ def _set_env_if_present(name: str, value: str) -> None:
         os.environ[name] = value
 
 
-def _disable_legacy_langsmith_tracing() -> None:
-    os.environ["LANGSMITH_TRACING"] = "false"
-    os.environ["LANGCHAIN_TRACING_V2"] = "false"
-    os.environ["LANGSMITH_API_KEY"] = ""
-    os.environ["LANGCHAIN_API_KEY"] = ""
-    os.environ["LANGSMITH_PROJECT"] = ""
-    os.environ["LANGCHAIN_PROJECT"] = ""
-
-
 def configure_langfuse(
     app_name: str,
     *,
@@ -118,30 +109,22 @@ def configure_langfuse(
         modern_enabled = os.getenv(f"{prefix}_LANGFUSE_ENABLED")
         if modern_enabled is not None:
             enabled = _env_flag(f"{prefix}_LANGFUSE_ENABLED", enabled)
-        else:
-            enabled = _env_flag(f"{prefix}_LANGSMITH_TRACING", enabled)
 
         modern_public_key = _non_empty(os.getenv(f"{prefix}_LANGFUSE_PUBLIC_KEY"))
         if modern_public_key:
             public_key = modern_public_key
 
         modern_secret_key = _non_empty(os.getenv(f"{prefix}_LANGFUSE_SECRET_KEY"))
-        legacy_secret_key = _non_empty(os.getenv(f"{prefix}_LANGSMITH_API_KEY"))
         if modern_secret_key:
             secret_key = modern_secret_key
-        elif not secret_key and legacy_secret_key:
-            secret_key = legacy_secret_key
 
         modern_host = _non_empty(os.getenv(f"{prefix}_LANGFUSE_HOST"))
         if modern_host:
             host = modern_host
 
         modern_project = _non_empty(os.getenv(f"{prefix}_LANGFUSE_PROJECT"))
-        legacy_project = _non_empty(os.getenv(f"{prefix}_LANGSMITH_PROJECT"))
         if modern_project:
             project = modern_project
-        elif not project and legacy_project:
-            project = legacy_project
 
     sdk_available = _langfuse_sdk_available()
     project = project or app_name
@@ -166,7 +149,6 @@ def configure_langfuse(
     _set_env_if_present("LANGFUSE_HOST", host)
     _set_env_if_present("LANGFUSE_PROJECT", project)
     os.environ["LANGFUSE_ENABLED"] = "true" if enabled else "false"
-    _disable_legacy_langsmith_tracing()
 
     return dict(_ACTIVE_CONFIG)
 
