@@ -8,11 +8,12 @@ from typing import Any
 import db.metrics as metrics_query
 import db.spike_alerts as spike_alerts_query
 import db.top_requests as top_requests_query
-from ai.actions import generate_ai_actions
+from ai.actions import generate_ai_actions, is_fallback_ai_actions
 from build.distributions import distribution
 from build.payload import build_report_payload
-from common.observability.langfuse import build_trace_metadata, link_current_trace, observe_if_enabled
+from common.observability.langfuse import observe_if_enabled, record_current_scores
 from db.analysis import fetch_analysis_rows
+from observability.langfuse import link_weekly_report_trace
 from output.pdf import render_report_pdf
 from output.slack import send_weekly_report_pdf
 from utils.date_range import get_previous_window, get_window
@@ -33,16 +34,14 @@ def run(
     now: datetime | None = None,
 ) -> dict[str, Any]:
     generated_at = now or datetime.now()
-    link_current_trace(
+    link_weekly_report_trace(
+        {},
         tags=["weekly-report", "feature:report-build"],
-        metadata=build_trace_metadata(
-            {},
-            days=days,
-            render_pdf=render_pdf,
-            send_to_slack=send_to_slack,
-            slack_channel=slack_channel,
-        ),
         input_payload={"days": days, "render_pdf": render_pdf, "send_to_slack": send_to_slack},
+        days=days,
+        render_pdf=render_pdf,
+        send_to_slack=send_to_slack,
+        channel=slack_channel,
     )
 
     window = get_window(days, now=generated_at)
@@ -102,22 +101,32 @@ def run(
         "pdf_bytes": pdf_bytes,
         "slack_result": slack_result,
     }
-    link_current_trace(
+    record_current_scores(
+        {
+            "report_generated": True,
+            "pdf_rendered": pdf_bytes is not None,
+            "slack_delivered": slack_result is not None,
+            "ai_fallback_used": is_fallback_ai_actions(ai_interp),
+        },
+        comments={
+            "slack_delivered": slack_channel or "",
+            "ai_fallback_used": str(ai_interp.get("headline") or ""),
+        },
+    )
+    link_weekly_report_trace(
+        report,
         tags=["weekly-report", "feature:report-build", "feature:report-delivery"],
-        metadata=build_trace_metadata(
-            {},
-            requests_count=len(requests),
-            alerts_count=len(alerts),
-            current_rows_count=len(current_rows),
-            previous_rows_count=len(previous_rows),
-            slack_sent=slack_result is not None,
-            pdf_rendered=pdf_bytes is not None,
-        ),
         output_payload={
             "requests_count": len(requests),
-            "alerts_count": len(alerts),
+            "alerts_count": sum(len(alerts.get(key, [])) for key in ("hourly", "daily", "monthly")),
             "slack_sent": slack_result is not None,
             "pdf_rendered": pdf_bytes is not None,
         },
+        requests_count=len(requests),
+        alerts_count=sum(len(alerts.get(key, [])) for key in ("hourly", "daily", "monthly")),
+        current_rows_count=len(current_rows),
+        previous_rows_count=len(previous_rows),
+        slack_sent=slack_result is not None,
+        pdf_rendered=pdf_bytes is not None,
     )
     return result

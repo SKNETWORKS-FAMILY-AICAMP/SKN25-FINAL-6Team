@@ -12,6 +12,9 @@ from typing import Any
 
 from xhtml2pdf import pisa
 
+from common.observability.langfuse import observe_if_enabled
+from observability.langfuse import link_weekly_report_trace
+
 
 FONT_FAMILY_NAME = "DashboardKorean"
 FONT_REGULAR_ENV = "DASHBOARD_WEEKLY_REPORT_FONT_REGULAR"
@@ -631,10 +634,30 @@ def _build_html(report: dict[str, Any]) -> str:
     """
 
 
+@observe_if_enabled(
+    name="weekly_report_render_pdf",
+    as_type="generation",
+    tags=["weekly-report", "feature:pdf-render"],
+)
 def render_report_pdf(report: dict[str, Any]) -> bytes:
+    link_weekly_report_trace(
+        report,
+        tags=["weekly-report", "feature:pdf-render"],
+        input_payload={"title": report.get("title"), "generated_at": report.get("generated_at")},
+        pdf_rendered=False,
+        title=str(report.get("title") or ""),
+    )
     html = _build_html(report)
     buffer = io.BytesIO()
     result = pisa.CreatePDF(src=html, dest=buffer, encoding="utf-8", link_callback=_resolve_resource_path)
     if result.err:
         raise RuntimeError("주간 리포트 PDF 렌더링에 실패했습니다")
-    return buffer.getvalue()
+    pdf_bytes = buffer.getvalue()
+    link_weekly_report_trace(
+        report,
+        tags=["weekly-report", "feature:pdf-render"],
+        output_payload={"pdf_bytes": len(pdf_bytes)},
+        pdf_rendered=True,
+        title=str(report.get("title") or ""),
+    )
+    return pdf_bytes

@@ -243,6 +243,51 @@ def link_current_trace(
         pass
 
 
+def _score_value(value: Any) -> float | None:
+    if isinstance(value, bool):
+        return 1.0 if value else 0.0
+    if isinstance(value, (int, float)):
+        return float(value)
+    return None
+
+
+def record_current_scores(
+    scores: dict[str, Any],
+    *,
+    comments: dict[str, str] | None = None,
+) -> None:
+    context = _langfuse_context()
+    if context is None:
+        return
+
+    score_methods = [
+        getattr(context, "score_current_observation", None),
+        getattr(context, "score_current_trace", None),
+    ]
+    score_methods = [method for method in score_methods if callable(method)]
+    if not score_methods:
+        return
+
+    for name, raw_value in scores.items():
+        value = _score_value(raw_value)
+        if value is None:
+            continue
+
+        comment = None if comments is None else comments.get(name)
+        for method in score_methods:
+            try:
+                method(name=name, value=value, comment=comment)
+                break
+            except TypeError:
+                try:
+                    method(name, value, comment)
+                    break
+                except Exception:
+                    continue
+            except Exception:
+                continue
+
+
 def observe_if_enabled(
     *,
     name: str,

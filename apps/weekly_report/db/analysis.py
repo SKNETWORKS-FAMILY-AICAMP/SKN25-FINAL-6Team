@@ -8,7 +8,9 @@ from typing import Any
 from psycopg.rows import dict_row
 
 from common.db.connection import db_connection
+from common.observability.langfuse import observe_if_enabled
 from db.connection import _fetch_all
+from observability.langfuse import link_weekly_report_trace
 
 
 def _latest_insight_join_sql() -> str:
@@ -36,6 +38,11 @@ def _latest_insight_join_sql() -> str:
     """
 
 
+@observe_if_enabled(
+    name="weekly_report_fetch_analysis_rows",
+    as_type="generation",
+    tags=["weekly-report", "feature:data-fetch", "source:analysis"],
+)
 def fetch_analysis_rows(window_start: datetime, window_end: datetime) -> list[dict[str, Any]]:
     """window 기간 내 분석 행을 최신순으로 모두 조회한다.
 
@@ -76,6 +83,22 @@ def fetch_analysis_rows(window_start: datetime, window_end: datetime) -> list[di
         -- analyzed_at이 동일한 행은 analysis_id 역순으로 정렬해 재현 가능한 순서를 보장한다.
         ORDER BY a.analyzed_at DESC NULLS LAST, a.analysis_id DESC
     """
+    link_weekly_report_trace(
+        {"window_start": window_start.isoformat(), "window_end": window_end.isoformat()},
+        tags=["weekly-report", "feature:data-fetch", "source:analysis"],
+        input_payload={"window_start": window_start.isoformat(), "window_end": window_end.isoformat()},
+        window_start=window_start.isoformat(),
+        window_end=window_end.isoformat(),
+    )
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
-            return _fetch_all(cur, sql, (window_start, window_end))
+            rows = _fetch_all(cur, sql, (window_start, window_end))
+    link_weekly_report_trace(
+        {"window_start": window_start.isoformat(), "window_end": window_end.isoformat()},
+        tags=["weekly-report", "feature:data-fetch", "source:analysis"],
+        output_payload={"current_rows_count": len(rows)},
+        window_start=window_start.isoformat(),
+        window_end=window_end.isoformat(),
+        current_rows_count=len(rows),
+    )
+    return rows

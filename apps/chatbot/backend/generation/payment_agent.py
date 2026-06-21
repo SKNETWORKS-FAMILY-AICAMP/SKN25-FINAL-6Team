@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from chatbot.agent import invoke_payment_agent
 from chatbot.generation.drafting_agent import build_draft_update
 from chatbot.generation.policies import PAYMENT_POLICY
+from chatbot.observability.langfuse import link_chatbot_trace
 from chatbot.observability.logger import EVENT_NODE_COMPLETED, EVENT_NODE_STARTED, log_event
 from chatbot.repository.operation_log_repository import collect_payment_context_by_user
 from chatbot.schemas import ChatbotState
@@ -527,3 +528,32 @@ def payment_agent_node(state: ChatbotState) -> dict:
         },
     )
     return update
+
+
+_original_payment_agent_node = payment_agent_node
+
+
+@observe_if_enabled(
+    name="payment_agent",
+    as_type="chain",
+    tags=["chatbot", "feature:generation", "payment"],
+)
+def payment_agent_node(state: ChatbotState) -> dict:
+    link_chatbot_trace(
+        state,
+        tags=["feature:generation", "payment"],
+        input_payload={
+            "ticket_id": state.get("ticket_id"),
+            "query": state.get("normalized_query") or state.get("raw_query"),
+            "routing_target": state.get("routing_target"),
+            "account_id": state.get("account_id"),
+        },
+    )
+    result = _original_payment_agent_node(state)
+    link_chatbot_trace(
+        state,
+        tags=["feature:generation", "payment"],
+        metadata_source={**state, **result},
+        output_payload=result,
+    )
+    return result

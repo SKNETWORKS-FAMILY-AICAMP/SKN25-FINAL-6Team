@@ -1,20 +1,17 @@
 from __future__ import annotations
 
-from datetime import datetime
-
 from psycopg.rows import dict_row
 
-from common.db.connection import db_connection
-
 from api.services.load_ticket import fetch_ticket_detail
+from common.db.connection import db_connection
+from common.observability.langfuse import observe_if_enabled
+from observability.langfuse import link_cs_auto_trace
 
 
-REVIEW_API_NODE_NAME = "cs_auto_review_api"
-DRAFT_APPROVED_EVENT_TYPE = "draft_approved"
-SUCCESS_STATUS = "success"
 RESOLVED_TICKET_STATUS = "resolved"
 
 
+@observe_if_enabled(name="cs_auto_approve_answer_draft", as_type="chain", tags=["cs-auto", "draft", "approval"])
 def approve_answer_draft(
     ticket_id: int,
     draft_id: int,
@@ -22,9 +19,23 @@ def approve_answer_draft(
     admin_id: int,
     edit_reason: str | None = None,
 ) -> dict[str, object]:
+    trace_payload = {"ticket_id": ticket_id, "draft_id": draft_id, "admin_id": admin_id}
     cleaned_text = str(final_text or "").strip()
+    link_cs_auto_trace(
+        trace_payload,
+        tags=["draft", "approval"],
+        input_payload={
+            "ticket_id": ticket_id,
+            "draft_id": draft_id,
+            "admin_id": admin_id,
+            "edit_reason": edit_reason,
+            "final_text_length": len(cleaned_text),
+        },
+    )
     if not cleaned_text:
-        return {"ok": False, "message": "final_text is required"}
+        result = {"ok": False, "message": "final_text is required"}
+        link_cs_auto_trace({**trace_payload, **result}, tags=["draft", "approval"], output_payload=result)
+        return result
 
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
@@ -48,7 +59,9 @@ def approve_answer_draft(
             )
             current_draft = cur.fetchone()
             if current_draft is None:
-                return {"ok": False, "message": "draft_not_found"}
+                result = {"ok": False, "message": "draft_not_found"}
+                link_cs_auto_trace({**trace_payload, **result}, tags=["draft", "approval"], output_payload=result)
+                return result
 
             cur.execute(
                 """
@@ -80,43 +93,20 @@ def approve_answer_draft(
                 (RESOLVED_TICKET_STATUS, ticket_id),
             )
 
-            # admin_event_logs 테이블 사용 중단으로 승인 이벤트 적재는 비활성화한다.
-            # cur.execute(
-            #     """
-            #     INSERT INTO admin_event_logs (
-            #         ticket_id,
-            #         node_name,
-            #         event_type,
-            #         status,
-            #         metadata,
-            #         actor_admin_id
-            #     )
-            #     VALUES (%s, %s, %s, %s, %s, %s)
-            #     """,
-            #     (
-            #         ticket_id,
-            #         REVIEW_API_NODE_NAME,
-            #         DRAFT_APPROVED_EVENT_TYPE,
-            #         SUCCESS_STATUS,
-            #         Json(
-            #             {
-            #                 "draft_id": draft_id,
-            #                 "response_id": response_row["response_id"] if response_row else None,
-            #                 "edit_reason": str(edit_reason or ""),
-            #                 "final_text_length": len(cleaned_text),
-            #                 "approved_at": datetime.utcnow().isoformat(),
-            #             }
-            #         ),
-            #         admin_id,
-            #     ),
-            # )
-
     ticket = fetch_ticket_detail(ticket_id)
     if ticket is None:
-        return {"ok": False, "message": "ticket_not_found_after_approval"}
+        result = {"ok": False, "message": "ticket_not_found_after_approval"}
+        link_cs_auto_trace({**trace_payload, **result}, tags=["draft", "approval"], output_payload=result)
+        return result
 
-    return {
+    result = {
         "ok": True,
         "ticket": ticket,
         "response_id": response_row["response_id"] if response_row else None,
     }
+    link_cs_auto_trace(
+        {**trace_payload, **ticket, "response_id": result.get("response_id")},
+        tags=["draft", "approval"],
+        output_payload={"ok": True, "response_id": result.get("response_id")},
+    )
+    return result

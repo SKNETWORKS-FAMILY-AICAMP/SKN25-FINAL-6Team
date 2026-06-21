@@ -30,6 +30,7 @@ from common.observability.langfuse import (
     configure_langfuse,
     link_current_trace,
     observe_if_enabled,
+    record_current_scores,
 )
 
 configure_langfuse("cs-auto", default_tags=["cs-auto", "answer"])
@@ -431,12 +432,26 @@ class AnswerSafetyEvaluator:
         ) / 4
         average_score = round(float(average_score), 4)
         safety_action: SafetyAction = "approved" if average_score > SAFETY_APPROVAL_THRESHOLD else "fixed_answer"
-        return result.model_copy(
+        scored_result = result.model_copy(
             update={
                 "average_score": average_score,
                 "safety_action": safety_action,
             }
         )
+        record_current_scores(
+            {
+                "hallucination_score": scored_result.hallucination_score,
+                "toxicity_score": scored_result.toxicity_score,
+                "policy_violation_score": scored_result.policy_violation_score,
+                "factuality_score": scored_result.factuality_score,
+                "average_score": scored_result.average_score,
+                "safety_approved": scored_result.safety_action == "approved",
+            },
+            comments={
+                "safety_approved": scored_result.safety_reason or "",
+            },
+        )
+        return scored_result
 
 
 # safety 평가 결과를 반영해 초안을 유지하거나 fixed_answer 문안으로 대체하는 클래스다.

@@ -3,9 +3,11 @@ from __future__ import annotations
 from typing import Any
 
 from chatbot.generation.response.fixed_responses import BLOCK_RESPONSE
+from chatbot.observability.langfuse import link_chatbot_trace
 from chatbot.repository.ticket_repository import save_qa_ticket
 from chatbot.schemas import ChatbotState
 from chatbot.utils.query_enrichment import normalize_query_text
+from common.observability.langfuse import observe_if_enabled
 
 
 SUPPORTED_CATEGORIES = {"payment", "bug", "faq", "voc"}
@@ -26,7 +28,6 @@ def _write_qa_ticket(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def _category_from_user_selection(value: Any) -> str:
-    # 사용자가 선택한 category만 신뢰하고, 지원하지 않는 category는 초기에 차단한다.
     category = str(value or "").strip().lower()
     if not category:
         raise ValueError("category is required for chatbot routing")
@@ -36,18 +37,30 @@ def _category_from_user_selection(value: Any) -> str:
     return category
 
 
+@observe_if_enabled(
+    name="ticket_preprocess",
+    as_type="chain",
+    tags=["chatbot", "feature:preprocess"],
+)
 def ticket_preprocess_node(state: ChatbotState) -> dict:
-    # 1단계: 마스킹된 문의를 검색/분류에 쓰기 좋은 normalized_query로 정리한다.
+    link_chatbot_trace(
+        state,
+        tags=["feature:preprocess"],
+        input_payload={
+            "ticket_id": state.get("ticket_id"),
+            "category": state.get("category"),
+            "routing_target": state.get("routing_target"),
+            "source_type": state.get("source_type"),
+        },
+    )
+
     ticket_id = state["ticket_id"]
     raw_query = state["raw_query"]
     masked_content = state.get("masked_content") or raw_query
     category = _category_from_user_selection(state.get("category"))
     normalized_query = normalize_query_text(masked_content)
-    # 프론트는 세부 카테고리 선택 후 routing_target을 보내지만,
-    # API/eval 직접 호출에서도 category만으로 같은 흐름에 들어가도록 기본값을 맞춘다.
     routing_target = state.get("routing_target") or CATEGORY_DEFAULT_ROUTING_TARGET[category]
 
-    # 2단계: 원문 문의는 qa_ticket에 저장하고, 이후 노드는 state의 normalized_query를 사용한다.
     _write_qa_ticket(
         {
             "ticket_id": ticket_id,
@@ -61,7 +74,7 @@ def ticket_preprocess_node(state: ChatbotState) -> dict:
     )
 
     if "prompt_injection" in (state.get("input_detected_labels") or []):
-        return {
+        update = {
             "ticket_id": ticket_id,
             "normalized_query": normalized_query,
             "category": category,
@@ -73,9 +86,15 @@ def ticket_preprocess_node(state: ChatbotState) -> dict:
             "safety_passed": False,
             "retry_count": 0,
         }
+        link_chatbot_trace(
+            state,
+            tags=["feature:preprocess"],
+            metadata_source={**state, **update},
+            output_payload=update,
+        )
+        return update
 
-    # 3단계: 선택 category와 RAG 사용 여부를 다음 라우팅 노드가 판단할 수 있게 넘긴다.
-    return {
+    update = {
         "ticket_id": ticket_id,
         "normalized_query": normalized_query,
         "ui_category": state.get("ui_category"),
@@ -86,3 +105,10 @@ def ticket_preprocess_node(state: ChatbotState) -> dict:
         "is_actionable": True,
         "fallback_reason": None,
     }
+    link_chatbot_trace(
+        state,
+        tags=["feature:preprocess"],
+        metadata_source={**state, **update},
+        output_payload=update,
+    )
+    return update

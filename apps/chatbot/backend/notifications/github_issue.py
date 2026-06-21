@@ -7,8 +7,10 @@ from urllib import request
 from urllib.error import HTTPError
 
 from chatbot.observability.error_classifier import classify_error
+from chatbot.observability.langfuse import build_chatbot_trace_metadata
 from chatbot.observability.logger import EVENT_NOTIFICATION_DISPATCHED, EVENT_NOTIFICATION_FAILED, log_event
 from chatbot.repository.notification_repository import notification_log_exists, save_notification_log
+from common.observability.langfuse import link_current_trace, observe_if_enabled
 
 
 GITHUB_API_BASE_URL = "https://api.github.com"
@@ -166,3 +168,36 @@ def dispatch_github_issue_notification(state: dict[str, Any]) -> dict[str, Any]:
         },
     )
     return github_issue_result
+
+
+_original_dispatch_github_issue_notification = dispatch_github_issue_notification
+
+
+@observe_if_enabled(
+    name="dispatch_github_issue_notification",
+    as_type="tool",
+    tags=["chatbot", "feature:notification", "github_issue"],
+)
+def dispatch_github_issue_notification(state: dict[str, Any]) -> dict[str, Any]:
+    link_current_trace(
+        user_id=state.get("user_id"),
+        session_id=state.get("session_id"),
+        tags=["chatbot", "feature:notification", "github_issue"],
+        metadata=build_chatbot_trace_metadata(state),
+        input_payload={
+            "ticket_id": state.get("ticket_id"),
+            "category": state.get("category"),
+            "routing_target": state.get("routing_target"),
+            "safety_action": state.get("safety_action"),
+            "review_required": state.get("review_required"),
+        },
+    )
+    result = _original_dispatch_github_issue_notification(state)
+    link_current_trace(
+        user_id=state.get("user_id"),
+        session_id=state.get("session_id"),
+        tags=["chatbot", "feature:notification", "github_issue"],
+        metadata=build_chatbot_trace_metadata({**state, **result}),
+        output_payload=result,
+    )
+    return result

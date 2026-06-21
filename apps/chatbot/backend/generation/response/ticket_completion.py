@@ -6,10 +6,12 @@ from chatbot.generation.response.fixed_responses import (
     fallback_response_for_category,
 )
 from chatbot.notifications.github_issue import dispatch_github_issue_notification
+from chatbot.observability.langfuse import link_chatbot_trace
 from chatbot.observability.logger import EVENT_TICKET_COMPLETION_COMPLETED, log_event
 from chatbot.repository.failed_query_repository import save_failed_query
 from chatbot.repository.ticket_repository import delete_qa_ticket, update_qa_ticket_raw_query
 from chatbot.schemas import ChatbotState
+from common.observability.langfuse import observe_if_enabled
 
 
 def _ticket_status_for_decision(decision: str, review_required: bool | None = None) -> str:
@@ -170,3 +172,32 @@ def ticket_completion_node(state: ChatbotState) -> dict:
         "failed_query_result": failed_query_result,
         "ticket_status_result": ticket_status_result,
     }
+
+
+_original_ticket_completion_node = ticket_completion_node
+
+
+@observe_if_enabled(
+    name="ticket_completion",
+    as_type="chain",
+    tags=["chatbot", "feature:completion"],
+)
+def ticket_completion_node(state: ChatbotState) -> dict:
+    link_chatbot_trace(
+        state,
+        tags=["feature:completion"],
+        input_payload={
+            "ticket_id": state.get("ticket_id"),
+            "safety_action": state.get("safety_action"),
+            "review_required": state.get("review_required"),
+            "draft_text_length": len(state.get("draft_text") or ""),
+        },
+    )
+    result = _original_ticket_completion_node(state)
+    link_chatbot_trace(
+        state,
+        tags=["feature:completion"],
+        metadata_source={**state, **result},
+        output_payload=result,
+    )
+    return result

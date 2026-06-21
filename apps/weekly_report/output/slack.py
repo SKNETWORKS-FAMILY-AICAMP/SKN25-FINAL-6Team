@@ -14,6 +14,8 @@ from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 
 from common.db.connection import db_connection
+from common.observability.langfuse import observe_if_enabled
+from observability.langfuse import link_weekly_report_trace
 
 from errors import SlackReportError
 
@@ -194,6 +196,11 @@ def _upload_with_retry(
     raise last_exc  # type: ignore[misc]
 
 
+@observe_if_enabled(
+    name="weekly_report_send_slack",
+    as_type="generation",
+    tags=["weekly-report", "feature:slack-delivery"],
+)
 def send_weekly_report_pdf(
     *,
     pdf_bytes: bytes,
@@ -215,6 +222,20 @@ def send_weekly_report_pdf(
     반환 구조에 delivery_mode와 channel_id를 추가해 호출부가 어떤 방식으로 전송됐는지 알 수 있게 한다.
     """
     # 환경변수 우선, 인자로 직접 전달도 허용 (테스트 용이성).
+    link_weekly_report_trace(
+        {"channel": channel, "filename": filename, "title": title},
+        tags=["weekly-report", "feature:slack-delivery"],
+        input_payload={
+            "channel": channel,
+            "filename": filename,
+            "title": title,
+            "comment_present": bool(comment),
+            "pdf_bytes": len(pdf_bytes),
+        },
+        channel=channel,
+        filename=filename,
+        title=title,
+    )
     slack_token = (token or os.environ.get("DASHBOARD_SLACK_BOT_TOKEN") or "").strip()
     if not slack_token:
         _log_weekly_report_slack_event(
@@ -285,6 +306,20 @@ def send_weekly_report_pdf(
     result = dict(response.data) if hasattr(response, "data") else dict(response)
     result["delivery_mode"] = "native_file_share"
     result["channel_id"] = channel_id
+    link_weekly_report_trace(
+        result,
+        tags=["weekly-report", "feature:slack-delivery"],
+        output_payload={
+            "ok": result.get("ok"),
+            "channel_id": channel_id,
+            "delivery_mode": result["delivery_mode"],
+        },
+        channel=channel,
+        filename=filename,
+        title=title,
+        slack_sent=True,
+        status="success",
+    )
     _log_weekly_report_slack_event(
         status="success", channel=channel, channel_id=channel_id,
         filename=filename, title=title, byte_length=byte_length,

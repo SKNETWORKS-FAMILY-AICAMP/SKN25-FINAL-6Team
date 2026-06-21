@@ -7,13 +7,18 @@ from email.mime.text import MIMEText
 from psycopg.rows import dict_row
 
 from common.db.connection import db_connection
+from common.observability.langfuse import observe_if_enabled
+from observability.langfuse import link_cs_auto_trace
 
 
 SMTP_SENDER = "skdusrla1025@gmail.com"
 SMTP_RECIPIENT = "rosie1025@naver.com"
 
 
+@observe_if_enabled(name="cs_auto_send_answer_email", as_type="tool", tags=["cs-auto", "notification", "email"])
 def send_answer_email(ticket_id: int, admin_id: int | None = None) -> dict[str, object]:
+    trace_payload = {"ticket_id": ticket_id, "admin_id": admin_id}
+    link_cs_auto_trace(trace_payload, tags=["notification", "email"], input_payload=trace_payload)
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
@@ -42,7 +47,9 @@ def send_answer_email(ticket_id: int, admin_id: int | None = None) -> dict[str, 
             row = cur.fetchone()
 
     if row is None:
-        return {"ok": False, "message": "final_response_not_found"}
+        result = {"ok": False, "message": "final_response_not_found"}
+        link_cs_auto_trace({**trace_payload, **result}, tags=["notification", "email"], output_payload=result)
+        return result
 
     subject = f"[CS Auto] Ticket #{row['ticket_id']} 답변"
     body = (
@@ -87,7 +94,7 @@ def send_answer_email(ticket_id: int, admin_id: int | None = None) -> dict[str, 
             )
             notification = cur.fetchone()
 
-    return {
+    result = {
         "ok": True,
         "ticket_id": ticket_id,
         "response_id": row["response_id"],
@@ -98,3 +105,5 @@ def send_answer_email(ticket_id: int, admin_id: int | None = None) -> dict[str, 
         "sent_at": notification["sent_at"] if notification else None,
         "admin_id": admin_id,
     }
+    link_cs_auto_trace({**trace_payload, **result}, tags=["notification", "email"], output_payload=result)
+    return result

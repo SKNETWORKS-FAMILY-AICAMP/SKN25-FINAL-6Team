@@ -13,11 +13,13 @@ from common.observability.logger import record_chat_model_usage
 from common.retrieval.cache_store import get_cached_retrieval, set_cached_retrieval
 from chatbot.generation.policies import FAQ_POLICY
 from chatbot.generation.response.fixed_responses import SAFE_FALLBACK_RESPONSE
+from chatbot.observability.langfuse import link_chatbot_trace
 from chatbot.observability.logger import EVENT_NODE_COMPLETED, EVENT_NODE_STARTED, EVENT_TOOL_COMPLETED, log_event
 from chatbot.repository.failed_query_repository import save_failed_query
 from common.retrieval.vector_tools import embed_query, enrich_retrieval_query, rerank_documents, search_document_chunks
 from chatbot.schemas import ChatbotState
 from chatbot.utils.query_enrichment import rewrite_query_with_llm
+from common.observability.langfuse import observe_if_enabled
 
 
 NOTICE_SOURCE_TYPES = ("naver_cafe_notice",)
@@ -899,3 +901,60 @@ def faq_agent_node(state: ChatbotState) -> dict:
         },
     )
     return update
+
+
+_original_run_faq_rag = run_faq_rag
+
+
+@observe_if_enabled(
+    name="faq_rag_pipeline",
+    as_type="chain",
+    tags=["chatbot", "feature:retrieval", "faq", "rag"],
+)
+def run_faq_rag(state: ChatbotState) -> dict[str, Any]:
+    link_chatbot_trace(
+        state,
+        tags=["feature:retrieval", "faq", "rag"],
+        input_payload={
+            "ticket_id": state.get("ticket_id"),
+            "query": state.get("normalized_query") or state.get("raw_query"),
+            "routing_target": state.get("routing_target"),
+            "conversation_summary_present": bool(state.get("conversation_summary")),
+        },
+    )
+    result = _original_run_faq_rag(state)
+    link_chatbot_trace(
+        state,
+        tags=["feature:retrieval", "faq", "rag"],
+        metadata_source={**state, **result},
+        output_payload=result,
+    )
+    return result
+
+
+_original_faq_agent_node = faq_agent_node
+
+
+@observe_if_enabled(
+    name="faq_agent",
+    as_type="chain",
+    tags=["chatbot", "feature:generation", "faq"],
+)
+def faq_agent_node(state: ChatbotState) -> dict:
+    link_chatbot_trace(
+        state,
+        tags=["feature:generation", "faq"],
+        input_payload={
+            "ticket_id": state.get("ticket_id"),
+            "query": state.get("normalized_query") or state.get("raw_query"),
+            "routing_target": state.get("routing_target"),
+        },
+    )
+    result = _original_faq_agent_node(state)
+    link_chatbot_trace(
+        state,
+        tags=["feature:generation", "faq"],
+        metadata_source={**state, **result},
+        output_payload=result,
+    )
+    return result

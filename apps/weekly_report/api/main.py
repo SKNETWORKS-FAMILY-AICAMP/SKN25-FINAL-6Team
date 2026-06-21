@@ -9,7 +9,8 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
 from common.db.connection import db_connection
-from common.observability.langfuse import configure_langfuse
+from common.observability.langfuse import configure_langfuse, observe_if_enabled
+from observability.langfuse import link_weekly_report_trace
 
 configure_langfuse("weekly-report", default_tags=["weekly-report", "api"])
 
@@ -17,21 +18,42 @@ app = FastAPI(title="Weekly Report API")
 
 
 @app.get("/health")
+@observe_if_enabled(
+    name="weekly_report_api_health",
+    as_type="generation",
+    tags=["weekly-report", "api", "feature:health"],
+)
 def health() -> JSONResponse:
     """DB 연결 상태를 확인한다. docker-compose healthcheck 전용."""
     try:
         with db_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute("SELECT 1")
-        return JSONResponse({"status": "ok", "db": "connected"})
-    except Exception as exc:
-        return JSONResponse(
-            {"status": "error", "db": "disconnected", "detail": str(exc)},
-            status_code=503,
+        payload = {"status": "ok", "db": "connected"}
+        link_weekly_report_trace(
+            payload,
+            tags=["weekly-report", "api", "feature:health"],
+            output_payload=payload,
+            status="ok",
         )
+        return JSONResponse(payload)
+    except Exception as exc:
+        payload = {"status": "error", "db": "disconnected", "detail": str(exc)}
+        link_weekly_report_trace(
+            payload,
+            tags=["weekly-report", "api", "feature:health"],
+            output_payload=payload,
+            status="error",
+        )
+        return JSONResponse(payload, status_code=503)
 
 
 @app.post("/report/trigger")
+@observe_if_enabled(
+    name="weekly_report_api_trigger",
+    as_type="chain",
+    tags=["weekly-report", "api", "feature:report-trigger"],
+)
 def trigger_report() -> JSONResponse:
     """주간 리포트를 수동으로 즉시 실행한다.
 
@@ -42,6 +64,15 @@ def trigger_report() -> JSONResponse:
     channel = os.environ.get("DASHBOARD_WEEKLY_REPORT_CHANNEL", "").strip()
     comment = os.environ.get("DASHBOARD_WEEKLY_REPORT_COMMENT", "").strip() or None
     send_slack = bool(channel)
+    link_weekly_report_trace(
+        {},
+        tags=["weekly-report", "api", "feature:report-trigger"],
+        input_payload={"days": 7, "send_to_slack": send_slack, "render_pdf": True},
+        days=7,
+        send_to_slack=send_slack,
+        render_pdf=True,
+        channel=channel or None,
+    )
 
     try:
         result = report_module.run(
@@ -52,10 +83,28 @@ def trigger_report() -> JSONResponse:
             slack_comment=comment,
         )
     except Exception as exc:
-        return JSONResponse({"status": "error", "detail": str(exc)}, status_code=500)
+        payload = {"status": "error", "detail": str(exc)}
+        link_weekly_report_trace(
+            payload,
+            tags=["weekly-report", "api", "feature:report-trigger"],
+            output_payload=payload,
+            status="error",
+            channel=channel or None,
+        )
+        return JSONResponse(payload, status_code=500)
 
-    return JSONResponse({
+    payload = {
         "status": "ok",
         "pdf_bytes": len(result["pdf_bytes"] or b""),
         "slack_sent": result["slack_result"] is not None,
-    })
+    }
+    link_weekly_report_trace(
+        payload,
+        tags=["weekly-report", "api", "feature:report-trigger"],
+        output_payload=payload,
+        status="ok",
+        channel=channel or None,
+        pdf_rendered=bool(result["pdf_bytes"]),
+        slack_sent=result["slack_result"] is not None,
+    )
+    return JSONResponse(payload)

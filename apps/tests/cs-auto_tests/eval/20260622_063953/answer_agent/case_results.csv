@@ -1,0 +1,554 @@
+﻿ticket_id,title,routing_target,category,expected_query_type,actual_query_type,router_match,router_reason,router_error,fixed_sql_ok,fixed_sql_row_count,fixed_sql_evidence_count,fixed_sql_error,text_to_sql_ok,text_to_sql_row_count,text_to_sql_evidence_count,text_to_sql_error,chosen_path_ok,chosen_path_row_count,chosen_path_evidence_count,chosen_path_error,gold_doc_total,gold_doc_verified_count,gold_chunk_verified_count,all_gold_document_ids_exist,all_gold_chunk_ids_exist,missing_gold_document_ids,missing_gold_chunk_ids,document_eval_ok,document_query_text,document_retrieval_query,document_result_count,document_gold_chunk_hit,document_gold_document_hit,matched_gold_chunk_ids,matched_gold_document_ids,document_error,question,fixed_sql_sql,text_to_sql_sql
+11,사전 예약 홈페이지 커뮤니티/친구 초대 이벤트 설명 오류 ​ 커뮤니티 가입 달성 보상에는 유튜브 구독 1만...,doc_only,bug,,,,,,,,,,,,,,,,,,3,1,3,True,True,,,True,"사전 예약 홈페이지 커뮤니티/친구 초대 이벤트 설명 오류
+​
+커뮤니티 가입 달성 보상에는 유튜브 구독 1만 돌파시 만남의 인연*2 보상이 적혀 있지만
+이벤트 설명에는 구독자 수 10만이라고 적혀 있어 어느 쪽이 맞는지 잘 모르겠습니다.
+​
+확인 하시면 수정 부탁드립니다.~!",커뮤니티 친구 초대 이벤트 유튜브 구독 보상 오류,5,False,False,,,,"사전 예약 홈페이지 커뮤니티/친구 초대 이벤트 설명 오류
+​
+커뮤니티 가입 달성 보상에는 유튜브 구독 1만 돌파시 만남의 인연*2 보상이 적혀 있지만
+이벤트 설명에는 구독자 수 10만이라고 적혀 있어 어느 쪽이 맞는지 잘 모르겠습니다.
+​
+확인 하시면 수정 부탁드립니다.~!",,
+247,실행 하면 미호요 로고 나오고 화이트 스크린 상태로 진행이 안됩니다. 설명대로 라이렉트 재설치 하였고 게임을...,doc_only,bug,,,,,,,,,,,,,,,,,,3,3,3,True,True,,,True,"실행 하면 미호요 로고 나오고 화이트 스크린 상태로 진행이 안됩니다.
+설명대로 라이렉트 재설치 하였고 게임을 완전히 삭제후 재설치 하여도 마찬가지로 PC로 실행이 안됩니다.
+어떻게 해결 해야 하나요?",미호요 로고 화이트 스크린 pc 실행 안됨,5,True,True,NVC-NOT-358::chunk::12|NVC-NOT-410::chunk::5|QNA-GSN-51::chunk::3,NVC-NOT-358|NVC-NOT-410|QNA-GSN-51,,"실행 하면 미호요 로고 나오고 화이트 스크린 상태로 진행이 안됩니다.
+설명대로 라이렉트 재설치 하였고 게임을 완전히 삭제후 재설치 하여도 마찬가지로 PC로 실행이 안됩니다.
+어떻게 해결 해야 하나요?",,
+245,"게임중 자꾸 타닥하고 모닥불타는소리, 스파크튀는소리같은게 납니다. 안에서 폰 망가지고 있는건 아닌지 걱정되네...",doc_only,bug,,,,,,,,,,,,,,,,,,3,3,3,True,True,,,True,"게임중 자꾸 타닥하고 모닥불타는소리, 스파크튀는소리같은게 납니다.
+안에서 폰 망가지고 있는건 아닌지 걱정되네요
+동일증상 있는 분들이 많은거 같은데 신속한 조치나 공지 바랍니다",게임중 자꾸 타닥하고 모닥불타는소리 스파크튀는소리같은게 납니다 안에서 망가지고 있는건 아닌지 걱정되네요 동일증상 있는 분들이 많은거 같은데,5,True,True,NVC-NOT-317::chunk::0|NVC-NOT-391::chunk::2,NVC-NOT-317|NVC-NOT-391,,"게임중 자꾸 타닥하고 모닥불타는소리, 스파크튀는소리같은게 납니다.
+안에서 폰 망가지고 있는건 아닌지 걱정되네요
+동일증상 있는 분들이 많은거 같은데 신속한 조치나 공지 바랍니다",,
+241,"갤럭시 노트10+ 사용중입니다. ​ 상단 스피커 & 정면 카메라 쪽에서 가끔씩 ""파지직""하면서 스파크 튀는듯...",doc_only,bug,,,,,,,,,,,,,,,,,,3,3,3,True,True,,,True,"갤럭시 노트10+ 사용중입니다.
+​
+상단 스피커 & 정면 카메라 쪽에서 가끔씩
+""파지직""하면서 스파크 튀는듯한 소리가 납니다.
+​
+그래픽을 저사양으로 설정해도 소리가 나고,
+​
+볼륨을 끄고 할때도 소리가 나는거 보면 스피커 소리는 아닌거같은데...
+​
+뭔가 문제가 있는거 같은데;;;;;
+​
+다른 유저들도 동일한 현상 나오고 있던데....
+​
+빨리 확인 및 조치 좀 해주세요
+​
+엄청 기대했던 기엠인데
+​
+불안해서 게임 안하고있습니다.....",갤럭시 노트10 사용중입니다 상단 스피커 정면 카메라 쪽에서 가끔씩 파지직 하면서 스파크 튀는듯한 소리가 납니다 그래픽을,5,True,True,NVC-NOT-166::chunk::4,NVC-NOT-166,,"갤럭시 노트10+ 사용중입니다.
+​
+상단 스피커 & 정면 카메라 쪽에서 가끔씩
+""파지직""하면서 스파크 튀는듯한 소리가 납니다.
+​
+그래픽을 저사양으로 설정해도 소리가 나고,
+​
+볼륨을 끄고 할때도 소리가 나는거 보면 스피커 소리는 아닌거같은데...
+​
+뭔가 문제가 있는거 같은데;;;;;
+​
+다른 유저들도 동일한 현상 나오고 있던데....
+​
+빨리 확인 및 조치 좀 해주세요
+​
+엄청 기대했던 기엠인데
+​
+불안해서 게임 안하고있습니다.....",,
+240,주기적 계속멈추고 두두두소리까지 폰터지겠네요..,doc_only,bug,,,,,,,,,,,,,,,,,,3,3,3,True,True,,,True,"주기적 계속멈추고 두두두소리까지
+폰터지겠네요..",주기적 계속멈추고 두두두소리까지 폰터지겠네요,5,False,False,,,,"주기적 계속멈추고 두두두소리까지
+폰터지겠네요..",,
+239,목표지역인 폭포수 언덕에서 도착하니 몹 3마리가 있었는데 2마리만 잡고 한마리는 잡다가 지가 절벽으로 떨어졌...,doc_only,bug,,,,,,,,,,,,,,,,,,3,1,3,True,True,,,True,"목표지역인 폭포수 언덕에서 도착하니 몹 3마리가 있었는데 2마리만 잡고 한마리는 잡다가 지가 절벽으로 떨어졌는데 제단에 얼음모양의 불이 3개 들어와야 되는데 2개만 들어오고 더이상 진행이 안되네요
+로그아웃해서 와도 똑같고 내려가서 떨어진 몹 수색해도 안되고
+확인 좀 부탁드립니다.",목표지역인 폭포수 언덕에서 도착하니 3마리가 있었는데 2마리만 잡고 한마리는 잡다가 지가 절벽으로 떨어졌는데 제단에 얼음모양의 불이,5,False,False,,,,"목표지역인 폭포수 언덕에서 도착하니 몹 3마리가 있었는데 2마리만 잡고 한마리는 잡다가 지가 절벽으로 떨어졌는데 제단에 얼음모양의 불이 3개 들어와야 되는데 2개만 들어오고 더이상 진행이 안되네요
+로그아웃해서 와도 똑같고 내려가서 떨어진 몹 수색해도 안되고
+확인 좀 부탁드립니다.",,
+238,공지만 누르면 이렇게 멈추네요 ​ 어제는 잘됐는데 지금 막하니까 안되네요 몇번했는데도 같은현상 반복임,doc_only,bug,,,,,,,,,,,,,,,,,,3,3,3,True,True,,,True,"공지만 누르면 이렇게 멈추네요
+​
+어제는 잘됐는데 지금 막하니까 안되네요 몇번했는데도 같은현상 반복임",공지만 누르면 이렇게 멈추네요 어제는 잘됐는데 지금 막하니까 안되네요 몇번했는데도 같은현상 반복임,5,False,False,,,,"공지만 누르면 이렇게 멈추네요
+​
+어제는 잘됐는데 지금 막하니까 안되네요 몇번했는데도 같은현상 반복임",,
+237,[와이러니 대청소] 라는 퀘스트인데 아델린에게 말걸고 저택에 들어가서 얼룩 있는 곳에 가도 상호작용할 수 있...,doc_only,bug,,,,,,,,,,,,,,,,,,3,2,3,True,True,,,True,[와이러니 대청소] 라는 퀘스트인데 아델린에게 말걸고 저택에 들어가서 얼룩 있는 곳에 가도 상호작용할 수 있는 방법이 없어서 진행이 안됩니다,와이러니 대청소 라는 퀘스트인데 아델린에게 말걸고 저택에 들어가서 얼룩 있는 곳에 가도 상호작용할 방법이 없어서 진행이,5,True,True,QNA-GSN-16::chunk::0|QNA-GSN-18::chunk::3,QNA-GSN-16|QNA-GSN-18,,[와이러니 대청소] 라는 퀘스트인데 아델린에게 말걸고 저택에 들어가서 얼룩 있는 곳에 가도 상호작용할 수 있는 방법이 없어서 진행이 안됩니다,,
+235,pc 버전에서 패드로 플레이하다가 게임 껏다키면 다시 키보드가 기본이던데 이거 설정 저장되게 바꿔주시던가 키...,doc_only,bug,,,,,,,,,,,,,,,,,,3,3,3,True,True,,,True,"pc 버전에서 패드로 플레이하다가 게임 껏다키면 다시 키보드가 기본이던데
+이거 설정 저장되게 바꿔주시던가 키보드랑 패드 동시로 가능하게좀 해줘요",pc 버전에서 패드로 플레이하다가 게임 껏다키면 다시 키보드가 기본이던데 이거 설정 저장되게 바꿔주시던가 키보드랑 패드 동시로,5,True,True,NVC-NOT-410::chunk::13|QNA-COM-29::chunk::0|QNA-GSN-12::chunk::0,NVC-NOT-410|QNA-COM-29|QNA-GSN-12,,"pc 버전에서 패드로 플레이하다가 게임 껏다키면 다시 키보드가 기본이던데
+이거 설정 저장되게 바꿔주시던가 키보드랑 패드 동시로 가능하게좀 해줘요",,
+234,기종은 아이폰 7이고 어제 오픈하자마자 들어갈려고 하는데 실행하면 자꾸 사진처럼 저렇게 뜨고 그냥 꺼짐 어떻...,doc_only,bug,,,,,,,,,,,,,,,,,,3,3,3,True,True,,,True,기종은 아이폰 7이고 어제 오픈하자마자 들어갈려고 하는데 실행하면 자꾸 사진처럼 저렇게 뜨고 그냥 꺼짐  어떻게 고쳐야해여,기종은 아이폰 7이고 어제 오픈하자마자 들어갈려고 하는데 실행하면 자꾸 사진처럼 저렇게 뜨고 그냥 꺼짐 어떻게 고쳐야해여,5,False,False,,,,기종은 아이폰 7이고 어제 오픈하자마자 들어갈려고 하는데 실행하면 자꾸 사진처럼 저렇게 뜨고 그냥 꺼짐  어떻게 고쳐야해여,,
+233,인게임 패치는 완료 했습니다. 서버 접속 후 마지막접속 관문에서 터치하면 서버연결실패 창이 뜹니다.. 모바일...,doc_only,bug,,,,,,,,,,,,,,,,,,3,2,3,True,True,,,True,"인게임 패치는 완료 했습니다.
+서버 접속 후 마지막접속 관문에서
+터치하면 서버연결실패 창이 뜹니다..
+모바일 이고 기종은 아이폰SE2 입니다.
+어느정도 검색 해보니 인터넷 문제라 하는데
+해외유저라 인터넷이 빠르진 못 하고 와이파이도
+없어요, 서버는 모든서버 전부 시도 해봤습니다.
+​
+해결 방안 없을까요?",인게임 패치는 완료 했습니다 서버 접속 마지막접속 관문에서 터치하면 서버연결실패 창이 뜹니다 모바일 이고 기종은 아이폰se2,5,True,True,QNA-GSN-51::chunk::1,QNA-GSN-51,,"인게임 패치는 완료 했습니다.
+서버 접속 후 마지막접속 관문에서
+터치하면 서버연결실패 창이 뜹니다..
+모바일 이고 기종은 아이폰SE2 입니다.
+어느정도 검색 해보니 인터넷 문제라 하는데
+해외유저라 인터넷이 빠르진 못 하고 와이파이도
+없어요, 서버는 모든서버 전부 시도 해봤습니다.
+​
+해결 방안 없을까요?",,
+229,하늘로 부웅 띄워져서 우주로갈듯(수정)그래도 밑으로 떨어지고는 있는중 ㅡㅡ 추가) 몬스터랑 싸우다 서로 우주...,doc_only,bug,,,,,,,,,,,,,,,,,,3,2,3,True,True,,,True,"하늘로 부웅 띄워져서 우주로갈듯(수정)그래도 밑으로 떨어지고는 있는중 ㅡㅡ
+추가) 몬스터랑 싸우다 서로 우주로 날아간건지 주변몬스터 다 제거했는데도 이거 안풀려있음...ㅡㅡ",하늘로 부웅 띄워져서 우주로갈듯 수정 그래도 밑으로 떨어지고는 있는중 추가 몬스터랑 싸우다 서로 우주로 날아간건지 주변몬스터,5,True,True,NVC-NOT-234::chunk::41|NVC-NOT-367::chunk::11|NVC-NOT-367::chunk::20,NVC-NOT-234|NVC-NOT-367,,"하늘로 부웅 띄워져서 우주로갈듯(수정)그래도 밑으로 떨어지고는 있는중 ㅡㅡ
+추가) 몬스터랑 싸우다 서로 우주로 날아간건지 주변몬스터 다 제거했는데도 이거 안풀려있음...ㅡㅡ",,
+227,"노트10+ 입니다, 간헐적으로 게임 진행 중 멈춤 및 종료현상이 발생됩니다. 체크 부탁드립니다.",doc_only,bug,,,,,,,,,,,,,,,,,,3,3,3,True,True,,,True,"노트10+ 입니다,
+간헐적으로 게임 진행 중 멈춤 및 종료현상이 발생됩니다.
+체크 부탁드립니다.",노트10 게임 멈춤 종료현상,5,True,True,QNA-COM-29::chunk::0|QNA-GSN-26::chunk::0|QNA-GSN-40::chunk::3,QNA-COM-29|QNA-GSN-26|QNA-GSN-40,,"노트10+ 입니다,
+간헐적으로 게임 진행 중 멈춤 및 종료현상이 발생됩니다.
+체크 부탁드립니다.",,
+226,성우 음성이 왜 치지직 거리면서 계속 깨지는지 모르겠네요. 업데이트 부탁드립니다.,doc_only,bug,,,,,,,,,,,,,,,,,,3,3,3,True,True,,,True,"성우 음성이 왜 치지직 거리면서 계속 깨지는지 모르겠네요.
+업데이트 부탁드립니다.",성우 음성 치지직 깨짐,5,False,False,,,,"성우 음성이 왜 치지직 거리면서 계속 깨지는지 모르겠네요.
+업데이트 부탁드립니다.",,
+225,이거 대체 어떻게 해결 해야됩니까.. ​ 재접해도 안되는데ㅡㅡ .. 다시 깔아야되나요ㅠㅠ ​,doc_only,bug,,,,,,,,,,,,,,,,,,3,1,3,True,True,,,True,"이거 대체 어떻게 해결 해야됩니까..
+​
+재접해도 안되는데ㅡㅡ ..
+다시 깔아야되나요ㅠㅠ
+​",이거 대체 어떻게 해결 해야됩니까 재접해도 안되는데 다시 깔아야되나요,5,False,False,,,,"이거 대체 어떻게 해결 해야됩니까..
+​
+재접해도 안되는데ㅡㅡ ..
+다시 깔아야되나요ㅠㅠ
+​",,
+224,리세하다가 땅속에쳐박히는버그는 뭐냐,doc_only,bug,,,,,,,,,,,,,,,,,,3,1,3,True,True,,,True,리세하다가 땅속에쳐박히는버그는 뭐냐,리세하다가 땅속에쳐박히는버그는 뭐냐,5,True,True,QNA-GSN-51::chunk::2|QNA-GSN-51::chunk::3,QNA-GSN-51,,리세하다가 땅속에쳐박히는버그는 뭐냐,,
+223,안녕하세요 운영자님 듀얼모니터로 원신을 플레이하면 마우스 커서가 오른쪽 모니터로 넘어가져서 어떻게 해야 할지...,doc_only,bug,,,,,,,,,,,,,,,,,,3,3,3,True,True,,,True,"안녕하세요 운영자님
+듀얼모니터로 원신을 플레이하면 마우스 커서가 오른쪽 모니터로 넘어가져서 어떻게 해야 할지 모르겠습니다.
+전체화면으로 설정해놓고, 플레이를 해도 이와 같은 현상이 발생하네요.
+​
+해결방안을 알려주시면 감사하겠습니다.",안녕하세요 운영자님 듀얼모니터로 원신을 플레이하면 마우스 커서가 오른쪽 모니터로 넘어가져서 어떻게 해야 할지 모르겠습니다 전체화면으로 설정해놓고,5,True,True,QNA-COM-4::chunk::0|QNA-COM-5::chunk::0,QNA-COM-4|QNA-COM-5,,"안녕하세요 운영자님
+듀얼모니터로 원신을 플레이하면 마우스 커서가 오른쪽 모니터로 넘어가져서 어떻게 해야 할지 모르겠습니다.
+전체화면으로 설정해놓고, 플레이를 해도 이와 같은 현상이 발생하네요.
+​
+해결방안을 알려주시면 감사하겠습니다.",,
+222,PC버전 설정에서 패드조작으로 바꾸면 그대로 조작 먹통 패드에 불 잘들어오고 가운데 엑박버튼 누르면 반응하기...,doc_only,bug,,,,,,,,,,,,,,,,,,3,2,3,True,True,,,True,"PC버전
+설정에서 패드조작으로 바꾸면 그대로 조작 먹통
+패드에 불 잘들어오고 가운데 엑박버튼 누르면 반응하기 때문에
+패드문제는 아님
+스팀게임할 때도 패드 잘됨
+원신만 안됨
+​
++윈도우10 임",pc버전 설정에서 패드조작으로 바꾸면 그대로 조작 먹통 패드에 잘들어오고 가운데 엑박버튼 누르면 반응하기 때문에 패드문제는 아님,5,True,True,NVC-NOT-410::chunk::13,NVC-NOT-410,,"PC버전
+설정에서 패드조작으로 바꾸면 그대로 조작 먹통
+패드에 불 잘들어오고 가운데 엑박버튼 누르면 반응하기 때문에
+패드문제는 아님
+스팀게임할 때도 패드 잘됨
+원신만 안됨
+​
++윈도우10 임",,
+221,런처에서 실행 누르면 화면 뜨기가 무섭게 바로 꺼져요. ​ 내장그래픽 사용불가 하게 했고 vcredist20...,doc_only,bug,,,,,,,,,,,,,,,,,,3,3,3,True,True,,,True,"런처에서 실행 누르면 화면 뜨기가 무섭게 바로 꺼져요.
+​
+내장그래픽 사용불가 하게 했고
+vcredist2013_x64도 깔았고
+백신도 다껐는데
+​
+안됩니다.",런처 실행 바로 꺼짐 내장그래픽 사용불가 vcredist2013_x64 설치,5,True,True,NVC-NOT-19::chunk::0,NVC-NOT-19,,"런처에서 실행 누르면 화면 뜨기가 무섭게 바로 꺼져요.
+​
+내장그래픽 사용불가 하게 했고
+vcredist2013_x64도 깔았고
+백신도 다껐는데
+​
+안됩니다.",,
+219,안녕하세요 원신 PC 버전 사용 중에 있습니다. Windows 10 pro 버전 사용 중이구요 원신 런처까지...,doc_only,bug,,,,,,,,,,,,,,,,,,3,1,3,True,True,,,True,"안녕하세요
+원신 PC 버전 사용 중에 있습니다.
+Windows 10 pro 버전 사용 중이구요
+원신 런처까지는 잘 켜지는데
+게임 실행 버튼 누르면 아무런 반응이 없이
+게임 실행이 되지 않습니다.
+작업 관리자에서 프로세스 올라오는 것도 없구요
+게임 설치된 폴더에서
+Genshin Impact.exe
+파일을 바로 실행시켜보아도
+아무런 반응이 없네요.
+완전 재설치하면 되기는 하는데
+한 번 클라이언트 꺼지면
+또 같은 현상이 반복됩니다.
+문제 확인 부탁드립니다,.",안녕하세요 원신 pc 버전 사용 중에 있습니다 windows 10 pro 중이구요 런처까지는 켜지는데 게임 실행 버튼,5,True,True,NVC-NOT-358::chunk::0|NVC-NOT-358::chunk::12|NVC-NOT-358::chunk::14,NVC-NOT-358,,"안녕하세요
+원신 PC 버전 사용 중에 있습니다.
+Windows 10 pro 버전 사용 중이구요
+원신 런처까지는 잘 켜지는데
+게임 실행 버튼 누르면 아무런 반응이 없이
+게임 실행이 되지 않습니다.
+작업 관리자에서 프로세스 올라오는 것도 없구요
+게임 설치된 폴더에서
+Genshin Impact.exe
+파일을 바로 실행시켜보아도
+아무런 반응이 없네요.
+완전 재설치하면 되기는 하는데
+한 번 클라이언트 꺼지면
+또 같은 현상이 반복됩니다.
+문제 확인 부탁드립니다,.",,
+218,아시아 서버선택후 캐릭터 선택후 실명인증하라는 설명이 나오고 타이틀 화면으로 가집니다. 다른 사람들은 따로...,doc_only,account,,,,,,,,,,,,,,,,,,3,2,3,True,True,,,True,"아시아 서버선택후 캐릭터 선택후 실명인증하라는 설명이 나오고 타이틀 화면으로 가집니다.
+다른 사람들은 따로 팝업창이 뜬다는데 저는 팝업창없이 그냥 타이틀화면만 가지고 뜨는게 없네요.
+​
+다시 들어가보면 계속 실명인증하라고 반복되고요. 무슨 설정의 문제인가요? 저만있는건 아닌거같은데",아시아 서버선택후 캐릭터 선택후 실명인증하라는 설명이 나오고 타이틀 화면으로 가집니다 다른 사람들은 따로 팝업창이 뜬다는데 저는,5,False,False,,,,"아시아 서버선택후 캐릭터 선택후 실명인증하라는 설명이 나오고 타이틀 화면으로 가집니다.
+다른 사람들은 따로 팝업창이 뜬다는데 저는 팝업창없이 그냥 타이틀화면만 가지고 뜨는게 없네요.
+​
+다시 들어가보면 계속 실명인증하라고 반복되고요. 무슨 설정의 문제인가요? 저만있는건 아닌거같은데",,
+217,캐릭터 소환하다 중복캐릭터가 뽑혔는데 오른쪽 밑 중복재료이름이 중국어로 표기되네요,doc_only,bug,,,,,,,,,,,,,,,,,,3,3,3,True,True,,,True,캐릭터 소환하다 중복캐릭터가 뽑혔는데 오른쪽 밑 중복재료이름이 중국어로 표기되네요,캐릭터 소환하다 중복캐릭터가 뽑혔는데 오른쪽 중복재료이름이 중국어로 표기되네요,5,False,False,,,,캐릭터 소환하다 중복캐릭터가 뽑혔는데 오른쪽 밑 중복재료이름이 중국어로 표기되네요,,
+215,유독 팅기는 구간이 있는거 같네요..,doc_only,bug,,,,,,,,,,,,,,,,,,3,3,3,True,True,,,True,유독 팅기는 구간이 있는거 같네요..,유독 팅기는 구간,5,False,True,,QNA-GSN-43,,유독 팅기는 구간이 있는거 같네요..,,
+249,탈퇴는 안된다고 들었는데 연동해제 방법 좀 알려주세요. ​ ​ 네이버 메일 계정 하나랑 구글 메일 계정 하나...,DB_only,account,fixed_sql,fixed_sql,True,Default query type for category 'account',,True,1,1,,True,0,0,,True,1,1,,,,,,,,,,,,,,,,,,"탈퇴는 안된다고 들었는데
+연동해제 방법 좀 알려주세요.
+​
+​
+네이버 메일 계정 하나랑
+구글 메일 계정 하나입니다.","SELECT
+  account_id,
+  user_id,
+  game_name,
+  uid,
+  server_region,
+  account_status
+FROM game_accounts
+WHERE account_id = %s
+LIMIT %s","SELECT game_accounts.account_id, game_accounts.user_id, game_accounts.account_status, qa_ticket.ticket_id, qa_ticket.raw_query FROM game_accounts JOIN qa_ticket ON game_accounts.account_id = qa_ticket.account_id WHERE game_accounts.account_id = %s AND qa_ticket.raw_query LIKE %s LIMIT %s"
+248,어제 접속후 인연10개 뽑기할려고 리세계정을 들어갔는데 계정오류라고 뜹니다 혹시나 다른계정도 그런가해서 들어...,DB_only,account,fixed_sql,fixed_sql,True,Default query type for category 'account',,True,1,1,,True,1,1,,True,1,1,,,,,,,,,,,,,,,,,,어제 접속후 인연10개 뽑기할려고 리세계정을 들어갔는데 계정오류라고 뜹니다 혹시나 다른계정도 그런가해서 들어가보니 총 2개의 계정에서 계정오류가 뜨네요 어떻게 해야하나요?,"SELECT
+  account_id,
+  user_id,
+  game_name,
+  uid,
+  server_region,
+  account_status
+FROM game_accounts
+WHERE account_id = %s
+LIMIT %s","SELECT game_accounts.account_id, game_accounts.account_status, qa_ticket.ticket_id FROM game_accounts JOIN qa_ticket ON game_accounts.account_id = qa_ticket.account_id WHERE game_accounts.account_id = %s AND qa_ticket.ticket_id = %s LIMIT %s"
+242,상호작용하는 정령 한마리가 없어져서 안열립니다 확인해주세요 4마리다 나온거 확인했습니다 UID 8005969...,DB_only,bug,fixed_sql,fixed_sql,True,DB lookup disabled for category: bug,,False,0,0,,False,0,0,,False,0,0,,,,,,,,,,,,,,,,,,"상호작용하는 정령 한마리가 없어져서 안열립니다 확인해주세요
+4마리다 나온거 확인했습니다
+UID 800596941
+로또1등",,
+232,​ 아니 결제한내역도 있는데 ​ 왜 계정에 데이터가 사라져있음?,DB_only,account,fixed_sql,fixed_sql,True,Default query type for category 'account',,True,1,1,,True,0,0,,True,1,1,,,,,,,,,,,,,,,,,,"​
+아니 결제한내역도 있는데
+​
+왜 계정에 데이터가 사라져있음?","SELECT
+  account_id,
+  user_id,
+  game_name,
+  uid,
+  server_region,
+  account_status
+FROM game_accounts
+WHERE account_id = %s
+LIMIT %s","SELECT game_accounts.account_id, game_accounts.user_id, game_accounts.account_status, payments.payment_id, payments.product_name, payments.amount, payments.payment_status, payments.paid_at FROM game_accounts JOIN payments ON game_accounts.account_id = payments.account_id WHERE game_accounts.account_id = %s AND payments.payment_status = %s LIMIT %s"
+231,페북 연동까지 해놨는데 로그아웃했다고 안에있는 데이터가 싹날라가뿟네 ㅋㅋ,DB_only,account,fixed_sql,fixed_sql,True,Default query type for category 'account',,True,1,1,,True,1,1,,True,1,1,,,,,,,,,,,,,,,,,,페북 연동까지 해놨는데 로그아웃했다고 안에있는 데이터가 싹날라가뿟네 ㅋㅋ,"SELECT
+  account_id,
+  user_id,
+  game_name,
+  uid,
+  server_region,
+  account_status
+FROM game_accounts
+WHERE account_id = %s
+LIMIT %s","SELECT game_accounts.account_id, game_accounts.user_id, game_accounts.account_status, qa_ticket.ticket_id, qa_ticket.raw_query FROM game_accounts JOIN qa_ticket ON game_accounts.account_id = qa_ticket.account_id WHERE game_accounts.account_id = %s AND qa_ticket.raw_query LIKE %s LIMIT %s"
+230,페북 연동까지해놨는데 그냥 강제로 데이터 삭제해버리네 ㅋㅋ,DB_only,account,fixed_sql,fixed_sql,True,Default query type for category 'account',,True,1,1,,True,1,1,,True,1,1,,,,,,,,,,,,,,,,,,페북 연동까지해놨는데 그냥 강제로 데이터 삭제해버리네 ㅋㅋ,"SELECT
+  account_id,
+  user_id,
+  game_name,
+  uid,
+  server_region,
+  account_status
+FROM game_accounts
+WHERE account_id = %s
+LIMIT %s","SELECT game_accounts.account_id, game_accounts.user_id, game_accounts.account_status, qa_ticket.ticket_id, qa_ticket.raw_query FROM game_accounts JOIN qa_ticket ON game_accounts.account_id = qa_ticket.account_id WHERE game_accounts.account_id = %s AND qa_ticket.raw_query LIKE %s LIMIT %s"
+209,미요호 계정만들어서 연동시키려니 안되는데... 구글계정좀 탈퇴하게 해주세요 연동좀 하게,DB_only,account,fixed_sql,fixed_sql,True,Default query type for category 'account',,True,1,1,,True,1,1,,True,1,1,,,,,,,,,,,,,,,,,,"미요호 계정만들어서 연동시키려니 안되는데...
+구글계정좀 탈퇴하게 해주세요 연동좀 하게","SELECT
+  account_id,
+  user_id,
+  game_name,
+  uid,
+  server_region,
+  account_status
+FROM game_accounts
+WHERE account_id = %s
+LIMIT %s","SELECT game_accounts.account_id, game_accounts.user_id, game_accounts.account_status, qa_ticket.ticket_id, qa_ticket.raw_query FROM game_accounts JOIN qa_ticket ON game_accounts.account_id = qa_ticket.account_id WHERE game_accounts.account_id = %s AND qa_ticket.raw_query LIKE %s AND qa_ticket.raw_query LIKE %s LIMIT %s"
+205,pc버젼으로 게임을 할려고 하는데 실명인중이 안되네여 ​,DB_only,account,fixed_sql,fixed_sql,True,Default query type for category 'account',,True,1,1,,True,1,1,,True,1,1,,,,,,,,,,,,,,,,,,"pc버젼으로 게임을 할려고 하는데
+실명인중이 안되네여
+​","SELECT
+  account_id,
+  user_id,
+  game_name,
+  uid,
+  server_region,
+  account_status
+FROM game_accounts
+WHERE account_id = %s
+LIMIT %s",SELECT game_accounts.account_status FROM game_accounts JOIN qa_ticket ON game_accounts.account_id = qa_ticket.account_id WHERE game_accounts.account_id = %s AND qa_ticket.ticket_id = %s LIMIT %s
+191,상호작용하는 정령 한마리가 없어져서 안열립니다 확인해주세요 4마리다 나온거 확인했습니다 UID 8005969...,DB_only,bug,fixed_sql,fixed_sql,True,DB lookup disabled for category: bug,,False,0,0,,False,0,0,,False,0,0,,,,,,,,,,,,,,,,,,"상호작용하는 정령 한마리가 없어져서 안열립니다 확인해주세요
+4마리다 나온거 확인했습니다
+UID 800596941
+로또1등",,
+182,제목 그대로 아이디 만들려고 하는데.. 인증 이메일이 안오네요.. 5계정 돌렸는데도 안오고 있습니다. 확인...,DB_only,account,fixed_sql,fixed_sql,True,Default query type for category 'account',,True,1,1,,True,2,2,,True,1,1,,,,,,,,,,,,,,,,,,"제목 그대로 아이디 만들려고 하는데..
+인증 이메일이 안오네요.. 5계정 돌렸는데도 안오고 있습니다.
+확인 부탁드립니다.","SELECT
+  account_id,
+  user_id,
+  game_name,
+  uid,
+  server_region,
+  account_status
+FROM game_accounts
+WHERE account_id = %s
+LIMIT %s","SELECT ticket_id, account_id, user_id, title, raw_query, status, inquiry_created_at FROM qa_ticket WHERE title ILIKE %s ORDER BY inquiry_created_at DESC LIMIT %s"
+171,"제가 구글 아이디가 여러개가 저장되어 있습니다. 그 중에 하나만 쓰는데, (편의상 가입한 아이디를 A라고 칭...",DB_only,account,fixed_sql,fixed_sql,True,Default query type for category 'account',,True,1,1,,True,1,1,,True,1,1,,,,,,,,,,,,,,,,,,"제가 구글 아이디가 여러개가 저장되어 있습니다.
+그 중에 하나만 쓰는데,
+(편의상 가입한 아이디를 A라고 칭하겠습니다)
+가입한 아이디가 아니라, 휴대폰에 저장된 다른 아이디로 결제창이 뜹니다.
+계정 들어가보면 가입했던 구글아이디 멀쩡하게 뜨고요.
+제가 뭘 잘못건드린건지, 버그나 오류인지 모르겠지만 해결법이 있을까요","SELECT
+  account_id,
+  user_id,
+  game_name,
+  uid,
+  server_region,
+  account_status
+FROM game_accounts
+WHERE account_id = %s
+LIMIT %s","SELECT game_accounts.account_id, game_accounts.user_id, game_accounts.uid, game_accounts.account_status, qa_ticket.ticket_id, qa_ticket.raw_query FROM game_accounts JOIN qa_ticket ON game_accounts.account_id = qa_ticket.account_id WHERE game_accounts.account_id = %s AND qa_ticket.ticket_id = %s LIMIT %s"
+164,계정 탈퇴 칸이 없네요? 연동 해제하려면 아이디를 무조건 연동시켜야 하고요,DB_only,account,fixed_sql,fixed_sql,True,Default query type for category 'account',,True,1,1,,True,10,10,,True,1,1,,,,,,,,,,,,,,,,,,계정 탈퇴 칸이 없네요? 연동 해제하려면 아이디를 무조건 연동시켜야 하고요,"SELECT
+  account_id,
+  user_id,
+  game_name,
+  uid,
+  server_region,
+  account_status
+FROM game_accounts
+WHERE account_id = %s
+LIMIT %s","SELECT account_id, account_status FROM game_accounts WHERE account_status = %s LIMIT %s"
+143,비밀번호가 두번 눌러야 쳐져요... 그렇게 해서 로그인해도 안되고 그냥 비밀번호 적고 복사해서 붙어 넣어야...,DB_only,account,fixed_sql,fixed_sql,True,Default query type for category 'account',,True,1,1,,True,1,1,,True,1,1,,,,,,,,,,,,,,,,,,"비밀번호가 두번 눌러야 쳐져요...
+그렇게 해서 로그인해도 안되고
+그냥 비밀번호 적고 복사해서 붙어 넣어야 되네요;;;
+​
+좀 황당함
+​","SELECT
+  account_id,
+  user_id,
+  game_name,
+  uid,
+  server_region,
+  account_status
+FROM game_accounts
+WHERE account_id = %s
+LIMIT %s","SELECT qa_ticket.ticket_id, qa_ticket.account_id, qa_ticket.user_id, qa_ticket.raw_query, game_accounts.account_status FROM qa_ticket JOIN game_accounts ON qa_ticket.account_id = game_accounts.account_id WHERE qa_ticket.account_id = %s AND qa_ticket.raw_query LIKE %s AND qa_ticket.raw_query LIKE %s LIMIT %s"
+141,"PC에서 하던 계정을 PS4에서 이어서 하고 싶은데, 어떻게 해야하나요? PS4로 게임 시작하면 PSN아이디...",DB_only,account,fixed_sql,fixed_sql,True,Default query type for category 'account',,True,1,1,,True,1,1,,True,1,1,,,,,,,,,,,,,,,,,,"PC에서 하던 계정을 PS4에서 이어서 하고 싶은데,
+어떻게 해야하나요?
+PS4로 게임 시작하면 PSN아이디로 게임이 시작되던데.","SELECT
+  account_id,
+  user_id,
+  game_name,
+  uid,
+  server_region,
+  account_status
+FROM game_accounts
+WHERE account_id = %s
+LIMIT %s","SELECT game_accounts.account_id, game_accounts.user_id, game_accounts.game_name, game_accounts.uid, game_accounts.server_region, game_accounts.account_status FROM game_accounts JOIN qa_ticket ON game_accounts.account_id = qa_ticket.account_id WHERE game_accounts.account_id = %s AND qa_ticket.ticket_id = %s LIMIT %s"
+111,아닝 2시간정도하다가 튕겨서 다시들어갓는데 막 다른세계로왔다하네???? 초기화됐네??? 게임이른그대로 입력되...,DB_only,account,fixed_sql,fixed_sql,True,Default query type for category 'account',,True,1,1,,True,1,1,,True,1,1,,,,,,,,,,,,,,,,,,아닝 2시간정도하다가 튕겨서 다시들어갓는데 막 다른세계로왔다하네???? 초기화됐네??? 게임이른그대로 입력되네???? 이게뭐꼬,"SELECT
+  account_id,
+  user_id,
+  game_name,
+  uid,
+  server_region,
+  account_status
+FROM game_accounts
+WHERE account_id = %s
+LIMIT %s","SELECT game_accounts.account_id, game_accounts.user_id, game_accounts.game_name, game_accounts.server_region, game_accounts.account_status FROM game_accounts JOIN qa_ticket ON game_accounts.account_id = qa_ticket.account_id WHERE game_accounts.account_id = %s AND qa_ticket.ticket_id = %s LIMIT %s"
+250,제 계정이 원신 모바일은 엔으로 환산되고 피시는 원인데 엔을 원으로 바꿀수는 없는건가요? ​ 둘다 같은 계정...,DB&DOC,payment,text_to_sql,text_to_sql,True,Default query type for category 'payment',,True,9,9,,True,9,9,,True,9,9,,3,3,3,True,True,,,True,"제 계정이 원신 모바일은 엔으로 환산되고 피시는 원인데 엔을  원으로 바꿀수는 없는건가요?
+​
+둘다 같은 계정을 사용줌입니다 피시로 결제할려해도 해당계정을 가입한 기기로 결제를 해주세요 라고 뜨네요
+​
+​",계정이 원신 모바일은 엔으로 환산되고 피시는 원인데 엔을 원으로 바꿀수는 없는건가요 둘다 같은 계정을 사용줌입니다 피시로,5,False,False,,,,"제 계정이 원신 모바일은 엔으로 환산되고 피시는 원인데 엔을  원으로 바꿀수는 없는건가요?
+​
+둘다 같은 계정을 사용줌입니다 피시로 결제할려해도 해당계정을 가입한 기기로 결제를 해주세요 라고 뜨네요
+​
+​","SELECT
+  payment_id,
+  account_id,
+  product_name,
+  product_type,
+  amount,
+  currency,
+  payment_method,
+  payment_status,
+  transaction_id,
+  paid_at
+FROM payments
+WHERE account_id = %s
+ORDER BY paid_at DESC NULLS LAST, payment_id DESC
+LIMIT %s","SELECT payments.payment_id, payments.currency, payments.payment_method, payments.payment_status, game_accounts.account_id, game_accounts.user_id FROM payments JOIN game_accounts ON payments.account_id = game_accounts.account_id JOIN qa_ticket ON game_accounts.account_id = qa_ticket.account_id WHERE payments.account_id = %s AND qa_ticket.ticket_id = %s LIMIT %s"
+220,기원을 까는도중 화면이 멈추면서 블루스크린이 떴는데 재접속 해보니 뽑기에 사용한 뒤얽힌 인연은 사라져 있고...,DB&DOC,bug,fixed_sql,fixed_sql,True,DB lookup disabled for category: bug,,False,0,0,,False,0,0,,False,0,0,,3,3,3,True,True,,,True,기원을 까는도중 화면이 멈추면서 블루스크린이 떴는데 재접속 해보니 뽑기에 사용한 뒤얽힌 인연은 사라져 있고 뽑기기록또한 없고 나온 캐릭터도 없습니다. 해결 부탁드려요,기원을 까는도중 화면이 멈추면서 블루스크린이 떴는데 재접속 해보니 뽑기에 사용한 뒤얽힌 인연은 사라져 있고 뽑기기록또한 없고,5,True,True,QNA-GSN-17::chunk::0,QNA-GSN-17|QNA-GSN-27,,기원을 까는도중 화면이 멈추면서 블루스크린이 떴는데 재접속 해보니 뽑기에 사용한 뒤얽힌 인연은 사라져 있고 뽑기기록또한 없고 나온 캐릭터도 없습니다. 해결 부탁드려요,,
+192,이후 백신꺼봐라고 해서 백신 끄니까 겜 실행되었습니다 그리고 종료했다가 컴퓨터 켰더니 다 안됩니다 ​ 고객센...,DB&DOC,bug,text_to_sql,fixed_sql,False,DB lookup disabled for category: bug,,False,0,0,,False,0,0,,False,0,0,,3,1,3,True,True,,,True,"이후 백신꺼봐라고 해서 백신 끄니까 겜 실행되었습니다 그리고 종료했다가
+컴퓨터 켰더니 다 안됩니다
+​
+고객센터 전화하면 환불+피해보상 받아야하는거 아닌가요?
+컴퓨터 새로 깔고 다시 셋팅중입니다",이후 백신꺼봐라고 해서 백신 끄니까 실행되었습니다 그리고 종료했다가 컴퓨터 켰더니 안됩니다 고객센터 전화하면 환불 피해보상 받아야하는거,5,False,False,,,,"이후 백신꺼봐라고 해서 백신 끄니까 겜 실행되었습니다 그리고 종료했다가
+컴퓨터 켰더니 다 안됩니다
+​
+고객센터 전화하면 환불+피해보상 받아야하는거 아닌가요?
+컴퓨터 새로 깔고 다시 셋팅중입니다",,
+179,"구글에서 해당 게임 보안으로 찾아보니까, 계정 간 보안으로 보호되고 있더라! 보통 이정도면 게임이 영 좋지...",DB&DOC,account,fixed_sql,fixed_sql,True,Default query type for category 'account',,True,1,1,,True,10,10,,True,1,1,,3,3,3,True,True,,,True,"구글에서 해당 게임 보안으로 찾아보니까,  계정 간 보안으로 보호되고 있더라! 보통 이정도면 게임이 영 좋지 못할 때 이런 짓 하거든? 그, 구글과 싸우는 에픽 게임즈만 봐도, 저 계정 간 보안은 없다..
+​
+PS : 누가 선동을 했다고 해서 화내지마라. 그놈들도 게임을 좋아하는 너희들의 소비자들이다. 이들이 너희 게임을 더 사주기 위해서는 철저히 조사해라...
+​",구글에서 해당 게임 보안으로 찾아보니까 계정 보호되고 있더라 보통 이정도면 게임이 좋지 못할 이런 하거든 구글과,5,True,True,QNA-COM-12::chunk::0|QNA-COM-23::chunk::0|QNA-COM-24::chunk::0,QNA-COM-12|QNA-COM-23|QNA-COM-24,,"구글에서 해당 게임 보안으로 찾아보니까,  계정 간 보안으로 보호되고 있더라! 보통 이정도면 게임이 영 좋지 못할 때 이런 짓 하거든? 그, 구글과 싸우는 에픽 게임즈만 봐도, 저 계정 간 보안은 없다..
+​
+PS : 누가 선동을 했다고 해서 화내지마라. 그놈들도 게임을 좋아하는 너희들의 소비자들이다. 이들이 너희 게임을 더 사주기 위해서는 철저히 조사해라...
+​","SELECT
+  account_id,
+  user_id,
+  game_name,
+  uid,
+  server_region,
+  account_status
+FROM game_accounts
+WHERE account_id = %s
+LIMIT %s","SELECT game_accounts.account_id, game_accounts.user_id, game_accounts.account_status, qa_ticket.ticket_id, qa_ticket.raw_query FROM game_accounts JOIN qa_ticket ON game_accounts.account_id = qa_ticket.account_id WHERE qa_ticket.raw_query ILIKE %s LIMIT %s"
+172,플레이스토어나 핸드폰결제 같은거요,DB&DOC,payment,text_to_sql,text_to_sql,True,Default query type for category 'payment',,True,5,5,,True,0,0,,True,0,0,,3,3,3,True,True,,,True,플레이스토어나 핸드폰결제 같은거요,플레이스토어나 핸드폰결제 같은거요,5,True,True,NVC-NOT-410::chunk::23|QNA-COM-30::chunk::0,NVC-NOT-410|QNA-COM-30,,플레이스토어나 핸드폰결제 같은거요,"SELECT
+  payment_id,
+  account_id,
+  product_name,
+  product_type,
+  amount,
+  currency,
+  payment_method,
+  payment_status,
+  transaction_id,
+  paid_at
+FROM payments
+WHERE account_id = %s
+ORDER BY paid_at DESC NULLS LAST, payment_id DESC
+LIMIT %s","SELECT payment_id, account_id, product_name, product_type, amount, currency, payment_method, payment_status, transaction_id, paid_at FROM payments WHERE payment_method IN (%s, %s) LIMIT %s"
+162,모바일에서 구글로 진행하다가 피시에서 생성해놓은 미호요 계정으로 연동하려고 찾아 헤매이고 이렇게 까지 해야...,DB&DOC,account,fixed_sql,fixed_sql,True,Default query type for category 'account',,True,1,1,,True,1,1,,True,1,1,,3,3,3,True,True,,,True,"모바일에서 구글로 진행하다가 피시에서 생성해놓은 미호요 계정으로 연동하려고
+찾아 헤매이고 이렇게 까지 해야 하나 싶습니다.
+​
+어쨋든 검색해서 인게임에서 한다길래 피시로 게임시작 해보니 캐릭을 선택하라고 합디다.
+(어떻게 연동하는지 찾는 것 부터가 에러 아님? 공지 정도는 해줘야 하는거 아님?)
+​
+그래서 캐릭터 선택 하니, 닉네임을 입력하라길래 또 입력하고,
+인게임에서 계정 연동으로 들어가 구글 연동하려고 보니
+​
+Google "" Android 기기에 연동해 주세요""
+​
+라고 되어 있습니다.
+​
+다시 모바일에서 구글로 로그인 하고 미호요 계정으로 연동하려고 하니,
+​
+중복된 계정이랍니다.
+​
+뭐지? 캐릭을 생성해서 그런가...?
+싶어서 다시 새 미호요 계정을 생성한 상태로 캐릭터는 선택하지 않고
+모바일에서 미호요 계정을 연동하려고 했더니 똑같습니다.
+​
+중복된 계정이랍니다.
+​
+이거 정상입니까?",모바일에서 구글로 진행하다가 피시에서 생성해놓은 미호요 계정으로 연동하려고 찾아 헤매이고 이렇게 까지 해야 하나 싶습니다 어쨋든,5,True,True,QNA-COM-20::chunk::0,QNA-COM-20,,"모바일에서 구글로 진행하다가 피시에서 생성해놓은 미호요 계정으로 연동하려고
+찾아 헤매이고 이렇게 까지 해야 하나 싶습니다.
+​
+어쨋든 검색해서 인게임에서 한다길래 피시로 게임시작 해보니 캐릭을 선택하라고 합디다.
+(어떻게 연동하는지 찾는 것 부터가 에러 아님? 공지 정도는 해줘야 하는거 아님?)
+​
+그래서 캐릭터 선택 하니, 닉네임을 입력하라길래 또 입력하고,
+인게임에서 계정 연동으로 들어가 구글 연동하려고 보니
+​
+Google "" Android 기기에 연동해 주세요""
+​
+라고 되어 있습니다.
+​
+다시 모바일에서 구글로 로그인 하고 미호요 계정으로 연동하려고 하니,
+​
+중복된 계정이랍니다.
+​
+뭐지? 캐릭을 생성해서 그런가...?
+싶어서 다시 새 미호요 계정을 생성한 상태로 캐릭터는 선택하지 않고
+모바일에서 미호요 계정을 연동하려고 했더니 똑같습니다.
+​
+중복된 계정이랍니다.
+​
+이거 정상입니까?","SELECT
+  account_id,
+  user_id,
+  game_name,
+  uid,
+  server_region,
+  account_status
+FROM game_accounts
+WHERE account_id = %s
+LIMIT %s","SELECT game_accounts.account_id, game_accounts.user_id, game_accounts.game_name, game_accounts.account_status, qa_ticket.ticket_id, qa_ticket.raw_query FROM game_accounts JOIN qa_ticket ON game_accounts.account_id = qa_ticket.account_id WHERE game_accounts.account_id = %s AND qa_ticket.ticket_id = %s LIMIT %s"
+140,정상적으로게임을 못하는 수준이네요,DB&DOC,refund,fixed_sql,fixed_sql,True,Default query type for category 'refund',,True,2,2,,True,1,1,,True,2,2,,3,3,3,True,True,,,True,정상적으로게임을 못하는 수준이네요,정상적으로게임을 못하는 수준이네요,5,False,False,,,,정상적으로게임을 못하는 수준이네요,"SELECT
+  r.refund_id,
+  r.payment_id,
+  p.account_id,
+  p.product_name,
+  p.payment_status,
+  p.paid_at,
+  r.refund_status,
+  r.refund_reason,
+  r.requested_at,
+  r.processed_at
+FROM refunds r
+JOIN payments p ON p.payment_id = r.payment_id
+WHERE p.account_id = %s
+ORDER BY r.requested_at DESC NULLS LAST, r.refund_id DESC
+LIMIT %s","SELECT refunds.refund_id, refunds.refund_status, refunds.refund_reason, refunds.requested_at, refunds.processed_at, payments.payment_id, payments.product_name, payments.amount, payments.payment_status, game_accounts.account_status FROM refunds JOIN payments ON refunds.payment_id = payments.payment_id JOIN game_accounts ON payments.account_id = game_accounts.account_id WHERE payments.account_id = %s AND refunds.refund_status = %s ORDER BY refunds.requested_at DESC LIMIT %s"
+137,한 35만원 정도 캐릭터 뽑기에 질렀는데 환불혹시 되나여,DB&DOC,refund,fixed_sql,fixed_sql,True,Default query type for category 'refund',,True,1,1,,True,0,0,,True,1,1,,3,2,3,True,True,,,True,한 35만원 정도 캐릭터 뽑기에 질렀는데 환불혹시 되나여,캐릭터 뽑기 환불 35만원,5,True,True,QNA-COM-27::chunk::0|QNA-GSN-25::chunk::0|QNA-GSN-25::chunk::1,QNA-COM-27|QNA-GSN-25,,한 35만원 정도 캐릭터 뽑기에 질렀는데 환불혹시 되나여,"SELECT
+  r.refund_id,
+  r.payment_id,
+  p.account_id,
+  p.product_name,
+  p.payment_status,
+  p.paid_at,
+  r.refund_status,
+  r.refund_reason,
+  r.requested_at,
+  r.processed_at
+FROM refunds r
+JOIN payments p ON p.payment_id = r.payment_id
+WHERE p.account_id = %s
+ORDER BY r.requested_at DESC NULLS LAST, r.refund_id DESC
+LIMIT %s","SELECT payments.payment_id, payments.amount, payments.product_name, refunds.refund_status, refunds.refund_reason, gacha_logs.banner_name, gacha_logs.item_name, gacha_logs.pulled_at FROM payments LEFT JOIN refunds ON payments.payment_id = refunds.payment_id JOIN game_accounts ON payments.account_id = game_accounts.account_id JOIN gacha_logs ON game_accounts.account_id = gacha_logs.account_id JOIN qa_ticket ON game_accounts.account_id = qa_ticket.account_id WHERE payments.account_id = %s AND payments.product_type = %s LIMIT %s"
+106,PC에서 게임을하다가 카드결제가 안되서 안드로이드에 로그인해서 결제하려하는데 결제 단위가 엔으로 뜨고 한화로...,DB&DOC,payment,text_to_sql,text_to_sql,True,Default query type for category 'payment',,True,6,6,,True,6,6,,True,6,6,,3,3,3,True,True,,,True,"PC에서 게임을하다가 카드결제가 안되서 안드로이드에 로그인해서 결제하려하는데
+결제 단위가 엔으로 뜨고 한화로 안나옵니다. 어떻게해야되나요(한국스토어에서 받았습니다)
+PC에서는 한화로 잘뜹니다",pc에서 게임을하다가 카드결제가 안되서 안드로이드에 로그인해서 결제하려하는데 결제 단위가 엔으로 뜨고 한화로 안나옵니다 어떻게해야되나요 한국스토어에서 받았습니다,5,True,True,QNA-COM-29::chunk::0|QNA-COM-30::chunk::0|QNA-COM-31::chunk::0,QNA-COM-29|QNA-COM-30|QNA-COM-31,,"PC에서 게임을하다가 카드결제가 안되서 안드로이드에 로그인해서 결제하려하는데
+결제 단위가 엔으로 뜨고 한화로 안나옵니다. 어떻게해야되나요(한국스토어에서 받았습니다)
+PC에서는 한화로 잘뜹니다","SELECT
+  payment_id,
+  account_id,
+  product_name,
+  product_type,
+  amount,
+  currency,
+  payment_method,
+  payment_status,
+  transaction_id,
+  paid_at
+FROM payments
+WHERE account_id = %s
+ORDER BY paid_at DESC NULLS LAST, payment_id DESC
+LIMIT %s","SELECT payments.payment_id, payments.currency, payments.payment_method, payments.payment_status, game_accounts.server_region FROM payments JOIN game_accounts ON payments.account_id = game_accounts.account_id WHERE payments.account_id = %s LIMIT %s"
+50,이러다가 팅깁니다.,DB&DOC,bug,fixed_sql,fixed_sql,True,DB lookup disabled for category: bug,,False,0,0,,False,0,0,,False,0,0,,3,3,3,True,True,,,True,이러다가 팅깁니다.,이러다가 팅깁니다,5,False,False,,,,이러다가 팅깁니다.,,
+44,먹고싶은거 떴는데;; 멈췄어요.. ​,DB&DOC,bug,fixed_sql,fixed_sql,True,DB lookup disabled for category: bug,,False,0,0,,False,0,0,,False,0,0,,3,3,3,True,True,,,True,"먹고싶은거 떴는데;;  멈췄어요..
+​",먹고싶은거 멈춤,5,True,True,NVC-GDE-647::chunk::0,NVC-GDE-647,,"먹고싶은거 떴는데;;  멈췄어요..
+​",,
+42,다크히어로의 알리바이 다이루크 퀘스트중 후문에 슬라임 뿌려놓고 정문가서 몹잡은 후에 술집으로 안들어가고 후문...,DB&DOC,bug,fixed_sql,fixed_sql,True,DB lookup disabled for category: bug,,False,0,0,,False,0,0,,False,0,0,,3,1,3,True,True,,,True,"다크히어로의 알리바이 다이루크 퀘스트중 후문에 슬라임 뿌려놓고 정문가서 몹잡은 후에 술집으로 안들어가고 후문쪽으로 가면
+중국어 텍스트 경고와 함께 퀘스트 초기화 됨 수정 건의 부탁드립니다.",다크히어로의 알리바이 다이루크 퀘스트 초기화 중국어 텍스트 경고,5,False,True,,NVC-NOT-382,,"다크히어로의 알리바이 다이루크 퀘스트중 후문에 슬라임 뿌려놓고 정문가서 몹잡은 후에 술집으로 안들어가고 후문쪽으로 가면
+중국어 텍스트 경고와 함께 퀘스트 초기화 됨 수정 건의 부탁드립니다.",,
+36,아무 것도 없는데 데미지 받는중 ​,DB&DOC,bug,fixed_sql,fixed_sql,True,DB lookup disabled for category: bug,,False,0,0,,False,0,0,,False,0,0,,3,2,3,True,True,,,True,"아무 것도 없는데 데미지 받는중
+​",아무 것도 없는데 데미지 받는중,5,False,False,,,,"아무 것도 없는데 데미지 받는중
+​",,
+246,이미지 마지막줄에서 2번째에 혹시가 록시로 되있는것같아요,fixed_answer,general,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,이미지 마지막줄에서 2번째에 혹시가 록시로 되있는것같아요,,
+244,음...어...음..네...,fixed_answer,general,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,음...어...음..네...,,
+243,​,fixed_answer,general,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,​,,
+236,16초부터 보면댐,fixed_answer,general,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,16초부터 보면댐,,
+228,"타락한 마수인 데빌드래곤 [드발린] >> [두린] 아닌가요? ​ 바람의 신이 드발린을 소환했다고 적혀있는데,...",fixed_answer,general,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,"타락한 마수인 데빌드래곤 [드발린] >> [두린] 아닌가요?
+​
+바람의 신이 드발린을 소환했다고 적혀있는데, 그 전에 드발린이 몬드를 공격했다는게 무슨소리인지..
+​
+밑에 ""몬드의 수호자로써 두린과 교전을 벌였다"" 라고 적혀있는데, 두린에 대한 언급이 전혀 없다가 갑자기 나온걸로 보아 타락한 마수인 데빌드래곤이 '두린' 아닐까 싶어요!
+​
+그냥 내가 머리가 안좋은건가..? ㅋㅋㅋㅋ",,
+216,고치세요,fixed_answer,bug,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,고치세요,,
+212,어디로 가버린거니? 아빠 따라갔니?,fixed_answer,general,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,"어디로 가버린거니?
+아빠 따라갔니?",,
+185,낑김,fixed_answer,general,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,낑김,,
+180,갇혔어 못나가자나요,fixed_answer,bug,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,갇혔어 못나가자나요,,
+158,이 두개 왜그런거죠?,fixed_answer,general,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,이 두개 왜그런거죠?,,
+156,ㅈ광고 오지게 하는 기적의검을 떡상시킬거 같네 둘다 개망한 중국 겜인데 비교된다 ㅅㅂ,fixed_answer,general,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,ㅈ광고 오지게 하는 기적의검을 떡상시킬거 같네 둘다 개망한 중국 겜인데 비교된다 ㅅㅂ,,
+150,병풍이 평붕이라 돼있네요,fixed_answer,bug,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,병풍이 평붕이라 돼있네요,,
+149,업적란에 리월 변하지않는위상 '가지' 오타 ​ ㅇㅅㅇ,fixed_answer,general,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,"업적란에 리월 변하지않는위상 '가지' 오타
+​
+ㅇㅅㅇ",,

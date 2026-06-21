@@ -1,12 +1,15 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from typing import Any
 
 from psycopg.rows import dict_row
+
 from common.db.connection import db_connection
+from common.observability.langfuse import observe_if_enabled
+from observability.langfuse import link_cs_auto_trace
 
 
+@observe_if_enabled(name="cs_auto_get_review_tickets", as_type="chain", tags=["cs-auto", "tickets"])
 def get_review_tickets(
     limit: int | None = None,
     status: str | None = None,
@@ -15,6 +18,24 @@ def get_review_tickets(
     risk_level: str | None = None,
     page: int | None = None,
 ) -> dict[str, object]:
+    trace_payload = {
+        "admin_id": assignee_admin_id,
+        "status": status,
+        "category": category,
+        "risk_level": risk_level,
+    }
+    link_cs_auto_trace(
+        trace_payload,
+        tags=["tickets"],
+        input_payload={
+            "limit": limit,
+            "status": status,
+            "assignee_admin_id": assignee_admin_id,
+            "category": category,
+            "risk_level": risk_level,
+            "page": page,
+        },
+    )
     tickets = fetch_tickets(
         limit=limit,
         status=status,
@@ -23,7 +44,7 @@ def get_review_tickets(
         risk_level=risk_level,
         page=page,
     )
-    return {
+    result = {
         "tickets": tickets,
         "count": len(tickets),
         "filters": {
@@ -35,20 +56,34 @@ def get_review_tickets(
             "page": page,
         },
     }
+    link_cs_auto_trace(trace_payload, tags=["tickets"], output_payload={"count": result["count"]})
+    return result
 
 
+@observe_if_enabled(name="cs_auto_get_ticket_detail", as_type="chain", tags=["cs-auto", "tickets"])
 def get_ticket_detail(ticket_id: int) -> dict[str, object]:
+    trace_payload = {"ticket_id": ticket_id}
+    link_cs_auto_trace(trace_payload, tags=["tickets"], input_payload={"ticket_id": ticket_id})
     ticket = fetch_ticket_detail(ticket_id)
     if ticket is None:
-        return {"ticket": None, "evidence": [], "history": [], "safety": []}
+        result = {"ticket": None, "evidence": [], "history": [], "safety": []}
+        link_cs_auto_trace(trace_payload, tags=["tickets"], output_payload={"has_ticket": False})
+        return result
 
     evidence = fetch_ticket_evidence(ticket.get("draft_id"))
-    return {
+    result = {
         "ticket": ticket,
         "evidence": evidence,
     }
+    link_cs_auto_trace(
+        {**trace_payload, **ticket},
+        tags=["tickets"],
+        output_payload={"has_ticket": True, "evidence_count": len(evidence)},
+    )
+    return result
 
 
+@observe_if_enabled(name="cs_auto_fetch_tickets", as_type="tool", tags=["cs-auto", "tickets", "db"])
 def fetch_tickets(
     limit: int | None = None,
     status: str | None = None,
@@ -57,6 +92,24 @@ def fetch_tickets(
     risk_level: str | None = None,
     page: int | None = None,
 ) -> list[dict[str, Any]]:
+    trace_payload = {
+        "admin_id": assignee_admin_id,
+        "status": status,
+        "category": category,
+        "risk_level": risk_level,
+    }
+    link_cs_auto_trace(
+        trace_payload,
+        tags=["tickets", "db"],
+        input_payload={
+            "limit": limit,
+            "status": status,
+            "assignee_admin_id": assignee_admin_id,
+            "category": category,
+            "risk_level": risk_level,
+            "page": page,
+        },
+    )
     page_size = limit or 200
     page_no = page or 1
     offset = max(page_no - 1, 0) * page_size
@@ -164,10 +217,15 @@ def fetch_tickets(
                 """,
                 (*params, page_size, offset),
             )
-            return [dict(row) for row in cur.fetchall()]
+            rows = [dict(row) for row in cur.fetchall()]
+    link_cs_auto_trace(trace_payload, tags=["tickets", "db"], output_payload={"count": len(rows)})
+    return rows
 
 
+@observe_if_enabled(name="cs_auto_fetch_ticket_detail", as_type="tool", tags=["cs-auto", "tickets", "db"])
 def fetch_ticket_detail(ticket_id: int) -> dict[str, Any] | None:
+    trace_payload = {"ticket_id": ticket_id}
+    link_cs_auto_trace(trace_payload, tags=["tickets", "db"], input_payload={"ticket_id": ticket_id})
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
@@ -241,11 +299,21 @@ def fetch_ticket_detail(ticket_id: int) -> dict[str, Any] | None:
                 (ticket_id,),
             )
             row = cur.fetchone()
-            return dict(row) if row is not None else None
+    result = dict(row) if row is not None else None
+    link_cs_auto_trace(
+        {**trace_payload, **(result or {})},
+        tags=["tickets", "db"],
+        output_payload={"found": result is not None},
+    )
+    return result
 
 
+@observe_if_enabled(name="cs_auto_fetch_ticket_evidence", as_type="tool", tags=["cs-auto", "tickets", "db"])
 def fetch_ticket_evidence(draft_id: Any) -> list[dict[str, Any]]:
+    trace_payload = {"draft_id": draft_id}
+    link_cs_auto_trace(trace_payload, tags=["tickets", "db"], input_payload={"draft_id": draft_id})
     if draft_id is None:
+        link_cs_auto_trace(trace_payload, tags=["tickets", "db"], output_payload={"count": 0})
         return []
 
     with db_connection() as conn:
@@ -264,5 +332,6 @@ def fetch_ticket_evidence(draft_id: Any) -> list[dict[str, Any]]:
                 """,
                 (draft_id,),
             )
-            return [dict(row) for row in cur.fetchall()]
-
+            rows = [dict(row) for row in cur.fetchall()]
+    link_cs_auto_trace(trace_payload, tags=["tickets", "db"], output_payload={"count": len(rows)})
+    return rows

@@ -6,12 +6,12 @@ from typing import Any
 from collections.abc import Sequence
 
 from chatbot.generation.policies import BUG_POLICY, PAYMENT_POLICY
+from chatbot.observability.langfuse import link_chatbot_trace
 from chatbot.schemas import ChatbotState
+from common.observability.langfuse import observe_if_enabled
 from common.observability.logger import record_chat_model_usage
 
 
-# 결제/버그 agent를 LangChain create_agent 형태로 실행하기 위한 공통 builder다.
-# FAQ/RAG는 검색-근거-답변 흐름이 별도 구현되어 있어 이 helper를 타지 않는다.
 def build_chatbot_agent(
     *,
     system_prompt: str,
@@ -20,7 +20,7 @@ def build_chatbot_agent(
     from langchain.agents import create_agent
     from langchain_openai import ChatOpenAI
 
-    api_key = os.environ.get("LLM_API_KEY") 
+    api_key = os.environ.get("LLM_API_KEY")
     model = os.environ.get("LLM_MODEL")
     if not api_key or not model:
         raise RuntimeError("LLM_API_KEY is required.")
@@ -39,7 +39,6 @@ def build_chatbot_agent(
     )
 
 
-# agent 인스턴스가 주어지면 그대로 쓰고, 없으면 policy prompt/tool로 새 agent를 만든 뒤 state를 invoke한다.
 def _build_and_invoke_agent(
     state: ChatbotState | dict[str, Any],
     *,
@@ -58,31 +57,73 @@ def _build_and_invoke_agent(
     return result
 
 
-# payment_agent 노드에서 결제 전용 prompt/tool 조합으로 agent를 호출할 때 사용하는 adapter다.
+@observe_if_enabled(
+    name="payment_reasoning_agent",
+    as_type="chain",
+    tags=["chatbot", "feature:generation", "payment"],
+)
 def invoke_payment_agent(
     state: ChatbotState | dict[str, Any],
     *,
     agent_instance: Any | None = None,
 ) -> dict[str, Any]:
-    return _build_and_invoke_agent(
+    link_chatbot_trace(
+        state,
+        tags=["feature:generation", "payment"],
+        input_payload={
+            "ticket_id": state.get("ticket_id"),
+            "routing_target": state.get("routing_target"),
+            "payment_intent_type": state.get("payment_intent_type"),
+            "retrieved_count": len(state.get("retrieved_documents") or []),
+        },
+    )
+    result = _build_and_invoke_agent(
         state,
         system_prompt=PAYMENT_POLICY.system_prompt,
         tools=PAYMENT_POLICY.tools,
         usage_component="payment_agent",
         agent_instance=agent_instance,
     )
+    link_chatbot_trace(
+        state,
+        tags=["feature:generation", "payment"],
+        metadata_source={**state, **result},
+        output_payload={"message_count": len(result.get("messages") or [])},
+    )
+    return result
 
 
-# bug_agent 노드에서 버그 전용 prompt/tool 조합으로 agent를 호출할 때 사용하는 adapter다.
+@observe_if_enabled(
+    name="bug_reasoning_agent",
+    as_type="chain",
+    tags=["chatbot", "feature:generation", "bug"],
+)
 def invoke_bug_agent(
     state: ChatbotState | dict[str, Any],
     *,
     agent_instance: Any | None = None,
 ) -> dict[str, Any]:
-    return _build_and_invoke_agent(
+    link_chatbot_trace(
+        state,
+        tags=["feature:generation", "bug"],
+        input_payload={
+            "ticket_id": state.get("ticket_id"),
+            "routing_target": state.get("routing_target"),
+            "bug_collection_status": state.get("bug_collection_status"),
+            "retrieved_count": len(state.get("retrieved_documents") or []),
+        },
+    )
+    result = _build_and_invoke_agent(
         state,
         system_prompt=BUG_POLICY.system_prompt,
         tools=BUG_POLICY.tools,
         usage_component="bug_agent",
         agent_instance=agent_instance,
     )
+    link_chatbot_trace(
+        state,
+        tags=["feature:generation", "bug"],
+        metadata_source={**state, **result},
+        output_payload={"message_count": len(result.get("messages") or [])},
+    )
+    return result
