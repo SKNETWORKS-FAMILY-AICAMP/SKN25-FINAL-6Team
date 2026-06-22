@@ -28,6 +28,7 @@ services:
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_NAME}
+      DB_SSLMODE: ${DB_SSLMODE:-prefer}
       DB_CONNECT_TIMEOUT: ${DB_CONNECT_TIMEOUT:-15}
       LLM_API_KEY: ${LLM_API_KEY}
       LLM_MODEL: ${LLM_MODEL}
