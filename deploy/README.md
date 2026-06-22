@@ -32,6 +32,13 @@ Minimum required values in `.env`:
 - `LLM_API_KEY`
 - `CS_AUTO_API_CORS_ORIGINS`
 
+If the PostgreSQL server enforces SSL, also set `DB_SSLMODE` explicitly for
+compose runs, for example:
+
+```sh
+DB_SSLMODE=require
+```
+
 When running multiple stacks on one host, do not reuse port `80`:
 
 ```sh
