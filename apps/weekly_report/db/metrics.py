@@ -14,7 +14,7 @@ from typing import Any
 
 from common.observability.langfuse import observe_if_enabled
 from db.connection import _fetch_one, _fetch_all, db_connection, dict_row
-from observability.langfuse import link_weekly_report_trace
+from weekly_report_langfuse import link_weekly_report_trace
 from utils.stats import rate
 
 

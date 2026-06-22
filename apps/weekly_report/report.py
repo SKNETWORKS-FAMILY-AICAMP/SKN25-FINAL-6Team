@@ -13,7 +13,8 @@ from build.distributions import distribution
 from build.payload import build_report_payload
 from common.observability.langfuse import flush_langfuse, observe_if_enabled, record_current_scores
 from db.analysis import fetch_analysis_rows
-from observability.langfuse import link_weekly_report_trace
+from db.reference_time import resolve_report_reference_now
+from weekly_report_langfuse import link_weekly_report_trace
 from output.pdf import render_report_pdf
 from output.slack import send_weekly_report_pdf
 from utils.date_range import get_previous_window, get_window
@@ -34,7 +35,7 @@ def run(
     now: datetime | None = None,
 ) -> dict[str, Any]:
     try:
-        generated_at = now or datetime.now()
+        generated_at = resolve_report_reference_now(now or datetime.now())
         link_weekly_report_trace(
             {},
             tags=["weekly-report", "feature:report-build"],

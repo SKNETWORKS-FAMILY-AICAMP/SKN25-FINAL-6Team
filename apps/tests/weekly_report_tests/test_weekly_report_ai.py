@@ -187,6 +187,8 @@ class TestFallback:
         assert result["actions"][0]["rank"] == 1
         assert isinstance(result["actions"][0]["category"], str)
         assert result["actions"][0]["category"]
+        assert result["actions"][0]["category"] == "시스템"
+        assert "다시 실행하세요" in result["actions"][0]["action"]
 
 
     def test_detects_fallback_payload(self):
@@ -228,6 +230,7 @@ class TestBuildUserPrompt:
     def test_contains_total_count(self):
         prompt = _build_user_prompt(self._sample_payload())
         assert "100" in prompt
+        assert "[주간 데이터]" in prompt
 
     def test_contains_pct_change(self):
         prompt = _build_user_prompt(self._sample_payload())
@@ -267,6 +270,7 @@ class TestBuildUserPrompt:
         }
         prompt = _build_user_prompt(payload)
         assert "50" in prompt
+        assert "category 값도 한국어로 작성하라." in prompt
 
 
 class TestGenerateAiActions:
@@ -285,6 +289,7 @@ class TestGenerateAiActions:
 
         assert "headline" in result
         assert "actions" in result
+        assert result["headline"] == "AI 권장 액션을 생성하지 못했습니다."
 
     def test_llm_success_returns_model_dump(self, monkeypatch):
         monkeypatch.setenv("LLM_MODEL", "test-model")

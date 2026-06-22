@@ -19,6 +19,7 @@ from db.top_requests import (
     fetch as fetch_top_requests,
 )
 from db.spike_alerts import (
+    _calculate_hourly_volume_comparison,
     _zscore_level,
     _wow_level,
     build_spike_slack_blocks,
@@ -218,6 +219,7 @@ class TestFetchTopRequests:
         window = {
             "window_start": datetime(2026, 6, 5),
             "window_end": datetime(2026, 6, 12),
+            "days": 7,
         }
         result = fetch_top_requests(window)
 
@@ -238,6 +240,7 @@ class TestFetchTopRequests:
         window = {
             "window_start": datetime(2026, 6, 5),
             "window_end": datetime(2026, 6, 12),
+            "days": 7,
         }
         result = fetch_top_requests(window)
         assert len(result) == 5
@@ -304,6 +307,42 @@ class TestWowLevel:
     def test_decrease_is_normal(self):
         # 감소는 폭증 alert 대상이 아니다.
         assert _wow_level(-0.3) == "normal"
+
+
+class TestCalculateHourlyVolumeComparison:
+    def test_returns_24_hour_series_with_recent_weeks_average(self, monkeypatch):
+        mock_conn = _make_db_mock(
+            [
+                [
+                    {"hour": 9, "cnt": 12},
+                    {"hour": 10, "cnt": 18},
+                ],
+                [
+                    {"hour": 9, "week_start": datetime(2026, 5, 15), "cnt": 6},
+                    {"hour": 9, "week_start": datetime(2026, 5, 22), "cnt": 10},
+                    {"hour": 10, "week_start": datetime(2026, 5, 15), "cnt": 8},
+                    {"hour": 10, "week_start": datetime(2026, 5, 22), "cnt": 12},
+                ],
+            ]
+        )
+        monkeypatch.setattr("db.spike_alerts.db_connection", lambda: mock_conn)
+
+        result = _calculate_hourly_volume_comparison(
+            {
+                "window_start": datetime(2026, 6, 5),
+                "window_end": datetime(2026, 6, 12),
+                "days": 7,
+            }
+        )
+
+        assert len(result["labels"]) == 24
+        assert result["labels"][9] == "09"
+        assert result["current"][9] == 12
+        assert result["current"][10] == 18
+        assert result["baseline"][9] == 8.0
+        assert result["baseline"][10] == 10.0
+        assert result["baseline"][8] == 0.0
+        assert result["baseline_label"] == "최근 4주 평균"
 
 
 class TestBuildSpikeSlackBlocks:

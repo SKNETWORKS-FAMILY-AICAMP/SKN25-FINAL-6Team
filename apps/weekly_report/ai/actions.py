@@ -9,7 +9,8 @@ from pydantic import BaseModel, Field
 
 from common.llm.client import invoke_structured_llm
 from common.observability.langfuse import observe_if_enabled
-from observability.langfuse import link_weekly_report_trace
+from utils.labels import translate_value
+from weekly_report_langfuse import link_weekly_report_trace
 
 
 class ActionItem(BaseModel):
@@ -25,12 +26,19 @@ class AiRecommendedActions(BaseModel):
 
 
 _SYSTEM_PROMPT = (
-    "You are an operations analyst for a game customer-support organization.\n"
-    "Use only the provided data to suggest concrete next-week actions.\n"
-    "Include at least one marketing or promotion suggestion.\n"
-    "Do not invent evidence that is not present in the input."
+    "당신은 게임 고객지원 조직의 운영 분석가다.\n"
+    "주어진 데이터만 사용해서 다음 주 운영 액션을 제안하라.\n"
+    "모든 headline, category, action, reason 값은 반드시 한국어로 작성하라.\n"
+    "JSON 키 이름은 그대로 유지하고 값만 한국어로 채워라.\n"
+    "마케팅 또는 프로모션 관련 제안을 최소 1개 포함하라.\n"
+    "입력에 없는 근거는 만들지 마라."
 )
-_FALLBACK_HEADLINE = "AI recommended actions could not be generated."
+_FALLBACK_HEADLINE = "AI 권장 액션을 생성하지 못했습니다."
+_FALLBACK_ACTION = "LLM 설정을 확인한 뒤 보고서를 다시 실행하세요."
+
+
+def _category_label(value: Any) -> str:
+    return str(translate_value(value, key="category"))
 
 
 def _llm_available() -> bool:
@@ -44,7 +52,7 @@ def _fallback(reason: str) -> dict[str, Any]:
             {
                 "rank": 1,
                 "category": "시스템",
-                "action": "Check the LLM configuration and run the report again.",
+                "action": _FALLBACK_ACTION,
                 "reason": reason,
             }
         ],
@@ -63,7 +71,7 @@ def is_fallback_ai_actions(payload: dict[str, Any]) -> bool:
     first = actions[0]
     if not isinstance(first, dict):
         return False
-    return str(first.get("action") or "").strip() == "Check the LLM configuration and run the report again."
+    return str(first.get("action") or "").strip() == _FALLBACK_ACTION
 
 
 def _build_user_prompt(report_payload: dict[str, Any]) -> str:
@@ -87,40 +95,44 @@ def _build_user_prompt(report_payload: dict[str, Any]) -> str:
     if critical_hours or critical_categories:
         parts: list[str] = []
         if critical_hours:
-            parts.append(f"hours {critical_hours}")
+            parts.append(f"집중 시간대 {critical_hours}")
         if critical_categories:
-            parts.append(f"categories {critical_categories}")
+            translated_categories = [_category_label(category) for category in critical_categories]
+            parts.append(f"집중 카테고리 {translated_categories}")
         critical_items = " / ".join(parts)
     else:
-        critical_items = "none"
+        critical_items = "없음"
 
     cat_dist_raw = report_payload.get("category_distribution", {})
     if isinstance(cat_dist_raw, list):
         cat_dist_str = ", ".join(
-            f"{item['label']} {item['value']} cases" for item in cat_dist_raw[:5]
+            f"{_category_label(item.get('label'))} {item['value']}건" for item in cat_dist_raw[:5]
         )
     else:
-        cat_dist_str = ", ".join(f"{k} {v} cases" for k, v in list(cat_dist_raw.items())[:5])
+        cat_dist_str = ", ".join(
+            f"{_category_label(k)} {v}건" for k, v in list(cat_dist_raw.items())[:5]
+        )
 
     top5: list[Any] = report_payload.get("top5_improvements", [])
     top3 = top5[:3]
     if top3 and isinstance(top3[0], dict):
         top3_str = ", ".join(
-            f"{item.get('category', '?')} ({item.get('count', 0)} cases, {item.get('improvement_type', '')})"
+            f"{_category_label(item.get('category', '?'))} ({item.get('count', 0)}건, {item.get('improvement_type', '')})"
             for item in top3
         )
     else:
-        top3_str = "no data"
+        top3_str = "데이터 없음"
 
     return (
-        "[Weekly data]\n"
-        f"- Total inquiries: {total_count} ({pct_change:+.1%} vs previous week)\n"
-        f"- Critical spikes: {critical_items}\n"
-        f"- Category distribution: {cat_dist_str}\n"
-        f"- Top 3 improvement requests: {top3_str}\n\n"
-        "Based on this data, suggest 3 to 5 concrete operational actions for next week.\n"
-        "Each action must include an explicit reason grounded in the data.\n"
-        "Include at least one marketing suggestion.\n\n"
+        "[주간 데이터]\n"
+        f"- 전체 문의 수: {total_count}건 (전주 대비 {pct_change:+.1%})\n"
+        f"- 주요 급증 구간: {critical_items}\n"
+        f"- 카테고리 분포: {cat_dist_str}\n"
+        f"- 개선 요청 상위 3개: {top3_str}\n\n"
+        "이 데이터를 바탕으로 다음 주에 실행할 구체적인 운영 액션 3~5개를 제안하라.\n"
+        "각 액션에는 반드시 데이터에 근거한 명시적 사유를 포함하라.\n"
+        "마케팅 또는 프로모션 제안을 최소 1개 포함하라.\n"
+        "category 값도 한국어로 작성하라.\n\n"
         'Return JSON only: {"headline":"...", "actions":[{"rank":1, "category":"...", "action":"...", "reason":"..."}]}'
     )
 
@@ -147,7 +159,7 @@ def generate_ai_actions(report_payload: dict[str, Any]) -> dict[str, Any]:
     )
 
     if not _llm_available():
-        result = _fallback("Missing LLM configuration.")
+        result = _fallback("LLM 설정이 없습니다.")
         link_weekly_report_trace(
             result,
             tags=["weekly-report", "feature:ai-actions"],
@@ -165,7 +177,7 @@ def generate_ai_actions(report_payload: dict[str, Any]) -> dict[str, Any]:
             response_model=AiRecommendedActions,
         )
     except Exception as exc:  # noqa: BLE001
-        result = _fallback(f"LLM generation failed: {exc}")
+        result = _fallback(f"LLM 생성 실패: {exc}")
         link_weekly_report_trace(
             result,
             tags=["weekly-report", "feature:ai-actions"],

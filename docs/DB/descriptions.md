@@ -62,6 +62,7 @@ Row counts are exact `COUNT(*)` results at verification time.
 - The live `public` schema currently has 19 tables and no `_ex` mirror/template tables.
 - The RAG source table is `documents`, and retrieval artifacts live in `documents_chunks` and `documents_embeddings`.
 - Older repo documents that describe `sj_documents`, `test_documents_chunks`, `test_documents_embeddings_large`, `test_documents_embeddings_small`, or `_ex` tables are historical references, not live-schema facts.
+- `apps/weekly_report/db/top_requests.py` currently attempts to read `voc_feedback.topic_keywords`, but `voc_feedback` is not present in the live schema captured in this document. The implementation falls back to empty keywords when that lookup fails.
 - `qa_ticket`, `answer_draft`, `notification_logs`, and `ticket_analysis` have ordinal gaps in `information_schema.columns`, which indicates earlier schema revisions with dropped columns; the current column counts above are authoritative.
 
 ## Workflow Read/Write Map
