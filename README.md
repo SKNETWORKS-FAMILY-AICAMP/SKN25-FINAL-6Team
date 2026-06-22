@@ -233,265 +233,104 @@ SKN25-FINAL-6Team/
 ## 아키텍처
 
 ### Chatbot Architecture
-
 ```mermaid
-flowchart TB
-    subgraph Client["Client Layer"]
-        User["사용자"]
-        ChatUI["Chatbot Frontend<br/>apps/chatbot/frontend/static"]
-    end
+flowchart TD
+    User["게임 유저"] --> UI["Chatbot Frontend<br/>HTML/CSS/JS"]
 
-    subgraph API["API Layer"]
-        ChatAPI["FastAPI Chatbot API<br/>POST /chat<br/>GET /tickets"]
-        LoginAPI["Login API<br/>POST /login"]
-    end
+    UI --> API["Chatbot FastAPI"]
 
-    subgraph Workflow["Workflow Layer"]
-        Session["Session / Ticket Context<br/>session_id, ticket_id"]
-        Preprocess["Input Preprocessing<br/>PII Masking<br/>Prompt Injection Detection"]
-        Router["Category Router<br/>payment / bug / faq / voc"]
-        Persistence["Draft Persistence<br/>answer_draft<br/>evidence_docs"]
-    end
+    API --> Login["계정 연동<br/>user_id / account_id 확인"]
+    Login --> DBAccount["회원 / 게임 계정 DB"]
 
-    subgraph Agent["Agent Layer"]
-        Payment["Payment Agent<br/>DB grounded answer"]
-        Bug["Bug Agent<br/>FAQ search<br/>reproduction info"]
-        FAQ["FAQ Agent<br/>RAG search<br/>LLM rerank"]
-        VOC["VOC Agent<br/>fixed response"]
-    end
+    API --> Preprocess["입력 전처리<br/>마스킹 / 정규화"]
+    Preprocess --> Dispatch{"카테고리 기반 분기<br/>Rule-based"}
 
-    subgraph Safety["Safety Layer"]
-        SafetyLayer["Safety Layer<br/>masking / grounding / moderation"]
-        Complete["Final Response<br/>ticket_completion"]
-    end
+    Dispatch --> FAQ["FAQ / 공지 Agent<br/>RAG 검색"]
+    Dispatch --> Payment["결제 / 환불 / 아이템 Agent<br/>게임 로그 DB 조회"]
+    Dispatch --> Bug["버그 Agent<br/>오류 정보 수집"]
+    Dispatch --> VOC["VOC Agent<br/>건의 / 기타 접수"]
 
-    subgraph Data["Data Layer"]
-        DB["PostgreSQL<br/>qa_ticket / answer_draft<br/>evidence_docs / final_response"]
-        Vector["pgvector<br/>documents_embeddings"]
-        Cache["Redis or Memory Cache"]
-    end
+    FAQ --> Docs["문서 DB<br/>FAQ / 공지 / 정책"]
+    Payment --> GameLogs["게임 운영 DB<br/>결제 / 환불 / 지급 / 가챠"]
+    Bug --> Github["GitHub Issue<br/>검토 필요 버그 등록"]
 
-    subgraph External["External Layer"]
-        LLM["LLM API"]
-        Langfuse["Langfuse"]
-    end
+    FAQ --> Draft["답변 초안 저장"]
+    Payment --> Draft
+    Bug --> Draft
+    VOC --> Draft
 
-    User --> ChatUI
-    ChatUI --> LoginAPI
-    ChatUI --> ChatAPI
-    ChatAPI --> Session
-    Session --> Preprocess
-    Preprocess --> Router
-    Router --> Payment
-    Router --> Bug
-    Router --> FAQ
-    Router --> VOC
-    Payment --> Persistence
-    Bug --> Persistence
-    FAQ --> Persistence
-    VOC --> Persistence
-    Persistence --> SafetyLayer
-    SafetyLayer --> Complete
-    Complete --> ChatAPI
+    Draft --> Safety["Safety Layer<br/>개인정보 / 환각 / 유해성 검수"]
+    Safety --> Final["최종 응답 저장"]
+    Final --> UI
 
-    Session <--> Cache
-    Payment --> DB
-    FAQ --> Vector
-    Bug --> Vector
-    Persistence --> DB
-    Complete --> DB
-
-    Payment --> LLM
-    Bug --> LLM
-    FAQ --> LLM
-    SafetyLayer --> LLM
-    ChatAPI --> Langfuse
+    API <--> Redis["Redis Cache<br/>세션 / 검색 캐시"]
+    API --> Obs["Langfuse<br/>Trace / 로그"]
 ```
-
 ### CS Auto Architecture
 
 ```mermaid
-flowchart TB
-    subgraph Client["Client Layer"]
-        Admin["운영자"]
-        CSUI["CS Auto Frontend<br/>apps/cs_auto/frontend"]
-    end
+flowchart TD
+    Cafe["네이버 카페 / 외부 문의"] --> Collect["문의 수집"]
+    Collect --> TicketDB["문의 DB<br/>qa_ticket"]
 
-    subgraph API["API Layer"]
-        CSAPI["FastAPI CS Auto API<br/>/api/cs-auto"]
-        AuthAPI["Auth API<br/>login / logout"]
-        TicketAPI["Ticket API<br/>list / detail"]
-        DraftAPI["Draft API<br/>edit / regenerate / approve"]
-        MailAPI["Email API<br/>send-email"]
-    end
+    TicketDB --> Analysis["Analysis Agent<br/>카테고리 / 위험도 / 처리 방향 분석"]
+    Analysis --> AnalysisDB["분석 결과 저장<br/>ticket_analysis"]
 
-    subgraph Batch["Batch Layer"]
-        Airflow["Apache Airflow"]
-        AnalysisDAG["cs_auto_analysis_agent_daily<br/>04:00 KST"]
-        AnswerDAG["cs_auto_answer_agent_daily<br/>07:00 KST"]
-    end
+    AnalysisDB --> Route{"처리 방식 결정"}
+    Route --> AutoDraft["Answer Agent<br/>답변 초안 생성"]
+    Route --> HumanReview["운영자 검토 대기"]
 
-    subgraph Agent["Agent Layer"]
-        AnalysisAgent["Analysis Agent<br/>category / sentiment / risk<br/>routing_target"]
-        AnswerAgent["Answer Agent<br/>DB search / doc search<br/>draft generation"]
-        SafetyEval["Safety Evaluator<br/>hallucination / toxicity<br/>policy / factuality"]
-    end
+    AutoDraft --> DBSearch["DB Search Worker<br/>결제 / 환불 / 계정 / 아이템 조회"]
+    AutoDraft --> DocSearch["Document Search Worker<br/>FAQ / 정책 / 공지 검색"]
 
-    subgraph Service["Service Layer"]
-        LoadTicket["Load Ticket Service"]
-        EditDraft["Edit Draft Service"]
-        Regenerate["Regenerate Draft Service"]
-        Approve["Approve Draft Service"]
-        SendEmail["Send Email Service"]
-    end
+    DBSearch --> GameDB["게임 운영 DB"]
+    DocSearch --> Docs["문서 DB"]
 
-    subgraph Data["Data Layer"]
-        DB["PostgreSQL"]
-        Ticket["qa_ticket"]
-        Analysis["ticket_analysis"]
-        Draft["answer_draft"]
-        Evidence["evidence_docs"]
-        Safety["safety_results"]
-        Final["final_response"]
-        Logs["admin_event_logs<br/>notification_logs<br/>failed_queries"]
-        Vector["pgvector<br/>documents_embeddings"]
-    end
+    AutoDraft --> DraftDB["답변 초안 저장<br/>answer_draft / evidence_docs"]
+    DraftDB --> Safety["Safety Evaluator<br/>근거성 / 정책 위반 검수"]
 
-    subgraph External["External Layer"]
-        LLM["LLM API"]
-        SMTP["SMTP Server"]
-        Langfuse["Langfuse"]
-    end
+    Safety --> ReviewUI["CS Auto Frontend<br/>운영자 검토 화면"]
+    HumanReview --> ReviewUI
 
-    Admin --> CSUI
-    CSUI --> CSAPI
-    CSAPI --> AuthAPI
-    CSAPI --> TicketAPI
-    CSAPI --> DraftAPI
-    CSAPI --> MailAPI
+    ReviewUI --> Edit["수정 / 재생성 / 승인"]
+    Edit --> FinalDB["최종 응답 저장<br/>final_response"]
+    FinalDB --> Send["댓글 / 이메일 응답 전송"]
 
-    TicketAPI --> LoadTicket
-    DraftAPI --> EditDraft
-    DraftAPI --> Regenerate
-    DraftAPI --> Approve
-    MailAPI --> SendEmail
-
-    Airflow --> AnalysisDAG
-    Airflow --> AnswerDAG
-    AnalysisDAG --> AnalysisAgent
-    AnswerDAG --> AnswerAgent
-
-    AnalysisAgent --> Ticket
-    AnalysisAgent --> Analysis
-    AnalysisAgent --> LLM
-
-    AnswerAgent --> Ticket
-    AnswerAgent --> Analysis
-    AnswerAgent --> Vector
-    AnswerAgent --> Draft
-    AnswerAgent --> Evidence
-    AnswerAgent --> SafetyEval
-    SafetyEval --> Safety
-    SafetyEval --> LLM
-
-    LoadTicket --> DB
-    EditDraft --> Draft
-    Regenerate --> AnswerAgent
-    Approve --> Final
-    SendEmail --> SMTP
-    SendEmail --> Logs
-
-    CSAPI --> Langfuse
-    AnalysisAgent --> Langfuse
-    AnswerAgent --> Langfuse
-
-    DB --- Ticket
-    DB --- Analysis
-    DB --- Draft
-    DB --- Evidence
-    DB --- Safety
-    DB --- Final
-    DB --- Logs
+    AutoDraft --> LLM["OpenAI LLM"]
+    Analysis --> LLM
+    ReviewUI --> Obs["Langfuse<br/>Trace / 운영 로그"]
 ```
 
 ### Weekly Report Architecture
 
 ```mermaid
-flowchart TB
-    subgraph Consumer["Consumer Layer"]
-        Planner["게임기획팀"]
-        Operator["운영 관리자"]
-        Slack["Slack Channel"]
-    end
+flowchart TD
+    Scheduler["Airflow Scheduler"] --> AnalysisDAG["CS Analysis DAG<br/>문의 분석 배치"]
+    Scheduler --> AnswerDAG["CS Answer DAG<br/>답변 초안 생성 배치"]
+    Scheduler --> ReportDAG["Weekly Report DAG<br/>주간 리포트 생성"]
 
-    subgraph Trigger["Trigger Layer"]
-        WeeklyDAG["dashboard_weekly_report<br/>매주 월요일 09:00 KST"]
-        ManualAPI["Weekly Report API<br/>POST /report/trigger"]
-    end
+    AnalysisDAG --> TicketDB["문의 DB<br/>qa_ticket"]
+    AnalysisDAG --> AnalysisAgent["Analysis Agent"]
+    AnalysisAgent --> AnalysisDB["분석 결과 DB<br/>ticket_analysis"]
 
-    subgraph Pipeline["Pipeline Layer"]
-        Fetch["Fetch Report Data<br/>최근 7일 데이터 조회"]
-        Metrics["Metrics Builder<br/>문의 수 / 상태 / 카테고리"]
-        Anomaly["Anomaly Detection<br/>WoW / 시간대 / 카테고리"]
-        Top5["Top 5 Builder<br/>유저 개선 요청"]
-        AIAction["AI Recommended Actions"]
-    end
+    AnswerDAG --> PendingTickets["검토 대상 문의 조회"]
+    PendingTickets --> AnswerAgent["Answer Agent"]
+    AnswerAgent --> GameDB["게임 운영 DB<br/>결제 / 환불 / 지급 / 가챠"]
+    AnswerAgent --> Docs["문서 DB<br/>FAQ / 정책 / 공지"]
+    AnswerAgent --> DraftDB["답변 초안 / 근거 저장"]
 
-    subgraph Output["Output Layer"]
-        Payload["Report Payload"]
-        Chart["Chart Renderer<br/>Plotly / Kaleido"]
-        PDF["PDF Renderer<br/>xhtml2pdf"]
-        SlackSender["Slack Sender"]
-    end
+    ReportDAG --> Metrics["운영 지표 집계<br/>문의 수 / 처리 상태 / 카테고리 분포"]
+    ReportDAG --> Spike["이상 징후 탐지<br/>급증 문의 / 위험 신호"]
+    ReportDAG --> TopRequests["반복 요청 추출<br/>Top 개선 요청"]
+    ReportDAG --> AIAction["AI Action Generator<br/>운영 액션 제안"]
 
-    subgraph Data["Data Layer"]
-        DB["PostgreSQL"]
-        Ticket["qa_ticket"]
-        Analysis["ticket_analysis"]
-        Draft["answer_draft"]
-        Final["final_response"]
-        Safety["safety_results"]
-        Insight["insight"]
-        Notification["notification_logs"]
-    end
+    Metrics --> Report["Weekly Report PDF"]
+    Spike --> Report
+    TopRequests --> Report
+    AIAction --> Report
 
-    subgraph External["External Layer"]
-        LLM["LLM API"]
-        Langfuse["Langfuse"]
-        SlackAPI["Slack API"]
-    end
-
-    Planner --> Slack
-    Operator --> ManualAPI
-    WeeklyDAG --> Fetch
-    ManualAPI --> Fetch
-
-    Fetch --> Metrics
-    Metrics --> Anomaly
-    Anomaly --> Top5
-    Top5 --> AIAction
-    AIAction --> Payload
-    Payload --> Chart
-    Chart --> PDF
-    PDF --> SlackSender
-    SlackSender --> SlackAPI
-    SlackAPI --> Slack
-
-    Fetch --> DB
-    Metrics --> DB
-    Anomaly --> DB
-    Top5 --> DB
-    AIAction --> LLM
-    WeeklyDAG --> Langfuse
-    AIAction --> Langfuse
-
-    DB --- Ticket
-    DB --- Analysis
-    DB --- Draft
-    DB --- Final
-    DB --- Safety
-    DB --- Insight
-    DB --- Notification
+    Report --> Slack["Slack 자동 전송"]
+    Scheduler --> Obs["Langfuse<br/>Batch Trace / 로그"]
 ```
 
 ### CS Auto Event Flow
