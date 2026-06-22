@@ -414,6 +414,44 @@ def test_answer_safety_router_uses_fixed_answer_when_safety_fails() -> None:
     assert routed.safety_label == "review_required"
 
 
+def test_answer_safety_evaluator_records_langfuse_scores(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    class FakeChain:
+        def invoke(self, payload):
+            return {
+                "hallucination_score": 0.2,
+                "toxicity_score": 0.1,
+                "policy_violation_score": 0.0,
+                "factuality_score": 0.9,
+                "safety_action": "approved",
+                "safety_reason": "ok",
+                "retry_count": 0,
+                "average_score": 0.0,
+            }
+
+    monkeypatch.setattr(
+        answer_agent,
+        "record_current_scores",
+        lambda scores, **kwargs: captured.update({"scores": scores, "kwargs": kwargs}),
+    )
+
+    evaluator = answer_agent.AnswerSafetyEvaluator.__new__(answer_agent.AnswerSafetyEvaluator)
+    evaluator.chain = FakeChain()
+
+    context = answer_agent.AnswerDraftContext(
+        ticket=answer_agent.AnswerTarget(ticket_id=1),
+        evidence_docs=[],
+    )
+    draft = answer_agent.AnswerDraftResult(draft_text="draft")
+
+    result = evaluator.evaluate(context, draft)
+
+    assert result.average_score > 0
+    assert captured["scores"]["average_score"] == result.average_score
+    assert captured["scores"]["safety_approved"] is True
+
+
 def test_live_answer_agent_with_real_db_and_llm() -> None:
     r"""실제 DB/LLM을 사용해 answer_agent 단계를 터미널에 출력한다.
 

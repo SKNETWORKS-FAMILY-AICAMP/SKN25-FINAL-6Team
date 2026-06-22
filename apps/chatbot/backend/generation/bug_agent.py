@@ -12,8 +12,10 @@ from chatbot.agent import invoke_bug_agent
 from chatbot.generation.faq_agent import _embed_query, _generate_evidence_answer, _rerank_documents
 from chatbot.generation.drafting_agent import build_draft_update
 from chatbot.generation.policies import BUG_POLICY
+from chatbot.observability.langfuse import link_chatbot_trace
 from chatbot.observability.logger import EVENT_NODE_COMPLETED, EVENT_NODE_STARTED, EVENT_TOOL_COMPLETED, log_event
 from chatbot.schemas import ChatbotState
+from common.observability.langfuse import get_langchain_config, observe_if_enabled
 from common.observability.logger import record_chat_model_usage
 from common.retrieval.vector_tools import RetrievalQuery, search_document_chunks
 
@@ -147,7 +149,8 @@ def _classify_bug_intent_by_llm(text: str) -> BugIntentResult | None:
                 ),
             },
             {"role": "user", "content": text},
-        ]
+        ],
+        config=get_langchain_config(),
     )
     record_chat_model_usage("bug_intent_classifier", model, raw_result.get("raw"))
     result = raw_result.get("parsed")
@@ -439,3 +442,60 @@ def bug_agent_node(state: ChatbotState) -> dict:
         metadata={"draft_length": len(update.get("draft_text") or "")},
     )
     return update
+
+
+_original_run_bug_faq_precheck = _run_bug_faq_precheck
+
+
+@observe_if_enabled(
+    name="bug_faq_precheck",
+    as_type="tool",
+    tags=["chatbot", "feature:retrieval", "bug", "faq_precheck"],
+)
+def _run_bug_faq_precheck(state: ChatbotState) -> dict[str, Any] | None:
+    link_chatbot_trace(
+        state,
+        tags=["feature:retrieval", "bug", "faq_precheck"],
+        input_payload={
+            "ticket_id": state.get("ticket_id"),
+            "query": state.get("normalized_query") or state.get("raw_query"),
+            "bug_collection_status": state.get("bug_collection_status"),
+        },
+    )
+    result = _original_run_bug_faq_precheck(state)
+    link_chatbot_trace(
+        state,
+        tags=["feature:retrieval", "bug", "faq_precheck"],
+        metadata_source={**state, **(result or {})},
+        output_payload=result or {"matched": False},
+    )
+    return result
+
+
+_original_bug_agent_node = bug_agent_node
+
+
+@observe_if_enabled(
+    name="bug_agent",
+    as_type="chain",
+    tags=["chatbot", "feature:generation", "bug"],
+)
+def bug_agent_node(state: ChatbotState) -> dict:
+    link_chatbot_trace(
+        state,
+        tags=["feature:generation", "bug"],
+        input_payload={
+            "ticket_id": state.get("ticket_id"),
+            "query": state.get("normalized_query") or state.get("raw_query"),
+            "routing_target": state.get("routing_target"),
+            "bug_collection_status": state.get("bug_collection_status"),
+        },
+    )
+    result = _original_bug_agent_node(state)
+    link_chatbot_trace(
+        state,
+        tags=["feature:generation", "bug"],
+        metadata_source={**state, **result},
+        output_payload=result,
+    )
+    return result

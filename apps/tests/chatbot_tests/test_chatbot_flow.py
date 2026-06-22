@@ -38,6 +38,50 @@ def test_preprocess_user_input_masks_sensitive_values_without_dropping_question(
         "결제 문의입니다. email test@example.com phone 010-1234-5678 비밀번호: qwer1234"
     )
 
+
+def test_safety_layer_records_langfuse_scores(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_record(scores, **kwargs):
+        captured["scores"] = scores
+        captured["kwargs"] = kwargs
+
+    monkeypatch.setattr(
+        safety_layer,
+        "_original_safety_layer_node",
+        lambda state: {
+            "factuality_score": 0.9,
+            "hallucination_score": 0.1,
+            "toxicity_score": 0.0,
+            "policy_violation_score": 0.0,
+            "review_required": False,
+            "safety_passed": True,
+            "safety_action": "AUTO_RESPONSE",
+            "safety_reason": "ok",
+            **preprocess_user_input(
+                "寃곗젣 臾몄쓽?낅땲?? email test@example.com phone 010-1234-5678 鍮꾨?踰덊샇: qwer1234"
+                ),
+                "raw_content": "\uacb0\uc81c \ubb38\uc758\uc785\ub2c8\ub2e4. email test@example.com phone 010-1234-5678 \ube44\ubc00\ubc88\ud638: qwer1234",
+                "masked_content": "\uacb0\uc81c \ubb38\uc758\uc785\ub2c8\ub2e4. email [\uc774\uba54\uc77c] phone [\uc804\ud654\ubc88\ud638] \ube44\ubc00\ubc88\ud638: [\ube44\ubc00\ubc88\ud638]",
+                "detected_labels": ["email", "phone", "password"],
+            },
+        )
+    monkeypatch.setattr(safety_layer, "record_current_scores", fake_record)
+
+    result = safety_layer.safety_layer_node(
+        {
+            "ticket_id": 1,
+            "draft_id": 2,
+            "draft_text": "answer",
+            "retrieved_documents": [],
+            "reasoning_node": "faq_agent",
+        }
+    )
+
+    assert result["factuality_score"] == 0.9
+    assert captured["scores"]["review_required"] is False
+    assert captured["scores"]["safety_passed"] is True
+
     assert result["raw_content"].startswith("결제 문의입니다.")
     assert "test@example.com" not in result["masked_content"]
     assert "010-1234-5678" not in result["masked_content"]

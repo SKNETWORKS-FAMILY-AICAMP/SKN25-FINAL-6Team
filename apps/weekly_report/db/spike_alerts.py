@@ -20,7 +20,9 @@ import math
 from datetime import datetime, timedelta
 from typing import Any
 
+from common.observability.langfuse import observe_if_enabled
 from db.connection import _fetch_all, db_connection, dict_row
+from observability.langfuse import link_weekly_report_trace
 
 # Z-Score 임계값: Grubbs(1969) 기준 — 2.0은 95%, 3.0은 99.7% 신뢰 수준.
 _ZSCORE_WARNING = 2.0
@@ -321,6 +323,11 @@ def build_spike_slack_blocks(alerts: dict[str, Any]) -> list[dict]:
     return blocks
 
 
+@observe_if_enabled(
+    name="weekly_report_detect_spike_alerts",
+    as_type="generation",
+    tags=["weekly-report", "feature:data-fetch", "source:spike-alerts"],
+)
 def detect(window: dict[str, Any]) -> dict[str, Any]:
     """세 가지 방법론으로 폭증·위험 현황을 감지해 반환한다.
 
@@ -331,8 +338,35 @@ def detect(window: dict[str, Any]) -> dict[str, Any]:
         "monthly": [직전 4주 추세 리스트],
     }
     """
-    return {
+    link_weekly_report_trace(
+        window,
+        tags=["weekly-report", "feature:data-fetch", "source:spike-alerts"],
+        input_payload={
+            "window_start": window["window_start"].isoformat(),
+            "window_end": window["window_end"].isoformat(),
+            "days": window["days"],
+        },
+        window_start=window["window_start"].isoformat(),
+        window_end=window["window_end"].isoformat(),
+        days=int(window["days"]),
+    )
+    result = {
         "hourly": _calculate_zscore_by_hour(window),
         "daily": _calculate_wow_by_day(window),
         "monthly": _calculate_monthly_trend(window),
     }
+    link_weekly_report_trace(
+        {"window_start": window["window_start"].isoformat(), "window_end": window["window_end"].isoformat()},
+        tags=["weekly-report", "feature:data-fetch", "source:spike-alerts"],
+        output_payload={
+            "hourly_alert_count": len(result["hourly"]),
+            "daily_alert_count": len(result["daily"]),
+            "monthly_trend_count": len(result["monthly"]),
+        },
+        window_start=window["window_start"].isoformat(),
+        window_end=window["window_end"].isoformat(),
+        hourly_alert_count=len(result["hourly"]),
+        daily_alert_count=len(result["daily"]),
+        monthly_trend_count=len(result["monthly"]),
+    )
+    return result

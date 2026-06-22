@@ -1,0 +1,4238 @@
+{
+  "dataset_info": {
+    "name": "cs_auto_answer_agent_eval_dataset_live",
+    "created_at": "2026-06-21T21:36:16.114197+00:00",
+    "source": "live_db",
+    "database": "game_cs",
+    "schema": "public",
+    "reference_dataset": "routing_target_gold_dataset_live_candidates.json",
+    "target_module": "apps/cs_auto/backend/agents/answer_agent.py",
+    "counts": {
+      "doc_only": 23,
+      "DB_only": 15,
+      "DB&DOC": 13,
+      "fixed_answer": 13,
+      "total": 64
+    },
+    "live_routing_distribution": {
+      "doc_only": 172,
+      "DB_only": 35,
+      "DB&DOC": 21,
+      "fixed_answer": 22
+    },
+    "requested_sample_counts": {
+      "doc_only": 23,
+      "DB_only": 15,
+      "DB&DOC": 13,
+      "fixed_answer": 13
+    },
+    "notes": [
+      "This dataset follows the routing_target candidate dataset structure as the single reference.",
+      "Each example includes the full answer_target payload required by answer_agent.AnswerTarget.",
+      "Sample allocation follows the live ticket_analysis routing_target distribution.",
+      "fixed_answer examples are included to evaluate fallback-only behavior."
+    ]
+  },
+  "examples": [
+    {
+      "ticket_id": 11,
+      "routing_target": "doc_only",
+      "intent_family": "mail_reward",
+      "ticket": {
+        "account_id": 168,
+        "user_id": 68,
+        "created_at": "2020-08-29 09:15:00",
+        "question": "사전 예약 홈페이지 커뮤니티/친구 초대 이벤트 설명 오류\n​\n커뮤니티 가입 달성 보상에는 유튜브 구독 1만 돌파시 만남의 인연*2 보상이 적혀 있지만\n이벤트 설명에는 구독자 수 10만이라고 적혀 있어 어느 쪽이 맞는지 잘 모르겠습니다.\n​\n확인 하시면 수정 부탁드립니다.~!"
+      },
+      "gold_policy": {
+        "documents": [
+          {
+            "document_id": "NVC-NOT-2",
+            "chunk_id": "NVC-NOT-2::chunk::0",
+            "source_type": "naver_cafe_notice",
+            "category": "업데이트",
+            "title": "「『공월의 노래·회선곡』 돌아온 예언의 깃」 「여섯 번째 달」 버전 업데이트 안내"
+          },
+          {
+            "document_id": "NVC-NOT-2",
+            "chunk_id": "NVC-NOT-2::chunk::1",
+            "source_type": "naver_cafe_notice",
+            "category": "업데이트",
+            "title": "「『공월의 노래·회선곡』 돌아온 예언의 깃」 「여섯 번째 달」 버전 업데이트 안내"
+          },
+          {
+            "document_id": "NVC-NOT-2",
+            "chunk_id": "NVC-NOT-2::chunk::2",
+            "source_type": "naver_cafe_notice",
+            "category": "업데이트",
+            "title": "「『공월의 노래·회선곡』 돌아온 예언의 깃」 「여섯 번째 달」 버전 업데이트 안내"
+          }
+        ]
+      },
+      "must_include": [
+        "문서에 있는 정책/공지/절차만 안내",
+        "DB 상태를 확인한 것처럼 말하지 않음"
+      ],
+      "must_not_include": [
+        "주문/결제/환불 상태를 임의로 생성",
+        "문서에 없는 보상 또는 예외 처리를 확정"
+      ],
+      "answer_target": {
+        "ticket_id": 11,
+        "account_id": 168,
+        "user_id": 68,
+        "title": "사전 예약 홈페이지 커뮤니티/친구 초대 이벤트 설명 오류",
+        "raw_query": "사전 예약 홈페이지 커뮤니티/친구 초대 이벤트 설명 오류\n​\n커뮤니티 가입 달성 보상에는 유튜브 구독 1만 돌파시 만남의 인연*2 보상이 적혀 있지만\n이벤트 설명에는 구독자 수 10만이라고 적혀 있어 어느 쪽이 맞는지 잘 모르겠습니다.\n​\n확인 하시면 수정 부탁드립니다.~!",
+        "source_type": "naver_cafe",
+        "status": "draft_generated",
+        "inquiry_created_at": "2020-08-29T09:15:00",
+        "assignee_admin_id": null,
+        "analysis_id": 11,
+        "category": "bug",
+        "enriched_query": "사전 예약 홈페이지 커뮤니티/친구 초대 이벤트 설명 오류 사전 예약 홈페이지 커뮤니티/친구 초대 이벤트 설명 오류 ​ 커뮤니티 가입 달성 보상에는 유튜브 구독 1만 돌파시 만남의 인연*2 보상이 적혀 있지만 이벤트 설명에는 구독자 수 10만이라고 적혀 있어 어느 쪽이 맞는지 잘 모르겠습니다. ​ 확인 하시면 수정 부탁드립니다.~!",
+        "risk_level": "LOW",
+        "sentiment": "positive",
+        "routing_target": "doc_only",
+        "summary": "문의는 bug 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 positive, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-20T16:35:59.879897"
+      },
+      "eval_focus": [
+        "document_retrieval",
+        "policy_grounding",
+        "no_db_claims"
+      ]
+    },
+    {
+      "ticket_id": 247,
+      "routing_target": "doc_only",
+      "ticket": {
+        "account_id": 2211,
+        "user_id": 2111,
+        "created_at": "2020-09-29 18:22:00",
+        "question": "실행 하면 미호요 로고 나오고 화이트 스크린 상태로 진행이 안됩니다.\n설명대로 라이렉트 재설치 하였고 게임을 완전히 삭제후 재설치 하여도 마찬가지로 PC로 실행이 안됩니다.\n어떻게 해결 해야 하나요?"
+      },
+      "answer_target": {
+        "ticket_id": 247,
+        "account_id": 2211,
+        "user_id": 2111,
+        "title": "PC실행 불가",
+        "raw_query": "실행 하면 미호요 로고 나오고 화이트 스크린 상태로 진행이 안됩니다.\n설명대로 라이렉트 재설치 하였고 게임을 완전히 삭제후 재설치 하여도 마찬가지로 PC로 실행이 안됩니다.\n어떻게 해결 해야 하나요?",
+        "source_type": "naver_cafe",
+        "status": "resolved",
+        "inquiry_created_at": "2020-09-29T18:22:00",
+        "assignee_admin_id": null,
+        "analysis_id": 247,
+        "category": "bug",
+        "enriched_query": "PC실행 불가 실행 하면 미호요 로고 나오고 화이트 스크린 상태로 진행이 안됩니다. 설명대로 라이렉트 재설치 하였고 게임을 완전히 삭제후 재설치 하여도 마찬가지로 PC로 실행이 안됩니다. 어떻게 해결 해야 하나요?",
+        "risk_level": "LOW",
+        "sentiment": "neutral",
+        "routing_target": "doc_only",
+        "summary": "문의는 bug 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-22T04:01:59.633121"
+      },
+      "eval_focus": [
+        "document_retrieval",
+        "policy_grounding",
+        "no_db_claims"
+      ],
+      "summary_oracle": {
+        "summary_excerpt": "문의는 bug 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다."
+      },
+      "gold_policy": {
+        "documents": [
+          {
+            "document_id": "NVC-NOT-358",
+            "chunk_id": "NVC-NOT-358::chunk::12",
+            "source_type": "naver_cafe_notice",
+            "category": "공지사항",
+            "title": "[지속 업데이트] PC 버전 실행기 자주 묻는 질문 FAQ (내용 추가)"
+          },
+          {
+            "document_id": "NVC-NOT-410",
+            "chunk_id": "NVC-NOT-410::chunk::5",
+            "source_type": "naver_cafe_notice",
+            "category": "공지사항",
+            "title": "PC 플랫폼 자주 묻는 질문 (결제 관련 내용 추가)"
+          },
+          {
+            "document_id": "QNA-GSN-51",
+            "chunk_id": "QNA-GSN-51::chunk::3",
+            "source_type": "universe_qna_onlydaily",
+            "category": "bug_faq",
+            "title": "버그, 튕김 관련 FAQ"
+          }
+        ]
+      },
+      "must_include": [
+        "문서/정책 기반 안내로 답변",
+        "summary 범위를 넘는 DB 상태 단정 금지"
+      ],
+      "must_not_include": [
+        "결제/환불/지급 상태를 사실처럼 생성",
+        "summary에 없는 예외 처리나 보상을 확정"
+      ]
+    },
+    {
+      "ticket_id": 245,
+      "routing_target": "doc_only",
+      "ticket": {
+        "account_id": 2207,
+        "user_id": 2107,
+        "created_at": "2020-09-29 17:48:00",
+        "question": "게임중 자꾸 타닥하고 모닥불타는소리, 스파크튀는소리같은게 납니다.\n안에서 폰 망가지고 있는건 아닌지 걱정되네요\n동일증상 있는 분들이 많은거 같은데 신속한 조치나 공지 바랍니다"
+      },
+      "answer_target": {
+        "ticket_id": 245,
+        "account_id": 2207,
+        "user_id": 2107,
+        "title": "노트9 타닥소리",
+        "raw_query": "게임중 자꾸 타닥하고 모닥불타는소리, 스파크튀는소리같은게 납니다.\n안에서 폰 망가지고 있는건 아닌지 걱정되네요\n동일증상 있는 분들이 많은거 같은데 신속한 조치나 공지 바랍니다",
+        "source_type": "naver_cafe",
+        "status": "resolved",
+        "inquiry_created_at": "2020-09-29T17:48:00",
+        "assignee_admin_id": null,
+        "analysis_id": 245,
+        "category": "bug",
+        "enriched_query": "노트9 타닥소리 게임중 자꾸 타닥하고 모닥불타는소리, 스파크튀는소리같은게 납니다. 안에서 폰 망가지고 있는건 아닌지 걱정되네요 동일증상 있는 분들이 많은거 같은데 신속한 조치나 공지 바랍니다",
+        "risk_level": "LOW",
+        "sentiment": "neutral",
+        "routing_target": "doc_only",
+        "summary": "문의는 bug 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-22T04:01:54.991670"
+      },
+      "eval_focus": [
+        "document_retrieval",
+        "policy_grounding",
+        "no_db_claims"
+      ],
+      "summary_oracle": {
+        "summary_excerpt": "문의는 bug 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다."
+      },
+      "gold_policy": {
+        "documents": [
+          {
+            "document_id": "NVC-NOT-391",
+            "chunk_id": "NVC-NOT-391::chunk::2",
+            "source_type": "naver_cafe_notice",
+            "category": "공지사항",
+            "title": "「일상」 게임 내 툴팁 문제 복구 조정 안내 편지"
+          },
+          {
+            "document_id": "NVC-NOT-317",
+            "chunk_id": "NVC-NOT-317::chunk::0",
+            "source_type": "naver_cafe_notice",
+            "category": "공지사항",
+            "title": "[6.30] 개발진 간담회 - 워프할 수 있는 장식 등장~"
+          },
+          {
+            "document_id": "NVC-NOT-2",
+            "chunk_id": "NVC-NOT-2::chunk::87",
+            "source_type": "naver_cafe_notice",
+            "category": "업데이트",
+            "title": "「『공월의 노래·회선곡』 돌아온 예언의 깃」 「여섯 번째 달」 버전 업데이트 안내"
+          }
+        ]
+      },
+      "must_include": [
+        "문서/정책 기반 안내로 답변",
+        "summary 범위를 넘는 DB 상태 단정 금지"
+      ],
+      "must_not_include": [
+        "결제/환불/지급 상태를 사실처럼 생성",
+        "summary에 없는 예외 처리나 보상을 확정"
+      ]
+    },
+    {
+      "ticket_id": 241,
+      "routing_target": "doc_only",
+      "ticket": {
+        "account_id": 2180,
+        "user_id": 2080,
+        "created_at": "2020-09-29 17:41:00",
+        "question": "갤럭시 노트10+ 사용중입니다.\n​\n상단 스피커 & 정면 카메라 쪽에서 가끔씩\n\"파지직\"하면서 스파크 튀는듯한 소리가 납니다.\n​\n그래픽을 저사양으로 설정해도 소리가 나고,\n​\n볼륨을 끄고 할때도 소리가 나는거 보면 스피커 소리는 아닌거같은데...\n​\n뭔가 문제가 있는거 같은데;;;;;\n​\n다른 유저들도 동일한 현상 나오고 있던데....\n​\n빨리 확인 및 조치 좀 해주세요\n​\n엄청 기대했던 기엠인데\n​\n불안해서 게임 안하고있습니다....."
+      },
+      "answer_target": {
+        "ticket_id": 241,
+        "account_id": 2180,
+        "user_id": 2080,
+        "title": "\"파지직\"하면서 스파크 튀는듯한 소리가 납니다.",
+        "raw_query": "갤럭시 노트10+ 사용중입니다.\n​\n상단 스피커 & 정면 카메라 쪽에서 가끔씩\n\"파지직\"하면서 스파크 튀는듯한 소리가 납니다.\n​\n그래픽을 저사양으로 설정해도 소리가 나고,\n​\n볼륨을 끄고 할때도 소리가 나는거 보면 스피커 소리는 아닌거같은데...\n​\n뭔가 문제가 있는거 같은데;;;;;\n​\n다른 유저들도 동일한 현상 나오고 있던데....\n​\n빨리 확인 및 조치 좀 해주세요\n​\n엄청 기대했던 기엠인데\n​\n불안해서 게임 안하고있습니다.....",
+        "source_type": "naver_cafe",
+        "status": "resolved",
+        "inquiry_created_at": "2020-09-29T17:41:00",
+        "assignee_admin_id": null,
+        "analysis_id": 241,
+        "category": "bug",
+        "enriched_query": "\"파지직\"하면서 스파크 튀는듯한 소리가 납니다. 갤럭시 노트10+ 사용중입니다. ​ 상단 스피커 & 정면 카메라 쪽에서 가끔씩 \"파지직\"하면서 스파크 튀는듯한 소리가 납니다. ​ 그래픽을 저사양으로 설정해도 소리가 나고, ​ 볼륨을 끄고 할때도 소리가 나는거 보면 스피커 소리는 아닌거같은데... ​ 뭔가 문제가 있는거 같은데;;;;; ​ 다른 유저들도 동일한 현상 나오고 있던데.... ​ 빨리 확인 및 조치 좀 해주세요 ​ 엄청 기대했던 기엠인데 ​ 불안해서 게임 안하고있습니다.....",
+        "risk_level": "LOW",
+        "sentiment": "negative",
+        "routing_target": "doc_only",
+        "summary": "문의는 bug 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 negative, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-22T04:01:46.848613"
+      },
+      "eval_focus": [
+        "document_retrieval",
+        "policy_grounding",
+        "no_db_claims"
+      ],
+      "summary_oracle": {
+        "summary_excerpt": "문의는 bug 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 negative, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다."
+      },
+      "gold_policy": {
+        "documents": [
+          {
+            "document_id": "NVC-NOT-203",
+            "chunk_id": "NVC-NOT-203::chunk::114",
+            "source_type": "naver_cafe_notice",
+            "category": "공지사항",
+            "title": "「여명을 밝히는 천 송이 장미」 3.0 버전 업데이트 상세안내"
+          },
+          {
+            "document_id": "NVC-NOT-334",
+            "chunk_id": "NVC-NOT-334::chunk::74",
+            "source_type": "naver_cafe_notice",
+            "category": "공지사항",
+            "title": "「옥빛 아래 속세의 노래」 1.5 버전 업데이트 상세안내"
+          },
+          {
+            "document_id": "NVC-NOT-166",
+            "chunk_id": "NVC-NOT-166::chunk::4",
+            "source_type": "naver_cafe_notice",
+            "category": "공지사항",
+            "title": "「일상」 무선 컨트롤러 사용 관련 FAQ"
+          }
+        ]
+      },
+      "must_include": [
+        "문서/정책 기반 안내로 답변",
+        "summary 범위를 넘는 DB 상태 단정 금지"
+      ],
+      "must_not_include": [
+        "결제/환불/지급 상태를 사실처럼 생성",
+        "summary에 없는 예외 처리나 보상을 확정"
+      ]
+    },
+    {
+      "ticket_id": 240,
+      "routing_target": "doc_only",
+      "ticket": {
+        "account_id": 2174,
+        "user_id": 2074,
+        "created_at": "2020-09-29 17:36:00",
+        "question": "주기적 계속멈추고 두두두소리까지\n폰터지겠네요.."
+      },
+      "answer_target": {
+        "ticket_id": 240,
+        "account_id": 2174,
+        "user_id": 2074,
+        "title": "폰호환좀",
+        "raw_query": "주기적 계속멈추고 두두두소리까지\n폰터지겠네요..",
+        "source_type": "naver_cafe",
+        "status": "resolved",
+        "inquiry_created_at": "2020-09-29T17:36:00",
+        "assignee_admin_id": null,
+        "analysis_id": 240,
+        "category": "bug",
+        "enriched_query": "폰호환좀 주기적 계속멈추고 두두두소리까지 폰터지겠네요..",
+        "risk_level": "LOW",
+        "sentiment": "neutral",
+        "routing_target": "doc_only",
+        "summary": "문의는 bug 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-22T04:01:44.477801"
+      },
+      "eval_focus": [
+        "document_retrieval",
+        "policy_grounding",
+        "no_db_claims"
+      ],
+      "summary_oracle": {
+        "summary_excerpt": "문의는 bug 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다."
+      },
+      "gold_policy": {
+        "documents": [
+          {
+            "document_id": "NVC-NOT-372",
+            "chunk_id": "NVC-NOT-372::chunk::0",
+            "source_type": "naver_cafe_notice",
+            "category": "공지사항",
+            "title": "종려 밸런스 조정 관련 안내"
+          },
+          {
+            "document_id": "NVC-NOT-158",
+            "chunk_id": "NVC-NOT-158::chunk::6",
+            "source_type": "naver_cafe_notice",
+            "category": "공지사항",
+            "title": "「듀얼! 소환왕 결정전!」 3.7 버전 업데이트 점검 예고"
+          },
+          {
+            "document_id": "NVC-NOT-84",
+            "chunk_id": "NVC-NOT-84::chunk::0",
+            "source_type": "naver_cafe_notice",
+            "category": "개발진 간담회",
+            "title": "[24.07.05] 개발진 간담회——수련 포인트 누적 가능, 우두머리 리스폰 시간 대폭 단축!"
+          }
+        ]
+      },
+      "must_include": [
+        "문서/정책 기반 안내로 답변",
+        "summary 범위를 넘는 DB 상태 단정 금지"
+      ],
+      "must_not_include": [
+        "결제/환불/지급 상태를 사실처럼 생성",
+        "summary에 없는 예외 처리나 보상을 확정"
+      ]
+    },
+    {
+      "ticket_id": 239,
+      "routing_target": "doc_only",
+      "ticket": {
+        "account_id": 2170,
+        "user_id": 2070,
+        "created_at": "2020-09-29 17:34:00",
+        "question": "목표지역인 폭포수 언덕에서 도착하니 몹 3마리가 있었는데 2마리만 잡고 한마리는 잡다가 지가 절벽으로 떨어졌는데 제단에 얼음모양의 불이 3개 들어와야 되는데 2개만 들어오고 더이상 진행이 안되네요\n로그아웃해서 와도 똑같고 내려가서 떨어진 몹 수색해도 안되고\n확인 좀 부탁드립니다."
+      },
+      "answer_target": {
+        "ticket_id": 239,
+        "account_id": 2170,
+        "user_id": 2070,
+        "title": "전설임무 아카디아 유적의 수수께끼 진행이 안됩니다.",
+        "raw_query": "목표지역인 폭포수 언덕에서 도착하니 몹 3마리가 있었는데 2마리만 잡고 한마리는 잡다가 지가 절벽으로 떨어졌는데 제단에 얼음모양의 불이 3개 들어와야 되는데 2개만 들어오고 더이상 진행이 안되네요\n로그아웃해서 와도 똑같고 내려가서 떨어진 몹 수색해도 안되고\n확인 좀 부탁드립니다.",
+        "source_type": "naver_cafe",
+        "status": "resolved",
+        "inquiry_created_at": "2020-09-29T17:34:00",
+        "assignee_admin_id": null,
+        "analysis_id": 239,
+        "category": "bug",
+        "enriched_query": "전설임무 아카디아 유적의 수수께끼 진행이 안됩니다. 목표지역인 폭포수 언덕에서 도착하니 몹 3마리가 있었는데 2마리만 잡고 한마리는 잡다가 지가 절벽으로 떨어졌는데 제단에 얼음모양의 불이 3개 들어와야 되는데 2개만 들어오고 더이상 진행이 안되네요 로그아웃해서 와도 똑같고 내려가서 떨어진 몹 수색해도 안되고 확인 좀 부탁드립니다.",
+        "risk_level": "LOW",
+        "sentiment": "positive",
+        "routing_target": "doc_only",
+        "summary": "문의는 bug 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 positive, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-22T04:01:42.373885"
+      },
+      "eval_focus": [
+        "document_retrieval",
+        "policy_grounding",
+        "no_db_claims"
+      ],
+      "summary_oracle": {
+        "summary_excerpt": "문의는 bug 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 positive, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다."
+      },
+      "gold_policy": {
+        "documents": [
+          {
+            "document_id": "QNA-GSN-20",
+            "chunk_id": "QNA-GSN-20::chunk::5",
+            "source_type": "universe_qna_onlydaily",
+            "category": "게임_문제",
+            "title": "「수메르」 지역 임무 FAQ"
+          },
+          {
+            "document_id": "QNA-GSN-20",
+            "chunk_id": "QNA-GSN-20::chunk::4",
+            "source_type": "universe_qna_onlydaily",
+            "category": "게임_문제",
+            "title": "「수메르」 지역 임무 FAQ"
+          },
+          {
+            "document_id": "QNA-GSN-20",
+            "chunk_id": "QNA-GSN-20::chunk::7",
+            "source_type": "universe_qna_onlydaily",
+            "category": "게임_문제",
+            "title": "「수메르」 지역 임무 FAQ"
+          }
+        ]
+      },
+      "must_include": [
+        "문서/정책 기반 안내로 답변",
+        "summary 범위를 넘는 DB 상태 단정 금지"
+      ],
+      "must_not_include": [
+        "결제/환불/지급 상태를 사실처럼 생성",
+        "summary에 없는 예외 처리나 보상을 확정"
+      ]
+    },
+    {
+      "ticket_id": 238,
+      "routing_target": "doc_only",
+      "ticket": {
+        "account_id": 2134,
+        "user_id": 2034,
+        "created_at": "2020-09-29 17:28:00",
+        "question": "공지만 누르면 이렇게 멈추네요\n​\n어제는 잘됐는데 지금 막하니까 안되네요 몇번했는데도 같은현상 반복임"
+      },
+      "answer_target": {
+        "ticket_id": 238,
+        "account_id": 2134,
+        "user_id": 2034,
+        "title": "모바일 공지접속불가",
+        "raw_query": "공지만 누르면 이렇게 멈추네요\n​\n어제는 잘됐는데 지금 막하니까 안되네요 몇번했는데도 같은현상 반복임",
+        "source_type": "naver_cafe",
+        "status": "resolved",
+        "inquiry_created_at": "2020-09-29T17:28:00",
+        "assignee_admin_id": null,
+        "analysis_id": 238,
+        "category": "bug",
+        "enriched_query": "모바일 공지접속불가 공지만 누르면 이렇게 멈추네요 ​ 어제는 잘됐는데 지금 막하니까 안되네요 몇번했는데도 같은현상 반복임",
+        "risk_level": "LOW",
+        "sentiment": "neutral",
+        "routing_target": "doc_only",
+        "summary": "문의는 bug 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-22T04:01:40.169061"
+      },
+      "eval_focus": [
+        "document_retrieval",
+        "policy_grounding",
+        "no_db_claims"
+      ],
+      "summary_oracle": {
+        "summary_excerpt": "문의는 bug 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다."
+      },
+      "gold_policy": {
+        "documents": [
+          {
+            "document_id": "NVC-NOT-397",
+            "chunk_id": "NVC-NOT-397::chunk::0",
+            "source_type": "naver_cafe_notice",
+            "category": "공지사항",
+            "title": "접속 오류 관련 공지"
+          },
+          {
+            "document_id": "NVC-NOT-66",
+            "chunk_id": "NVC-NOT-66::chunk::2",
+            "source_type": "naver_cafe_notice",
+            "category": "업데이트",
+            "title": "5.1 버전 발견한 오류 & 업데이트 공지 (10월 28일)"
+          },
+          {
+            "document_id": "NVC-NOT-1",
+            "chunk_id": "NVC-NOT-1::chunk::6",
+            "source_type": "naver_cafe_notice",
+            "category": "업데이트",
+            "title": "「『공월의 노래·회선곡』 돌아온 예언의 깃」 「여섯 번째 달」 버전 발견한 오류 & 업데이트 공지 (4월 30일)"
+          }
+        ]
+      },
+      "must_include": [
+        "문서/정책 기반 안내로 답변",
+        "summary 범위를 넘는 DB 상태 단정 금지"
+      ],
+      "must_not_include": [
+        "결제/환불/지급 상태를 사실처럼 생성",
+        "summary에 없는 예외 처리나 보상을 확정"
+      ]
+    },
+    {
+      "ticket_id": 237,
+      "routing_target": "doc_only",
+      "ticket": {
+        "account_id": 2133,
+        "user_id": 2033,
+        "created_at": "2020-09-29 17:01:00",
+        "question": "[와이러니 대청소] 라는 퀘스트인데 아델린에게 말걸고 저택에 들어가서 얼룩 있는 곳에 가도 상호작용할 수 있는 방법이 없어서 진행이 안됩니다"
+      },
+      "answer_target": {
+        "ticket_id": 237,
+        "account_id": 2133,
+        "user_id": 2033,
+        "title": "아델린 퀘스트가 진행할 수 없습니다",
+        "raw_query": "[와이러니 대청소] 라는 퀘스트인데 아델린에게 말걸고 저택에 들어가서 얼룩 있는 곳에 가도 상호작용할 수 있는 방법이 없어서 진행이 안됩니다",
+        "source_type": "naver_cafe",
+        "status": "resolved",
+        "inquiry_created_at": "2020-09-29T17:01:00",
+        "assignee_admin_id": null,
+        "analysis_id": 237,
+        "category": "bug",
+        "enriched_query": "아델린 퀘스트가 진행할 수 없습니다 [와이러니 대청소] 라는 퀘스트인데 아델린에게 말걸고 저택에 들어가서 얼룩 있는 곳에 가도 상호작용할 수 있는 방법이 없어서 진행이 안됩니다",
+        "risk_level": "LOW",
+        "sentiment": "neutral",
+        "routing_target": "doc_only",
+        "summary": "문의는 bug 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-22T04:01:38.340998"
+      },
+      "eval_focus": [
+        "document_retrieval",
+        "policy_grounding",
+        "no_db_claims"
+      ],
+      "summary_oracle": {
+        "summary_excerpt": "문의는 bug 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다."
+      },
+      "gold_policy": {
+        "documents": [
+          {
+            "document_id": "QNA-GSN-16",
+            "chunk_id": "QNA-GSN-16::chunk::0",
+            "source_type": "universe_qna_onlydaily",
+            "category": "게임_문제",
+            "title": "「노드크라이」 지역 임무 FAQ"
+          },
+          {
+            "document_id": "QNA-GSN-18",
+            "chunk_id": "QNA-GSN-18::chunk::3",
+            "source_type": "universe_qna_onlydaily",
+            "category": "게임_문제",
+            "title": "「나타」 지역 임무 FAQ"
+          },
+          {
+            "document_id": "QNA-GSN-18",
+            "chunk_id": "QNA-GSN-18::chunk::6",
+            "source_type": "universe_qna_onlydaily",
+            "category": "게임_문제",
+            "title": "「나타」 지역 임무 FAQ"
+          }
+        ]
+      },
+      "must_include": [
+        "문서/정책 기반 안내로 답변",
+        "summary 범위를 넘는 DB 상태 단정 금지"
+      ],
+      "must_not_include": [
+        "결제/환불/지급 상태를 사실처럼 생성",
+        "summary에 없는 예외 처리나 보상을 확정"
+      ]
+    },
+    {
+      "ticket_id": 235,
+      "routing_target": "doc_only",
+      "ticket": {
+        "account_id": 2117,
+        "user_id": 2017,
+        "created_at": "2020-09-29 16:39:00",
+        "question": "pc 버전에서 패드로 플레이하다가 게임 껏다키면 다시 키보드가 기본이던데\n이거 설정 저장되게 바꿔주시던가 키보드랑 패드 동시로 가능하게좀 해줘요"
+      },
+      "answer_target": {
+        "ticket_id": 235,
+        "account_id": 2117,
+        "user_id": 2017,
+        "title": "패드 연결관련 문의",
+        "raw_query": "pc 버전에서 패드로 플레이하다가 게임 껏다키면 다시 키보드가 기본이던데\n이거 설정 저장되게 바꿔주시던가 키보드랑 패드 동시로 가능하게좀 해줘요",
+        "source_type": "naver_cafe",
+        "status": "resolved",
+        "inquiry_created_at": "2020-09-29T16:39:00",
+        "assignee_admin_id": null,
+        "analysis_id": 235,
+        "category": "bug",
+        "enriched_query": "패드 연결관련 문의 pc 버전에서 패드로 플레이하다가 게임 껏다키면 다시 키보드가 기본이던데 이거 설정 저장되게 바꿔주시던가 키보드랑 패드 동시로 가능하게좀 해줘요",
+        "risk_level": "LOW",
+        "sentiment": "neutral",
+        "routing_target": "doc_only",
+        "summary": "문의는 bug 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-22T04:01:33.084684"
+      },
+      "eval_focus": [
+        "document_retrieval",
+        "policy_grounding",
+        "no_db_claims"
+      ],
+      "summary_oracle": {
+        "summary_excerpt": "문의는 bug 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다."
+      },
+      "gold_policy": {
+        "documents": [
+          {
+            "document_id": "NVC-NOT-410",
+            "chunk_id": "NVC-NOT-410::chunk::13",
+            "source_type": "naver_cafe_notice",
+            "category": "공지사항",
+            "title": "PC 플랫폼 자주 묻는 질문 (결제 관련 내용 추가)"
+          },
+          {
+            "document_id": "QNA-COM-29",
+            "chunk_id": "QNA-COM-29::chunk::0",
+            "source_type": "universe_qna_common",
+            "category": "결제_관련_이슈",
+            "title": "게임 내에서 상품이 로드되지 않는데, 어떻게 해야 하나요?"
+          },
+          {
+            "document_id": "QNA-GSN-12",
+            "chunk_id": "QNA-GSN-12::chunk::0",
+            "source_type": "universe_qna_onlydaily",
+            "category": "게임_문제",
+            "title": "발견한 문제"
+          }
+        ]
+      },
+      "must_include": [
+        "문서/정책 기반 안내로 답변",
+        "summary 범위를 넘는 DB 상태 단정 금지"
+      ],
+      "must_not_include": [
+        "결제/환불/지급 상태를 사실처럼 생성",
+        "summary에 없는 예외 처리나 보상을 확정"
+      ]
+    },
+    {
+      "ticket_id": 234,
+      "routing_target": "doc_only",
+      "ticket": {
+        "account_id": 2116,
+        "user_id": 2016,
+        "created_at": "2020-09-29 16:17:00",
+        "question": "기종은 아이폰 7이고 어제 오픈하자마자 들어갈려고 하는데 실행하면 자꾸 사진처럼 저렇게 뜨고 그냥 꺼짐  어떻게 고쳐야해여"
+      },
+      "answer_target": {
+        "ticket_id": 234,
+        "account_id": 2116,
+        "user_id": 2016,
+        "title": "모바일 접속 안됨",
+        "raw_query": "기종은 아이폰 7이고 어제 오픈하자마자 들어갈려고 하는데 실행하면 자꾸 사진처럼 저렇게 뜨고 그냥 꺼짐  어떻게 고쳐야해여",
+        "source_type": "naver_cafe",
+        "status": "resolved",
+        "inquiry_created_at": "2020-09-29T16:17:00",
+        "assignee_admin_id": null,
+        "analysis_id": 234,
+        "category": "bug",
+        "enriched_query": "모바일 접속 안됨 기종은 아이폰 7이고 어제 오픈하자마자 들어갈려고 하는데 실행하면 자꾸 사진처럼 저렇게 뜨고 그냥 꺼짐 어떻게 고쳐야해여",
+        "risk_level": "LOW",
+        "sentiment": "neutral",
+        "routing_target": "doc_only",
+        "summary": "문의는 bug 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-22T04:01:31.125885"
+      },
+      "eval_focus": [
+        "document_retrieval",
+        "policy_grounding",
+        "no_db_claims"
+      ],
+      "summary_oracle": {
+        "summary_excerpt": "문의는 bug 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다."
+      },
+      "gold_policy": {
+        "documents": [
+          {
+            "document_id": "QNA-GSN-53",
+            "chunk_id": "QNA-GSN-53::chunk::0",
+            "source_type": "universe_qna_onlydaily",
+            "category": "클라이언트_문제",
+            "title": "왜 접속이 끊기나요?"
+          },
+          {
+            "document_id": "NVC-NOT-396",
+            "chunk_id": "NVC-NOT-396::chunk::0",
+            "source_type": "naver_cafe_notice",
+            "category": "공지사항",
+            "title": "접속 오류 해결 완료"
+          },
+          {
+            "document_id": "QNA-GSN-51",
+            "chunk_id": "QNA-GSN-51::chunk::3",
+            "source_type": "universe_qna_onlydaily",
+            "category": "bug_faq",
+            "title": "버그, 튕김 관련 FAQ"
+          }
+        ]
+      },
+      "must_include": [
+        "문서/정책 기반 안내로 답변",
+        "summary 범위를 넘는 DB 상태 단정 금지"
+      ],
+      "must_not_include": [
+        "결제/환불/지급 상태를 사실처럼 생성",
+        "summary에 없는 예외 처리나 보상을 확정"
+      ]
+    },
+    {
+      "ticket_id": 233,
+      "routing_target": "doc_only",
+      "ticket": {
+        "account_id": 2112,
+        "user_id": 2012,
+        "created_at": "2020-09-29 15:16:00",
+        "question": "인게임 패치는 완료 했습니다.\n서버 접속 후 마지막접속 관문에서\n터치하면 서버연결실패 창이 뜹니다..\n모바일 이고 기종은 아이폰SE2 입니다.\n어느정도 검색 해보니 인터넷 문제라 하는데\n해외유저라 인터넷이 빠르진 못 하고 와이파이도\n없어요, 서버는 모든서버 전부 시도 해봤습니다.\n​\n해결 방안 없을까요?"
+      },
+      "answer_target": {
+        "ticket_id": 233,
+        "account_id": 2112,
+        "user_id": 2012,
+        "title": "서버연결실패 해결 부탁드립니다.",
+        "raw_query": "인게임 패치는 완료 했습니다.\n서버 접속 후 마지막접속 관문에서\n터치하면 서버연결실패 창이 뜹니다..\n모바일 이고 기종은 아이폰SE2 입니다.\n어느정도 검색 해보니 인터넷 문제라 하는데\n해외유저라 인터넷이 빠르진 못 하고 와이파이도\n없어요, 서버는 모든서버 전부 시도 해봤습니다.\n​\n해결 방안 없을까요?",
+        "source_type": "naver_cafe",
+        "status": "resolved",
+        "inquiry_created_at": "2020-09-29T15:16:00",
+        "assignee_admin_id": null,
+        "analysis_id": 233,
+        "category": "bug",
+        "enriched_query": "서버연결실패 해결 부탁드립니다. 인게임 패치는 완료 했습니다. 서버 접속 후 마지막접속 관문에서 터치하면 서버연결실패 창이 뜹니다.. 모바일 이고 기종은 아이폰SE2 입니다. 어느정도 검색 해보니 인터넷 문제라 하는데 해외유저라 인터넷이 빠르진 못 하고 와이파이도 없어요, 서버는 모든서버 전부 시도 해봤습니다. ​ 해결 방안 없을까요?",
+        "risk_level": "LOW",
+        "sentiment": "negative",
+        "routing_target": "doc_only",
+        "summary": "문의는 bug 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 negative, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-22T04:01:28.731695"
+      },
+      "eval_focus": [
+        "document_retrieval",
+        "policy_grounding",
+        "no_db_claims"
+      ],
+      "summary_oracle": {
+        "summary_excerpt": "문의는 bug 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 negative, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다."
+      },
+      "gold_policy": {
+        "documents": [
+          {
+            "document_id": "QNA-GSN-53",
+            "chunk_id": "QNA-GSN-53::chunk::0",
+            "source_type": "universe_qna_onlydaily",
+            "category": "클라이언트_문제",
+            "title": "왜 접속이 끊기나요?"
+          },
+          {
+            "document_id": "QNA-GSN-51",
+            "chunk_id": "QNA-GSN-51::chunk::1",
+            "source_type": "universe_qna_onlydaily",
+            "category": "bug_faq",
+            "title": "버그, 튕김 관련 FAQ"
+          },
+          {
+            "document_id": "QNA-GSN-51",
+            "chunk_id": "QNA-GSN-51::chunk::2",
+            "source_type": "universe_qna_onlydaily",
+            "category": "bug_faq",
+            "title": "버그, 튕김 관련 FAQ"
+          }
+        ]
+      },
+      "must_include": [
+        "문서/정책 기반 안내로 답변",
+        "summary 범위를 넘는 DB 상태 단정 금지"
+      ],
+      "must_not_include": [
+        "결제/환불/지급 상태를 사실처럼 생성",
+        "summary에 없는 예외 처리나 보상을 확정"
+      ]
+    },
+    {
+      "ticket_id": 229,
+      "routing_target": "doc_only",
+      "ticket": {
+        "account_id": 2095,
+        "user_id": 1995,
+        "created_at": "2020-09-29 15:00:00",
+        "question": "하늘로 부웅 띄워져서 우주로갈듯(수정)그래도 밑으로 떨어지고는 있는중 ㅡㅡ\n추가) 몬스터랑 싸우다 서로 우주로 날아간건지 주변몬스터 다 제거했는데도 이거 안풀려있음...ㅡㅡ"
+      },
+      "answer_target": {
+        "ticket_id": 229,
+        "account_id": 2095,
+        "user_id": 1995,
+        "title": "살려줘요",
+        "raw_query": "하늘로 부웅 띄워져서 우주로갈듯(수정)그래도 밑으로 떨어지고는 있는중 ㅡㅡ\n추가) 몬스터랑 싸우다 서로 우주로 날아간건지 주변몬스터 다 제거했는데도 이거 안풀려있음...ㅡㅡ",
+        "source_type": "naver_cafe",
+        "status": "resolved",
+        "inquiry_created_at": "2020-09-29T15:00:00",
+        "assignee_admin_id": null,
+        "analysis_id": 229,
+        "category": "bug",
+        "enriched_query": "살려줘요 하늘로 부웅 띄워져서 우주로갈듯(수정)그래도 밑으로 떨어지고는 있는중 ㅡㅡ 추가) 몬스터랑 싸우다 서로 우주로 날아간건지 주변몬스터 다 제거했는데도 이거 안풀려있음...ㅡㅡ",
+        "risk_level": "LOW",
+        "sentiment": "neutral",
+        "routing_target": "doc_only",
+        "summary": "문의는 bug 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-22T04:01:20.320669"
+      },
+      "eval_focus": [
+        "document_retrieval",
+        "policy_grounding",
+        "no_db_claims"
+      ],
+      "summary_oracle": {
+        "summary_excerpt": "문의는 bug 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다."
+      },
+      "gold_policy": {
+        "documents": [
+          {
+            "document_id": "NVC-NOT-234",
+            "chunk_id": "NVC-NOT-234::chunk::41",
+            "source_type": "naver_cafe_notice",
+            "category": "공지사항",
+            "title": "「해가 저무는 곳에 감춰진 꿈」 2.7 버전 업데이트 공지 상세안내(신규 초대 이벤트 이벤트 시간 수정 )"
+          },
+          {
+            "document_id": "NVC-NOT-367",
+            "chunk_id": "NVC-NOT-367::chunk::11",
+            "source_type": "naver_cafe_notice",
+            "category": "공지사항",
+            "title": "1.2 버전 업데이트 후 오류 수정 공지 (01.28 업데이트 추가)"
+          },
+          {
+            "document_id": "NVC-NOT-367",
+            "chunk_id": "NVC-NOT-367::chunk::20",
+            "source_type": "naver_cafe_notice",
+            "category": "공지사항",
+            "title": "1.2 버전 업데이트 후 오류 수정 공지 (01.28 업데이트 추가)"
+          }
+        ]
+      },
+      "must_include": [
+        "문서/정책 기반 안내로 답변",
+        "summary 범위를 넘는 DB 상태 단정 금지"
+      ],
+      "must_not_include": [
+        "결제/환불/지급 상태를 사실처럼 생성",
+        "summary에 없는 예외 처리나 보상을 확정"
+      ]
+    },
+    {
+      "ticket_id": 227,
+      "routing_target": "doc_only",
+      "ticket": {
+        "account_id": 2061,
+        "user_id": 1961,
+        "created_at": "2020-09-29 14:42:00",
+        "question": "노트10+ 입니다,\n간헐적으로 게임 진행 중 멈춤 및 종료현상이 발생됩니다.\n체크 부탁드립니다."
+      },
+      "answer_target": {
+        "ticket_id": 227,
+        "account_id": 2061,
+        "user_id": 1961,
+        "title": "노트10+ 게임 진행 중 멈춤/종료 현상",
+        "raw_query": "노트10+ 입니다,\n간헐적으로 게임 진행 중 멈춤 및 종료현상이 발생됩니다.\n체크 부탁드립니다.",
+        "source_type": "naver_cafe",
+        "status": "resolved",
+        "inquiry_created_at": "2020-09-29T14:42:00",
+        "assignee_admin_id": null,
+        "analysis_id": 227,
+        "category": "bug",
+        "enriched_query": "노트10+ 게임 진행 중 멈춤/종료 현상 노트10+ 입니다, 간헐적으로 게임 진행 중 멈춤 및 종료현상이 발생됩니다. 체크 부탁드립니다.",
+        "risk_level": "LOW",
+        "sentiment": "positive",
+        "routing_target": "doc_only",
+        "summary": "문의는 bug 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 positive, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-22T04:01:14.997781"
+      },
+      "eval_focus": [
+        "document_retrieval",
+        "policy_grounding",
+        "no_db_claims"
+      ],
+      "summary_oracle": {
+        "summary_excerpt": "문의는 bug 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 positive, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다."
+      },
+      "gold_policy": {
+        "documents": [
+          {
+            "document_id": "QNA-GSN-26",
+            "chunk_id": "QNA-GSN-26::chunk::0",
+            "source_type": "universe_qna_onlydaily",
+            "category": "게임_문제",
+            "title": "게임 최저 사양 및 권장 사양"
+          },
+          {
+            "document_id": "QNA-COM-29",
+            "chunk_id": "QNA-COM-29::chunk::0",
+            "source_type": "universe_qna_common",
+            "category": "결제_관련_이슈",
+            "title": "게임 내에서 상품이 로드되지 않는데, 어떻게 해야 하나요?"
+          },
+          {
+            "document_id": "QNA-GSN-40",
+            "chunk_id": "QNA-GSN-40::chunk::3",
+            "source_type": "universe_qna_onlydaily",
+            "category": "게임_문제",
+            "title": "「이나즈마」지역 관련 FAQ"
+          }
+        ]
+      },
+      "must_include": [
+        "문서/정책 기반 안내로 답변",
+        "summary 범위를 넘는 DB 상태 단정 금지"
+      ],
+      "must_not_include": [
+        "결제/환불/지급 상태를 사실처럼 생성",
+        "summary에 없는 예외 처리나 보상을 확정"
+      ]
+    },
+    {
+      "ticket_id": 226,
+      "routing_target": "doc_only",
+      "ticket": {
+        "account_id": 2058,
+        "user_id": 1958,
+        "created_at": "2020-09-29 14:34:00",
+        "question": "성우 음성이 왜 치지직 거리면서 계속 깨지는지 모르겠네요.\n업데이트 부탁드립니다."
+      },
+      "answer_target": {
+        "ticket_id": 226,
+        "account_id": 2058,
+        "user_id": 1958,
+        "title": "갤럭시탭 S6 LTE 모델 성우 목소리 치지직거리는 소리남",
+        "raw_query": "성우 음성이 왜 치지직 거리면서 계속 깨지는지 모르겠네요.\n업데이트 부탁드립니다.",
+        "source_type": "naver_cafe",
+        "status": "resolved",
+        "inquiry_created_at": "2020-09-29T14:34:00",
+        "assignee_admin_id": null,
+        "analysis_id": 226,
+        "category": "bug",
+        "enriched_query": "갤럭시탭 S6 LTE 모델 성우 목소리 치지직거리는 소리남 성우 음성이 왜 치지직 거리면서 계속 깨지는지 모르겠네요. 업데이트 부탁드립니다.",
+        "risk_level": "LOW",
+        "sentiment": "positive",
+        "routing_target": "doc_only",
+        "summary": "문의는 bug 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 positive, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-22T04:01:12.502791"
+      },
+      "eval_focus": [
+        "document_retrieval",
+        "policy_grounding",
+        "no_db_claims"
+      ],
+      "summary_oracle": {
+        "summary_excerpt": "문의는 bug 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 positive, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다."
+      },
+      "gold_policy": {
+        "documents": [
+          {
+            "document_id": "NVC-GDE-5",
+            "chunk_id": "NVC-GDE-5::chunk::0",
+            "source_type": "naver_cafe_guide",
+            "category": "캐릭터 소개",
+            "title": "캐릭터 스킬 쇼케이스——「마음의 소리」·니콜"
+          },
+          {
+            "document_id": "NVC-GDE-321",
+            "chunk_id": "NVC-GDE-321::chunk::0",
+            "source_type": "naver_cafe_guide",
+            "category": "가이드",
+            "title": "「전 제 일의 가치와 폰타인 대중들이 한 일의 의미를 잘 압니다」 - 「훈시의 파도 소리」·느비예트"
+          },
+          {
+            "document_id": "NVC-GDE-12",
+            "chunk_id": "NVC-GDE-12::chunk::1",
+            "source_type": "naver_cafe_guide",
+            "category": "캐릭터 소개",
+            "title": "캐릭터 소개 - 니콜 ‧ 마음의 소리"
+          }
+        ]
+      },
+      "must_include": [
+        "문서/정책 기반 안내로 답변",
+        "summary 범위를 넘는 DB 상태 단정 금지"
+      ],
+      "must_not_include": [
+        "결제/환불/지급 상태를 사실처럼 생성",
+        "summary에 없는 예외 처리나 보상을 확정"
+      ]
+    },
+    {
+      "ticket_id": 225,
+      "routing_target": "doc_only",
+      "ticket": {
+        "account_id": 2034,
+        "user_id": 1934,
+        "created_at": "2020-09-29 14:20:00",
+        "question": "이거 대체 어떻게 해결 해야됩니까..\n​\n재접해도 안되는데ㅡㅡ ..\n다시 깔아야되나요ㅠㅠ\n​"
+      },
+      "answer_target": {
+        "ticket_id": 225,
+        "account_id": 2034,
+        "user_id": 1934,
+        "title": "사당 버그",
+        "raw_query": "이거 대체 어떻게 해결 해야됩니까..\n​\n재접해도 안되는데ㅡㅡ ..\n다시 깔아야되나요ㅠㅠ\n​",
+        "source_type": "naver_cafe",
+        "status": "resolved",
+        "inquiry_created_at": "2020-09-29T14:20:00",
+        "assignee_admin_id": null,
+        "analysis_id": 225,
+        "category": "bug",
+        "enriched_query": "사당 버그 이거 대체 어떻게 해결 해야됩니까.. ​ 재접해도 안되는데ㅡㅡ .. 다시 깔아야되나요ㅠㅠ ​",
+        "risk_level": "LOW",
+        "sentiment": "neutral",
+        "routing_target": "doc_only",
+        "summary": "문의는 bug 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-22T04:01:09.789876"
+      },
+      "eval_focus": [
+        "document_retrieval",
+        "policy_grounding",
+        "no_db_claims"
+      ],
+      "summary_oracle": {
+        "summary_excerpt": "문의는 bug 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다."
+      },
+      "gold_policy": {
+        "documents": [
+          {
+            "document_id": "QNA-GSN-51",
+            "chunk_id": "QNA-GSN-51::chunk::1",
+            "source_type": "universe_qna_onlydaily",
+            "category": "bug_faq",
+            "title": "버그, 튕김 관련 FAQ"
+          },
+          {
+            "document_id": "QNA-GSN-51",
+            "chunk_id": "QNA-GSN-51::chunk::3",
+            "source_type": "universe_qna_onlydaily",
+            "category": "bug_faq",
+            "title": "버그, 튕김 관련 FAQ"
+          },
+          {
+            "document_id": "QNA-GSN-51",
+            "chunk_id": "QNA-GSN-51::chunk::2",
+            "source_type": "universe_qna_onlydaily",
+            "category": "bug_faq",
+            "title": "버그, 튕김 관련 FAQ"
+          }
+        ]
+      },
+      "must_include": [
+        "문서/정책 기반 안내로 답변",
+        "summary 범위를 넘는 DB 상태 단정 금지"
+      ],
+      "must_not_include": [
+        "결제/환불/지급 상태를 사실처럼 생성",
+        "summary에 없는 예외 처리나 보상을 확정"
+      ]
+    },
+    {
+      "ticket_id": 224,
+      "routing_target": "doc_only",
+      "ticket": {
+        "account_id": 2026,
+        "user_id": 1926,
+        "created_at": "2020-09-29 14:12:00",
+        "question": "리세하다가 땅속에쳐박히는버그는 뭐냐"
+      },
+      "answer_target": {
+        "ticket_id": 224,
+        "account_id": 2026,
+        "user_id": 1926,
+        "title": "이건뭔버그냐",
+        "raw_query": "리세하다가 땅속에쳐박히는버그는 뭐냐",
+        "source_type": "naver_cafe",
+        "status": "resolved",
+        "inquiry_created_at": "2020-09-29T14:12:00",
+        "assignee_admin_id": null,
+        "analysis_id": 224,
+        "category": "bug",
+        "enriched_query": "이건뭔버그냐 리세하다가 땅속에쳐박히는버그는 뭐냐",
+        "risk_level": "LOW",
+        "sentiment": "neutral",
+        "routing_target": "doc_only",
+        "summary": "문의는 bug 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-22T04:01:07.703032"
+      },
+      "eval_focus": [
+        "document_retrieval",
+        "policy_grounding",
+        "no_db_claims"
+      ],
+      "summary_oracle": {
+        "summary_excerpt": "문의는 bug 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다."
+      },
+      "gold_policy": {
+        "documents": [
+          {
+            "document_id": "QNA-GSN-51",
+            "chunk_id": "QNA-GSN-51::chunk::1",
+            "source_type": "universe_qna_onlydaily",
+            "category": "bug_faq",
+            "title": "버그, 튕김 관련 FAQ"
+          },
+          {
+            "document_id": "QNA-GSN-51",
+            "chunk_id": "QNA-GSN-51::chunk::2",
+            "source_type": "universe_qna_onlydaily",
+            "category": "bug_faq",
+            "title": "버그, 튕김 관련 FAQ"
+          },
+          {
+            "document_id": "QNA-GSN-51",
+            "chunk_id": "QNA-GSN-51::chunk::3",
+            "source_type": "universe_qna_onlydaily",
+            "category": "bug_faq",
+            "title": "버그, 튕김 관련 FAQ"
+          }
+        ]
+      },
+      "must_include": [
+        "문서/정책 기반 안내로 답변",
+        "summary 범위를 넘는 DB 상태 단정 금지"
+      ],
+      "must_not_include": [
+        "결제/환불/지급 상태를 사실처럼 생성",
+        "summary에 없는 예외 처리나 보상을 확정"
+      ]
+    },
+    {
+      "ticket_id": 223,
+      "routing_target": "doc_only",
+      "ticket": {
+        "account_id": 2015,
+        "user_id": 1915,
+        "created_at": "2020-09-29 14:09:00",
+        "question": "안녕하세요 운영자님\n듀얼모니터로 원신을 플레이하면 마우스 커서가 오른쪽 모니터로 넘어가져서 어떻게 해야 할지 모르겠습니다.\n전체화면으로 설정해놓고, 플레이를 해도 이와 같은 현상이 발생하네요.\n​\n해결방안을 알려주시면 감사하겠습니다."
+      },
+      "answer_target": {
+        "ticket_id": 223,
+        "account_id": 2015,
+        "user_id": 1915,
+        "title": "듀얼모니터, 마우스 커서 뚤림현상",
+        "raw_query": "안녕하세요 운영자님\n듀얼모니터로 원신을 플레이하면 마우스 커서가 오른쪽 모니터로 넘어가져서 어떻게 해야 할지 모르겠습니다.\n전체화면으로 설정해놓고, 플레이를 해도 이와 같은 현상이 발생하네요.\n​\n해결방안을 알려주시면 감사하겠습니다.",
+        "source_type": "naver_cafe",
+        "status": "resolved",
+        "inquiry_created_at": "2020-09-29T14:09:00",
+        "assignee_admin_id": null,
+        "analysis_id": 223,
+        "category": "bug",
+        "enriched_query": "듀얼모니터, 마우스 커서 뚤림현상 안녕하세요 운영자님 듀얼모니터로 원신을 플레이하면 마우스 커서가 오른쪽 모니터로 넘어가져서 어떻게 해야 할지 모르겠습니다. 전체화면으로 설정해놓고, 플레이를 해도 이와 같은 현상이 발생하네요. ​ 해결방안을 알려주시면 감사하겠습니다.",
+        "risk_level": "LOW",
+        "sentiment": "positive",
+        "routing_target": "doc_only",
+        "summary": "문의는 bug 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 positive, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-22T04:01:05.728993"
+      },
+      "eval_focus": [
+        "document_retrieval",
+        "policy_grounding",
+        "no_db_claims"
+      ],
+      "summary_oracle": {
+        "summary_excerpt": "문의는 bug 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 positive, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다."
+      },
+      "gold_policy": {
+        "documents": [
+          {
+            "document_id": "QNA-COM-5",
+            "chunk_id": "QNA-COM-5::chunk::0",
+            "source_type": "universe_qna_common",
+            "category": "유니버스_통행증_이슈",
+            "title": "계정에 로그인할 때 오류가 뜨는데 어떻게 해야 하나요?"
+          },
+          {
+            "document_id": "QNA-COM-4",
+            "chunk_id": "QNA-COM-4::chunk::0",
+            "source_type": "universe_qna_common",
+            "category": "유니버스_통행증_이슈",
+            "title": "비밀번호를 잃어버렸으면 어떻게 해야 하나요?"
+          },
+          {
+            "document_id": "QNA-GSN-16",
+            "chunk_id": "QNA-GSN-16::chunk::1",
+            "source_type": "universe_qna_onlydaily",
+            "category": "게임_문제",
+            "title": "「노드크라이」 지역 임무 FAQ"
+          }
+        ]
+      },
+      "must_include": [
+        "문서/정책 기반 안내로 답변",
+        "summary 범위를 넘는 DB 상태 단정 금지"
+      ],
+      "must_not_include": [
+        "결제/환불/지급 상태를 사실처럼 생성",
+        "summary에 없는 예외 처리나 보상을 확정"
+      ]
+    },
+    {
+      "ticket_id": 222,
+      "routing_target": "doc_only",
+      "ticket": {
+        "account_id": 1973,
+        "user_id": 1873,
+        "created_at": "2020-09-29 13:59:00",
+        "question": "PC버전\n설정에서 패드조작으로 바꾸면 그대로 조작 먹통\n패드에 불 잘들어오고 가운데 엑박버튼 누르면 반응하기 때문에\n패드문제는 아님\n스팀게임할 때도 패드 잘됨\n원신만 안됨\n​\n+윈도우10 임"
+      },
+      "answer_target": {
+        "ticket_id": 222,
+        "account_id": 1973,
+        "user_id": 1873,
+        "title": "엑박360 유선패드 안됨",
+        "raw_query": "PC버전\n설정에서 패드조작으로 바꾸면 그대로 조작 먹통\n패드에 불 잘들어오고 가운데 엑박버튼 누르면 반응하기 때문에\n패드문제는 아님\n스팀게임할 때도 패드 잘됨\n원신만 안됨\n​\n+윈도우10 임",
+        "source_type": "naver_cafe",
+        "status": "resolved",
+        "inquiry_created_at": "2020-09-29T13:59:00",
+        "assignee_admin_id": null,
+        "analysis_id": 222,
+        "category": "bug",
+        "enriched_query": "엑박360 유선패드 안됨 PC버전 설정에서 패드조작으로 바꾸면 그대로 조작 먹통 패드에 불 잘들어오고 가운데 엑박버튼 누르면 반응하기 때문에 패드문제는 아님 스팀게임할 때도 패드 잘됨 원신만 안됨 ​ +윈도우10 임",
+        "risk_level": "LOW",
+        "sentiment": "negative",
+        "routing_target": "doc_only",
+        "summary": "문의는 bug 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 negative, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-22T04:01:03.623774"
+      },
+      "eval_focus": [
+        "document_retrieval",
+        "policy_grounding",
+        "no_db_claims"
+      ],
+      "summary_oracle": {
+        "summary_excerpt": "문의는 bug 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 negative, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다."
+      },
+      "gold_policy": {
+        "documents": [
+          {
+            "document_id": "NVC-NOT-410",
+            "chunk_id": "NVC-NOT-410::chunk::13",
+            "source_type": "naver_cafe_notice",
+            "category": "공지사항",
+            "title": "PC 플랫폼 자주 묻는 질문 (결제 관련 내용 추가)"
+          },
+          {
+            "document_id": "NVC-NOT-334",
+            "chunk_id": "NVC-NOT-334::chunk::71",
+            "source_type": "naver_cafe_notice",
+            "category": "공지사항",
+            "title": "「옥빛 아래 속세의 노래」 1.5 버전 업데이트 상세안내"
+          },
+          {
+            "document_id": "NVC-NOT-334",
+            "chunk_id": "NVC-NOT-334::chunk::109",
+            "source_type": "naver_cafe_notice",
+            "category": "공지사항",
+            "title": "「옥빛 아래 속세의 노래」 1.5 버전 업데이트 상세안내"
+          }
+        ]
+      },
+      "must_include": [
+        "문서/정책 기반 안내로 답변",
+        "summary 범위를 넘는 DB 상태 단정 금지"
+      ],
+      "must_not_include": [
+        "결제/환불/지급 상태를 사실처럼 생성",
+        "summary에 없는 예외 처리나 보상을 확정"
+      ]
+    },
+    {
+      "ticket_id": 221,
+      "routing_target": "doc_only",
+      "ticket": {
+        "account_id": 1952,
+        "user_id": 1852,
+        "created_at": "2020-09-29 13:53:00",
+        "question": "런처에서 실행 누르면 화면 뜨기가 무섭게 바로 꺼져요.\n​\n내장그래픽 사용불가 하게 했고\nvcredist2013_x64도 깔았고\n백신도 다껐는데\n​\n안됩니다."
+      },
+      "answer_target": {
+        "ticket_id": 221,
+        "account_id": 1952,
+        "user_id": 1852,
+        "title": "게임 실행이 안됩니다.",
+        "raw_query": "런처에서 실행 누르면 화면 뜨기가 무섭게 바로 꺼져요.\n​\n내장그래픽 사용불가 하게 했고\nvcredist2013_x64도 깔았고\n백신도 다껐는데\n​\n안됩니다.",
+        "source_type": "naver_cafe",
+        "status": "resolved",
+        "inquiry_created_at": "2020-09-29T13:53:00",
+        "assignee_admin_id": null,
+        "analysis_id": 221,
+        "category": "bug",
+        "enriched_query": "게임 실행이 안됩니다. 런처에서 실행 누르면 화면 뜨기가 무섭게 바로 꺼져요. ​ 내장그래픽 사용불가 하게 했고 vcredist2013_x64도 깔았고 백신도 다껐는데 ​ 안됩니다.",
+        "risk_level": "LOW",
+        "sentiment": "neutral",
+        "routing_target": "doc_only",
+        "summary": "문의는 bug 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-22T04:01:01.348755"
+      },
+      "eval_focus": [
+        "document_retrieval",
+        "policy_grounding",
+        "no_db_claims"
+      ],
+      "summary_oracle": {
+        "summary_excerpt": "문의는 bug 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다."
+      },
+      "gold_policy": {
+        "documents": [
+          {
+            "document_id": "NVC-NOT-19",
+            "chunk_id": "NVC-NOT-19::chunk::0",
+            "source_type": "naver_cafe_notice",
+            "category": "안내",
+            "title": "일부 NVIDIA 그래픽카드를 사용하는 디바이스에서 게임을 실행할 수 없는 문제 해결 방법"
+          },
+          {
+            "document_id": "QNA-GSN-26",
+            "chunk_id": "QNA-GSN-26::chunk::0",
+            "source_type": "universe_qna_onlydaily",
+            "category": "게임_문제",
+            "title": "게임 최저 사양 및 권장 사양"
+          },
+          {
+            "document_id": "QNA-GSN-39",
+            "chunk_id": "QNA-GSN-39::chunk::3",
+            "source_type": "universe_qna_onlydaily",
+            "category": "게임_문제",
+            "title": "무선 컨트롤러 사용 관련 FAQ (1/2)"
+          }
+        ]
+      },
+      "must_include": [
+        "문서/정책 기반 안내로 답변",
+        "summary 범위를 넘는 DB 상태 단정 금지"
+      ],
+      "must_not_include": [
+        "결제/환불/지급 상태를 사실처럼 생성",
+        "summary에 없는 예외 처리나 보상을 확정"
+      ]
+    },
+    {
+      "ticket_id": 219,
+      "routing_target": "doc_only",
+      "ticket": {
+        "account_id": 1939,
+        "user_id": 1839,
+        "created_at": "2020-09-29 13:51:00",
+        "question": "안녕하세요\n원신 PC 버전 사용 중에 있습니다.\nWindows 10 pro 버전 사용 중이구요\n원신 런처까지는 잘 켜지는데\n게임 실행 버튼 누르면 아무런 반응이 없이\n게임 실행이 되지 않습니다.\n작업 관리자에서 프로세스 올라오는 것도 없구요\n게임 설치된 폴더에서\nGenshin Impact.exe\n파일을 바로 실행시켜보아도\n아무런 반응이 없네요.\n완전 재설치하면 되기는 하는데\n한 번 클라이언트 꺼지면\n또 같은 현상이 반복됩니다.\n문제 확인 부탁드립니다,."
+      },
+      "answer_target": {
+        "ticket_id": 219,
+        "account_id": 1939,
+        "user_id": 1839,
+        "title": "프로그램 실행 불가 현상",
+        "raw_query": "안녕하세요\n원신 PC 버전 사용 중에 있습니다.\nWindows 10 pro 버전 사용 중이구요\n원신 런처까지는 잘 켜지는데\n게임 실행 버튼 누르면 아무런 반응이 없이\n게임 실행이 되지 않습니다.\n작업 관리자에서 프로세스 올라오는 것도 없구요\n게임 설치된 폴더에서\nGenshin Impact.exe\n파일을 바로 실행시켜보아도\n아무런 반응이 없네요.\n완전 재설치하면 되기는 하는데\n한 번 클라이언트 꺼지면\n또 같은 현상이 반복됩니다.\n문제 확인 부탁드립니다,.",
+        "source_type": "naver_cafe",
+        "status": "resolved",
+        "inquiry_created_at": "2020-09-29T13:51:00",
+        "assignee_admin_id": null,
+        "analysis_id": 219,
+        "category": "bug",
+        "enriched_query": "프로그램 실행 불가 현상 안녕하세요 원신 PC 버전 사용 중에 있습니다. Windows 10 pro 버전 사용 중이구요 원신 런처까지는 잘 켜지는데 게임 실행 버튼 누르면 아무런 반응이 없이 게임 실행이 되지 않습니다. 작업 관리자에서 프로세스 올라오는 것도 없구요 게임 설치된 폴더에서 Genshin Impact.exe 파일을 바로 실행시켜보아도 아무런 반응이 없네요. 완전 재설치하면 되기는 하는데 한 번 클라이언트 꺼지면 또 같은 현상이 반복됩니다. 문제 확인 부탁드립니다,.",
+        "risk_level": "LOW",
+        "sentiment": "negative",
+        "routing_target": "doc_only",
+        "summary": "문의는 bug 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 negative, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-22T04:00:57.081840"
+      },
+      "eval_focus": [
+        "document_retrieval",
+        "policy_grounding",
+        "no_db_claims"
+      ],
+      "summary_oracle": {
+        "summary_excerpt": "문의는 bug 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 negative, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다."
+      },
+      "gold_policy": {
+        "documents": [
+          {
+            "document_id": "NVC-NOT-358",
+            "chunk_id": "NVC-NOT-358::chunk::14",
+            "source_type": "naver_cafe_notice",
+            "category": "공지사항",
+            "title": "[지속 업데이트] PC 버전 실행기 자주 묻는 질문 FAQ (내용 추가)"
+          },
+          {
+            "document_id": "NVC-NOT-358",
+            "chunk_id": "NVC-NOT-358::chunk::0",
+            "source_type": "naver_cafe_notice",
+            "category": "공지사항",
+            "title": "[지속 업데이트] PC 버전 실행기 자주 묻는 질문 FAQ (내용 추가)"
+          },
+          {
+            "document_id": "NVC-NOT-358",
+            "chunk_id": "NVC-NOT-358::chunk::12",
+            "source_type": "naver_cafe_notice",
+            "category": "공지사항",
+            "title": "[지속 업데이트] PC 버전 실행기 자주 묻는 질문 FAQ (내용 추가)"
+          }
+        ]
+      },
+      "must_include": [
+        "문서/정책 기반 안내로 답변",
+        "summary 범위를 넘는 DB 상태 단정 금지"
+      ],
+      "must_not_include": [
+        "결제/환불/지급 상태를 사실처럼 생성",
+        "summary에 없는 예외 처리나 보상을 확정"
+      ]
+    },
+    {
+      "ticket_id": 218,
+      "routing_target": "doc_only",
+      "ticket": {
+        "account_id": 1928,
+        "user_id": 1828,
+        "created_at": "2020-09-29 13:41:00",
+        "question": "아시아 서버선택후 캐릭터 선택후 실명인증하라는 설명이 나오고 타이틀 화면으로 가집니다.\n다른 사람들은 따로 팝업창이 뜬다는데 저는 팝업창없이 그냥 타이틀화면만 가지고 뜨는게 없네요.\n​\n다시 들어가보면 계속 실명인증하라고 반복되고요. 무슨 설정의 문제인가요? 저만있는건 아닌거같은데"
+      },
+      "answer_target": {
+        "ticket_id": 218,
+        "account_id": 1928,
+        "user_id": 1828,
+        "title": "pc 설치 실명인증이 안뜹니다. 해결방법이없을까요??",
+        "raw_query": "아시아 서버선택후 캐릭터 선택후 실명인증하라는 설명이 나오고 타이틀 화면으로 가집니다.\n다른 사람들은 따로 팝업창이 뜬다는데 저는 팝업창없이 그냥 타이틀화면만 가지고 뜨는게 없네요.\n​\n다시 들어가보면 계속 실명인증하라고 반복되고요. 무슨 설정의 문제인가요? 저만있는건 아닌거같은데",
+        "source_type": "naver_cafe",
+        "status": "resolved",
+        "inquiry_created_at": "2020-09-29T13:41:00",
+        "assignee_admin_id": null,
+        "analysis_id": 218,
+        "category": "account",
+        "enriched_query": "pc 설치 실명인증이 안뜹니다. 해결방법이없을까요?? 아시아 서버선택후 캐릭터 선택후 실명인증하라는 설명이 나오고 타이틀 화면으로 가집니다. 다른 사람들은 따로 팝업창이 뜬다는데 저는 팝업창없이 그냥 타이틀화면만 가지고 뜨는게 없네요. ​ 다시 들어가보면 계속 실명인증하라고 반복되고요. 무슨 설정의 문제인가요? 저만있는건 아닌거같은데",
+        "risk_level": "MID",
+        "sentiment": "negative",
+        "routing_target": "doc_only",
+        "summary": "문의는 account 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 negative, 위험도는 MID로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-22T04:00:55.039183"
+      },
+      "eval_focus": [
+        "document_retrieval",
+        "policy_grounding",
+        "no_db_claims"
+      ],
+      "summary_oracle": {
+        "summary_excerpt": "문의는 account 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 negative, 위험도는 MID로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다."
+      },
+      "gold_policy": {
+        "documents": [
+          {
+            "document_id": "NVC-NOT-410",
+            "chunk_id": "NVC-NOT-410::chunk::5",
+            "source_type": "naver_cafe_notice",
+            "category": "공지사항",
+            "title": "PC 플랫폼 자주 묻는 질문 (결제 관련 내용 추가)"
+          },
+          {
+            "document_id": "NVC-NOT-410",
+            "chunk_id": "NVC-NOT-410::chunk::4",
+            "source_type": "naver_cafe_notice",
+            "category": "공지사항",
+            "title": "PC 플랫폼 자주 묻는 질문 (결제 관련 내용 추가)"
+          },
+          {
+            "document_id": "NVC-NOT-358",
+            "chunk_id": "NVC-NOT-358::chunk::12",
+            "source_type": "naver_cafe_notice",
+            "category": "공지사항",
+            "title": "[지속 업데이트] PC 버전 실행기 자주 묻는 질문 FAQ (내용 추가)"
+          }
+        ]
+      },
+      "must_include": [
+        "문서/정책 기반 안내로 답변",
+        "summary 범위를 넘는 DB 상태 단정 금지"
+      ],
+      "must_not_include": [
+        "결제/환불/지급 상태를 사실처럼 생성",
+        "summary에 없는 예외 처리나 보상을 확정"
+      ]
+    },
+    {
+      "ticket_id": 217,
+      "routing_target": "doc_only",
+      "ticket": {
+        "account_id": 1904,
+        "user_id": 1804,
+        "created_at": "2020-09-29 13:39:00",
+        "question": "캐릭터 소환하다 중복캐릭터가 뽑혔는데 오른쪽 밑 중복재료이름이 중국어로 표기되네요"
+      },
+      "answer_target": {
+        "ticket_id": 217,
+        "account_id": 1904,
+        "user_id": 1804,
+        "title": "캐릭터 소환시 중국어가 뜨는 텍스처 오류",
+        "raw_query": "캐릭터 소환하다 중복캐릭터가 뽑혔는데 오른쪽 밑 중복재료이름이 중국어로 표기되네요",
+        "source_type": "naver_cafe",
+        "status": "resolved",
+        "inquiry_created_at": "2020-09-29T13:39:00",
+        "assignee_admin_id": null,
+        "analysis_id": 217,
+        "category": "bug",
+        "enriched_query": "캐릭터 소환시 중국어가 뜨는 텍스처 오류 캐릭터 소환하다 중복캐릭터가 뽑혔는데 오른쪽 밑 중복재료이름이 중국어로 표기되네요",
+        "risk_level": "LOW",
+        "sentiment": "neutral",
+        "routing_target": "doc_only",
+        "summary": "문의는 bug 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-22T04:00:53.097593"
+      },
+      "eval_focus": [
+        "document_retrieval",
+        "policy_grounding",
+        "no_db_claims"
+      ],
+      "summary_oracle": {
+        "summary_excerpt": "문의는 bug 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다."
+      },
+      "gold_policy": {
+        "documents": [
+          {
+            "document_id": "NVC-NOT-367",
+            "chunk_id": "NVC-NOT-367::chunk::22",
+            "source_type": "naver_cafe_notice",
+            "category": "공지사항",
+            "title": "1.2 버전 업데이트 후 오류 수정 공지 (01.28 업데이트 추가)"
+          },
+          {
+            "document_id": "NVC-NOT-72",
+            "chunk_id": "NVC-NOT-72::chunk::9",
+            "source_type": "naver_cafe_notice",
+            "category": "업데이트",
+            "title": "5.0 버전 발견한 오류 & 업데이트 공지 (9월 27일)"
+          },
+          {
+            "document_id": "NVC-GDE-396",
+            "chunk_id": "NVC-GDE-396::chunk::0",
+            "source_type": "naver_cafe_guide",
+            "category": "가이드",
+            "title": "「일곱 성인의 소환」 콘텐츠 안내: 심화 규칙 편"
+          }
+        ]
+      },
+      "must_include": [
+        "문서/정책 기반 안내로 답변",
+        "summary 범위를 넘는 DB 상태 단정 금지"
+      ],
+      "must_not_include": [
+        "결제/환불/지급 상태를 사실처럼 생성",
+        "summary에 없는 예외 처리나 보상을 확정"
+      ]
+    },
+    {
+      "ticket_id": 215,
+      "routing_target": "doc_only",
+      "ticket": {
+        "account_id": 1899,
+        "user_id": 1799,
+        "created_at": "2020-09-29 13:10:00",
+        "question": "유독 팅기는 구간이 있는거 같네요.."
+      },
+      "answer_target": {
+        "ticket_id": 215,
+        "account_id": 1899,
+        "user_id": 1799,
+        "title": "팅김현상좀 어떻게 해주세요.",
+        "raw_query": "유독 팅기는 구간이 있는거 같네요..",
+        "source_type": "naver_cafe",
+        "status": "resolved",
+        "inquiry_created_at": "2020-09-29T13:10:00",
+        "assignee_admin_id": null,
+        "analysis_id": 215,
+        "category": "bug",
+        "enriched_query": "팅김현상좀 어떻게 해주세요. 유독 팅기는 구간이 있는거 같네요..",
+        "risk_level": "LOW",
+        "sentiment": "neutral",
+        "routing_target": "doc_only",
+        "summary": "문의는 bug 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-22T04:00:48.825107"
+      },
+      "eval_focus": [
+        "document_retrieval",
+        "policy_grounding",
+        "no_db_claims"
+      ],
+      "summary_oracle": {
+        "summary_excerpt": "문의는 bug 유형으로 분류되며 응답 근거는 doc_only입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다."
+      },
+      "gold_policy": {
+        "documents": [
+          {
+            "document_id": "QNA-GSN-43",
+            "chunk_id": "QNA-GSN-43::chunk::6",
+            "source_type": "universe_qna_onlydaily",
+            "category": "게임_문제",
+            "title": "「층암거연」 지역 관련 FAQ"
+          },
+          {
+            "document_id": "QNA-COM-24",
+            "chunk_id": "QNA-COM-24::chunk::0",
+            "source_type": "universe_qna_common",
+            "category": "계정보안_이슈",
+            "title": "낯선 사람이 제 계정에 로그인한 것 같아요. 어떻게 해야 하나요?"
+          },
+          {
+            "document_id": "QNA-COM-31",
+            "chunk_id": "QNA-COM-31::chunk::0",
+            "source_type": "universe_qna_common",
+            "category": "결제_관련_이슈",
+            "title": "공식 충전센터/PC 클라이언트에서 결제를 시도했는데 「거래가 거부되었습니다. 발급 은행에 문의해주세요~」라는 팝업창이 떠요. 어떻게 해야 하나요?"
+          }
+        ]
+      },
+      "must_include": [
+        "문서/정책 기반 안내로 답변",
+        "summary 범위를 넘는 DB 상태 단정 금지"
+      ],
+      "must_not_include": [
+        "결제/환불/지급 상태를 사실처럼 생성",
+        "summary에 없는 예외 처리나 보상을 확정"
+      ]
+    },
+    {
+      "ticket_id": 249,
+      "routing_target": "DB_only",
+      "ticket": {
+        "account_id": 2246,
+        "user_id": 2146,
+        "created_at": "2020-09-29 18:48:00",
+        "question": "탈퇴는 안된다고 들었는데\n연동해제 방법 좀 알려주세요.\n​\n​\n네이버 메일 계정 하나랑\n구글 메일 계정 하나입니다."
+      },
+      "gold_facts": {
+        "account": {
+          "account_status": "active",
+          "server_region": "ASIA"
+        },
+        "latest_payment": {
+          "payment_id": 911848,
+          "product_name": "공월 축복",
+          "product_type": "subscription",
+          "amount": 5900,
+          "currency": "KRW",
+          "payment_method": "google_pay",
+          "payment_status": "success",
+          "paid_at": "2026-04-07 13:01:22"
+        },
+        "latest_refund": null,
+        "latest_delivery": {
+          "delivery_id": 914443,
+          "payment_id": null,
+          "item_name": "뒤얽힌 인연",
+          "quantity": 5,
+          "delivery_status": "delivered",
+          "expected_at": "2026-05-14 19:56:32",
+          "delivered_at": "2026-05-14 22:23:32"
+        }
+      },
+      "must_include": [
+        "live DB에 있는 최신 상태만 설명",
+        "문서 정책을 근거 없이 끌어오지 않음"
+      ],
+      "must_not_include": [
+        "DB에 없는 결제/환불/지급 상태를 생성",
+        "약관이나 공지 내용을 확인한 것처럼 단정"
+      ],
+      "answer_target": {
+        "ticket_id": 249,
+        "account_id": 2246,
+        "user_id": 2146,
+        "title": "아이디 연동해제 하고 싶습니다",
+        "raw_query": "탈퇴는 안된다고 들었는데\n연동해제 방법 좀 알려주세요.\n​\n​\n네이버 메일 계정 하나랑\n구글 메일 계정 하나입니다.",
+        "source_type": "naver_cafe",
+        "status": "resolved",
+        "inquiry_created_at": "2020-09-29T18:48:00",
+        "assignee_admin_id": null,
+        "analysis_id": 249,
+        "category": "account",
+        "enriched_query": "아이디 연동해제 하고 싶습니다 탈퇴는 안된다고 들었는데 연동해제 방법 좀 알려주세요. ​ ​ 네이버 메일 계정 하나랑 구글 메일 계정 하나입니다.",
+        "risk_level": "MID",
+        "sentiment": "neutral",
+        "routing_target": "DB_only",
+        "summary": "문의는 account 유형으로 분류되며 응답 근거는 DB_only입니다. 감성은 neutral, 위험도는 MID로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-22T04:02:03.971013"
+      },
+      "eval_focus": [
+        "db_retrieval",
+        "factual_grounding",
+        "no_policy_hallucination"
+      ],
+      "gold_query_type": "fixed_sql"
+    },
+    {
+      "ticket_id": 248,
+      "routing_target": "DB_only",
+      "ticket": {
+        "account_id": 2237,
+        "user_id": 2137,
+        "created_at": "2020-09-29 18:28:00",
+        "question": "어제 접속후 인연10개 뽑기할려고 리세계정을 들어갔는데 계정오류라고 뜹니다 혹시나 다른계정도 그런가해서 들어가보니 총 2개의 계정에서 계정오류가 뜨네요 어떻게 해야하나요?"
+      },
+      "gold_facts": {
+        "account": {
+          "account_status": "active",
+          "server_region": "ASIA"
+        },
+        "latest_payment": {
+          "payment_id": 911645,
+          "product_name": "창세의 결정 300개",
+          "product_type": "currency",
+          "amount": 5900,
+          "currency": "KRW",
+          "payment_method": "store_credit",
+          "payment_status": "success",
+          "paid_at": "2026-06-01 17:23:32"
+        },
+        "latest_refund": {
+          "refund_id": 910115,
+          "payment_id": 910460,
+          "refund_status": "pending",
+          "refund_reason": "아이템 미지급",
+          "requested_at": "2022-12-15 19:45:02",
+          "processed_at": null
+        },
+        "latest_delivery": {
+          "delivery_id": 918995,
+          "payment_id": null,
+          "item_name": "영웅의 경험",
+          "quantity": 10,
+          "delivery_status": "delivered",
+          "expected_at": "2026-04-20 08:18:37",
+          "delivered_at": "2026-04-20 09:04:37"
+        }
+      },
+      "must_include": [
+        "live DB에 있는 최신 상태만 설명",
+        "문서 정책을 근거 없이 끌어오지 않음"
+      ],
+      "must_not_include": [
+        "DB에 없는 결제/환불/지급 상태를 생성",
+        "약관이나 공지 내용을 확인한 것처럼 단정"
+      ],
+      "answer_target": {
+        "ticket_id": 248,
+        "account_id": 2237,
+        "user_id": 2137,
+        "title": "계정 오류",
+        "raw_query": "어제 접속후 인연10개 뽑기할려고 리세계정을 들어갔는데 계정오류라고 뜹니다 혹시나 다른계정도 그런가해서 들어가보니 총 2개의 계정에서 계정오류가 뜨네요 어떻게 해야하나요?",
+        "source_type": "naver_cafe",
+        "status": "resolved",
+        "inquiry_created_at": "2020-09-29T18:28:00",
+        "assignee_admin_id": null,
+        "analysis_id": 248,
+        "category": "account",
+        "enriched_query": "계정 오류 어제 접속후 인연10개 뽑기할려고 리세계정을 들어갔는데 계정오류라고 뜹니다 혹시나 다른계정도 그런가해서 들어가보니 총 2개의 계정에서 계정오류가 뜨네요 어떻게 해야하나요?",
+        "risk_level": "MID",
+        "sentiment": "neutral",
+        "routing_target": "DB_only",
+        "summary": "문의는 account 유형으로 분류되며 응답 근거는 DB_only입니다. 감성은 neutral, 위험도는 MID로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-22T04:02:01.969075"
+      },
+      "eval_focus": [
+        "db_retrieval",
+        "factual_grounding",
+        "no_policy_hallucination"
+      ],
+      "gold_query_type": "fixed_sql"
+    },
+    {
+      "ticket_id": 242,
+      "routing_target": "DB_only",
+      "ticket": {
+        "account_id": 2182,
+        "user_id": 2082,
+        "created_at": "2020-09-29 17:43:00",
+        "question": "상호작용하는 정령 한마리가 없어져서 안열립니다 확인해주세요\n4마리다 나온거 확인했습니다\nUID 800596941\n로또1등"
+      },
+      "gold_facts": {
+        "account": {
+          "account_status": "active",
+          "server_region": "ASIA"
+        },
+        "latest_payment": {
+          "payment_id": 912148,
+          "product_name": "창세의 결정 300개",
+          "product_type": "currency",
+          "amount": 5900,
+          "currency": "KRW",
+          "payment_method": "store_credit",
+          "payment_status": "success",
+          "paid_at": "2026-04-09 15:53:53"
+        },
+        "latest_refund": null,
+        "latest_delivery": {
+          "delivery_id": 917386,
+          "payment_id": null,
+          "item_name": "만남의 인연",
+          "quantity": 10,
+          "delivery_status": "failed",
+          "expected_at": "2026-05-24 14:37:51",
+          "delivered_at": null
+        }
+      },
+      "must_include": [
+        "live DB에 있는 최신 상태만 설명",
+        "문서 정책을 근거 없이 끌어오지 않음"
+      ],
+      "must_not_include": [
+        "DB에 없는 결제/환불/지급 상태를 생성",
+        "약관이나 공지 내용을 확인한 것처럼 단정"
+      ],
+      "answer_target": {
+        "ticket_id": 242,
+        "account_id": 2182,
+        "user_id": 2082,
+        "title": "세실리아의 모발던전 안됩니다",
+        "raw_query": "상호작용하는 정령 한마리가 없어져서 안열립니다 확인해주세요\n4마리다 나온거 확인했습니다\nUID 800596941\n로또1등",
+        "source_type": "naver_cafe",
+        "status": "resolved",
+        "inquiry_created_at": "2020-09-29T17:43:00",
+        "assignee_admin_id": null,
+        "analysis_id": 242,
+        "category": "bug",
+        "enriched_query": "세실리아의 모발던전 안됩니다 상호작용하는 정령 한마리가 없어져서 안열립니다 확인해주세요 4마리다 나온거 확인했습니다 UID 800596941 로또1등",
+        "risk_level": "LOW",
+        "sentiment": "positive",
+        "routing_target": "DB_only",
+        "summary": "문의는 bug 유형으로 분류되며 응답 근거는 DB_only입니다. 감성은 positive, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-22T04:01:49.040786"
+      },
+      "eval_focus": [
+        "db_retrieval",
+        "factual_grounding",
+        "no_policy_hallucination"
+      ],
+      "gold_query_type": "fixed_sql"
+    },
+    {
+      "ticket_id": 232,
+      "routing_target": "DB_only",
+      "ticket": {
+        "account_id": 2111,
+        "user_id": 2011,
+        "created_at": "2020-09-29 15:14:00",
+        "question": "​\n아니 결제한내역도 있는데\n​\n왜 계정에 데이터가 사라져있음?"
+      },
+      "gold_facts": {
+        "account": {
+          "account_status": "inactive",
+          "server_region": "ASIA"
+        },
+        "latest_payment": {
+          "payment_id": 912192,
+          "product_name": "창세의 결정 3280개",
+          "product_type": "currency",
+          "amount": 65000,
+          "currency": "KRW",
+          "payment_method": "google_pay",
+          "payment_status": "success",
+          "paid_at": "2026-05-05 07:21:30.806228"
+        },
+        "latest_refund": {
+          "refund_id": 910159,
+          "payment_id": 912192,
+          "refund_status": "pending",
+          "refund_reason": "결제 오류",
+          "requested_at": "2026-05-20 00:51:13.806228",
+          "processed_at": null
+        },
+        "latest_delivery": {
+          "delivery_id": 912049,
+          "payment_id": 912192,
+          "item_name": "창세의 결정",
+          "quantity": 3280,
+          "delivery_status": "delivered",
+          "expected_at": "2026-05-05 08:20:30.806228",
+          "delivered_at": "2026-05-05 10:31:30.806228"
+        }
+      },
+      "must_include": [
+        "live DB에 있는 최신 상태만 설명",
+        "문서 정책을 근거 없이 끌어오지 않음"
+      ],
+      "must_not_include": [
+        "DB에 없는 결제/환불/지급 상태를 생성",
+        "약관이나 공지 내용을 확인한 것처럼 단정"
+      ],
+      "answer_target": {
+        "ticket_id": 232,
+        "account_id": 2111,
+        "user_id": 2011,
+        "title": "로그아웃했는데 왜 케릭 데이터 사라졌음?",
+        "raw_query": "​\n아니 결제한내역도 있는데\n​\n왜 계정에 데이터가 사라져있음?",
+        "source_type": "naver_cafe",
+        "status": "resolved",
+        "inquiry_created_at": "2020-09-29T15:14:00",
+        "assignee_admin_id": null,
+        "analysis_id": 232,
+        "category": "account",
+        "enriched_query": "로그아웃했는데 왜 케릭 데이터 사라졌음? ​ 아니 결제한내역도 있는데 ​ 왜 계정에 데이터가 사라져있음?",
+        "risk_level": "MID",
+        "sentiment": "neutral",
+        "routing_target": "DB_only",
+        "summary": "문의는 account 유형으로 분류되며 응답 근거는 DB_only입니다. 감성은 neutral, 위험도는 MID로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-22T04:01:26.255126"
+      },
+      "eval_focus": [
+        "db_retrieval",
+        "factual_grounding",
+        "no_policy_hallucination"
+      ],
+      "gold_query_type": "fixed_sql"
+    },
+    {
+      "ticket_id": 231,
+      "routing_target": "DB_only",
+      "ticket": {
+        "account_id": 2109,
+        "user_id": 2009,
+        "created_at": "2020-09-29 15:11:00",
+        "question": "페북 연동까지 해놨는데 로그아웃했다고 안에있는 데이터가 싹날라가뿟네 ㅋㅋ"
+      },
+      "gold_facts": {
+        "account": {
+          "account_status": "active",
+          "server_region": "ASIA"
+        },
+        "latest_payment": {
+          "payment_id": 913054,
+          "product_name": "창세의 결정 980개",
+          "product_type": "currency",
+          "amount": 19000,
+          "currency": "KRW",
+          "payment_method": "store_credit",
+          "payment_status": "success",
+          "paid_at": "2026-04-14 10:53:02"
+        },
+        "latest_refund": null,
+        "latest_delivery": {
+          "delivery_id": 919441,
+          "payment_id": null,
+          "item_name": "만남의 인연",
+          "quantity": 10,
+          "delivery_status": "delivered",
+          "expected_at": "2026-06-09 07:49:21",
+          "delivered_at": "2026-06-09 09:55:21"
+        }
+      },
+      "must_include": [
+        "live DB에 있는 최신 상태만 설명",
+        "문서 정책을 근거 없이 끌어오지 않음"
+      ],
+      "must_not_include": [
+        "DB에 없는 결제/환불/지급 상태를 생성",
+        "약관이나 공지 내용을 확인한 것처럼 단정"
+      ],
+      "answer_target": {
+        "ticket_id": 231,
+        "account_id": 2109,
+        "user_id": 2009,
+        "title": "부계 팔려고 로그아웃했더니 계정 삭제 뭔말",
+        "raw_query": "페북 연동까지 해놨는데 로그아웃했다고 안에있는 데이터가 싹날라가뿟네 ㅋㅋ",
+        "source_type": "naver_cafe",
+        "status": "resolved",
+        "inquiry_created_at": "2020-09-29T15:11:00",
+        "assignee_admin_id": null,
+        "analysis_id": 231,
+        "category": "account",
+        "enriched_query": "부계 팔려고 로그아웃했더니 계정 삭제 뭔말 페북 연동까지 해놨는데 로그아웃했다고 안에있는 데이터가 싹날라가뿟네 ㅋㅋ",
+        "risk_level": "MID",
+        "sentiment": "neutral",
+        "routing_target": "DB_only",
+        "summary": "문의는 account 유형으로 분류되며 응답 근거는 DB_only입니다. 감성은 neutral, 위험도는 MID로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-22T04:01:24.340645"
+      },
+      "eval_focus": [
+        "db_retrieval",
+        "factual_grounding",
+        "no_policy_hallucination"
+      ],
+      "gold_query_type": "fixed_sql"
+    },
+    {
+      "ticket_id": 230,
+      "routing_target": "DB_only",
+      "ticket": {
+        "account_id": 2097,
+        "user_id": 1997,
+        "created_at": "2020-09-29 15:09:00",
+        "question": "페북 연동까지해놨는데 그냥 강제로 데이터 삭제해버리네 ㅋㅋ"
+      },
+      "gold_facts": {
+        "account": {
+          "account_status": "active",
+          "server_region": "ASIA"
+        },
+        "latest_payment": {
+          "payment_id": 914830,
+          "product_name": "진주의 노래",
+          "product_type": "battle_pass_bundle",
+          "amount": 25000,
+          "currency": "KRW",
+          "payment_method": "google_pay",
+          "payment_status": "success",
+          "paid_at": "2026-03-29 12:15:44"
+        },
+        "latest_refund": null,
+        "latest_delivery": {
+          "delivery_id": 918601,
+          "payment_id": null,
+          "item_name": "원석",
+          "quantity": 160,
+          "delivery_status": "delivered",
+          "expected_at": "2026-04-15 05:20:41",
+          "delivered_at": "2026-04-15 06:07:41"
+        }
+      },
+      "must_include": [
+        "live DB에 있는 최신 상태만 설명",
+        "문서 정책을 근거 없이 끌어오지 않음"
+      ],
+      "must_not_include": [
+        "DB에 없는 결제/환불/지급 상태를 생성",
+        "약관이나 공지 내용을 확인한 것처럼 단정"
+      ],
+      "answer_target": {
+        "ticket_id": 230,
+        "account_id": 2097,
+        "user_id": 1997,
+        "title": "부계팔려고 계정 로그아웃했더니 계정 삭제 되있는건 무슨상황이죠?",
+        "raw_query": "페북 연동까지해놨는데 그냥 강제로 데이터 삭제해버리네 ㅋㅋ",
+        "source_type": "naver_cafe",
+        "status": "resolved",
+        "inquiry_created_at": "2020-09-29T15:09:00",
+        "assignee_admin_id": null,
+        "analysis_id": 230,
+        "category": "account",
+        "enriched_query": "부계팔려고 계정 로그아웃했더니 계정 삭제 되있는건 무슨상황이죠? 페북 연동까지해놨는데 그냥 강제로 데이터 삭제해버리네 ㅋㅋ",
+        "risk_level": "MID",
+        "sentiment": "neutral",
+        "routing_target": "DB_only",
+        "summary": "문의는 account 유형으로 분류되며 응답 근거는 DB_only입니다. 감성은 neutral, 위험도는 MID로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-22T04:01:22.208597"
+      },
+      "eval_focus": [
+        "db_retrieval",
+        "factual_grounding",
+        "no_policy_hallucination"
+      ],
+      "gold_query_type": "fixed_sql"
+    },
+    {
+      "ticket_id": 209,
+      "routing_target": "DB_only",
+      "ticket": {
+        "account_id": 1857,
+        "user_id": 1757,
+        "created_at": "2020-09-29 11:16:00",
+        "question": "미요호 계정만들어서 연동시키려니 안되는데...\n구글계정좀 탈퇴하게 해주세요 연동좀 하게"
+      },
+      "gold_facts": {
+        "account": {
+          "account_status": "active",
+          "server_region": "ASIA"
+        },
+        "latest_payment": {
+          "payment_id": 912560,
+          "product_name": "창세의 결정 60개",
+          "product_type": "currency",
+          "amount": 1200,
+          "currency": "KRW",
+          "payment_method": "store_credit",
+          "payment_status": "pending",
+          "paid_at": "2026-06-08 21:09:36"
+        },
+        "latest_refund": {
+          "refund_id": 910076,
+          "payment_id": 910458,
+          "refund_status": "approved",
+          "refund_reason": "사용자 요청에 따른 환불",
+          "requested_at": "2022-11-25 06:30:44",
+          "processed_at": "2022-11-25 18:05:39"
+        },
+        "latest_delivery": {
+          "delivery_id": 914518,
+          "payment_id": 912560,
+          "item_name": "창세의 결정",
+          "quantity": 60,
+          "delivery_status": "failed",
+          "expected_at": "2026-06-08 21:20:36",
+          "delivered_at": null
+        }
+      },
+      "must_include": [
+        "live DB에 있는 최신 상태만 설명",
+        "문서 정책을 근거 없이 끌어오지 않음"
+      ],
+      "must_not_include": [
+        "DB에 없는 결제/환불/지급 상태를 생성",
+        "약관이나 공지 내용을 확인한 것처럼 단정"
+      ],
+      "answer_target": {
+        "ticket_id": 209,
+        "account_id": 1857,
+        "user_id": 1757,
+        "title": "구글계정 탈퇴 어떻게 합니다?",
+        "raw_query": "미요호 계정만들어서 연동시키려니 안되는데...\n구글계정좀 탈퇴하게 해주세요 연동좀 하게",
+        "source_type": "naver_cafe",
+        "status": "resolved",
+        "inquiry_created_at": "2020-09-29T11:16:00",
+        "assignee_admin_id": null,
+        "analysis_id": 209,
+        "category": "account",
+        "enriched_query": "구글계정 탈퇴 어떻게 합니다? 미요호 계정만들어서 연동시키려니 안되는데... 구글계정좀 탈퇴하게 해주세요 연동좀 하게",
+        "risk_level": "MID",
+        "sentiment": "neutral",
+        "routing_target": "DB_only",
+        "summary": "문의는 account 유형으로 분류되며 응답 근거는 DB_only입니다. 감성은 neutral, 위험도는 MID로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-22T04:00:35.077618"
+      },
+      "eval_focus": [
+        "db_retrieval",
+        "factual_grounding",
+        "no_policy_hallucination"
+      ],
+      "gold_query_type": "fixed_sql"
+    },
+    {
+      "ticket_id": 205,
+      "routing_target": "DB_only",
+      "ticket": {
+        "account_id": 1823,
+        "user_id": 1723,
+        "created_at": "2020-09-29 10:51:00",
+        "question": "pc버젼으로 게임을 할려고 하는데\n실명인중이 안되네여\n​"
+      },
+      "gold_facts": {
+        "account": {
+          "account_status": "active",
+          "server_region": "ASIA"
+        },
+        "latest_payment": {
+          "payment_id": 913329,
+          "product_name": "창세의 결정 300개",
+          "product_type": "currency",
+          "amount": 5900,
+          "currency": "KRW",
+          "payment_method": "google_pay",
+          "payment_status": "success",
+          "paid_at": "2026-05-30 12:49:36"
+        },
+        "latest_refund": null,
+        "latest_delivery": {
+          "delivery_id": 913756,
+          "payment_id": 913329,
+          "item_name": "창세의 결정",
+          "quantity": 300,
+          "delivery_status": "delivered",
+          "expected_at": "2026-05-30 13:27:36",
+          "delivered_at": "2026-05-30 16:18:36"
+        }
+      },
+      "must_include": [
+        "live DB에 있는 최신 상태만 설명",
+        "문서 정책을 근거 없이 끌어오지 않음"
+      ],
+      "must_not_include": [
+        "DB에 없는 결제/환불/지급 상태를 생성",
+        "약관이나 공지 내용을 확인한 것처럼 단정"
+      ],
+      "answer_target": {
+        "ticket_id": 205,
+        "account_id": 1823,
+        "user_id": 1723,
+        "title": "실명인증이  안되네요",
+        "raw_query": "pc버젼으로 게임을 할려고 하는데\n실명인중이 안되네여\n​",
+        "source_type": "naver_cafe",
+        "status": "resolved",
+        "inquiry_created_at": "2020-09-29T10:51:00",
+        "assignee_admin_id": null,
+        "analysis_id": 205,
+        "category": "account",
+        "enriched_query": "실명인증이 안되네요 pc버젼으로 게임을 할려고 하는데 실명인중이 안되네여 ​",
+        "risk_level": "MID",
+        "sentiment": "neutral",
+        "routing_target": "DB_only",
+        "summary": "문의는 account 유형으로 분류되며 응답 근거는 DB_only입니다. 감성은 neutral, 위험도는 MID로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-22T04:00:24.147011"
+      },
+      "eval_focus": [
+        "db_retrieval",
+        "factual_grounding",
+        "no_policy_hallucination"
+      ],
+      "gold_query_type": "fixed_sql"
+    },
+    {
+      "ticket_id": 191,
+      "routing_target": "DB_only",
+      "ticket": {
+        "account_id": 1699,
+        "user_id": 1599,
+        "created_at": "2020-09-29 04:03:00",
+        "question": "상호작용하는 정령 한마리가 없어져서 안열립니다 확인해주세요\n4마리다 나온거 확인했습니다\nUID 800596941\n로또1등"
+      },
+      "gold_facts": {
+        "account": {
+          "account_status": "active",
+          "server_region": "ASIA"
+        },
+        "latest_payment": {
+          "payment_id": 912196,
+          "product_name": "진주의 노래",
+          "product_type": "battle_pass_bundle",
+          "amount": 25000,
+          "currency": "KRW",
+          "payment_method": "card",
+          "payment_status": "success",
+          "paid_at": "2026-02-28 03:26:08"
+        },
+        "latest_refund": {
+          "refund_id": 910109,
+          "payment_id": 912196,
+          "refund_status": "approved",
+          "refund_reason": "결제 오류",
+          "requested_at": "2026-03-01 17:04:12",
+          "processed_at": "2026-03-06 02:30:06"
+        },
+        "latest_delivery": {
+          "delivery_id": 911192,
+          "payment_id": null,
+          "item_name": "만남의 인연",
+          "quantity": 10,
+          "delivery_status": "delivered",
+          "expected_at": "2026-04-24 10:24:32",
+          "delivered_at": "2026-04-24 11:52:32"
+        }
+      },
+      "must_include": [
+        "live DB에 있는 최신 상태만 설명",
+        "문서 정책을 근거 없이 끌어오지 않음"
+      ],
+      "must_not_include": [
+        "DB에 없는 결제/환불/지급 상태를 생성",
+        "약관이나 공지 내용을 확인한 것처럼 단정"
+      ],
+      "answer_target": {
+        "ticket_id": 191,
+        "account_id": 1699,
+        "user_id": 1599,
+        "title": "세실리아의 모발(무기 돌파던전) 오픈하기 위한 정령이 없어졌습니다",
+        "raw_query": "상호작용하는 정령 한마리가 없어져서 안열립니다 확인해주세요\n4마리다 나온거 확인했습니다\nUID 800596941\n로또1등",
+        "source_type": "naver_cafe",
+        "status": "draft_generated",
+        "inquiry_created_at": "2020-09-29T04:03:00",
+        "assignee_admin_id": null,
+        "analysis_id": 191,
+        "category": "bug",
+        "enriched_query": "세실리아의 모발(무기 돌파던전) 오픈하기 위한 정령이 없어졌습니다 상호작용하는 정령 한마리가 없어져서 안열립니다 확인해주세요 4마리다 나온거 확인했습니다 UID 800596941 로또1등",
+        "risk_level": "LOW",
+        "sentiment": "positive",
+        "routing_target": "DB_only",
+        "summary": "문의는 bug 유형으로 분류되며 응답 근거는 DB_only입니다. 감성은 positive, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-21T04:01:41.223786"
+      },
+      "eval_focus": [
+        "db_retrieval",
+        "factual_grounding",
+        "no_policy_hallucination"
+      ],
+      "gold_query_type": "fixed_sql"
+    },
+    {
+      "ticket_id": 182,
+      "routing_target": "DB_only",
+      "ticket": {
+        "account_id": 1621,
+        "user_id": 1521,
+        "created_at": "2020-09-29 01:48:00",
+        "question": "제목 그대로 아이디 만들려고 하는데..\n인증 이메일이 안오네요.. 5계정 돌렸는데도 안오고 있습니다.\n확인 부탁드립니다."
+      },
+      "gold_facts": {
+        "account": {
+          "account_status": "active",
+          "server_region": "ASIA"
+        },
+        "latest_payment": {
+          "payment_id": 912473,
+          "product_name": "진주의 노래",
+          "product_type": "battle_pass_bundle",
+          "amount": 25000,
+          "currency": "KRW",
+          "payment_method": "card",
+          "payment_status": "success",
+          "paid_at": "2026-05-28 22:22:26"
+        },
+        "latest_refund": {
+          "refund_id": 910019,
+          "payment_id": 910107,
+          "refund_status": "approved",
+          "refund_reason": "사용자 요청에 따른 환불",
+          "requested_at": "2020-11-13 04:11:23",
+          "processed_at": "2020-11-13 17:07:21"
+        },
+        "latest_delivery": {
+          "delivery_id": 917275,
+          "payment_id": null,
+          "item_name": "원석",
+          "quantity": 160,
+          "delivery_status": "delivered",
+          "expected_at": "2026-05-29 16:23:43",
+          "delivered_at": "2026-05-29 17:40:43"
+        }
+      },
+      "must_include": [
+        "live DB에 있는 최신 상태만 설명",
+        "문서 정책을 근거 없이 끌어오지 않음"
+      ],
+      "must_not_include": [
+        "DB에 없는 결제/환불/지급 상태를 생성",
+        "약관이나 공지 내용을 확인한 것처럼 단정"
+      ],
+      "answer_target": {
+        "ticket_id": 182,
+        "account_id": 1621,
+        "user_id": 1521,
+        "title": "인증 이메일이 안옵니다 확인 부탁드립니다 ㅠㅠ",
+        "raw_query": "제목 그대로 아이디 만들려고 하는데..\n인증 이메일이 안오네요.. 5계정 돌렸는데도 안오고 있습니다.\n확인 부탁드립니다.",
+        "source_type": "naver_cafe",
+        "status": "draft_generated",
+        "inquiry_created_at": "2020-09-29T01:48:00",
+        "assignee_admin_id": null,
+        "analysis_id": 182,
+        "category": "account",
+        "enriched_query": "인증 이메일이 안옵니다 확인 부탁드립니다 ㅠㅠ 제목 그대로 아이디 만들려고 하는데.. 인증 이메일이 안오네요.. 5계정 돌렸는데도 안오고 있습니다. 확인 부탁드립니다.",
+        "risk_level": "MID",
+        "sentiment": "positive",
+        "routing_target": "DB_only",
+        "summary": "문의는 account 유형으로 분류되며 응답 근거는 DB_only입니다. 감성은 positive, 위험도는 MID로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-21T04:01:20.877841"
+      },
+      "eval_focus": [
+        "db_retrieval",
+        "factual_grounding",
+        "no_policy_hallucination"
+      ],
+      "gold_query_type": "fixed_sql"
+    },
+    {
+      "ticket_id": 171,
+      "routing_target": "DB_only",
+      "ticket": {
+        "account_id": 1529,
+        "user_id": 1429,
+        "created_at": "2020-09-28 23:46:00",
+        "question": "제가 구글 아이디가 여러개가 저장되어 있습니다.\n그 중에 하나만 쓰는데,\n(편의상 가입한 아이디를 A라고 칭하겠습니다)\n가입한 아이디가 아니라, 휴대폰에 저장된 다른 아이디로 결제창이 뜹니다.\n계정 들어가보면 가입했던 구글아이디 멀쩡하게 뜨고요.\n제가 뭘 잘못건드린건지, 버그나 오류인지 모르겠지만 해결법이 있을까요"
+      },
+      "gold_facts": {
+        "account": {
+          "account_status": "active",
+          "server_region": "ASIA"
+        },
+        "latest_payment": {
+          "payment_id": 911505,
+          "product_name": "공월 축복",
+          "product_type": "subscription",
+          "amount": 5900,
+          "currency": "KRW",
+          "payment_method": "store_credit",
+          "payment_status": "success",
+          "paid_at": "2026-04-18 05:15:36"
+        },
+        "latest_refund": {
+          "refund_id": 910119,
+          "payment_id": 911620,
+          "refund_status": "approved",
+          "refund_reason": "사용자 요청에 따른 환불",
+          "requested_at": "2026-04-11 11:42:06",
+          "processed_at": "2026-04-15 06:24:03"
+        },
+        "latest_delivery": {
+          "delivery_id": 911606,
+          "payment_id": null,
+          "item_name": "만남의 인연",
+          "quantity": 10,
+          "delivery_status": "delivered",
+          "expected_at": "2026-04-19 09:11:31",
+          "delivered_at": "2026-04-19 11:16:31"
+        }
+      },
+      "must_include": [
+        "live DB에 있는 최신 상태만 설명",
+        "문서 정책을 근거 없이 끌어오지 않음"
+      ],
+      "must_not_include": [
+        "DB에 없는 결제/환불/지급 상태를 생성",
+        "약관이나 공지 내용을 확인한 것처럼 단정"
+      ],
+      "answer_target": {
+        "ticket_id": 171,
+        "account_id": 1529,
+        "user_id": 1429,
+        "title": "계정문제",
+        "raw_query": "제가 구글 아이디가 여러개가 저장되어 있습니다.\n그 중에 하나만 쓰는데,\n(편의상 가입한 아이디를 A라고 칭하겠습니다)\n가입한 아이디가 아니라, 휴대폰에 저장된 다른 아이디로 결제창이 뜹니다.\n계정 들어가보면 가입했던 구글아이디 멀쩡하게 뜨고요.\n제가 뭘 잘못건드린건지, 버그나 오류인지 모르겠지만 해결법이 있을까요",
+        "source_type": "naver_cafe",
+        "status": "draft_generated",
+        "inquiry_created_at": "2020-09-28T23:46:00",
+        "assignee_admin_id": null,
+        "analysis_id": 171,
+        "category": "account",
+        "enriched_query": "계정문제 제가 구글 아이디가 여러개가 저장되어 있습니다. 그 중에 하나만 쓰는데, (편의상 가입한 아이디를 A라고 칭하겠습니다) 가입한 아이디가 아니라, 휴대폰에 저장된 다른 아이디로 결제창이 뜹니다. 계정 들어가보면 가입했던 구글아이디 멀쩡하게 뜨고요. 제가 뭘 잘못건드린건지, 버그나 오류인지 모르겠지만 해결법이 있을까요",
+        "risk_level": "MID",
+        "sentiment": "negative",
+        "routing_target": "DB_only",
+        "summary": "문의는 account 유형으로 분류되며 응답 근거는 DB_only입니다. 감성은 negative, 위험도는 MID로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-21T04:00:55.855785"
+      },
+      "eval_focus": [
+        "db_retrieval",
+        "factual_grounding",
+        "no_policy_hallucination"
+      ],
+      "gold_query_type": "fixed_sql"
+    },
+    {
+      "ticket_id": 164,
+      "routing_target": "DB_only",
+      "ticket": {
+        "account_id": 1458,
+        "user_id": 1358,
+        "created_at": "2020-09-28 22:38:00",
+        "question": "계정 탈퇴 칸이 없네요? 연동 해제하려면 아이디를 무조건 연동시켜야 하고요"
+      },
+      "gold_facts": {
+        "account": {
+          "account_status": "active",
+          "server_region": "ASIA"
+        },
+        "latest_payment": {
+          "payment_id": 912715,
+          "product_name": "창세의 결정 60개",
+          "product_type": "currency",
+          "amount": 1200,
+          "currency": "KRW",
+          "payment_method": "google_pay",
+          "payment_status": "pending",
+          "paid_at": "2026-06-09 20:51:42"
+        },
+        "latest_refund": null,
+        "latest_delivery": {
+          "delivery_id": 914799,
+          "payment_id": null,
+          "item_name": "원석",
+          "quantity": 160,
+          "delivery_status": "delivered",
+          "expected_at": "2026-06-14 08:27:08",
+          "delivered_at": "2026-06-14 10:51:08"
+        }
+      },
+      "must_include": [
+        "live DB에 있는 최신 상태만 설명",
+        "문서 정책을 근거 없이 끌어오지 않음"
+      ],
+      "must_not_include": [
+        "DB에 없는 결제/환불/지급 상태를 생성",
+        "약관이나 공지 내용을 확인한 것처럼 단정"
+      ],
+      "answer_target": {
+        "ticket_id": 164,
+        "account_id": 1458,
+        "user_id": 1358,
+        "title": "계정 회원탈퇴는 어디서 하나요?",
+        "raw_query": "계정 탈퇴 칸이 없네요? 연동 해제하려면 아이디를 무조건 연동시켜야 하고요",
+        "source_type": "naver_cafe",
+        "status": "draft_generated",
+        "inquiry_created_at": "2020-09-28T22:38:00",
+        "assignee_admin_id": null,
+        "analysis_id": 164,
+        "category": "account",
+        "enriched_query": "계정 회원탈퇴는 어디서 하나요? 계정 탈퇴 칸이 없네요? 연동 해제하려면 아이디를 무조건 연동시켜야 하고요",
+        "risk_level": "MID",
+        "sentiment": "neutral",
+        "routing_target": "DB_only",
+        "summary": "문의는 account 유형으로 분류되며 응답 근거는 DB_only입니다. 감성은 neutral, 위험도는 MID로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-21T04:00:41.418800"
+      },
+      "eval_focus": [
+        "db_retrieval",
+        "factual_grounding",
+        "no_policy_hallucination"
+      ],
+      "gold_query_type": "fixed_sql"
+    },
+    {
+      "ticket_id": 143,
+      "routing_target": "DB_only",
+      "ticket": {
+        "account_id": 1323,
+        "user_id": 1223,
+        "created_at": "2020-09-28 19:21:00",
+        "question": "비밀번호가 두번 눌러야 쳐져요...\n그렇게 해서 로그인해도 안되고\n그냥 비밀번호 적고 복사해서 붙어 넣어야 되네요;;;\n​\n좀 황당함\n​"
+      },
+      "gold_facts": {
+        "account": {
+          "account_status": "active",
+          "server_region": "ASIA"
+        },
+        "latest_payment": {
+          "payment_id": 913832,
+          "product_name": "창세의 결정 60개",
+          "product_type": "currency",
+          "amount": 1200,
+          "currency": "KRW",
+          "payment_method": "card",
+          "payment_status": "success",
+          "paid_at": "2026-02-13 15:13:46"
+        },
+        "latest_refund": null,
+        "latest_delivery": {
+          "delivery_id": 916345,
+          "payment_id": null,
+          "item_name": "뒤얽힌 인연",
+          "quantity": 5,
+          "delivery_status": "delivered",
+          "expected_at": "2026-03-30 08:19:18",
+          "delivered_at": "2026-03-30 10:06:18"
+        }
+      },
+      "must_include": [
+        "live DB에 있는 최신 상태만 설명",
+        "문서 정책을 근거 없이 끌어오지 않음"
+      ],
+      "must_not_include": [
+        "DB에 없는 결제/환불/지급 상태를 생성",
+        "약관이나 공지 내용을 확인한 것처럼 단정"
+      ],
+      "answer_target": {
+        "ticket_id": 143,
+        "account_id": 1323,
+        "user_id": 1223,
+        "title": "PC 비밀번호가 잘 안쳐집니다",
+        "raw_query": "비밀번호가 두번 눌러야 쳐져요...\n그렇게 해서 로그인해도 안되고\n그냥 비밀번호 적고 복사해서 붙어 넣어야 되네요;;;\n​\n좀 황당함\n​",
+        "source_type": "naver_cafe",
+        "status": "draft_generated",
+        "inquiry_created_at": "2020-09-28T19:21:00",
+        "assignee_admin_id": null,
+        "analysis_id": 143,
+        "category": "account",
+        "enriched_query": "PC 비밀번호가 잘 안쳐집니다 비밀번호가 두번 눌러야 쳐져요... 그렇게 해서 로그인해도 안되고 그냥 비밀번호 적고 복사해서 붙어 넣어야 되네요;;; ​ 좀 황당함 ​",
+        "risk_level": "MID",
+        "sentiment": "neutral",
+        "routing_target": "DB_only",
+        "summary": "문의는 account 유형으로 분류되며 응답 근거는 DB_only입니다. 감성은 neutral, 위험도는 MID로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-20T23:17:46.203815"
+      },
+      "eval_focus": [
+        "db_retrieval",
+        "factual_grounding",
+        "no_policy_hallucination"
+      ],
+      "gold_query_type": "fixed_sql"
+    },
+    {
+      "ticket_id": 141,
+      "routing_target": "DB_only",
+      "ticket": {
+        "account_id": 1300,
+        "user_id": 1200,
+        "created_at": "2020-09-28 19:05:00",
+        "question": "PC에서 하던 계정을 PS4에서 이어서 하고 싶은데,\n어떻게 해야하나요?\nPS4로 게임 시작하면 PSN아이디로 게임이 시작되던데."
+      },
+      "gold_facts": {
+        "account": {
+          "account_status": "active",
+          "server_region": "ASIA"
+        },
+        "latest_payment": {
+          "payment_id": 910411,
+          "product_name": "진주 기행",
+          "product_type": "battle_pass",
+          "amount": 12000,
+          "currency": "KRW",
+          "payment_method": "card",
+          "payment_status": "fail",
+          "paid_at": "2024-08-04 12:54:27.806228"
+        },
+        "latest_refund": null,
+        "latest_delivery": {
+          "delivery_id": 917518,
+          "payment_id": null,
+          "item_name": "뒤얽힌 인연",
+          "quantity": 5,
+          "delivery_status": "delivered",
+          "expected_at": "2026-05-14 15:03:37",
+          "delivered_at": "2026-05-14 17:59:37"
+        }
+      },
+      "must_include": [
+        "live DB에 있는 최신 상태만 설명",
+        "문서 정책을 근거 없이 끌어오지 않음"
+      ],
+      "must_not_include": [
+        "DB에 없는 결제/환불/지급 상태를 생성",
+        "약관이나 공지 내용을 확인한 것처럼 단정"
+      ],
+      "answer_target": {
+        "ticket_id": 141,
+        "account_id": 1300,
+        "user_id": 1200,
+        "title": "PC에서 하던 계정으로 PS4에서 사용 불가",
+        "raw_query": "PC에서 하던 계정을 PS4에서 이어서 하고 싶은데,\n어떻게 해야하나요?\nPS4로 게임 시작하면 PSN아이디로 게임이 시작되던데.",
+        "source_type": "naver_cafe",
+        "status": "draft_generated",
+        "inquiry_created_at": "2020-09-28T19:05:00",
+        "assignee_admin_id": null,
+        "analysis_id": 141,
+        "category": "account",
+        "enriched_query": "PC에서 하던 계정으로 PS4에서 사용 불가 PC에서 하던 계정을 PS4에서 이어서 하고 싶은데, 어떻게 해야하나요? PS4로 게임 시작하면 PSN아이디로 게임이 시작되던데.",
+        "risk_level": "MID",
+        "sentiment": "neutral",
+        "routing_target": "DB_only",
+        "summary": "문의는 account 유형으로 분류되며 응답 근거는 DB_only입니다. 감성은 neutral, 위험도는 MID로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-20T23:17:41.635700"
+      },
+      "eval_focus": [
+        "db_retrieval",
+        "factual_grounding",
+        "no_policy_hallucination"
+      ],
+      "gold_query_type": "fixed_sql"
+    },
+    {
+      "ticket_id": 111,
+      "routing_target": "DB_only",
+      "ticket": {
+        "account_id": 1018,
+        "user_id": 918,
+        "created_at": "2020-09-28 15:01:00",
+        "question": "아닝 2시간정도하다가 튕겨서 다시들어갓는데 막 다른세계로왔다하네???? 초기화됐네??? 게임이른그대로 입력되네???? 이게뭐꼬"
+      },
+      "gold_facts": {
+        "account": {
+          "account_status": "active",
+          "server_region": "ASIA"
+        },
+        "latest_payment": {
+          "payment_id": 914379,
+          "product_name": "창세의 결정 6480개",
+          "product_type": "currency",
+          "amount": 119000,
+          "currency": "KRW",
+          "payment_method": "card",
+          "payment_status": "pending",
+          "paid_at": "2026-03-20 06:23:14"
+        },
+        "latest_refund": {
+          "refund_id": 910085,
+          "payment_id": 910493,
+          "refund_status": "approved",
+          "refund_reason": "사용자 요청에 따른 환불",
+          "requested_at": "2023-08-10 20:26:37",
+          "processed_at": "2023-08-11 18:47:21"
+        },
+        "latest_delivery": {
+          "delivery_id": 918786,
+          "payment_id": null,
+          "item_name": "모라",
+          "quantity": 50000,
+          "delivery_status": "delivered",
+          "expected_at": "2026-03-27 21:21:53",
+          "delivered_at": "2026-03-28 00:17:53"
+        }
+      },
+      "must_include": [
+        "live DB에 있는 최신 상태만 설명",
+        "문서 정책을 근거 없이 끌어오지 않음"
+      ],
+      "must_not_include": [
+        "DB에 없는 결제/환불/지급 상태를 생성",
+        "약관이나 공지 내용을 확인한 것처럼 단정"
+      ],
+      "answer_target": {
+        "ticket_id": 111,
+        "account_id": 1018,
+        "user_id": 918,
+        "title": "아니 게임 계정이 아예삭제되는게말이됍니까...",
+        "raw_query": "아닝 2시간정도하다가 튕겨서 다시들어갓는데 막 다른세계로왔다하네???? 초기화됐네??? 게임이른그대로 입력되네???? 이게뭐꼬",
+        "source_type": "naver_cafe",
+        "status": "draft_generated",
+        "inquiry_created_at": "2020-09-28T15:01:00",
+        "assignee_admin_id": null,
+        "analysis_id": 111,
+        "category": "account",
+        "enriched_query": "아니 게임 계정이 아예삭제되는게말이됍니까... 아닝 2시간정도하다가 튕겨서 다시들어갓는데 막 다른세계로왔다하네???? 초기화됐네??? 게임이른그대로 입력되네???? 이게뭐꼬",
+        "risk_level": "MID",
+        "sentiment": "neutral",
+        "routing_target": "DB_only",
+        "summary": "문의는 account 유형으로 분류되며 응답 근거는 DB_only입니다. 감성은 neutral, 위험도는 MID로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-20T23:16:34.491707"
+      },
+      "eval_focus": [
+        "db_retrieval",
+        "factual_grounding",
+        "no_policy_hallucination"
+      ],
+      "gold_query_type": "fixed_sql"
+    },
+    {
+      "ticket_id": 250,
+      "routing_target": "DB&DOC",
+      "ticket": {
+        "account_id": 2247,
+        "user_id": 2147,
+        "created_at": "2020-09-29 18:57:00",
+        "question": "제 계정이 원신 모바일은 엔으로 환산되고 피시는 원인데 엔을  원으로 바꿀수는 없는건가요?\n​\n둘다 같은 계정을 사용줌입니다 피시로 결제할려해도 해당계정을 가입한 기기로 결제를 해주세요 라고 뜨네요\n​\n​"
+      },
+      "answer_target": {
+        "ticket_id": 250,
+        "account_id": 2247,
+        "user_id": 2147,
+        "title": "모바일 결제 수단 어떻게 바꾸나요",
+        "raw_query": "제 계정이 원신 모바일은 엔으로 환산되고 피시는 원인데 엔을  원으로 바꿀수는 없는건가요?\n​\n둘다 같은 계정을 사용줌입니다 피시로 결제할려해도 해당계정을 가입한 기기로 결제를 해주세요 라고 뜨네요\n​\n​",
+        "source_type": "naver_cafe",
+        "status": "resolved",
+        "inquiry_created_at": "2020-09-29T18:57:00",
+        "assignee_admin_id": null,
+        "analysis_id": 250,
+        "category": "payment",
+        "enriched_query": "모바일 결제 수단 어떻게 바꾸나요 제 계정이 원신 모바일은 엔으로 환산되고 피시는 원인데 엔을 원으로 바꿀수는 없는건가요? ​ 둘다 같은 계정을 사용줌입니다 피시로 결제할려해도 해당계정을 가입한 기기로 결제를 해주세요 라고 뜨네요 ​ ​",
+        "risk_level": "MID",
+        "sentiment": "neutral",
+        "routing_target": "DB&DOC",
+        "summary": "문의는 payment 유형으로 분류되며 응답 근거는 DB&DOC입니다. 감성은 neutral, 위험도는 MID로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-22T04:02:05.880018"
+      },
+      "eval_focus": [
+        "hybrid_retrieval",
+        "conflict_resolution",
+        "policy_plus_state"
+      ],
+      "summary_oracle": {
+        "summary_excerpt": "문의는 payment 유형으로 분류되며 응답 근거는 DB&DOC입니다. 감성은 neutral, 위험도는 MID로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다."
+      },
+      "gold_policy": {
+        "documents": [
+          {
+            "document_id": "QNA-COM-28",
+            "chunk_id": "QNA-COM-28::chunk::0",
+            "source_type": "universe_qna_common",
+            "category": "결제_관련_이슈",
+            "title": "웹페이지에서 결제를 하려면 어떻게 해야 하나요?"
+          },
+          {
+            "document_id": "QNA-COM-30",
+            "chunk_id": "QNA-COM-30::chunk::0",
+            "source_type": "universe_qna_common",
+            "category": "결제_관련_이슈",
+            "title": "공식 충전센터/PC 클라이언트에서 결제를 시도했는데 「거래가 거부되었습니다. 기타 결제 방식을 선택해주세요」라는 팝업창이 떠요. 어떻게 해야 하나요?"
+          },
+          {
+            "document_id": "QNA-COM-31",
+            "chunk_id": "QNA-COM-31::chunk::0",
+            "source_type": "universe_qna_common",
+            "category": "결제_관련_이슈",
+            "title": "공식 충전센터/PC 클라이언트에서 결제를 시도했는데 「거래가 거부되었습니다. 발급 은행에 문의해주세요~」라는 팝업창이 떠요. 어떻게 해야 하나요?"
+          }
+        ]
+      },
+      "gold_facts": {},
+      "must_include": [
+        "DB 상태와 정책 안내가 둘 다 필요한 문의로 평가",
+        "summary와 실제 route에 맞는 혼합 답변 구성"
+      ],
+      "must_not_include": [
+        "문서만으로 상태를 단정",
+        "DB 사실만으로 정책 예외를 확정"
+      ],
+      "gold_query_type": "text_to_sql"
+    },
+    {
+      "ticket_id": 220,
+      "routing_target": "DB&DOC",
+      "ticket": {
+        "account_id": 1941,
+        "user_id": 1841,
+        "created_at": "2020-09-29 13:51:00",
+        "question": "기원을 까는도중 화면이 멈추면서 블루스크린이 떴는데 재접속 해보니 뽑기에 사용한 뒤얽힌 인연은 사라져 있고 뽑기기록또한 없고 나온 캐릭터도 없습니다. 해결 부탁드려요"
+      },
+      "answer_target": {
+        "ticket_id": 220,
+        "account_id": 1941,
+        "user_id": 1841,
+        "title": "기원 관련 버그",
+        "raw_query": "기원을 까는도중 화면이 멈추면서 블루스크린이 떴는데 재접속 해보니 뽑기에 사용한 뒤얽힌 인연은 사라져 있고 뽑기기록또한 없고 나온 캐릭터도 없습니다. 해결 부탁드려요",
+        "source_type": "naver_cafe",
+        "status": "resolved",
+        "inquiry_created_at": "2020-09-29T13:51:00",
+        "assignee_admin_id": null,
+        "analysis_id": 220,
+        "category": "bug",
+        "enriched_query": "기원 관련 버그 기원을 까는도중 화면이 멈추면서 블루스크린이 떴는데 재접속 해보니 뽑기에 사용한 뒤얽힌 인연은 사라져 있고 뽑기기록또한 없고 나온 캐릭터도 없습니다. 해결 부탁드려요",
+        "risk_level": "LOW",
+        "sentiment": "positive",
+        "routing_target": "DB&DOC",
+        "summary": "문의는 bug 유형으로 분류되며 응답 근거는 DB&DOC입니다. 감성은 positive, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-22T04:00:59.410059"
+      },
+      "eval_focus": [
+        "hybrid_retrieval",
+        "conflict_resolution",
+        "policy_plus_state"
+      ],
+      "summary_oracle": {
+        "summary_excerpt": "문의는 bug 유형으로 분류되며 응답 근거는 DB&DOC입니다. 감성은 positive, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다."
+      },
+      "gold_policy": {
+        "documents": [
+          {
+            "document_id": "QNA-GSN-51",
+            "chunk_id": "QNA-GSN-51::chunk::2",
+            "source_type": "universe_qna_onlydaily",
+            "category": "bug_faq",
+            "title": "버그, 튕김 관련 FAQ"
+          },
+          {
+            "document_id": "QNA-GSN-17",
+            "chunk_id": "QNA-GSN-17::chunk::0",
+            "source_type": "universe_qna_onlydaily",
+            "category": "게임_문제",
+            "title": "「기원」 뽑기 기록은 어떻게 확인하나요?"
+          },
+          {
+            "document_id": "QNA-GSN-27",
+            "chunk_id": "QNA-GSN-27::chunk::1",
+            "source_type": "universe_qna_onlydaily",
+            "category": "게임_문제",
+            "title": "기원 이벤트 공용 FAQ"
+          }
+        ]
+      },
+      "gold_facts": {},
+      "must_include": [
+        "DB 상태와 정책 안내가 둘 다 필요한 문의로 평가",
+        "summary와 실제 route에 맞는 혼합 답변 구성"
+      ],
+      "must_not_include": [
+        "문서만으로 상태를 단정",
+        "DB 사실만으로 정책 예외를 확정"
+      ],
+      "gold_query_type": "fixed_sql"
+    },
+    {
+      "ticket_id": 192,
+      "routing_target": "DB&DOC",
+      "ticket": {
+        "account_id": 1707,
+        "user_id": 1607,
+        "created_at": "2020-09-29 04:13:00",
+        "question": "이후 백신꺼봐라고 해서 백신 끄니까 겜 실행되었습니다 그리고 종료했다가\n컴퓨터 켰더니 다 안됩니다\n​\n고객센터 전화하면 환불+피해보상 받아야하는거 아닌가요?\n컴퓨터 새로 깔고 다시 셋팅중입니다"
+      },
+      "answer_target": {
+        "ticket_id": 192,
+        "account_id": 1707,
+        "user_id": 1607,
+        "title": "아래 글적었었는데 겜도 안되고 갑자기 멜웨어 걸리고..",
+        "raw_query": "이후 백신꺼봐라고 해서 백신 끄니까 겜 실행되었습니다 그리고 종료했다가\n컴퓨터 켰더니 다 안됩니다\n​\n고객센터 전화하면 환불+피해보상 받아야하는거 아닌가요?\n컴퓨터 새로 깔고 다시 셋팅중입니다",
+        "source_type": "naver_cafe",
+        "status": "draft_generated",
+        "inquiry_created_at": "2020-09-29T04:13:00",
+        "assignee_admin_id": null,
+        "analysis_id": 192,
+        "category": "bug",
+        "enriched_query": "아래 글적었었는데 겜도 안되고 갑자기 멜웨어 걸리고.. 이후 백신꺼봐라고 해서 백신 끄니까 겜 실행되었습니다 그리고 종료했다가 컴퓨터 켰더니 다 안됩니다 ​ 고객센터 전화하면 환불+피해보상 받아야하는거 아닌가요? 컴퓨터 새로 깔고 다시 셋팅중입니다",
+        "risk_level": "LOW",
+        "sentiment": "neutral",
+        "routing_target": "DB&DOC",
+        "summary": "문의는 bug 유형으로 분류되며 응답 근거는 DB&DOC입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-21T04:01:43.645817"
+      },
+      "eval_focus": [
+        "hybrid_retrieval",
+        "conflict_resolution",
+        "policy_plus_state"
+      ],
+      "summary_oracle": {
+        "summary_excerpt": "문의는 bug 유형으로 분류되며 응답 근거는 DB&DOC입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다."
+      },
+      "gold_policy": {
+        "documents": [
+          {
+            "document_id": "NVC-NOT-334",
+            "chunk_id": "NVC-NOT-334::chunk::71",
+            "source_type": "naver_cafe_notice",
+            "category": "공지사항",
+            "title": "「옥빛 아래 속세의 노래」 1.5 버전 업데이트 상세안내"
+          },
+          {
+            "document_id": "NVC-NOT-334",
+            "chunk_id": "NVC-NOT-334::chunk::93",
+            "source_type": "naver_cafe_notice",
+            "category": "공지사항",
+            "title": "「옥빛 아래 속세의 노래」 1.5 버전 업데이트 상세안내"
+          },
+          {
+            "document_id": "NVC-NOT-334",
+            "chunk_id": "NVC-NOT-334::chunk::106",
+            "source_type": "naver_cafe_notice",
+            "category": "공지사항",
+            "title": "「옥빛 아래 속세의 노래」 1.5 버전 업데이트 상세안내"
+          }
+        ]
+      },
+      "gold_facts": {},
+      "must_include": [
+        "DB 상태와 정책 안내가 둘 다 필요한 문의로 평가",
+        "summary와 실제 route에 맞는 혼합 답변 구성"
+      ],
+      "must_not_include": [
+        "문서만으로 상태를 단정",
+        "DB 사실만으로 정책 예외를 확정"
+      ],
+      "gold_query_type": "text_to_sql"
+    },
+    {
+      "ticket_id": 179,
+      "routing_target": "DB&DOC",
+      "ticket": {
+        "account_id": 1577,
+        "user_id": 1477,
+        "created_at": "2020-09-29 01:18:00",
+        "question": "구글에서 해당 게임 보안으로 찾아보니까,  계정 간 보안으로 보호되고 있더라! 보통 이정도면 게임이 영 좋지 못할 때 이런 짓 하거든? 그, 구글과 싸우는 에픽 게임즈만 봐도, 저 계정 간 보안은 없다..\n​\nPS : 누가 선동을 했다고 해서 화내지마라. 그놈들도 게임을 좋아하는 너희들의 소비자들이다. 이들이 너희 게임을 더 사주기 위해서는 철저히 조사해라...\n​"
+      },
+      "answer_target": {
+        "ticket_id": 179,
+        "account_id": 1577,
+        "user_id": 1477,
+        "title": "니들 게임이 진짜 안전한 게임이라면 이건 어떻게 설명해줄 수 있냐? 해명 및 조치 및 모든 루머들을 조사하고 고칠것은 고쳐라",
+        "raw_query": "구글에서 해당 게임 보안으로 찾아보니까,  계정 간 보안으로 보호되고 있더라! 보통 이정도면 게임이 영 좋지 못할 때 이런 짓 하거든? 그, 구글과 싸우는 에픽 게임즈만 봐도, 저 계정 간 보안은 없다..\n​\nPS : 누가 선동을 했다고 해서 화내지마라. 그놈들도 게임을 좋아하는 너희들의 소비자들이다. 이들이 너희 게임을 더 사주기 위해서는 철저히 조사해라...\n​",
+        "source_type": "naver_cafe",
+        "status": "draft_generated",
+        "inquiry_created_at": "2020-09-29T01:18:00",
+        "assignee_admin_id": null,
+        "analysis_id": 179,
+        "category": "account",
+        "enriched_query": "니들 게임이 진짜 안전한 게임이라면 이건 어떻게 설명해줄 수 있냐? 해명 및 조치 및 모든 루머들을 조사하고 고칠것은 고쳐라 구글에서 해당 게임 보안으로 찾아보니까, 계정 간 보안으로 보호되고 있더라! 보통 이정도면 게임이 영 좋지 못할 때 이런 짓 하거든? 그, 구글과 싸우는 에픽 게임즈만 봐도, 저 계정 간 보안은 없다.. ​ PS : 누가 선동을 했다고 해서 화내지마라. 그놈들도 게임을 좋아하는 너희들의 소비자들이다. 이들이 너희 게임을 더 사주기 위해서는 철저히 조사해라... ​",
+        "risk_level": "MID",
+        "sentiment": "neutral",
+        "routing_target": "DB&DOC",
+        "summary": "문의는 account 유형으로 분류되며 응답 근거는 DB&DOC입니다. 감성은 neutral, 위험도는 MID로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-21T04:01:14.055780"
+      },
+      "eval_focus": [
+        "hybrid_retrieval",
+        "conflict_resolution",
+        "policy_plus_state"
+      ],
+      "summary_oracle": {
+        "summary_excerpt": "문의는 account 유형으로 분류되며 응답 근거는 DB&DOC입니다. 감성은 neutral, 위험도는 MID로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다."
+      },
+      "gold_policy": {
+        "documents": [
+          {
+            "document_id": "QNA-COM-23",
+            "chunk_id": "QNA-COM-23::chunk::0",
+            "source_type": "universe_qna_common",
+            "category": "계정보안_이슈",
+            "title": "어떻게 하면 계정 보안을 강화할 수 있나요?"
+          },
+          {
+            "document_id": "QNA-COM-24",
+            "chunk_id": "QNA-COM-24::chunk::0",
+            "source_type": "universe_qna_common",
+            "category": "계정보안_이슈",
+            "title": "낯선 사람이 제 계정에 로그인한 것 같아요. 어떻게 해야 하나요?"
+          },
+          {
+            "document_id": "QNA-COM-12",
+            "chunk_id": "QNA-COM-12::chunk::0",
+            "source_type": "universe_qna_common",
+            "category": "유니버스_통행증_이슈",
+            "title": "계정에 로그인하고 보니 게임 진행도가 초기화됐는데 어떻게 해야 하나요?"
+          }
+        ]
+      },
+      "gold_facts": {},
+      "must_include": [
+        "DB 상태와 정책 안내가 둘 다 필요한 문의로 평가",
+        "summary와 실제 route에 맞는 혼합 답변 구성"
+      ],
+      "must_not_include": [
+        "문서만으로 상태를 단정",
+        "DB 사실만으로 정책 예외를 확정"
+      ],
+      "gold_query_type": "fixed_sql"
+    },
+    {
+      "ticket_id": 172,
+      "routing_target": "DB&DOC",
+      "ticket": {
+        "account_id": 1534,
+        "user_id": 1434,
+        "created_at": "2020-09-28 23:47:00",
+        "question": "플레이스토어나 핸드폰결제 같은거요"
+      },
+      "answer_target": {
+        "ticket_id": 172,
+        "account_id": 1534,
+        "user_id": 1434,
+        "title": "pc 버전 결제수단 늘릴 계획 없나요?",
+        "raw_query": "플레이스토어나 핸드폰결제 같은거요",
+        "source_type": "naver_cafe",
+        "status": "draft_generated",
+        "inquiry_created_at": "2020-09-28T23:47:00",
+        "assignee_admin_id": null,
+        "analysis_id": 172,
+        "category": "payment",
+        "enriched_query": "pc 버전 결제수단 늘릴 계획 없나요? 플레이스토어나 핸드폰결제 같은거요",
+        "risk_level": "MID",
+        "sentiment": "neutral",
+        "routing_target": "DB&DOC",
+        "summary": "문의는 payment 유형으로 분류되며 응답 근거는 DB&DOC입니다. 감성은 neutral, 위험도는 MID로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-21T04:00:58.056258"
+      },
+      "eval_focus": [
+        "hybrid_retrieval",
+        "conflict_resolution",
+        "policy_plus_state"
+      ],
+      "summary_oracle": {
+        "summary_excerpt": "문의는 payment 유형으로 분류되며 응답 근거는 DB&DOC입니다. 감성은 neutral, 위험도는 MID로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다."
+      },
+      "gold_policy": {
+        "documents": [
+          {
+            "document_id": "QNA-COM-30",
+            "chunk_id": "QNA-COM-30::chunk::0",
+            "source_type": "universe_qna_common",
+            "category": "결제_관련_이슈",
+            "title": "공식 충전센터/PC 클라이언트에서 결제를 시도했는데 「거래가 거부되었습니다. 기타 결제 방식을 선택해주세요」라는 팝업창이 떠요. 어떻게 해야 하나요?"
+          },
+          {
+            "document_id": "QNA-COM-31",
+            "chunk_id": "QNA-COM-31::chunk::0",
+            "source_type": "universe_qna_common",
+            "category": "결제_관련_이슈",
+            "title": "공식 충전센터/PC 클라이언트에서 결제를 시도했는데 「거래가 거부되었습니다. 발급 은행에 문의해주세요~」라는 팝업창이 떠요. 어떻게 해야 하나요?"
+          },
+          {
+            "document_id": "NVC-NOT-410",
+            "chunk_id": "NVC-NOT-410::chunk::23",
+            "source_type": "naver_cafe_notice",
+            "category": "공지사항",
+            "title": "PC 플랫폼 자주 묻는 질문 (결제 관련 내용 추가)"
+          }
+        ]
+      },
+      "gold_facts": {},
+      "must_include": [
+        "DB 상태와 정책 안내가 둘 다 필요한 문의로 평가",
+        "summary와 실제 route에 맞는 혼합 답변 구성"
+      ],
+      "must_not_include": [
+        "문서만으로 상태를 단정",
+        "DB 사실만으로 정책 예외를 확정"
+      ],
+      "gold_query_type": "text_to_sql"
+    },
+    {
+      "ticket_id": 162,
+      "routing_target": "DB&DOC",
+      "ticket": {
+        "account_id": 1455,
+        "user_id": 1355,
+        "created_at": "2020-09-28 22:16:00",
+        "question": "모바일에서 구글로 진행하다가 피시에서 생성해놓은 미호요 계정으로 연동하려고\n찾아 헤매이고 이렇게 까지 해야 하나 싶습니다.\n​\n어쨋든 검색해서 인게임에서 한다길래 피시로 게임시작 해보니 캐릭을 선택하라고 합디다.\n(어떻게 연동하는지 찾는 것 부터가 에러 아님? 공지 정도는 해줘야 하는거 아님?)\n​\n그래서 캐릭터 선택 하니, 닉네임을 입력하라길래 또 입력하고,\n인게임에서 계정 연동으로 들어가 구글 연동하려고 보니\n​\nGoogle \" Android 기기에 연동해 주세요\"\n​\n라고 되어 있습니다.\n​\n다시 모바일에서 구글로 로그인 하고 미호요 계정으로 연동하려고 하니,\n​\n중복된 계정이랍니다.\n​\n뭐지? 캐릭을 생성해서 그런가...?\n싶어서 다시 새 미호요 계정을 생성한 상태로 캐릭터는 선택하지 않고\n모바일에서 미호요 계정을 연동하려고 했더니 똑같습니다.\n​\n중복된 계정이랍니다.\n​\n이거 정상입니까?"
+      },
+      "answer_target": {
+        "ticket_id": 162,
+        "account_id": 1455,
+        "user_id": 1355,
+        "title": "모바일 and PC 연동 방법 공지좀",
+        "raw_query": "모바일에서 구글로 진행하다가 피시에서 생성해놓은 미호요 계정으로 연동하려고\n찾아 헤매이고 이렇게 까지 해야 하나 싶습니다.\n​\n어쨋든 검색해서 인게임에서 한다길래 피시로 게임시작 해보니 캐릭을 선택하라고 합디다.\n(어떻게 연동하는지 찾는 것 부터가 에러 아님? 공지 정도는 해줘야 하는거 아님?)\n​\n그래서 캐릭터 선택 하니, 닉네임을 입력하라길래 또 입력하고,\n인게임에서 계정 연동으로 들어가 구글 연동하려고 보니\n​\nGoogle \" Android 기기에 연동해 주세요\"\n​\n라고 되어 있습니다.\n​\n다시 모바일에서 구글로 로그인 하고 미호요 계정으로 연동하려고 하니,\n​\n중복된 계정이랍니다.\n​\n뭐지? 캐릭을 생성해서 그런가...?\n싶어서 다시 새 미호요 계정을 생성한 상태로 캐릭터는 선택하지 않고\n모바일에서 미호요 계정을 연동하려고 했더니 똑같습니다.\n​\n중복된 계정이랍니다.\n​\n이거 정상입니까?",
+        "source_type": "naver_cafe",
+        "status": "draft_generated",
+        "inquiry_created_at": "2020-09-28T22:16:00",
+        "assignee_admin_id": null,
+        "analysis_id": 162,
+        "category": "account",
+        "enriched_query": "모바일 and PC 연동 방법 공지좀 모바일에서 구글로 진행하다가 피시에서 생성해놓은 미호요 계정으로 연동하려고 찾아 헤매이고 이렇게 까지 해야 하나 싶습니다. ​ 어쨋든 검색해서 인게임에서 한다길래 피시로 게임시작 해보니 캐릭을 선택하라고 합디다. (어떻게 연동하는지 찾는 것 부터가 에러 아님? 공지 정도는 해줘야 하는거 아님?) ​ 그래서 캐릭터 선택 하니, 닉네임을 입력하라길래 또 입력하고, 인게임에서 계정 연동으로 들어가 구글 연동하려고 보니 ​ Google \" Android 기기에 연동해 주세요\" ​ 라고 되어 있습니다. ​ 다시 모바일에서 구글로 로그인 하고 미호요 계정으로 연동하려고 하니, ​ 중복된 계정이랍니다. ​ 뭐지? 캐릭을 생성해서 그런가...? 싶어서 다시 새 미호요 계정을 생성한 상태로 캐릭터는 선택하지 않고 모바일에서 미호요 계정을 연동하려고 했더니 똑같습니다. ​ 중복된 계정이랍니다. ​ 이거 정상입니까?",
+        "risk_level": "MID",
+        "sentiment": "neutral",
+        "routing_target": "DB&DOC",
+        "summary": "문의는 account 유형으로 분류되며 응답 근거는 DB&DOC입니다. 감성은 neutral, 위험도는 MID로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-21T04:00:37.639693"
+      },
+      "eval_focus": [
+        "hybrid_retrieval",
+        "conflict_resolution",
+        "policy_plus_state"
+      ],
+      "summary_oracle": {
+        "summary_excerpt": "문의는 account 유형으로 분류되며 응답 근거는 DB&DOC입니다. 감성은 neutral, 위험도는 MID로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다."
+      },
+      "gold_policy": {
+        "documents": [
+          {
+            "document_id": "NVC-GDE-685",
+            "chunk_id": "NVC-GDE-685::chunk::0",
+            "source_type": "naver_cafe_guide",
+            "category": "가이드",
+            "title": "「일상」 게임 내 계정 연동하는 방법 가이드 (wifi 사용추천)"
+          },
+          {
+            "document_id": "QNA-COM-20",
+            "chunk_id": "QNA-COM-20::chunk::0",
+            "source_type": "universe_qna_common",
+            "category": "유니버스_통행증_이슈",
+            "title": "SNS 계정을 연동하려면 어떻게 해야 하나요?"
+          },
+          {
+            "document_id": "QNA-COM-17",
+            "chunk_id": "QNA-COM-17::chunk::0",
+            "source_type": "universe_qna_common",
+            "category": "유니버스_통행증_이슈",
+            "title": "PlayStation™ Network 계정을 유니버스 계정과 연동할 수 있나요?"
+          }
+        ]
+      },
+      "gold_facts": {},
+      "must_include": [
+        "DB 상태와 정책 안내가 둘 다 필요한 문의로 평가",
+        "summary와 실제 route에 맞는 혼합 답변 구성"
+      ],
+      "must_not_include": [
+        "문서만으로 상태를 단정",
+        "DB 사실만으로 정책 예외를 확정"
+      ],
+      "gold_query_type": "fixed_sql"
+    },
+    {
+      "ticket_id": 140,
+      "routing_target": "DB&DOC",
+      "ticket": {
+        "account_id": 1296,
+        "user_id": 1196,
+        "created_at": "2020-09-28 18:59:00",
+        "question": "정상적으로게임을 못하는 수준이네요"
+      },
+      "answer_target": {
+        "ticket_id": 140,
+        "account_id": 1296,
+        "user_id": 1196,
+        "title": "계속 팅길거면 환불해주세요.",
+        "raw_query": "정상적으로게임을 못하는 수준이네요",
+        "source_type": "naver_cafe",
+        "status": "draft_generated",
+        "inquiry_created_at": "2020-09-28T18:59:00",
+        "assignee_admin_id": null,
+        "analysis_id": 140,
+        "category": "refund",
+        "enriched_query": "계속 팅길거면 환불해주세요. 정상적으로게임을 못하는 수준이네요",
+        "risk_level": "MID",
+        "sentiment": "negative",
+        "routing_target": "DB&DOC",
+        "summary": "문의는 refund 유형으로 분류되며 응답 근거는 DB&DOC입니다. 감성은 negative, 위험도는 MID로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-20T23:17:39.908877"
+      },
+      "eval_focus": [
+        "hybrid_retrieval",
+        "conflict_resolution",
+        "policy_plus_state"
+      ],
+      "summary_oracle": {
+        "summary_excerpt": "문의는 refund 유형으로 분류되며 응답 근거는 DB&DOC입니다. 감성은 negative, 위험도는 MID로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다."
+      },
+      "gold_policy": {
+        "documents": [
+          {
+            "document_id": "QNA-COM-27",
+            "chunk_id": "QNA-COM-27::chunk::0",
+            "source_type": "universe_qna_common",
+            "category": "결제_관련_이슈",
+            "title": "직접 승인하지 않은 결제에 대한 환불은 어떻게 신청하나요?"
+          },
+          {
+            "document_id": "QNA-COM-9",
+            "chunk_id": "QNA-COM-9::chunk::0",
+            "source_type": "universe_qna_common",
+            "category": "유니버스_통행증_이슈",
+            "title": "현재 서버의 게임 계정을 다른 서버로 옮겨 주실 수 있나요?"
+          },
+          {
+            "document_id": "NVC-NOT-391",
+            "chunk_id": "NVC-NOT-391::chunk::4",
+            "source_type": "naver_cafe_notice",
+            "category": "공지사항",
+            "title": "「일상」 게임 내 툴팁 문제 복구 조정 안내 편지"
+          }
+        ]
+      },
+      "gold_facts": {},
+      "must_include": [
+        "DB 상태와 정책 안내가 둘 다 필요한 문의로 평가",
+        "summary와 실제 route에 맞는 혼합 답변 구성"
+      ],
+      "must_not_include": [
+        "문서만으로 상태를 단정",
+        "DB 사실만으로 정책 예외를 확정"
+      ],
+      "gold_query_type": "fixed_sql"
+    },
+    {
+      "ticket_id": 137,
+      "routing_target": "DB&DOC",
+      "ticket": {
+        "account_id": 1247,
+        "user_id": 1147,
+        "created_at": "2020-09-28 18:43:00",
+        "question": "한 35만원 정도 캐릭터 뽑기에 질렀는데 환불혹시 되나여"
+      },
+      "answer_target": {
+        "ticket_id": 137,
+        "account_id": 1247,
+        "user_id": 1147,
+        "title": "환불에 대해서 문의드립니다",
+        "raw_query": "한 35만원 정도 캐릭터 뽑기에 질렀는데 환불혹시 되나여",
+        "source_type": "naver_cafe",
+        "status": "draft_generated",
+        "inquiry_created_at": "2020-09-28T18:43:00",
+        "assignee_admin_id": null,
+        "analysis_id": 137,
+        "category": "refund",
+        "enriched_query": "환불에 대해서 문의드립니다 한 35만원 정도 캐릭터 뽑기에 질렀는데 환불혹시 되나여",
+        "risk_level": "MID",
+        "sentiment": "positive",
+        "routing_target": "DB&DOC",
+        "summary": "문의는 refund 유형으로 분류되며 응답 근거는 DB&DOC입니다. 감성은 positive, 위험도는 MID로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-20T23:17:33.361431"
+      },
+      "eval_focus": [
+        "hybrid_retrieval",
+        "conflict_resolution",
+        "policy_plus_state"
+      ],
+      "summary_oracle": {
+        "summary_excerpt": "문의는 refund 유형으로 분류되며 응답 근거는 DB&DOC입니다. 감성은 positive, 위험도는 MID로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다."
+      },
+      "gold_policy": {
+        "documents": [
+          {
+            "document_id": "QNA-COM-27",
+            "chunk_id": "QNA-COM-27::chunk::0",
+            "source_type": "universe_qna_common",
+            "category": "결제_관련_이슈",
+            "title": "직접 승인하지 않은 결제에 대한 환불은 어떻게 신청하나요?"
+          },
+          {
+            "document_id": "QNA-GSN-25",
+            "chunk_id": "QNA-GSN-25::chunk::0",
+            "source_type": "universe_qna_onlydaily",
+            "category": "게임_문제",
+            "title": "「캐릭터 이벤트 기원-2」 FAQ"
+          },
+          {
+            "document_id": "QNA-GSN-25",
+            "chunk_id": "QNA-GSN-25::chunk::1",
+            "source_type": "universe_qna_onlydaily",
+            "category": "게임_문제",
+            "title": "「캐릭터 이벤트 기원-2」 FAQ"
+          }
+        ]
+      },
+      "gold_facts": {},
+      "must_include": [
+        "DB 상태와 정책 안내가 둘 다 필요한 문의로 평가",
+        "summary와 실제 route에 맞는 혼합 답변 구성"
+      ],
+      "must_not_include": [
+        "문서만으로 상태를 단정",
+        "DB 사실만으로 정책 예외를 확정"
+      ],
+      "gold_query_type": "fixed_sql"
+    },
+    {
+      "ticket_id": 106,
+      "routing_target": "DB&DOC",
+      "ticket": {
+        "account_id": 936,
+        "user_id": 836,
+        "created_at": "2020-09-28 14:35:00",
+        "question": "PC에서 게임을하다가 카드결제가 안되서 안드로이드에 로그인해서 결제하려하는데\n결제 단위가 엔으로 뜨고 한화로 안나옵니다. 어떻게해야되나요(한국스토어에서 받았습니다)\nPC에서는 한화로 잘뜹니다"
+      },
+      "answer_target": {
+        "ticket_id": 106,
+        "account_id": 936,
+        "user_id": 836,
+        "title": "강제 엔화 결제 문의",
+        "raw_query": "PC에서 게임을하다가 카드결제가 안되서 안드로이드에 로그인해서 결제하려하는데\n결제 단위가 엔으로 뜨고 한화로 안나옵니다. 어떻게해야되나요(한국스토어에서 받았습니다)\nPC에서는 한화로 잘뜹니다",
+        "source_type": "naver_cafe",
+        "status": "draft_generated",
+        "inquiry_created_at": "2020-09-28T14:35:00",
+        "assignee_admin_id": null,
+        "analysis_id": 106,
+        "category": "payment",
+        "enriched_query": "강제 엔화 결제 문의 PC에서 게임을하다가 카드결제가 안되서 안드로이드에 로그인해서 결제하려하는데 결제 단위가 엔으로 뜨고 한화로 안나옵니다. 어떻게해야되나요(한국스토어에서 받았습니다) PC에서는 한화로 잘뜹니다",
+        "risk_level": "MID",
+        "sentiment": "neutral",
+        "routing_target": "DB&DOC",
+        "summary": "문의는 payment 유형으로 분류되며 응답 근거는 DB&DOC입니다. 감성은 neutral, 위험도는 MID로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-20T23:16:22.912876"
+      },
+      "eval_focus": [
+        "hybrid_retrieval",
+        "conflict_resolution",
+        "policy_plus_state"
+      ],
+      "summary_oracle": {
+        "summary_excerpt": "문의는 payment 유형으로 분류되며 응답 근거는 DB&DOC입니다. 감성은 neutral, 위험도는 MID로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다."
+      },
+      "gold_policy": {
+        "documents": [
+          {
+            "document_id": "QNA-COM-30",
+            "chunk_id": "QNA-COM-30::chunk::0",
+            "source_type": "universe_qna_common",
+            "category": "결제_관련_이슈",
+            "title": "공식 충전센터/PC 클라이언트에서 결제를 시도했는데 「거래가 거부되었습니다. 기타 결제 방식을 선택해주세요」라는 팝업창이 떠요. 어떻게 해야 하나요?"
+          },
+          {
+            "document_id": "QNA-COM-31",
+            "chunk_id": "QNA-COM-31::chunk::0",
+            "source_type": "universe_qna_common",
+            "category": "결제_관련_이슈",
+            "title": "공식 충전센터/PC 클라이언트에서 결제를 시도했는데 「거래가 거부되었습니다. 발급 은행에 문의해주세요~」라는 팝업창이 떠요. 어떻게 해야 하나요?"
+          },
+          {
+            "document_id": "QNA-COM-29",
+            "chunk_id": "QNA-COM-29::chunk::0",
+            "source_type": "universe_qna_common",
+            "category": "결제_관련_이슈",
+            "title": "게임 내에서 상품이 로드되지 않는데, 어떻게 해야 하나요?"
+          }
+        ]
+      },
+      "gold_facts": {},
+      "must_include": [
+        "DB 상태와 정책 안내가 둘 다 필요한 문의로 평가",
+        "summary와 실제 route에 맞는 혼합 답변 구성"
+      ],
+      "must_not_include": [
+        "문서만으로 상태를 단정",
+        "DB 사실만으로 정책 예외를 확정"
+      ],
+      "gold_query_type": "text_to_sql"
+    },
+    {
+      "ticket_id": 50,
+      "routing_target": "DB&DOC",
+      "ticket": {
+        "account_id": 436,
+        "user_id": 336,
+        "created_at": "2020-09-27 13:48:00",
+        "question": "이러다가 팅깁니다."
+      },
+      "answer_target": {
+        "ticket_id": 50,
+        "account_id": 436,
+        "user_id": 336,
+        "title": "iPhone 7 접속오류 고쳐주세요",
+        "raw_query": "이러다가 팅깁니다.",
+        "source_type": "naver_cafe",
+        "status": "draft_generated",
+        "inquiry_created_at": "2020-09-27T13:48:00",
+        "assignee_admin_id": null,
+        "analysis_id": 50,
+        "category": "bug",
+        "enriched_query": "iPhone 7 접속오류 고쳐주세요 이러다가 팅깁니다.",
+        "risk_level": "LOW",
+        "sentiment": "neutral",
+        "routing_target": "DB&DOC",
+        "summary": "문의는 bug 유형으로 분류되며 응답 근거는 DB&DOC입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-20T16:37:19.933702"
+      },
+      "eval_focus": [
+        "hybrid_retrieval",
+        "conflict_resolution",
+        "policy_plus_state"
+      ],
+      "summary_oracle": {
+        "summary_excerpt": "문의는 bug 유형으로 분류되며 응답 근거는 DB&DOC입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다."
+      },
+      "gold_policy": {
+        "documents": [
+          {
+            "document_id": "NVC-NOT-396",
+            "chunk_id": "NVC-NOT-396::chunk::0",
+            "source_type": "naver_cafe_notice",
+            "category": "공지사항",
+            "title": "접속 오류 해결 완료"
+          },
+          {
+            "document_id": "NVC-NOT-318",
+            "chunk_id": "NVC-NOT-318::chunk::1",
+            "source_type": "naver_cafe_notice",
+            "category": "공지사항",
+            "title": "접속 오류 복구 공지"
+          },
+          {
+            "document_id": "NVC-NOT-319",
+            "chunk_id": "NVC-NOT-319::chunk::1",
+            "source_type": "naver_cafe_notice",
+            "category": "공지사항",
+            "title": "접속 오류 복구 공지"
+          }
+        ]
+      },
+      "gold_facts": {},
+      "must_include": [
+        "DB 상태와 정책 안내가 둘 다 필요한 문의로 평가",
+        "summary와 실제 route에 맞는 혼합 답변 구성"
+      ],
+      "must_not_include": [
+        "문서만으로 상태를 단정",
+        "DB 사실만으로 정책 예외를 확정"
+      ],
+      "gold_query_type": "fixed_sql"
+    },
+    {
+      "ticket_id": 44,
+      "routing_target": "DB&DOC",
+      "ticket": {
+        "account_id": 415,
+        "user_id": 315,
+        "created_at": "2020-09-25 10:15:00",
+        "question": "먹고싶은거 떴는데;;  멈췄어요..\n​"
+      },
+      "answer_target": {
+        "ticket_id": 44,
+        "account_id": 415,
+        "user_id": 315,
+        "title": "출행이벤트 먹고싶은거 나왔는데..",
+        "raw_query": "먹고싶은거 떴는데;;  멈췄어요..\n​",
+        "source_type": "naver_cafe",
+        "status": "draft_generated",
+        "inquiry_created_at": "2020-09-25T10:15:00",
+        "assignee_admin_id": null,
+        "analysis_id": 44,
+        "category": "bug",
+        "enriched_query": "출행이벤트 먹고싶은거 나왔는데.. 먹고싶은거 떴는데;; 멈췄어요.. ​",
+        "risk_level": "LOW",
+        "sentiment": "neutral",
+        "routing_target": "DB&DOC",
+        "summary": "문의는 bug 유형으로 분류되며 응답 근거는 DB&DOC입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-20T16:37:06.574978"
+      },
+      "eval_focus": [
+        "hybrid_retrieval",
+        "conflict_resolution",
+        "policy_plus_state"
+      ],
+      "summary_oracle": {
+        "summary_excerpt": "문의는 bug 유형으로 분류되며 응답 근거는 DB&DOC입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다."
+      },
+      "gold_policy": {
+        "documents": [
+          {
+            "document_id": "NVC-GDE-647",
+            "chunk_id": "NVC-GDE-647::chunk::0",
+            "source_type": "naver_cafe_guide",
+            "category": "이벤트 가이드",
+            "title": "「티바트 배달원」 이벤트 설명"
+          },
+          {
+            "document_id": "NVC-GDE-630",
+            "chunk_id": "NVC-GDE-630::chunk::3",
+            "source_type": "naver_cafe_guide",
+            "category": "이벤트 가이드",
+            "title": "「기관 디펜스」 이벤트 설명"
+          },
+          {
+            "document_id": "NVC-GDE-600",
+            "chunk_id": "NVC-GDE-600::chunk::1",
+            "source_type": "naver_cafe_guide",
+            "category": "이벤트 가이드",
+            "title": "「전도 원판·서론」 이벤트 설명"
+          }
+        ]
+      },
+      "gold_facts": {},
+      "must_include": [
+        "DB 상태와 정책 안내가 둘 다 필요한 문의로 평가",
+        "summary와 실제 route에 맞는 혼합 답변 구성"
+      ],
+      "must_not_include": [
+        "문서만으로 상태를 단정",
+        "DB 사실만으로 정책 예외를 확정"
+      ],
+      "gold_query_type": "fixed_sql"
+    },
+    {
+      "ticket_id": 42,
+      "routing_target": "DB&DOC",
+      "ticket": {
+        "account_id": 382,
+        "user_id": 282,
+        "created_at": "2020-09-24 12:10:00",
+        "question": "다크히어로의 알리바이 다이루크 퀘스트중 후문에 슬라임 뿌려놓고 정문가서 몹잡은 후에 술집으로 안들어가고 후문쪽으로 가면\n중국어 텍스트 경고와 함께 퀘스트 초기화 됨 수정 건의 부탁드립니다."
+      },
+      "answer_target": {
+        "ticket_id": 42,
+        "account_id": 382,
+        "user_id": 282,
+        "title": "퀘스트 진행 텍스트및 초기화 버그 (스포 주의)",
+        "raw_query": "다크히어로의 알리바이 다이루크 퀘스트중 후문에 슬라임 뿌려놓고 정문가서 몹잡은 후에 술집으로 안들어가고 후문쪽으로 가면\n중국어 텍스트 경고와 함께 퀘스트 초기화 됨 수정 건의 부탁드립니다.",
+        "source_type": "naver_cafe",
+        "status": "draft_generated",
+        "inquiry_created_at": "2020-09-24T12:10:00",
+        "assignee_admin_id": null,
+        "analysis_id": 42,
+        "category": "bug",
+        "enriched_query": "퀘스트 진행 텍스트및 초기화 버그 (스포 주의) 다크히어로의 알리바이 다이루크 퀘스트중 후문에 슬라임 뿌려놓고 정문가서 몹잡은 후에 술집으로 안들어가고 후문쪽으로 가면 중국어 텍스트 경고와 함께 퀘스트 초기화 됨 수정 건의 부탁드립니다.",
+        "risk_level": "LOW",
+        "sentiment": "positive",
+        "routing_target": "DB&DOC",
+        "summary": "문의는 bug 유형으로 분류되며 응답 근거는 DB&DOC입니다. 감성은 positive, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-20T16:37:02.690217"
+      },
+      "eval_focus": [
+        "hybrid_retrieval",
+        "conflict_resolution",
+        "policy_plus_state"
+      ],
+      "summary_oracle": {
+        "summary_excerpt": "문의는 bug 유형으로 분류되며 응답 근거는 DB&DOC입니다. 감성은 positive, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다."
+      },
+      "gold_policy": {
+        "documents": [
+          {
+            "document_id": "NVC-NOT-382",
+            "chunk_id": "NVC-NOT-382::chunk::20",
+            "source_type": "naver_cafe_notice",
+            "category": "공지사항",
+            "title": "1.1 버전 업데이트 후 오류 수정 공지 (12.03 업데이트)"
+          },
+          {
+            "document_id": "NVC-NOT-382",
+            "chunk_id": "NVC-NOT-382::chunk::34",
+            "source_type": "naver_cafe_notice",
+            "category": "공지사항",
+            "title": "1.1 버전 업데이트 후 오류 수정 공지 (12.03 업데이트)"
+          },
+          {
+            "document_id": "NVC-NOT-382",
+            "chunk_id": "NVC-NOT-382::chunk::35",
+            "source_type": "naver_cafe_notice",
+            "category": "공지사항",
+            "title": "1.1 버전 업데이트 후 오류 수정 공지 (12.03 업데이트)"
+          }
+        ]
+      },
+      "gold_facts": {},
+      "must_include": [
+        "DB 상태와 정책 안내가 둘 다 필요한 문의로 평가",
+        "summary와 실제 route에 맞는 혼합 답변 구성"
+      ],
+      "must_not_include": [
+        "문서만으로 상태를 단정",
+        "DB 사실만으로 정책 예외를 확정"
+      ],
+      "gold_query_type": "fixed_sql"
+    },
+    {
+      "ticket_id": 36,
+      "routing_target": "DB&DOC",
+      "ticket": {
+        "account_id": 345,
+        "user_id": 245,
+        "created_at": "2020-09-21 21:23:00",
+        "question": "아무 것도 없는데 데미지 받는중\n​"
+      },
+      "answer_target": {
+        "ticket_id": 36,
+        "account_id": 345,
+        "user_id": 245,
+        "title": "이상한버그",
+        "raw_query": "아무 것도 없는데 데미지 받는중\n​",
+        "source_type": "naver_cafe",
+        "status": "draft_generated",
+        "inquiry_created_at": "2020-09-21T21:23:00",
+        "assignee_admin_id": null,
+        "analysis_id": 36,
+        "category": "bug",
+        "enriched_query": "이상한버그 아무 것도 없는데 데미지 받는중 ​",
+        "risk_level": "LOW",
+        "sentiment": "neutral",
+        "routing_target": "DB&DOC",
+        "summary": "문의는 bug 유형으로 분류되며 응답 근거는 DB&DOC입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-20T16:36:50.759743"
+      },
+      "eval_focus": [
+        "hybrid_retrieval",
+        "conflict_resolution",
+        "policy_plus_state"
+      ],
+      "summary_oracle": {
+        "summary_excerpt": "문의는 bug 유형으로 분류되며 응답 근거는 DB&DOC입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다."
+      },
+      "gold_policy": {
+        "documents": [
+          {
+            "document_id": "NVC-GDE-597",
+            "chunk_id": "NVC-GDE-597::chunk::0",
+            "source_type": "naver_cafe_guide",
+            "category": "이벤트 가이드",
+            "title": "전도 원판 Tip - 「기만의 땅」"
+          },
+          {
+            "document_id": "QNA-GSN-51",
+            "chunk_id": "QNA-GSN-51::chunk::1",
+            "source_type": "universe_qna_onlydaily",
+            "category": "bug_faq",
+            "title": "버그, 튕김 관련 FAQ"
+          },
+          {
+            "document_id": "QNA-GSN-51",
+            "chunk_id": "QNA-GSN-51::chunk::2",
+            "source_type": "universe_qna_onlydaily",
+            "category": "bug_faq",
+            "title": "버그, 튕김 관련 FAQ"
+          }
+        ]
+      },
+      "gold_facts": {},
+      "must_include": [
+        "DB 상태와 정책 안내가 둘 다 필요한 문의로 평가",
+        "summary와 실제 route에 맞는 혼합 답변 구성"
+      ],
+      "must_not_include": [
+        "문서만으로 상태를 단정",
+        "DB 사실만으로 정책 예외를 확정"
+      ],
+      "gold_query_type": "fixed_sql"
+    },
+    {
+      "ticket_id": 246,
+      "routing_target": "fixed_answer",
+      "ticket": {
+        "account_id": 2209,
+        "user_id": 2109,
+        "created_at": "2020-09-29 18:07:00",
+        "question": "이미지 마지막줄에서 2번째에 혹시가 록시로 되있는것같아요"
+      },
+      "answer_target": {
+        "ticket_id": 246,
+        "account_id": 2209,
+        "user_id": 2109,
+        "title": "몬드의 고탑 제1권 오타",
+        "raw_query": "이미지 마지막줄에서 2번째에 혹시가 록시로 되있는것같아요",
+        "source_type": "naver_cafe",
+        "status": "resolved",
+        "inquiry_created_at": "2020-09-29T18:07:00",
+        "assignee_admin_id": null,
+        "analysis_id": 246,
+        "category": "general",
+        "enriched_query": "몬드의 고탑 제1권 오타 이미지 마지막줄에서 2번째에 혹시가 록시로 되있는것같아요",
+        "risk_level": "LOW",
+        "sentiment": "neutral",
+        "routing_target": "fixed_answer",
+        "summary": "문의는 general 유형으로 분류되며 응답 근거는 fixed_answer입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-22T04:01:57.040641"
+      },
+      "gold_fixed_answer": {
+        "summary_excerpt": "문의는 general 유형으로 분류되며 응답 근거는 fixed_answer입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "expected_evidence": {
+          "source_type": "fixed_answer",
+          "source_id": 246
+        }
+      },
+      "must_include": [
+        "분석 요약(summary)에 있는 사실만 사용",
+        "추가 정책/주문/결제 상태를 새로 만들지 않음"
+      ],
+      "must_not_include": [
+        "DB 검색이나 문서 검색을 한 것처럼 단정",
+        "summary에 없는 조치, 보상, 처리 완료 상태를 생성"
+      ]
+    },
+    {
+      "ticket_id": 244,
+      "routing_target": "fixed_answer",
+      "ticket": {
+        "account_id": 2190,
+        "user_id": 2090,
+        "created_at": "2020-09-29 17:46:00",
+        "question": "음...어...음..네..."
+      },
+      "answer_target": {
+        "ticket_id": 244,
+        "account_id": 2190,
+        "user_id": 2090,
+        "title": "별건 아닌데요...어...",
+        "raw_query": "음...어...음..네...",
+        "source_type": "naver_cafe",
+        "status": "resolved",
+        "inquiry_created_at": "2020-09-29T17:46:00",
+        "assignee_admin_id": null,
+        "analysis_id": 244,
+        "category": "general",
+        "enriched_query": "별건 아닌데요...어... 음...어...음..네...",
+        "risk_level": "LOW",
+        "sentiment": "neutral",
+        "routing_target": "fixed_answer",
+        "summary": "문의는 general 유형으로 분류되며 응답 근거는 fixed_answer입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-22T04:01:52.905109"
+      },
+      "gold_fixed_answer": {
+        "summary_excerpt": "문의는 general 유형으로 분류되며 응답 근거는 fixed_answer입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "expected_evidence": {
+          "source_type": "fixed_answer",
+          "source_id": 244
+        }
+      },
+      "must_include": [
+        "분석 요약(summary)에 있는 사실만 사용",
+        "추가 정책/주문/결제 상태를 새로 만들지 않음"
+      ],
+      "must_not_include": [
+        "DB 검색이나 문서 검색을 한 것처럼 단정",
+        "summary에 없는 조치, 보상, 처리 완료 상태를 생성"
+      ]
+    },
+    {
+      "ticket_id": 243,
+      "routing_target": "fixed_answer",
+      "ticket": {
+        "account_id": 2187,
+        "user_id": 2087,
+        "created_at": "2020-09-29 17:45:00",
+        "question": "​"
+      },
+      "answer_target": {
+        "ticket_id": 243,
+        "account_id": 2187,
+        "user_id": 2087,
+        "title": "얘 왜 안터짐",
+        "raw_query": "​",
+        "source_type": "naver_cafe",
+        "status": "resolved",
+        "inquiry_created_at": "2020-09-29T17:45:00",
+        "assignee_admin_id": null,
+        "analysis_id": 243,
+        "category": "general",
+        "enriched_query": "얘 왜 안터짐 ​",
+        "risk_level": "LOW",
+        "sentiment": "neutral",
+        "routing_target": "fixed_answer",
+        "summary": "문의는 general 유형으로 분류되며 응답 근거는 fixed_answer입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-22T04:01:51.213200"
+      },
+      "gold_fixed_answer": {
+        "summary_excerpt": "문의는 general 유형으로 분류되며 응답 근거는 fixed_answer입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "expected_evidence": {
+          "source_type": "fixed_answer",
+          "source_id": 243
+        }
+      },
+      "must_include": [
+        "분석 요약(summary)에 있는 사실만 사용",
+        "추가 정책/주문/결제 상태를 새로 만들지 않음"
+      ],
+      "must_not_include": [
+        "DB 검색이나 문서 검색을 한 것처럼 단정",
+        "summary에 없는 조치, 보상, 처리 완료 상태를 생성"
+      ]
+    },
+    {
+      "ticket_id": 236,
+      "routing_target": "fixed_answer",
+      "ticket": {
+        "account_id": 2118,
+        "user_id": 2018,
+        "created_at": "2020-09-29 16:40:00",
+        "question": "16초부터 보면댐"
+      },
+      "answer_target": {
+        "ticket_id": 236,
+        "account_id": 2118,
+        "user_id": 2018,
+        "title": "이 친구 혼자 영어로 말하네",
+        "raw_query": "16초부터 보면댐",
+        "source_type": "naver_cafe",
+        "status": "resolved",
+        "inquiry_created_at": "2020-09-29T16:40:00",
+        "assignee_admin_id": null,
+        "analysis_id": 236,
+        "category": "general",
+        "enriched_query": "이 친구 혼자 영어로 말하네 16초부터 보면댐",
+        "risk_level": "LOW",
+        "sentiment": "neutral",
+        "routing_target": "fixed_answer",
+        "summary": "문의는 general 유형으로 분류되며 응답 근거는 fixed_answer입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-22T04:01:35.523742"
+      },
+      "gold_fixed_answer": {
+        "summary_excerpt": "문의는 general 유형으로 분류되며 응답 근거는 fixed_answer입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "expected_evidence": {
+          "source_type": "fixed_answer",
+          "source_id": 236
+        }
+      },
+      "must_include": [
+        "분석 요약(summary)에 있는 사실만 사용",
+        "추가 정책/주문/결제 상태를 새로 만들지 않음"
+      ],
+      "must_not_include": [
+        "DB 검색이나 문서 검색을 한 것처럼 단정",
+        "summary에 없는 조치, 보상, 처리 완료 상태를 생성"
+      ]
+    },
+    {
+      "ticket_id": 228,
+      "routing_target": "fixed_answer",
+      "ticket": {
+        "account_id": 2072,
+        "user_id": 1972,
+        "created_at": "2020-09-29 14:43:00",
+        "question": "타락한 마수인 데빌드래곤 [드발린] >> [두린] 아닌가요?\n​\n바람의 신이 드발린을 소환했다고 적혀있는데, 그 전에 드발린이 몬드를 공격했다는게 무슨소리인지..\n​\n밑에 \"몬드의 수호자로써 두린과 교전을 벌였다\" 라고 적혀있는데, 두린에 대한 언급이 전혀 없다가 갑자기 나온걸로 보아 타락한 마수인 데빌드래곤이 '두린' 아닐까 싶어요!\n​\n그냥 내가 머리가 안좋은건가..? ㅋㅋㅋㅋ"
+      },
+      "answer_target": {
+        "ticket_id": 228,
+        "account_id": 2072,
+        "user_id": 1972,
+        "title": "제가 이해를 잘 못한건지 오타난건지 모르겠네용..",
+        "raw_query": "타락한 마수인 데빌드래곤 [드발린] >> [두린] 아닌가요?\n​\n바람의 신이 드발린을 소환했다고 적혀있는데, 그 전에 드발린이 몬드를 공격했다는게 무슨소리인지..\n​\n밑에 \"몬드의 수호자로써 두린과 교전을 벌였다\" 라고 적혀있는데, 두린에 대한 언급이 전혀 없다가 갑자기 나온걸로 보아 타락한 마수인 데빌드래곤이 '두린' 아닐까 싶어요!\n​\n그냥 내가 머리가 안좋은건가..? ㅋㅋㅋㅋ",
+        "source_type": "naver_cafe",
+        "status": "resolved",
+        "inquiry_created_at": "2020-09-29T14:43:00",
+        "assignee_admin_id": null,
+        "analysis_id": 228,
+        "category": "general",
+        "enriched_query": "제가 이해를 잘 못한건지 오타난건지 모르겠네용.. 타락한 마수인 데빌드래곤 [드발린] >> [두린] 아닌가요? ​ 바람의 신이 드발린을 소환했다고 적혀있는데, 그 전에 드발린이 몬드를 공격했다는게 무슨소리인지.. ​ 밑에 \"몬드의 수호자로써 두린과 교전을 벌였다\" 라고 적혀있는데, 두린에 대한 언급이 전혀 없다가 갑자기 나온걸로 보아 타락한 마수인 데빌드래곤이 '두린' 아닐까 싶어요! ​ 그냥 내가 머리가 안좋은건가..? ㅋㅋㅋㅋ",
+        "risk_level": "LOW",
+        "sentiment": "neutral",
+        "routing_target": "fixed_answer",
+        "summary": "문의는 general 유형으로 분류되며 응답 근거는 fixed_answer입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-22T04:01:17.922342"
+      },
+      "gold_fixed_answer": {
+        "summary_excerpt": "문의는 general 유형으로 분류되며 응답 근거는 fixed_answer입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "expected_evidence": {
+          "source_type": "fixed_answer",
+          "source_id": 228
+        }
+      },
+      "must_include": [
+        "분석 요약(summary)에 있는 사실만 사용",
+        "추가 정책/주문/결제 상태를 새로 만들지 않음"
+      ],
+      "must_not_include": [
+        "DB 검색이나 문서 검색을 한 것처럼 단정",
+        "summary에 없는 조치, 보상, 처리 완료 상태를 생성"
+      ]
+    },
+    {
+      "ticket_id": 216,
+      "routing_target": "fixed_answer",
+      "ticket": {
+        "account_id": 1903,
+        "user_id": 1803,
+        "created_at": "2020-09-29 13:18:00",
+        "question": "고치세요"
+      },
+      "answer_target": {
+        "ticket_id": 216,
+        "account_id": 1903,
+        "user_id": 1803,
+        "title": "벽뚫",
+        "raw_query": "고치세요",
+        "source_type": "naver_cafe",
+        "status": "resolved",
+        "inquiry_created_at": "2020-09-29T13:18:00",
+        "assignee_admin_id": null,
+        "analysis_id": 216,
+        "category": "bug",
+        "enriched_query": "벽뚫 고치세요",
+        "risk_level": "LOW",
+        "sentiment": "neutral",
+        "routing_target": "fixed_answer",
+        "summary": "문의는 bug 유형으로 분류되며 응답 근거는 fixed_answer입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-22T04:00:51.222835"
+      },
+      "gold_fixed_answer": {
+        "summary_excerpt": "문의는 bug 유형으로 분류되며 응답 근거는 fixed_answer입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "expected_evidence": {
+          "source_type": "fixed_answer",
+          "source_id": 216
+        }
+      },
+      "must_include": [
+        "분석 요약(summary)에 있는 사실만 사용",
+        "추가 정책/주문/결제 상태를 새로 만들지 않음"
+      ],
+      "must_not_include": [
+        "DB 검색이나 문서 검색을 한 것처럼 단정",
+        "summary에 없는 조치, 보상, 처리 완료 상태를 생성"
+      ]
+    },
+    {
+      "ticket_id": 212,
+      "routing_target": "fixed_answer",
+      "ticket": {
+        "account_id": 1881,
+        "user_id": 1781,
+        "created_at": "2020-09-29 12:20:00",
+        "question": "어디로 가버린거니?\n아빠 따라갔니?"
+      },
+      "answer_target": {
+        "ticket_id": 212,
+        "account_id": 1881,
+        "user_id": 1781,
+        "title": "티미를 찾아주세요",
+        "raw_query": "어디로 가버린거니?\n아빠 따라갔니?",
+        "source_type": "naver_cafe",
+        "status": "resolved",
+        "inquiry_created_at": "2020-09-29T12:20:00",
+        "assignee_admin_id": null,
+        "analysis_id": 212,
+        "category": "general",
+        "enriched_query": "티미를 찾아주세요 어디로 가버린거니? 아빠 따라갔니?",
+        "risk_level": "LOW",
+        "sentiment": "neutral",
+        "routing_target": "fixed_answer",
+        "summary": "문의는 general 유형으로 분류되며 응답 근거는 fixed_answer입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-22T04:00:41.686643"
+      },
+      "gold_fixed_answer": {
+        "summary_excerpt": "문의는 general 유형으로 분류되며 응답 근거는 fixed_answer입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "expected_evidence": {
+          "source_type": "fixed_answer",
+          "source_id": 212
+        }
+      },
+      "must_include": [
+        "분석 요약(summary)에 있는 사실만 사용",
+        "추가 정책/주문/결제 상태를 새로 만들지 않음"
+      ],
+      "must_not_include": [
+        "DB 검색이나 문서 검색을 한 것처럼 단정",
+        "summary에 없는 조치, 보상, 처리 완료 상태를 생성"
+      ]
+    },
+    {
+      "ticket_id": 185,
+      "routing_target": "fixed_answer",
+      "ticket": {
+        "account_id": 1657,
+        "user_id": 1557,
+        "created_at": "2020-09-29 02:09:00",
+        "question": "낑김"
+      },
+      "answer_target": {
+        "ticket_id": 185,
+        "account_id": 1657,
+        "user_id": 1557,
+        "title": "아 ㅋㅋ 원신당했다",
+        "raw_query": "낑김",
+        "source_type": "naver_cafe",
+        "status": "draft_generated",
+        "inquiry_created_at": "2020-09-29T02:09:00",
+        "assignee_admin_id": null,
+        "analysis_id": 185,
+        "category": "general",
+        "enriched_query": "아 ㅋㅋ 원신당했다 낑김",
+        "risk_level": "LOW",
+        "sentiment": "neutral",
+        "routing_target": "fixed_answer",
+        "summary": "문의는 general 유형으로 분류되며 응답 근거는 fixed_answer입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-21T04:01:27.712473"
+      },
+      "gold_fixed_answer": {
+        "summary_excerpt": "문의는 general 유형으로 분류되며 응답 근거는 fixed_answer입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "expected_evidence": {
+          "source_type": "fixed_answer",
+          "source_id": 185
+        }
+      },
+      "must_include": [
+        "분석 요약(summary)에 있는 사실만 사용",
+        "추가 정책/주문/결제 상태를 새로 만들지 않음"
+      ],
+      "must_not_include": [
+        "DB 검색이나 문서 검색을 한 것처럼 단정",
+        "summary에 없는 조치, 보상, 처리 완료 상태를 생성"
+      ]
+    },
+    {
+      "ticket_id": 180,
+      "routing_target": "fixed_answer",
+      "ticket": {
+        "account_id": 1590,
+        "user_id": 1490,
+        "created_at": "2020-09-29 01:24:00",
+        "question": "갇혔어 못나가자나요"
+      },
+      "answer_target": {
+        "ticket_id": 180,
+        "account_id": 1590,
+        "user_id": 1490,
+        "title": "갇혀서 못니가요",
+        "raw_query": "갇혔어 못나가자나요",
+        "source_type": "naver_cafe",
+        "status": "draft_generated",
+        "inquiry_created_at": "2020-09-29T01:24:00",
+        "assignee_admin_id": null,
+        "analysis_id": 180,
+        "category": "bug",
+        "enriched_query": "갇혀서 못니가요 갇혔어 못나가자나요",
+        "risk_level": "LOW",
+        "sentiment": "neutral",
+        "routing_target": "fixed_answer",
+        "summary": "문의는 bug 유형으로 분류되며 응답 근거는 fixed_answer입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-21T04:01:16.166501"
+      },
+      "gold_fixed_answer": {
+        "summary_excerpt": "문의는 bug 유형으로 분류되며 응답 근거는 fixed_answer입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "expected_evidence": {
+          "source_type": "fixed_answer",
+          "source_id": 180
+        }
+      },
+      "must_include": [
+        "분석 요약(summary)에 있는 사실만 사용",
+        "추가 정책/주문/결제 상태를 새로 만들지 않음"
+      ],
+      "must_not_include": [
+        "DB 검색이나 문서 검색을 한 것처럼 단정",
+        "summary에 없는 조치, 보상, 처리 완료 상태를 생성"
+      ]
+    },
+    {
+      "ticket_id": 158,
+      "routing_target": "fixed_answer",
+      "ticket": {
+        "account_id": 1435,
+        "user_id": 1335,
+        "created_at": "2020-09-28 21:34:00",
+        "question": "이 두개 왜그런거죠?"
+      },
+      "answer_target": {
+        "ticket_id": 158,
+        "account_id": 1435,
+        "user_id": 1335,
+        "title": "두개임다",
+        "raw_query": "이 두개 왜그런거죠?",
+        "source_type": "naver_cafe",
+        "status": "draft_generated",
+        "inquiry_created_at": "2020-09-28T21:34:00",
+        "assignee_admin_id": null,
+        "analysis_id": 158,
+        "category": "general",
+        "enriched_query": "두개임다 이 두개 왜그런거죠?",
+        "risk_level": "LOW",
+        "sentiment": "neutral",
+        "routing_target": "fixed_answer",
+        "summary": "문의는 general 유형으로 분류되며 응답 근거는 fixed_answer입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-21T04:00:29.720970"
+      },
+      "gold_fixed_answer": {
+        "summary_excerpt": "문의는 general 유형으로 분류되며 응답 근거는 fixed_answer입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "expected_evidence": {
+          "source_type": "fixed_answer",
+          "source_id": 158
+        }
+      },
+      "must_include": [
+        "분석 요약(summary)에 있는 사실만 사용",
+        "추가 정책/주문/결제 상태를 새로 만들지 않음"
+      ],
+      "must_not_include": [
+        "DB 검색이나 문서 검색을 한 것처럼 단정",
+        "summary에 없는 조치, 보상, 처리 완료 상태를 생성"
+      ]
+    },
+    {
+      "ticket_id": 156,
+      "routing_target": "fixed_answer",
+      "ticket": {
+        "account_id": 1429,
+        "user_id": 1329,
+        "created_at": "2020-09-28 21:29:00",
+        "question": "ㅈ광고 오지게 하는 기적의검을 떡상시킬거 같네 둘다 개망한 중국 겜인데 비교된다 ㅅㅂ"
+      },
+      "answer_target": {
+        "ticket_id": 156,
+        "account_id": 1429,
+        "user_id": 1329,
+        "title": "원신이 게임 하나 살릴거 같은데",
+        "raw_query": "ㅈ광고 오지게 하는 기적의검을 떡상시킬거 같네 둘다 개망한 중국 겜인데 비교된다 ㅅㅂ",
+        "source_type": "naver_cafe",
+        "status": "draft_generated",
+        "inquiry_created_at": "2020-09-28T21:29:00",
+        "assignee_admin_id": null,
+        "analysis_id": 156,
+        "category": "general",
+        "enriched_query": "원신이 게임 하나 살릴거 같은데 ㅈ광고 오지게 하는 기적의검을 떡상시킬거 같네 둘다 개망한 중국 겜인데 비교된다 ㅅㅂ",
+        "risk_level": "LOW",
+        "sentiment": "neutral",
+        "routing_target": "fixed_answer",
+        "summary": "문의는 general 유형으로 분류되며 응답 근거는 fixed_answer입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-21T04:00:25.671907"
+      },
+      "gold_fixed_answer": {
+        "summary_excerpt": "문의는 general 유형으로 분류되며 응답 근거는 fixed_answer입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "expected_evidence": {
+          "source_type": "fixed_answer",
+          "source_id": 156
+        }
+      },
+      "must_include": [
+        "분석 요약(summary)에 있는 사실만 사용",
+        "추가 정책/주문/결제 상태를 새로 만들지 않음"
+      ],
+      "must_not_include": [
+        "DB 검색이나 문서 검색을 한 것처럼 단정",
+        "summary에 없는 조치, 보상, 처리 완료 상태를 생성"
+      ]
+    },
+    {
+      "ticket_id": 150,
+      "routing_target": "fixed_answer",
+      "ticket": {
+        "account_id": 1352,
+        "user_id": 1252,
+        "created_at": "2020-09-28 20:36:00",
+        "question": "병풍이 평붕이라 돼있네요"
+      },
+      "answer_target": {
+        "ticket_id": 150,
+        "account_id": 1352,
+        "user_id": 1252,
+        "title": "응광 텍스트 오타",
+        "raw_query": "병풍이 평붕이라 돼있네요",
+        "source_type": "naver_cafe",
+        "status": "draft_generated",
+        "inquiry_created_at": "2020-09-28T20:36:00",
+        "assignee_admin_id": null,
+        "analysis_id": 150,
+        "category": "bug",
+        "enriched_query": "응광 텍스트 오타 병풍이 평붕이라 돼있네요",
+        "risk_level": "LOW",
+        "sentiment": "neutral",
+        "routing_target": "fixed_answer",
+        "summary": "문의는 bug 유형으로 분류되며 응답 근거는 fixed_answer입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-20T23:18:00.895125"
+      },
+      "gold_fixed_answer": {
+        "summary_excerpt": "문의는 bug 유형으로 분류되며 응답 근거는 fixed_answer입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "expected_evidence": {
+          "source_type": "fixed_answer",
+          "source_id": 150
+        }
+      },
+      "must_include": [
+        "분석 요약(summary)에 있는 사실만 사용",
+        "추가 정책/주문/결제 상태를 새로 만들지 않음"
+      ],
+      "must_not_include": [
+        "DB 검색이나 문서 검색을 한 것처럼 단정",
+        "summary에 없는 조치, 보상, 처리 완료 상태를 생성"
+      ]
+    },
+    {
+      "ticket_id": 149,
+      "routing_target": "fixed_answer",
+      "ticket": {
+        "account_id": 1350,
+        "user_id": 1250,
+        "created_at": "2020-09-28 20:19:00",
+        "question": "업적란에 리월 변하지않는위상 '가지' 오타\n​\nㅇㅅㅇ"
+      },
+      "answer_target": {
+        "ticket_id": 149,
+        "account_id": 1350,
+        "user_id": 1250,
+        "title": "오---타",
+        "raw_query": "업적란에 리월 변하지않는위상 '가지' 오타\n​\nㅇㅅㅇ",
+        "source_type": "naver_cafe",
+        "status": "draft_generated",
+        "inquiry_created_at": "2020-09-28T20:19:00",
+        "assignee_admin_id": null,
+        "analysis_id": 149,
+        "category": "general",
+        "enriched_query": "오---타 업적란에 리월 변하지않는위상 '가지' 오타 ​ ㅇㅅㅇ",
+        "risk_level": "LOW",
+        "sentiment": "neutral",
+        "routing_target": "fixed_answer",
+        "summary": "문의는 general 유형으로 분류되며 응답 근거는 fixed_answer입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "analyzed_at": "2026-06-20T23:17:58.883827"
+      },
+      "gold_fixed_answer": {
+        "summary_excerpt": "문의는 general 유형으로 분류되며 응답 근거는 fixed_answer입니다. 감성은 neutral, 위험도는 LOW로 판단됩니다. 운영자는 원문과 계정/결제/정책 근거를 확인한 뒤 답변 초안을 검토해야 합니다.",
+        "expected_evidence": {
+          "source_type": "fixed_answer",
+          "source_id": 149
+        }
+      },
+      "must_include": [
+        "분석 요약(summary)에 있는 사실만 사용",
+        "추가 정책/주문/결제 상태를 새로 만들지 않음"
+      ],
+      "must_not_include": [
+        "DB 검색이나 문서 검색을 한 것처럼 단정",
+        "summary에 없는 조치, 보상, 처리 완료 상태를 생성"
+      ]
+    }
+  ]
+}

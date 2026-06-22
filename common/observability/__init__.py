@@ -8,6 +8,7 @@ from common.observability.langfuse import (
     langfuse_enabled,
     link_current_trace,
     observe_if_enabled,
+    record_current_scores,
 )
 from common.observability.logger import (
     EVENT_AGENT_DRAFTED,
@@ -53,4 +54,5 @@ __all__ = [
     "link_current_trace",
     "log_event",
     "observe_if_enabled",
+    "record_current_scores",
 ]

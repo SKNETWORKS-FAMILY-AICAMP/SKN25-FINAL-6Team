@@ -296,3 +296,18 @@ class TestReportRun:
         import report as r
         result = r.run(days=7)
         assert "category_comparisons" in result["report"]
+
+    def test_run_records_operational_scores(self, monkeypatch):
+        self._patch_all(monkeypatch)
+        captured: dict[str, object] = {}
+        monkeypatch.setattr("report.record_current_scores", lambda scores, **kwargs: captured.update({"scores": scores, "kwargs": kwargs}))
+
+        import report as r
+
+        result = r.run(days=7, render_pdf=False, send_to_slack=False)
+
+        assert result["report"] is not None
+        assert captured["scores"]["report_generated"] is True
+        assert captured["scores"]["pdf_rendered"] is False
+        assert captured["scores"]["slack_delivered"] is False
+        assert captured["scores"]["ai_fallback_used"] is False

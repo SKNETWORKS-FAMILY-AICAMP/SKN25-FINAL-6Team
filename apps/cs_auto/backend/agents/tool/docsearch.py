@@ -17,6 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 # backend 작업 디렉터리 기준으로 도구 모듈 경로를 맞춘다.
 from agents.tool.dbsearch import EvidenceItem
+from common.observability.langfuse import get_langchain_config
 from common.retrieval import embed_query, enrich_retrieval_query, refine_retrieval_query, rerank_documents, search_document_chunks
 
 
@@ -97,7 +98,9 @@ class DocumentQueryBuilder:
         enrichment = enrich_retrieval_query(query_text)
         retrieval_query = str(enrichment.query_text or "").strip()
         if self._overlap_ratio(query_text, retrieval_query) < float(os.environ.get("CS_AUTO_DOC_MIN_QUERY_OVERLAP", "0.2")):
-            retrieval_query = str(refine_retrieval_query.invoke({"text": query_text}) or "").strip()
+            retrieval_query = str(
+                refine_retrieval_query.invoke({"text": query_text}, config=get_langchain_config()) or ""
+            ).strip()
         candidate_top_k = int(os.environ.get("CS_AUTO_DOC_RETRIEVAL_TOP_K", "8"))
         final_top_k = int(os.environ.get("CS_AUTO_DOC_RETRIEVAL_FINAL_TOP_K", "5"))
         return DocumentSearchQuery(
@@ -128,7 +131,7 @@ class DocumentsHybridSearcher:
         return value
 
     def embed(self, retrieval_query: str) -> str:
-        return embed_query.invoke({"text": retrieval_query})
+        return embed_query.invoke({"text": retrieval_query}, config=get_langchain_config())
 
     def search_candidates(self, query: DocumentSearchQuery, embedding_json: str) -> list[dict[str, Any]]:
         return search_document_chunks(
@@ -144,7 +147,8 @@ class DocumentsHybridSearcher:
             {
                 "docs_json": json.dumps(self._json_safe(documents), ensure_ascii=False),
                 "query": retrieval_query,
-            }
+            },
+            config=get_langchain_config(),
         )
         return json.loads(reranked_json)
 

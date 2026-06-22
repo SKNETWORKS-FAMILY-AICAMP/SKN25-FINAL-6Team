@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from common.db.connection import db_connection
+from common.observability.langfuse import get_langchain_config
 
 
 # 이전 ticket 한 건을 현재 대화 context에 넣기 위한 최소 단위다.
@@ -173,7 +174,8 @@ def _summarize_with_llm(transcript: str) -> str | None:
                     ),
                 },
                 {"role": "user", "content": transcript},
-            ]
+            ],
+            config=get_langchain_config(),
         )
         content = getattr(response, "content", "")
         if isinstance(content, str):

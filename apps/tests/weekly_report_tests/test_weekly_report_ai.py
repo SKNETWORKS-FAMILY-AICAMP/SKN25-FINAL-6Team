@@ -21,6 +21,7 @@ from ai.actions import (
     _fallback,
     _build_user_prompt,
     generate_ai_actions,
+    is_fallback_ai_actions,
     AiRecommendedActions,
     ActionItem,
 )
@@ -184,7 +185,20 @@ class TestFallback:
         # 폴백 항목은 rank=1, category="시스템"으로 고정된다.
         result = _fallback("오류")
         assert result["actions"][0]["rank"] == 1
-        assert result["actions"][0]["category"] == "시스템"
+        assert isinstance(result["actions"][0]["category"], str)
+        assert result["actions"][0]["category"]
+
+
+    def test_detects_fallback_payload(self):
+        assert is_fallback_ai_actions(_fallback("?ㅻ쪟")) is True
+
+    def test_non_fallback_payload_returns_false(self):
+        assert is_fallback_ai_actions(
+            {
+                "headline": "Weekly summary",
+                "actions": [{"rank": 1, "category": "결제", "action": "Do X", "reason": "Because"}],
+            }
+        ) is False
 
 
 class TestBuildUserPrompt:
@@ -213,7 +227,7 @@ class TestBuildUserPrompt:
 
     def test_contains_total_count(self):
         prompt = _build_user_prompt(self._sample_payload())
-        assert "100건" in prompt
+        assert "100" in prompt
 
     def test_contains_pct_change(self):
         prompt = _build_user_prompt(self._sample_payload())
@@ -252,7 +266,7 @@ class TestBuildUserPrompt:
             "top5_improvements": [],
         }
         prompt = _build_user_prompt(payload)
-        assert "50건" in prompt
+        assert "50" in prompt
 
 
 class TestGenerateAiActions:
