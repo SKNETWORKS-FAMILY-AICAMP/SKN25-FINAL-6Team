@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 
 from common.db.connection import db_connection
 from common.observability.langfuse import configure_langfuse, observe_if_enabled, shutdown_langfuse
-from observability.langfuse import link_weekly_report_trace
+from weekly_report_langfuse import link_weekly_report_trace
 
 configure_langfuse("weekly-report", default_tags=["weekly-report", "api"])
 

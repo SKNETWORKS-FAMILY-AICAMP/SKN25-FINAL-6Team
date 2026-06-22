@@ -10,7 +10,7 @@ from ai.row_interpret import generate_review_row_interpretations
 from build.distributions import normalize_text, distribution, format_change
 from build.review_rows import pick_review_rows, build_analysis_rows_payload
 from common.observability.langfuse import observe_if_enabled
-from observability.langfuse import link_weekly_report_trace
+from weekly_report_langfuse import link_weekly_report_trace
 from utils.stats import rate, safe_average
 
 

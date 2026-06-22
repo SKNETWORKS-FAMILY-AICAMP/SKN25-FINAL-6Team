@@ -25,14 +25,6 @@ DUMMY_FILENAME = "weekly_report_7d_2026-06-12.pdf"
 DUMMY_TITLE = "운영 주간 보고서 - 2026-06-12"
 
 
-def _patch_db_log(monkeypatch):
-    """admin_event_logs 삽입을 no-op으로 대체한다.
-
-    실제 DB가 없는 테스트 환경에서 전송 후 로깅 단계가 실패하지 않도록 한다.
-    """
-    monkeypatch.setattr(slack_module, "_log_weekly_report_slack_event", lambda **kwargs: None)
-
-
 def _make_slack_client_mock(channel_id: str = "C0123456789") -> MagicMock:
     """성공 경로에서 사용할 Slack WebClient mock을 반환한다.
 
@@ -73,7 +65,6 @@ class TestSendWeeklyReportPdfConfigErrors:
     def test_missing_token_raises(self, monkeypatch):
         # 환경변수도 없고 token 인자도 없으면 즉시 오류
         monkeypatch.delenv("DASHBOARD_SLACK_BOT_TOKEN", raising=False)
-        _patch_db_log(monkeypatch)
 
         with pytest.raises(SlackReportError, match="DASHBOARD_SLACK_BOT_TOKEN"):
             send_weekly_report_pdf(
@@ -86,7 +77,6 @@ class TestSendWeeklyReportPdfConfigErrors:
     def test_empty_channel_raises(self, monkeypatch):
         # 공백만 있는 채널명도 미입력으로 간주한다.
         monkeypatch.setenv("DASHBOARD_SLACK_BOT_TOKEN", "xoxb-test")
-        _patch_db_log(monkeypatch)
 
         with pytest.raises(SlackReportError, match="채널"):
             send_weekly_report_pdf(
@@ -99,7 +89,6 @@ class TestSendWeeklyReportPdfConfigErrors:
     def test_empty_pdf_bytes_raises(self, monkeypatch):
         # 빈 PDF를 전송하면 Slack에서 파일 오류가 나므로 사전에 차단한다.
         monkeypatch.setenv("DASHBOARD_SLACK_BOT_TOKEN", "xoxb-test")
-        _patch_db_log(monkeypatch)
 
         with pytest.raises(SlackReportError, match="PDF"):
             send_weekly_report_pdf(
@@ -115,7 +104,6 @@ class TestSendWeeklyReportPdfConfigErrors:
         DAG에서 Airflow Variable로 토큰을 직접 주입할 때 이 경로를 사용한다.
         """
         monkeypatch.delenv("DASHBOARD_SLACK_BOT_TOKEN", raising=False)
-        _patch_db_log(monkeypatch)
 
         client_mock = _make_slack_client_mock()
         monkeypatch.setattr(slack_module, "WebClient", lambda token: client_mock)
@@ -137,7 +125,6 @@ class TestSendWeeklyReportPdfSuccess:
 
     def test_returns_result_with_delivery_mode_and_channel_id(self, monkeypatch):
         monkeypatch.setenv("DASHBOARD_SLACK_BOT_TOKEN", "xoxb-test")
-        _patch_db_log(monkeypatch)
 
         client_mock = _make_slack_client_mock(channel_id="C0123456789")
         monkeypatch.setattr(slack_module, "WebClient", lambda token: client_mock)
@@ -154,7 +141,6 @@ class TestSendWeeklyReportPdfSuccess:
 
     def test_files_upload_v2_called_with_correct_args(self, monkeypatch):
         monkeypatch.setenv("DASHBOARD_SLACK_BOT_TOKEN", "xoxb-test")
-        _patch_db_log(monkeypatch)
 
         client_mock = _make_slack_client_mock()
         monkeypatch.setattr(slack_module, "WebClient", lambda token: client_mock)
@@ -175,7 +161,6 @@ class TestSendWeeklyReportPdfSuccess:
     def test_channel_id_passed_directly_skips_list(self, monkeypatch):
         """C로 시작하는 채널 ID를 직접 주면 conversations_list를 호출하지 않아야 한다."""
         monkeypatch.setenv("DASHBOARD_SLACK_BOT_TOKEN", "xoxb-test")
-        _patch_db_log(monkeypatch)
 
         client_mock = _make_slack_client_mock(channel_id="C9999999999")
         monkeypatch.setattr(slack_module, "WebClient", lambda token: client_mock)
@@ -202,7 +187,6 @@ class TestSendWeeklyReportPdfErrorHandling:
         from slack_sdk.errors import SlackApiError
 
         monkeypatch.setenv("DASHBOARD_SLACK_BOT_TOKEN", "xoxb-test")
-        _patch_db_log(monkeypatch)
 
         client_mock = _make_slack_client_mock()
         error_response = {"ok": False, "error": "channel_not_found"}
@@ -223,7 +207,6 @@ class TestSendWeeklyReportPdfErrorHandling:
 
     def test_bot_not_in_channel_raises(self, monkeypatch):
         monkeypatch.setenv("DASHBOARD_SLACK_BOT_TOKEN", "xoxb-test")
-        _patch_db_log(monkeypatch)
 
         client_mock = _make_slack_client_mock()
         # is_member=False → 봇이 채널에 없음
@@ -241,7 +224,6 @@ class TestSendWeeklyReportPdfErrorHandling:
 
     def test_channel_not_found_in_list_raises(self, monkeypatch):
         monkeypatch.setenv("DASHBOARD_SLACK_BOT_TOKEN", "xoxb-test")
-        _patch_db_log(monkeypatch)
 
         client_mock = _make_slack_client_mock()
         # 채널 목록에 "ops"가 없음
@@ -261,7 +243,6 @@ class TestSendWeeklyReportPdfErrorHandling:
 
     def test_unexpected_exception_wraps_as_slack_report_error(self, monkeypatch):
         monkeypatch.setenv("DASHBOARD_SLACK_BOT_TOKEN", "xoxb-test")
-        _patch_db_log(monkeypatch)
 
         client_mock = _make_slack_client_mock()
         # 네트워크 단절 등 SDK가 아닌 OS 레벨 예외도 래핑한다.
@@ -292,7 +273,6 @@ class TestUploadRetry:
         from slack_sdk.errors import SlackApiError
 
         monkeypatch.setenv("DASHBOARD_SLACK_BOT_TOKEN", "xoxb-test")
-        _patch_db_log(monkeypatch)
         # sleep을 no-op으로 대체해 테스트 속도를 높인다.
         monkeypatch.setattr(slack_module.time, "sleep", lambda s: None)
 
@@ -320,7 +300,6 @@ class TestUploadRetry:
         from slack_sdk.errors import SlackApiError
 
         monkeypatch.setenv("DASHBOARD_SLACK_BOT_TOKEN", "xoxb-test")
-        _patch_db_log(monkeypatch)
 
         client_mock = _make_slack_client_mock()
         not_allowed = SlackApiError("not_in_channel", response={"ok": False, "error": "not_in_channel"})

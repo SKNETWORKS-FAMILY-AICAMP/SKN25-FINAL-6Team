@@ -15,7 +15,7 @@ from typing import Any
 
 from common.observability.langfuse import observe_if_enabled
 from db.connection import _fetch_all, db_connection, dict_row
-from observability.langfuse import link_weekly_report_trace
+from weekly_report_langfuse import link_weekly_report_trace
 
 # Nielsen(1994) 심각도 0~4 척도를 정수로 매핑한다.
 # unknown은 최소 심각도(1)로 처리해 미분류 항목이 상위에 오르지 않게 한다.

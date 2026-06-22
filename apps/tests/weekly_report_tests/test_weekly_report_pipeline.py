@@ -9,6 +9,8 @@ from __future__ import annotations
 import sys
 import types
 from datetime import datetime
+import importlib.util
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -161,6 +163,159 @@ class TestFetchAnalysisRows:
         result = fetch_analysis_rows(datetime(2026, 6, 5), datetime(2026, 6, 12))
         assert result == []
 
+    def test_filters_by_ticket_inquiry_created_at(self, monkeypatch):
+        mock_cur = MagicMock()
+        mock_cur.fetchall.return_value = []
+        mock_cur.__enter__ = MagicMock(return_value=mock_cur)
+        mock_cur.__exit__ = MagicMock(return_value=False)
+        mock_conn = MagicMock()
+        mock_conn.cursor.return_value = mock_cur
+        mock_conn.__enter__ = MagicMock(return_value=mock_conn)
+        mock_conn.__exit__ = MagicMock(return_value=False)
+        monkeypatch.setattr("db.analysis.db_connection", lambda: mock_conn)
+
+        from db.analysis import fetch_analysis_rows
+
+        fetch_analysis_rows(datetime(2026, 6, 5), datetime(2026, 6, 12))
+
+        sql = mock_cur.execute.call_args[0][0]
+        assert "t.inquiry_created_at >= %s" in sql
+        assert "a.analyzed_at >= %s" not in sql
+
+
+class TestBuildInsightRows:
+    def test_assigns_pattern_risk_from_repeated_rows(self):
+        from db.insight import build_insight_rows
+
+        source_rows = [
+            {
+                "ticket_id": 101,
+                "user_id": 1,
+                "account_id": 10,
+                "content_summary": " refund delayed ",
+                "category": "payment",
+                "sentiment": "negative",
+                "risk_level": "MID",
+                "inquiry_created_at": datetime(2026, 6, 10),
+            },
+            {
+                "ticket_id": 102,
+                "user_id": 1,
+                "account_id": 10,
+                "content_summary": "refund delayed",
+                "category": "payment",
+                "sentiment": "neutral",
+                "risk_level": "LOW",
+                "inquiry_created_at": datetime(2026, 6, 11),
+            },
+            {
+                "ticket_id": 201,
+                "user_id": 2,
+                "account_id": 20,
+                "content_summary": "login issue",
+                "category": "account",
+                "sentiment": "negative",
+                "risk_level": "HIGH",
+                "inquiry_created_at": datetime(2026, 6, 11),
+            },
+        ]
+
+        result = build_insight_rows(source_rows)
+        rows_by_ticket = {row["ticket_id"]: row for row in result}
+
+        assert rows_by_ticket[101]["content_summary"] == "refund delayed"
+        assert rows_by_ticket[101]["pattern_risk_level"] == "HIGH"
+        assert rows_by_ticket[102]["pattern_risk_level"] == "HIGH"
+        assert rows_by_ticket[201]["pattern_risk_level"] == "LOW"
+        assert rows_by_ticket[201]["risk_level"] == "HIGH"
+
+    def test_defaults_blank_fields_without_losing_known_risk(self):
+        from db.insight import build_insight_rows
+
+        result = build_insight_rows(
+            [
+                {
+                    "ticket_id": 301,
+                    "user_id": 3,
+                    "account_id": None,
+                    "content_summary": "  hello \n world  ",
+                    "category": "",
+                    "sentiment": "",
+                    "risk_level": "critical",
+                    "inquiry_created_at": datetime(2026, 6, 12),
+                }
+            ]
+        )
+
+        assert result[0]["content_summary"] == "hello world"
+        assert result[0]["category"] == "general"
+        assert result[0]["sentiment"] == "neutral"
+        assert result[0]["risk_level"] == "CRITICAL"
+
+
+class TestSyncInsightRows:
+    def test_returns_zero_when_no_source_rows(self, monkeypatch):
+        monkeypatch.setattr("db.insight.fetch_latest_analysis_source_rows", lambda: [])
+
+        from db.insight import sync_insight_rows
+
+        assert sync_insight_rows() == 0
+
+    def test_deletes_existing_rows_and_inserts_new_rows(self, monkeypatch):
+        executed: list[tuple[str, tuple | None]] = []
+        inserted_rows: list[tuple] = []
+
+        mock_cur = MagicMock()
+        mock_cur.fetchone.return_value = {"next_id": 41}
+        mock_cur.execute.side_effect = lambda sql, params=None: executed.append((sql.strip(), params))
+        mock_cur.executemany.side_effect = lambda sql, params: inserted_rows.extend(params)
+        mock_cur.__enter__ = MagicMock(return_value=mock_cur)
+        mock_cur.__exit__ = MagicMock(return_value=False)
+
+        mock_conn = MagicMock()
+        mock_conn.cursor.return_value = mock_cur
+        mock_conn.__enter__ = MagicMock(return_value=mock_conn)
+        mock_conn.__exit__ = MagicMock(return_value=False)
+
+        monkeypatch.setattr(
+            "db.insight.fetch_latest_analysis_source_rows",
+            lambda: [
+                {
+                    "ticket_id": 11,
+                    "user_id": 7,
+                    "account_id": 70,
+                    "content_summary": "payment delay",
+                    "category": "payment",
+                    "sentiment": "negative",
+                    "risk_level": "MID",
+                    "inquiry_created_at": datetime(2026, 6, 12),
+                },
+                {
+                    "ticket_id": 12,
+                    "user_id": 7,
+                    "account_id": 70,
+                    "content_summary": "payment delay",
+                    "category": "payment",
+                    "sentiment": "negative",
+                    "risk_level": "LOW",
+                    "inquiry_created_at": datetime(2026, 6, 12),
+                },
+            ],
+        )
+        monkeypatch.setattr("db.insight.db_connection", lambda: mock_conn)
+
+        from db.insight import sync_insight_rows
+
+        inserted = sync_insight_rows()
+
+        assert inserted == 2
+        assert any(sql.startswith("DELETE FROM insight") for sql, _ in executed)
+        assert any("LOCK TABLE insight" in sql for sql, _ in executed)
+        assert inserted_rows[0][0] == 41
+        assert inserted_rows[1][0] == 42
+        assert inserted_rows[0][2] == 11
+        assert inserted_rows[1][8] == "HIGH"
+
 
 # ── output/pdf.py ─────────────────────────────────────────────────────────────
 
@@ -235,6 +390,91 @@ class TestRenderReportPdf:
         with pytest.raises(RuntimeError, match="PDF 렌더링에 실패"):
             render_report_pdf(self._MINIMAL_REPORT)
 
+    def test_category_blocks_use_actual_category_keys_for_previous_comparison(self):
+        report = {
+            **self._MINIMAL_REPORT,
+            "category_comparisons": [
+                {"category": "payment", "current": 7, "previous": 3, "change_rate": "+133.3%"},
+                {"category": "bug", "current": 10, "previous": 4, "change_rate": "+150.0%"},
+            ],
+        }
+
+        from output.pdf import _build_category_blocks
+
+        html = _build_category_blocks(report)
+        assert "결제" in html
+        assert "인게임버그" in html
+        assert "전주 대비 증가하였습니다" in html
+        assert "전주 비교 데이터 없음" not in html
+
+    def test_category_blocks_mark_new_categories_as_new(self):
+        report = {
+            **self._MINIMAL_REPORT,
+            "category_comparisons": [
+                {"category": "policy", "current": 8, "previous": 0, "change_rate": "+8"},
+            ],
+        }
+
+        from output.pdf import _build_category_blocks
+
+        html = _build_category_blocks(report)
+        assert "정책" in html
+        assert "NEW" in html
+        assert "전주 대비 신규 발생" in html
+
+    def test_spike_section_renders_hourly_comparison_line_chart(self, monkeypatch):
+        monkeypatch.setattr("output.pdf._make_line_chart_png", lambda *args, **kwargs: "data:image/png;base64,test")
+        report = {
+            **self._MINIMAL_REPORT,
+            "spike_alerts": {
+                "hourly": [],
+                "daily": [],
+                "monthly": [],
+                "hourly_volume": {
+                    "labels": [f"{hour:02d}" for hour in range(24)],
+                    "current": [hour for hour in range(24)],
+                    "baseline": [hour / 2 for hour in range(24)],
+                    "baseline_label": "최근 4주 평균",
+                },
+            },
+        }
+
+        from output.pdf import _build_spike_section
+
+        html = _build_spike_section(report["spike_alerts"])
+        assert "시간별 문의량 추이" in html
+        assert "실선: 이번 주 / 점선: 최근 4주 평균" in html
+        assert "data:image/png;base64,test" in html
+
+    def test_top5_section_translates_category_labels_to_korean(self):
+        report = {
+            **self._MINIMAL_REPORT,
+            "top_requests": [
+                {
+                    "rank": 1,
+                    "category": "policy",
+                    "topic_keywords": ["ban", "appeal"],
+                    "count": 12,
+                    "improvement_type": "설계 결함",
+                },
+                {
+                    "rank": 2,
+                    "category": "bug",
+                    "topic_keywords": ["disconnect"],
+                    "count": 8,
+                    "improvement_type": "편의 개선",
+                },
+            ],
+        }
+
+        from output.pdf import _build_top5_section
+
+        html = _build_top5_section(report["top_requests"])
+        assert "정책" in html
+        assert "인게임버그" in html
+        assert ">policy<" not in html
+        assert ">bug<" not in html
+
 
 # ── report.py (전체 파이프라인) ───────────────────────────────────────────────
 
@@ -251,6 +491,7 @@ class TestReportRun:
             "final_response_ticket_rate": 0.0, "draft_count": 0,
             "safety_check_count": 0, "total_tickets": 0, "category_counts": [],
         }
+        monkeypatch.setattr("report.resolve_report_reference_now", lambda current: current)
         monkeypatch.setattr("report.metrics_query.fetch", lambda *_: empty_metrics)
         monkeypatch.setattr("report.fetch_analysis_rows", lambda *_: [])
         monkeypatch.setattr("report.top_requests_query.fetch", lambda *_: [])
@@ -311,3 +552,88 @@ class TestReportRun:
         assert captured["scores"]["pdf_rendered"] is False
         assert captured["scores"]["slack_delivered"] is False
         assert captured["scores"]["ai_fallback_used"] is False
+
+    def test_run_uses_resolved_reference_now(self, monkeypatch):
+        self._patch_all(monkeypatch)
+        resolved_now = datetime(2020, 9, 29, 18, 57)
+        captured: dict[str, object] = {}
+
+        monkeypatch.setattr("report.resolve_report_reference_now", lambda current: resolved_now)
+        monkeypatch.setattr(
+            "report.metrics_query.fetch",
+            lambda window: captured.setdefault("metric_windows", []).append(window) or {
+                "response_rate": 0.0,
+                "analysis_coverage_rate": 0.0,
+                "draft_coverage_rate": 0.0,
+                "draft_ticket_rate": 0.0,
+                "final_response_ticket_rate": 0.0,
+                "draft_count": 0,
+                "safety_check_count": 0,
+                "total_tickets": 0,
+                "category_counts": [],
+            },
+        )
+        monkeypatch.setattr(
+            "report.fetch_analysis_rows",
+            lambda start, end: captured.setdefault("analysis_windows", []).append((start, end)) or [],
+        )
+
+        import report as r
+
+        r.run(days=7)
+
+        assert captured["metric_windows"][0]["window_end"] == resolved_now
+        assert captured["analysis_windows"][0][1] == resolved_now
+
+
+def test_weekly_report_dag_materializes_insight_before_report(monkeypatch):
+    dependencies: list[tuple[str, str]] = []
+
+    class _FakeTaskInvocation:
+        def __init__(self, task_id: str):
+            self.task_id = task_id
+
+        def __rshift__(self, other):
+            dependencies.append((self.task_id, other.task_id))
+            return other
+
+    def fake_task(*, task_id: str):
+        def decorator(fn):
+            def wrapper(*args, **kwargs):
+                return _FakeTaskInvocation(task_id)
+
+            return wrapper
+
+        return decorator
+
+    def fake_dag(**_kwargs):
+        def decorator(fn):
+            def wrapper(*args, **kwargs):
+                return fn(*args, **kwargs)
+
+            return wrapper
+
+        return decorator
+
+    airflow_module = types.ModuleType("airflow")
+    decorators_module = types.ModuleType("airflow.decorators")
+    decorators_module.dag = fake_dag
+    decorators_module.task = fake_task
+    pendulum_module = types.ModuleType("pendulum")
+    pendulum_module.timezone = lambda name: name
+    pendulum_module.datetime = lambda *args, **kwargs: datetime(*args[:3])
+
+    monkeypatch.setitem(sys.modules, "airflow", airflow_module)
+    monkeypatch.setitem(sys.modules, "airflow.decorators", decorators_module)
+    monkeypatch.setitem(sys.modules, "pendulum", pendulum_module)
+
+    module_path = Path(__file__).resolve().parents[3] / "apps" / "weekly_report" / "airflow" / "weekly_report_dag.py"
+    spec = importlib.util.spec_from_file_location("weekly_report_dag_under_test", module_path)
+    module = importlib.util.module_from_spec(spec)
+
+    assert spec is not None
+    assert spec.loader is not None
+
+    spec.loader.exec_module(module)
+
+    assert ("materialize_insight_rows", "run_weekly_report") in dependencies
