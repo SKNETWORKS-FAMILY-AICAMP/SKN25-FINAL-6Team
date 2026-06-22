@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import inspect
 import os
 from unittest.mock import Mock
 
-from common.observability.langfuse import configure_langfuse, record_current_scores
+from common.observability.langfuse import configure_langfuse, observe_if_enabled, record_current_scores
 
 
 def test_configure_langfuse_reads_app_specific_env(monkeypatch) -> None:
@@ -51,3 +52,27 @@ def test_record_current_scores_uses_observation_score_api(monkeypatch) -> None:
     assert calls[1].kwargs["name"] == "review_required"
     assert calls[1].kwargs["value"] == 1.0
     assert calls[1].kwargs["comment"] == "manual review"
+
+
+def test_observe_if_enabled_preserves_original_signature(monkeypatch) -> None:
+    class FakeLangfuseModule:
+        @staticmethod
+        def observe(**_kwargs):
+            def decorator(func):
+                def wrapper(*args, **kwargs):
+                    return func(*args, **kwargs)
+
+                return wrapper
+
+            return decorator
+
+    monkeypatch.setitem(os.environ, "LANGFUSE_ENABLED", "true")
+    monkeypatch.setattr("common.observability.langfuse._langfuse_module", lambda: FakeLangfuseModule())
+    monkeypatch.setitem(__import__("common.observability.langfuse", fromlist=["_ACTIVE_CONFIG"])._ACTIVE_CONFIG, "enabled", True)
+
+    def original(payload: dict[str, str], limit: int = 10) -> dict[str, object]:
+        return {"ok": True, "payload": payload, "limit": limit}
+
+    decorated = observe_if_enabled(name="test_observed_function")(original)
+
+    assert inspect.signature(decorated) == inspect.signature(original)
