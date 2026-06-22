@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import functools
 import importlib
+import inspect
 import logging
 import os
 from contextlib import AbstractContextManager, nullcontext
@@ -353,6 +354,16 @@ def observe_if_enabled(
 ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Wrap a function with Langfuse observe when the SDK is available."""
 
+    def _restore_signature(wrapped: Callable[..., Any], original: Callable[..., Any]) -> Callable[..., Any]:
+        """Preserve the original callable signature for frameworks like FastAPI."""
+
+        try:
+            functools.update_wrapper(wrapped, original)
+            wrapped.__signature__ = inspect.signature(original)  # type: ignore[attr-defined]
+        except Exception:
+            return wrapped
+        return wrapped
+
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         if not langfuse_enabled():
             return func
@@ -380,14 +391,14 @@ def observe_if_enabled(
                 link_current_trace(tags=tags)
                 return await func(*args, **kwargs)
 
-            return observe(**decorator_kwargs)(observed_async)
+            return _restore_signature(observe(**decorator_kwargs)(observed_async), func)
 
         @functools.wraps(func)
         def observed(*args: Any, **kwargs: Any) -> Any:
             link_current_trace(tags=tags)
             return func(*args, **kwargs)
 
-        return observe(**decorator_kwargs)(observed)
+        return _restore_signature(observe(**decorator_kwargs)(observed), func)
 
     return decorator
 

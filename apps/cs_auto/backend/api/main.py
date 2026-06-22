@@ -2,12 +2,10 @@
 CS Auto API route skeletons.
 """
 
-from __future__ import annotations
-
 import os
 from datetime import datetime
 
-from fastapi import FastAPI
+from fastapi import Body, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -157,7 +155,7 @@ def api_get_ticket_detail(ticket_id: int) -> dict[str, object]:
 
 @app.post(f"{API_PREFIX}/auth/login")
 @observe_if_enabled(name="cs_auto_api_login_operator", as_type="chain", tags=["cs-auto", "api", "auth"])
-def api_login_operator(payload: AdminLoginRequest) -> dict[str, object]:
+def api_login_operator(payload: AdminLoginRequest = Body(...)) -> dict[str, object]:
     trace_payload = {"login_id": payload.login_id}
     link_cs_auto_trace(
         trace_payload,
@@ -199,7 +197,7 @@ def api_login_operator(payload: AdminLoginRequest) -> dict[str, object]:
 
 @app.post(f"{API_PREFIX}/auth/logout")
 @observe_if_enabled(name="cs_auto_api_logout_operator", as_type="chain", tags=["cs-auto", "api", "auth"])
-def api_logout_operator(payload: OperatorLogoutRequest) -> dict[str, object]:
+def api_logout_operator(payload: OperatorLogoutRequest = Body(...)) -> dict[str, object]:
     trace_payload = {"admin_id": payload.admin_id, "session_id": payload.session_id}
     link_cs_auto_trace(trace_payload, tags=["api", "auth"], input_payload=trace_payload)
     result = revoke_admin_session(payload.session_id, payload.admin_id)
@@ -209,7 +207,7 @@ def api_logout_operator(payload: OperatorLogoutRequest) -> dict[str, object]:
 
 @app.patch(f"{API_PREFIX}/tickets/{{ticket_id}}/draft")
 @observe_if_enabled(name="cs_auto_api_update_answer_draft", as_type="chain", tags=["cs-auto", "api", "draft"])
-def api_update_answer_draft(ticket_id: int, payload: DraftUpdateRequest) -> dict[str, object]:
+def api_update_answer_draft(ticket_id: int, payload: DraftUpdateRequest = Body(...)) -> dict[str, object]:
     trace_payload = {"ticket_id": ticket_id, "draft_id": payload.draft_id, "admin_id": payload.admin_id}
     link_cs_auto_trace(
         trace_payload,
@@ -243,7 +241,7 @@ def api_update_answer_draft(ticket_id: int, payload: DraftUpdateRequest) -> dict
 
 @app.post(f"{API_PREFIX}/tickets/{{ticket_id}}/draft/regenerate")
 @observe_if_enabled(name="cs_auto_api_regenerate_answer_draft", as_type="chain", tags=["cs-auto", "api", "draft"])
-def api_regenerate_answer_draft(ticket_id: int, payload: DraftRegenerateRequest) -> dict[str, object]:
+def api_regenerate_answer_draft(ticket_id: int, payload: DraftRegenerateRequest = Body(...)) -> dict[str, object]:
     trace_payload = {"ticket_id": ticket_id, "draft_id": payload.draft_id, "admin_id": payload.admin_id}
     link_cs_auto_trace(
         trace_payload,
@@ -280,7 +278,7 @@ def api_regenerate_answer_draft(ticket_id: int, payload: DraftRegenerateRequest)
 
 @app.post(f"{API_PREFIX}/tickets/{{ticket_id}}/draft/approve")
 @observe_if_enabled(name="cs_auto_api_approve_answer_draft", as_type="chain", tags=["cs-auto", "api", "draft"])
-def api_approve_answer_draft(ticket_id: int, payload: DraftApproveRequest) -> dict[str, object]:
+def api_approve_answer_draft(ticket_id: int, payload: DraftApproveRequest = Body(...)) -> dict[str, object]:
     trace_payload = {"ticket_id": ticket_id, "draft_id": payload.draft_id, "admin_id": payload.admin_id}
     link_cs_auto_trace(
         trace_payload,
@@ -314,7 +312,7 @@ def api_approve_answer_draft(ticket_id: int, payload: DraftApproveRequest) -> di
 
 @app.post(f"{API_PREFIX}/tickets/{{ticket_id}}/send-email")
 @observe_if_enabled(name="cs_auto_api_send_answer_email", as_type="chain", tags=["cs-auto", "api", "notification"])
-def api_send_answer_email(ticket_id: int, payload: TicketEmailSendRequest) -> dict[str, object]:
+def api_send_answer_email(ticket_id: int, payload: TicketEmailSendRequest = Body(...)) -> dict[str, object]:
     trace_payload = {"ticket_id": ticket_id, "admin_id": payload.admin_id}
     link_cs_auto_trace(trace_payload, tags=["api", "notification"], input_payload=trace_payload)
     result = send_answer_email_service(ticket_id=ticket_id, admin_id=payload.admin_id)
