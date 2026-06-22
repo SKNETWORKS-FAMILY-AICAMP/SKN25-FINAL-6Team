@@ -120,6 +120,8 @@ def api_get_review_tickets(
             "category": category,
             "risk_level": risk_level,
             "page": page,
+            "source_type": source_type,
+            "has_draft": has_draft,
         },
     )
     result = get_review_tickets(
@@ -129,8 +131,8 @@ def api_get_review_tickets(
         category=category,
         risk_level=risk_level,
         page=page,
-        # source_type=source_type,
-        # has_response=has_response,
+        source_type=source_type,
+        has_draft=has_draft,
     )
     return result
 
