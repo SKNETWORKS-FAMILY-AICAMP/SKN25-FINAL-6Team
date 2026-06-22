@@ -18,6 +18,7 @@ Last verified from the live database on 2026-06-18.
 - The live document/RAG store is `documents -> documents_chunks -> documents_embeddings`.
 - The live `public` schema has no `_ex` mirror tables.
 - Older repo docs may still mention `sj_documents`, `test_documents_chunks`, or `test_documents_embeddings_large/small`; those names are not in the live schema as of 2026-06-18.
+- `apps/weekly_report/db/top_requests.py` optionally queries `voc_feedback.topic_keywords`, but `voc_feedback` is not in the live schema snapshot documented here.
 - Workflow write tables `answer_draft`, `evidence_docs`, `failed_queries`, `final_response`, `safety_results`, and `ticket_analysis` use database-generated identity PKs.
 
 ## Table Summary

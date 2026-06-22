@@ -1,280 +1,169 @@
-# Dashboard Metrics
+# Weekly Report Metrics
 
-이 문서는 `docs/dashboard/prd.md`를 기준으로 운영 대시보드 및 **주간 운영 리포트**에서 계산할 지표와 Slack 전송 조건을 정의한다.
+## 목적
 
-> **[변경사항]** 프론트엔드(Streamlit)가 삭제되었다. "화면 표시" 컬럼은 주간 리포트 Slack 블록 위치로 해석한다.
+이 문서는 `apps/weekly_report`가 **현재 실제로 계산하는 값만** 정리한다.
 
-모든 테이블과 컬럼은 `docs/DB/descriptions.md`의 실제 PostgreSQL `public` 스키마를 기준으로 한다. 대시보드는 원칙적으로 읽기 전용이며, 지표 계산은 PostgreSQL 조회와 `src/dashboard/workflow/nodes.py`의 compute 노드에서 수행한다.
+구현 기준 파일:
 
-## 공통 필터
+- `apps/weekly_report/db/metrics.py`
+- `apps/weekly_report/db/analysis.py`
+- `apps/weekly_report/db/top_requests.py`
+- `apps/weekly_report/db/spike_alerts.py`
+- `apps/weekly_report/build/payload.py`
 
-- 조회 기간: `qa_ticket.inquiry_created_at >= window_start`
-- `window_start = datetime.now() - timedelta(days=days)`
-- 기본 `days = 30`, API 허용 범위는 1일부터 365일까지다.
-- 오늘 기준: `CURRENT_DATE <= inquiry_created_at < CURRENT_DATE + INTERVAL '1 day'`
-- 비율 계산에서 분모가 0이면 `null` 또는 `0.0`으로 반환하고, 프론트엔드는 `-`로 표시한다.
-- 티켓별 최신 분석/초안/검증/응답은 `analyzed_at`, `created_at`, `checked_at`, 각 PK의 내림차순으로 1건을 선택한다.
+## 기간 기준
 
-## 운영자에게 보여줄 핵심 계산
+- 기본 기간: 최근 7일
+- 현재 기간: `window_start <= x < window_end`
+- 비교 기간: 직전 동일 길이 구간
+- `metrics.py`와 `spike_alerts.py`는 주로 `qa_ticket.inquiry_created_at` 기준
+- `analysis.py`는 `ticket_analysis.analyzed_at` 기준
 
-### 운영 현황
+## `db.metrics.fetch()`가 계산하는 값
 
-운영자는 문의 유입과 처리 backlog를 먼저 확인한다.
+### 커버리지 / 처리 지표
 
-| Metric | Formula | Source | 화면 표시 |
-| --- | --- | --- | --- |
-| 전체 문의 | `COUNT(*)` | `qa_ticket` | KPI |
-| 대기 문의 | `COUNT(*) FILTER (WHERE status = 'pending')` | `qa_ticket` | KPI, backlog |
-| 종료 문의 | `COUNT(*) FILTER (WHERE status = 'closed')` | `qa_ticket` | KPI |
-| 오늘 접수 | `COUNT(*) FILTER (WHERE inquiry_created_at >= CURRENT_DATE AND inquiry_created_at < CURRENT_DATE + INTERVAL '1 day')` | `qa_ticket` | KPI |
-| 응답 티켓 수 | `COUNT(DISTINCT final_response.ticket_id)` | `final_response` | 보조 수치 |
-| 응답률 | `responded_tickets / total_tickets` | `qa_ticket`, `final_response` | KPI 퍼센트 |
-| 초안 티켓 수 | `COUNT(DISTINCT answer_draft.ticket_id)` | `answer_draft` | 보조 수치 |
-| 초안 커버리지 | `draft_tickets / total_tickets` | `qa_ticket`, `answer_draft` | KPI 퍼센트 |
-| 분석 티켓 수 | `COUNT(DISTINCT ticket_analysis.ticket_id)` | `ticket_analysis` | 보조 수치 |
-| 분석 커버리지 | `analyzed_tickets / total_tickets` | `qa_ticket`, `ticket_analysis` | KPI 퍼센트 |
-| 평균 응답 지연 | `AVG(EXTRACT(EPOCH FROM final_response.created_at - qa_ticket.inquiry_created_at) / 60)` | `qa_ticket`, `final_response` | 분 단위 KPI |
-| 접수 채널 분포 | `COUNT(*) GROUP BY source_type` | `qa_ticket` | Bar chart |
-| 상태 분포 | `COUNT(*) GROUP BY status` | `qa_ticket` | Bar chart |
-| 라우팅 대상 분포 | 최신 `ticket_analysis.routing_target` 기준 `COUNT(*) GROUP BY routing_target` | `ticket_analysis` | Bar chart |
+| 키 | 의미 | 사용 테이블 |
+| --- | --- | --- |
+| `total_tickets` | 기간 내 전체 티켓 수 | `qa_ticket` |
+| `responded_tickets` | 응답이 있는 티켓 수 | `qa_ticket`, `final_response` |
+| `draft_tickets` | 초안이 1개 이상 있는 티켓 수 | `qa_ticket`, `answer_draft` |
+| `analyzed_tickets` | 분석 행이 1개 이상 있는 티켓 수 | `qa_ticket`, `ticket_analysis` |
+| `response_rate` | `responded_tickets / total_tickets` | same |
+| `analysis_coverage_rate` | `analyzed_tickets / total_tickets` | same |
+| `draft_coverage_rate` | `draft_tickets / total_tickets` | same |
+| `draft_ticket_rate` | 초안 보유 티켓 비율 | `qa_ticket`, `answer_draft` |
+| `final_response_ticket_rate` | 최종 응답 보유 티켓 비율 | `qa_ticket`, `final_response` |
+| `draft_count` | 초안 전체 건수 | `answer_draft` |
+| `safety_check_count` | safety check 전체 건수 | `safety_results`, `answer_draft`, `qa_ticket` |
 
-### 리스크 분석
+### 카테고리 집계
 
-리스크 담당자는 고위험 문의, 부정 감성, 안전성 점수 악화를 확인한다.
+| 키 | 의미 | 사용 테이블 |
+| --- | --- | --- |
+| `category_counts` | 티켓별 최신 `ticket_analysis.category` 분포 | `qa_ticket`, `ticket_analysis` |
 
-| Metric | Formula | Source | 화면 표시 |
-| --- | --- | --- | --- |
-| 분석 리스크 분포 | 최신 `ticket_analysis.risk_level` 기준 `COUNT(*) GROUP BY risk_level` | `ticket_analysis` | Bar chart |
-| HIGH/critical 문의 수 | `COUNT(*) WHERE lower(risk_level) IN ('high', 'critical')` | `ticket_analysis` | KPI, table badge |
-| 감성 분포 | 최신 `ticket_analysis.sentiment` 기준 `COUNT(*) GROUP BY sentiment` | `ticket_analysis` | Bar chart |
-| 부정 감성 수 | `COUNT(*) WHERE lower(sentiment) IN ('negative', 'very_negative')` | `ticket_analysis`, `insight` | KPI |
-| 인사이트 리스크 분포 | `COUNT(*) GROUP BY insight.risk_level` | `insight` | Bar chart |
-| 패턴 리스크 분포 | `COUNT(*) GROUP BY insight.pattern_risk_level` | `insight` | Bar chart |
-| 평균 환각 점수 | `AVG(safety_results.hallucination_score)` | `safety_results` | Safety KPI |
-| 평균 유해성 점수 | `AVG(safety_results.toxicity_score)` | `safety_results` | Safety KPI |
-| 평균 정책 위반 점수 | `AVG(safety_results.policy_violation_score)` | `safety_results` | Safety KPI |
-| 평균 사실성 점수 | `AVG(safety_results.factuality_score)` | `safety_results` | Safety KPI |
-| 고위험 후보 | 최신 분석 또는 인사이트 패턴 리스크가 `high`, `critical`인 티켓 | `qa_ticket`, `ticket_analysis`, `insight` | 우선 검토 테이블 |
-| 검증 미달 후보 | `factuality_score <= 0.3 OR hallucination_score >= 0.7 OR policy_violation_score >= 0.7 OR toxicity_score >= 0.7` | `answer_draft`, `safety_results` | 우선 검토 테이블 |
+## `db.analysis.fetch_analysis_rows()`가 가져오는 행
 
-### 응답 품질
+행 단위 주요 컬럼:
 
-품질 관리자는 자동 생성 답변이 근거와 안전성 기준을 충족하는지 확인한다.
+- `analysis_id`
+- `ticket_id`
+- `category`
+- `responder_type`
+- `enriched_query`
+- `risk_level`
+- `sentiment`
+- `routing_target`
+- `summary`
+- `analyzed_at`
+- `title`
+- `status`
+- `source_type`
+- `inquiry_created_at`
+- `nickname`
+- `insight_id`
+- `content_summary`
+- `insight_category`
+- `insight_sentiment`
+- `insight_risk_level`
+- `pattern_risk_level`
+- `insight_created_at`
 
-| Metric | Formula | Source | 화면 표시 |
-| --- | --- | --- | --- |
-| 초안 수 | `COUNT(DISTINCT answer_draft.draft_id)` | `answer_draft` | KPI |
-| 초안 티켓률 | `draft_ticket_count / ticket_count` | `qa_ticket`, `answer_draft` | KPI 퍼센트 |
-| 근거 연결 초안 | `COUNT(DISTINCT draft_id) WHERE EXISTS evidence_docs` | `answer_draft`, `evidence_docs` | KPI |
-| 근거 첨부율 | `evidence_linked_drafts / draft_count` | `answer_draft`, `evidence_docs` | KPI 퍼센트 |
-| 평균 근거 관련도 | `AVG(evidence_docs.relevance_score)` | `evidence_docs` | 점수 KPI |
-| 평균 근거 순위 | `AVG(evidence_docs.retrieval_rank)` | `evidence_docs` | 보조 수치 |
-| 최종 응답 수 | `COUNT(DISTINCT final_response.response_id)` | `final_response` | KPI |
-| 최종 응답률 | `final_response_ticket_count / ticket_count` | `qa_ticket`, `final_response` | KPI 퍼센트 |
-| 평균 최종 지연 | `AVG(EXTRACT(EPOCH FROM final_response.created_at - qa_ticket.inquiry_created_at) / 60)` | `qa_ticket`, `final_response` | 분 단위 KPI |
-| 알림 상태 분포 | `COUNT(*) GROUP BY notification_logs.status` | `notification_logs` | Bar chart |
-| 품질 점검 후보 | 낮은 `factuality_score`, 높은 `hallucination_score` 우선 정렬 | `answer_draft`, `safety_results` | Table |
+`insight`는 티켓당 최신 1건만 `LEFT JOIN LATERAL`로 붙인다.
 
-### 검수 큐
+## `build_report_payload()`가 추가로 계산하는 값
 
-운영자와 상담원은 자동 처리되지 못한 문의와 긴급 문의를 별도 큐로 확인한다.
+### 요약 수치
 
-| Metric | Formula | Source | 화면 표시 |
-| --- | --- | --- | --- |
-| 운영자 검토 대상 | `COUNT(*) WHERE status = 'human_review' OR latest.routing_target = 'human_review' OR latest.safety_action = 'human_review'` | `qa_ticket`, `ticket_analysis`, `safety_results` | KPI, table |
-| 긴급 알림 대상 | `COUNT(*) WHERE latest.routing_target = 'urgent_alert' OR lower(latest.risk_level) IN ('high', 'critical')` | `ticket_analysis`, `insight` | KPI, table |
-| 수동 처리 후보 | 결제/환불/미지급/가챠 category 중 검증 미달 또는 로그 불일치 후보 | `ticket_analysis`, `payments`, `refunds`, `item_delivery_logs`, `gacha_logs` | Table |
-| 미응답 장기 대기 | `COUNT(*) WHERE status <> 'closed' AND now() - inquiry_created_at > threshold` | `qa_ticket` | KPI, warning |
-
-## 계산 기준 상세
-
-### 최신 레코드 선택
-
-티켓 목록과 상세에서 최신 분석, 최신 초안, 최신 검증, 최신 최종 응답을 붙일 때는 다음 우선순위를 사용한다.
-
-| 대상 | 정렬 기준 |
+| 키 | 의미 |
 | --- | --- |
-| 최신 분석 | `ticket_analysis.analyzed_at DESC NULLS LAST, ticket_analysis.analysis_id DESC` |
-| 최신 초안 | `answer_draft.created_at DESC NULLS LAST, answer_draft.draft_id DESC` |
-| 최신 Safety | `safety_results.checked_at DESC NULLS LAST, safety_results.safety_id DESC` |
-| 최신 최종 응답 | `final_response.created_at DESC NULLS LAST, final_response.response_id DESC` |
-| 최신 알림 | `notification_logs.sent_at DESC NULLS LAST, notification_logs.notification_id DESC` |
+| `analysis_count` | 현재 기간 분석 행 수 |
+| `distinct_ticket_count` | 중복 제거된 티켓 수 |
+| `repeat_analysis_count` | 같은 티켓에 여러 분석 행이 있는 수량 |
+| `high_risk_count` | `risk_level in {high, critical}` |
+| `negative_sentiment_count` | `sentiment in {negative, very_negative}` |
+| `human_review_count` | `routing_target == human_review` |
+| `urgent_alert_count` | `routing_target == urgent_alert` |
+| `blank_query_count` | `enriched_query` 비어 있는 행 수 |
+| `blank_summary_count` | `summary` 비어 있는 행 수 |
+| `analysis_freshness_hours` | `generated_at - analyzed_at` 평균 시간 |
+| `insight_high_rate` | `insight_risk_level` 또는 `pattern_risk_level`이 high/critical인 비율 |
 
-### 결제/지급 이상 후보
+### 전주 비교
 
-결제, 환불, 미지급, 가챠 문의는 티켓의 `account_id`와 업무 로그를 함께 본다.
+`comparisons`에는 아래 4개 비교가 들어간다.
 
-| 후보 | Rule | Source |
-| --- | --- | --- |
-| 결제 성공 후 미지급 | `payments.payment_status = 'success' AND item_delivery_logs.delivery_status IN ('fail', 'failed')` | `payments`, `item_delivery_logs` |
-| 결제 성공 후 지급 로그 없음 | `payments.payment_status = 'success' AND NOT EXISTS item_delivery_logs WHERE payment_id = payments.payment_id` | `payments`, `item_delivery_logs` |
-| 환불 장기 대기 | `refunds.refund_status IN ('requested', 'pending') AND now() - requested_at > INTERVAL '24 hours'` | `refunds` |
-| 계정 상태 이상 | `game_accounts.account_status NOT IN ('active', 'normal') OR community_users.user_status NOT IN ('active', 'normal')` | `game_accounts`, `community_users` |
+- `analysis_count`
+- `high_risk_count`
+- `negative_sentiment_count`
+- `human_review_count`
 
-## Dashboard Alert Threshold
+각 항목은 `current`, `previous`, `change` 또는 `change_rate`를 포함한다.
 
-이 threshold는 대시보드 화면에서 `warning`, `danger`, badge를 표시하는 기준이다. Slack 알림 조건은 다음 섹션의 조건을 따른다.
+### 분포
 
-| Alert | Rule | 표시 |
-| --- | --- | --- |
-| 높은 환각 | `avg_hallucination_score >= 0.7` | 리스크 화면 경고 |
-| 높은 유해성 | `avg_toxicity_score >= 0.7` | 리스크 화면 경고 |
-| 높은 정책 위반 | `avg_policy_violation_score >= 0.7` | 리스크 화면 경고 |
-| 낮은 사실성 | `avg_factuality_score <= 0.3` | 리스크 화면 경고 |
-| 응답률 저하 | `response_rate < 0.7` | 운영 현황 경고 |
-| 초안 커버리지 저하 | `draft_coverage_rate < 0.7` | 응답 품질 경고 |
-| 근거 첨부율 저하 | `evidence_attachment_rate < 0.8` | 응답 품질 경고 |
-| 장기 대기 증가 | `old_pending_count >= 10` | 운영 현황 경고 |
+아래 분포가 payload에 포함된다.
 
-## Slack 알림 조건
+- `category_distribution`
+- `responder_distribution`
+- `risk_distribution`
+- `sentiment_distribution`
+- `routing_distribution`
 
-Slack 알림은 운영자가 즉시 확인해야 하는 상황에만 발송한다. 화면 경고만 필요한 일반 품질 저하는 대시보드에 표시하고, 기준을 연속으로 위반하거나 장애성 조건일 때 Slack으로 보낸다.
+## `top_requests.fetch()` 결과
 
-### 즉시 알림
+Top 5 개선 요청은 아래 규칙으로 계산한다.
 
-| Alert Type | Trigger | Severity | Source | Slack 메시지 필드 |
-| --- | --- | --- | --- | --- |
-| `urgent_ticket_detected` | 최신 `ticket_analysis.routing_target = 'urgent_alert'` 또는 `lower(risk_level) IN ('high', 'critical')` | critical | `qa_ticket`, `ticket_analysis`, `insight` | `ticket_id`, `title`, `risk_level`, `routing_target`, `summary` |
-| `safety_threshold_breach` | 개별 초안의 `hallucination_score >= 0.8 OR toxicity_score >= 0.8 OR policy_violation_score >= 0.8 OR factuality_score <= 0.2` | critical | `answer_draft`, `safety_results` | `ticket_id`, `draft_id`, 각 score, `safety_action`, `safety_reason` |
-| `payment_delivery_mismatch` | 결제 성공 후 지급 실패 또는 지급 로그 없음 | critical | `payments`, `item_delivery_logs`, `qa_ticket` | `ticket_id`, `account_id`, `payment_id`, `payment_status`, `delivery_status` |
-| `notification_failure` | `notification_logs.status IN ('failed', 'error')` | warning | `notification_logs` | `notification_id`, `ticket_id`, `channel`, `error_category`, `error_message` |
-| `dashboard_api_down` | `/health` 실패 또는 DB 연결 실패 | critical | Dashboard API, DB connection | `endpoint`, `error`, `checked_at` |
+- 기준 테이블: `ticket_analysis` + `qa_ticket`
+- 보조 키워드: `voc_feedback.topic_keywords`가 있으면 사용
+- 점수식: `(count * 0.4) + (severity_score * 0.6)`
+- `severity_score`: `critical=4`, `high=3`, `medium=2`, `low=1`, `unknown=1`
+- 출력 수: 최대 5개
 
-### 집계 기반 알림
+반환 항목 예:
 
-집계 기반 알림은 짧은 노이즈를 줄이기 위해 기본적으로 최근 30분 또는 최근 1시간 rolling window 기준으로 계산한다.
+- `rank`
+- `category`
+- `count`
+- `severity_score`
+- `priority_score`
+- `level`
+- `improvement_type`
+- `topic_keywords`
 
-| Alert Type | Trigger | Severity | Source | 비고 |
-| --- | --- | --- | --- | --- |
-| `high_risk_spike` | 최근 1시간 HIGH/critical 티켓 수가 `5건 이상` 또는 직전 동시간 대비 `2배 이상` | critical | `ticket_analysis` | 장애성 문의 급증 감지 |
-| `negative_sentiment_spike` | 최근 1시간 부정 감성 비율이 `50% 이상`이고 티켓 수가 `10건 이상` | warning | `ticket_analysis`, `insight` | 커뮤니티 여론 악화 감지 |
-| `pending_backlog_spike` | `status = 'pending'` 티켓이 `50건 이상` 또는 1시간 전 대비 `30% 이상 증가` | warning | `qa_ticket` | 운영자 처리 병목 감지 |
-| `human_review_queue_spike` | `human_review` 대상이 `20건 이상` 또는 1시간 전 대비 `30% 이상 증가` | warning | `qa_ticket`, `ticket_analysis`, `safety_results` | 자동 처리 실패 증가 |
-| `low_response_rate` | 최근 24시간 응답률이 `70% 미만`이고 전체 문의가 `20건 이상` | warning | `qa_ticket`, `final_response` | 운영 품질 저하 |
-| `low_evidence_attachment_rate` | 최근 24시간 근거 첨부율이 `80% 미만`이고 초안 수가 `20건 이상` | warning | `answer_draft`, `evidence_docs` | RAG 또는 근거 저장 문제 |
-| `safety_average_breach` | 평균 환각/유해성/정책 위반이 `0.7 이상` 또는 평균 사실성이 `0.3 이하` | warning | `safety_results` | 모델/프롬프트 품질 저하 |
-| `long_pending_ticket` | 닫히지 않은 티켓이 `24시간 이상` 대기 | warning | `qa_ticket` | SLA 위반 후보 |
+## `spike_alerts.detect()` 결과
 
-### 복구 알림
+### `hourly`
 
-복구 알림은 같은 `alert_type`이 이전에 발송된 뒤 정상 조건으로 돌아왔을 때 1회 발송한다.
+- 기준: `qa_ticket.inquiry_created_at`
+- 현재 주간의 시간대별 건수와 과거 4주 동일 시간대 평균/표준편차 비교
+- 임계치:
+  - `zscore >= 2.0` -> `warning`
+  - `zscore >= 3.0` -> `critical`
 
-| Alert Type | Recovery Rule | 메시지 |
-| --- | --- | --- |
-| `dashboard_api_recovered` | `/health`가 3회 연속 성공 | 대시보드 API 정상화 |
-| `pending_backlog_recovered` | pending backlog가 threshold 미만으로 2회 연속 유지 | 대기 문의 정상 범위 복귀 |
-| `safety_average_recovered` | 모든 Safety 평균 지표가 threshold 정상 범위로 2회 연속 유지 | Safety 평균 정상화 |
-| `notification_channel_recovered` | 동일 channel의 최근 알림 3건이 성공 | 알림 채널 정상화 |
+### `daily`
 
-## Slack 알림 중복 방지
+- 현재 주간과 직전 주간의 요일별 건수 비교
+- 임계치:
+  - `pct_change >= 0.5` -> `warning`
+  - `pct_change >= 1.0` -> `critical`
 
-| 항목 | 기준 |
-| --- | --- |
-| Dedup key | `alert_type + ticket_id` 또는 `alert_type + channel + window_start` |
-| 동일 티켓 즉시 알림 | 같은 `alert_type`, `ticket_id`는 30분 내 1회만 발송 |
-| 집계 알림 | 같은 `alert_type`, 같은 rolling window는 1회만 발송 |
-| 심각도 상승 | warning에서 critical로 상승한 경우 중복 제한과 무관하게 재발송 |
-| 알림 저장 | 발송 결과는 `notification_logs`에 `channel`, `status`, `message`, `error_message`, `error_category`, `sent_at`으로 추적 |
+### `monthly`
 
-## Slack 메시지 포맷
+- 현재 주간 포함 최근 4개 주간의 총 티켓 수
+- 추세 시각화 목적이며 별도 임계치 없음
 
-Slack 메시지는 운영자가 바로 판단할 수 있게 원인, 규모, 바로가기 정보를 포함한다. 개인정보와 결제 식별자는 마스킹한다.
+## 현재 구현에 없는 항목
 
-```text
-[대시보드 알림] {severity} - {alert_type}
-- 발생 시각: {checked_at}
-- 기준: {trigger_rule}
-- 대상: ticket_id={ticket_id or count}, account_id={masked_account_id}
-- 요약: {summary}
-```
+과거 문서에 있었지만 현재 `apps/weekly_report` 구현에 없는 항목:
 
-### 주간 운영 리포트 Slack 메시지 포맷 (기획팀 수신)
+- 평균 응답 지연 KPI
+- evidence 첨부율 / relevance 평균
+- notification 상태 분포
+- `/summary/*` 대시보드 응답 스키마
+- `/tickets`, `/tickets/{ticket_id}` 상세 화면용 지표
+- `insight.risk_level` / `pattern_risk_level` 분포 차트 전용 쿼리
 
-```text
-📊 주간 운영 리포트 — {생성날짜}
-분석 기간: {window_start} ~ {window_end}
-
-[유저 개선 요청 Top 5]
-1위. {category} | {topic_keywords} | {improvement_type} | 건수: {count} | 전주 대비 {pct_change}
-...
-
-[AI 제안 권장 액션]
-{headline}
-• {action_1}
-• {action_2}
-
-[주간지표]
-결제   {this_week}건  (전주 대비 {change_rate})
-지급   {this_week}건  (전주 대비 {change_rate})
-뽑기   {this_week}건  (전주 대비 {change_rate})
-계정   {this_week}건  (전주 대비 {change_rate})
-인게임버그 {this_week}건 (전주 대비 {change_rate})
-
-[급증·위험 문의]
-전주 대비 폭증: {wow_summary}
-월별 추세:     {monthly_summary}
-```
-
-## 주간 운영 리포트 전용 지표
-
-주간 리포트는 기획팀 수신 전제로 작성된다. 아래 지표는 `weekly_report/service.py`에서 계산하며
-Slack PDF 리포트의 각 섹션에 매핑된다.
-
-### 리포트 헤더
-
-| 항목 | 계산 방법 | Python |
-| --- | --- | --- |
-| 생성날짜 | 리포트 실행 시각 | `datetime.now()` |
-| 분석 단위기간 시작 | 실행 시각 - 7일 | `window_start` |
-| 분석 단위기간 종료 | 실행 시각 | `window_end` |
-| Airflow run date | DAG 실행일 | `{{ ds }}` (Jinja2) |
-
-### 주간지표 블록 (카테고리별 전주 대비 증감)
-
-집계 단위: `ticket_analysis.category` × 이번 주 / 전주 건수 비교
-
-| 카테고리 | 이번 주 집계 | 전주 집계 | 표시 형식 |
-| --- | --- | --- | --- |
-| 결제 | `COUNT(*) WHERE category='결제' AND 이번 주` | `COUNT(*) WHERE category='결제' AND 전주` | 전주 대비 ±X% |
-| 지급 | 동일 | 동일 | 전주 대비 ±X% |
-| 뽑기 | 동일 | 동일 | 전주 대비 ±X% |
-| 계정 | 동일 | 동일 | 전주 대비 ±X% |
-| 인게임버그 | 동일 | 동일 | 전주 대비 ±X% |
-
-증감 표시 규칙: `_format_change(current, previous)` 함수 재사용 (`weekly_report/service.py`에 기존 구현됨).
-
-### 급증·위험 문의 현황 지표
-
-| 항목 | 참조 파일 | 함수 |
-| --- | --- | --- |
-| 전주 대비 폭증 (일별 7일 바차트) | `docs/dashboard/report_anomaliy.md` | `calculate_wow_by_day()` |
-| 시간별 히트맵 (운영 인력 배치) | `docs/dashboard/report_anomaliy.md` | `calculate_zscore_by_hour()` |
-| 월별 폭증 (4주 바차트) | `docs/dashboard/report_anomaly.md` | `calculate_monthly_trend()` |
-| 월별 요약 텍스트 | `docs/dashboard/report_anomaly.md` | `summarize_monthly_anomaly()` |
-
-### 유저 개선 요청 Top 5
-
-| 항목 | 참조 파일 | 함수 |
-| --- | --- | --- |
-| Top 5 우선순위 산정 | `docs/dashboard/report_user_top5.md` | `get_top5_improvements()` |
-| 설계 결함 / 편의 개선 분류 | `docs/dashboard/report_user_top5.md` | `classify_improvement_type()` |
-
-### AI 요약 및 권장 액션
-
-| 항목 | 참조 파일 | 함수 |
-| --- | --- | --- |
-| 주간지표 요약 + AI 권장 액션 | `docs/dashboard/report_ai_recommended.md` | `generate_ai_actions()` |
-
----
-
-## API 응답 권장 필드
-
-`/summary/*` 응답에는 알림 판단에 필요한 값을 함께 포함한다.
-
-| Endpoint | 권장 필드 |
-| --- | --- |
-| `/summary/overview` | `ticket_counts`, `response_metrics`, `coverage_metrics`, `source_distribution`, `status_distribution`, `routing_distribution`, `old_pending_count`, `recent_tickets` |
-| `/summary/risk` | `analysis_risk_distribution`, `sentiment_distribution`, `insight_risk_distribution`, `pattern_risk_distribution`, `safety_score_summary`, `safety_alerts`, `high_risk_tickets`, `safety_breach_candidates` |
-| `/summary/quality` | `draft_summary`, `evidence_summary`, `safety_summary`, `final_response_summary`, `notification_summary`, `quality_candidates`, `notification_failures` |
-| `/tickets` | `ticket_id`, `title`, `status`, `source_type`, `nickname`, `category`, `risk_level`, `sentiment`, `routing_target`, `latest_draft_id`, `latest_response_id`, `inquiry_created_at` |
-| `/tickets/{ticket_id}` | `ticket`, `account`, `analyses`, `drafts`, `evidence_docs`, `safety_results`, `final_responses`, `notifications`, `operation_logs` |
+현재 구현은 **주간 리포트 생성에 필요한 최소 집계와 행 데이터**만 사용한다.

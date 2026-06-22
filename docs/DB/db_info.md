@@ -43,6 +43,7 @@ See `docs/DB/notion_data.md` for a shorter summary oriented toward Notion and pr
 - The live `public` schema currently has 19 tables and no `_ex` mirror tables.
 - The document/RAG store in the live DB is `documents -> documents_chunks -> documents_embeddings`.
 - Older docs and some handoff notes still reference `sj_documents`, `test_documents_chunks`, and `test_documents_embeddings_large/small`; those table names are not present in the live `public` schema at this verification point.
+- `apps/weekly_report/db/top_requests.py` still references `voc_feedback.topic_keywords` as an optional keyword source, but `voc_feedback` is not part of the live schema described here.
 - Workflow write tables now expose database-generated PKs via `IDENTITY`: `answer_draft`, `evidence_docs`, `failed_queries`, `final_response`, `safety_results`, and `ticket_analysis`.
 
 ## Data Generation Reference
