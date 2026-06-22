@@ -200,6 +200,14 @@
       background: rgba(96, 150, 180, 0.68);
     }
 
+    .answer-list.answer-list-single li {
+      padding-left: 0;
+    }
+
+    .answer-list.answer-list-single li::before {
+      content: none;
+    }
+
     .answer-note {
       border-left: 3px solid rgba(96, 150, 180, 0.75);
       padding: 11px 13px;
@@ -413,7 +421,7 @@
         로그인한 게임 계정 정보를 바탕으로 결제, 아이템, 플레이 기록 문의를 더 정확하게 안내합니다.
       </p>
 
-      <div class="grid max-w-[710px] grid-cols-1 gap-5 md:grid-cols-3">
+      <div class="grid max-w-[790px] grid-cols-1 gap-5 md:grid-cols-3">
         <article class="min-h-[198px] rounded-2xl border border-brand-blue/18 bg-white/68 p-6 text-left shadow-[0_18px_40px_rgba(16,47,74,0.08)]">
           <div class="mb-5 grid h-[62px] w-[62px] place-items-center rounded-2xl border border-brand-blue/18 bg-brand-mist/38">
             <svg class="feature-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -422,7 +430,7 @@
               <path d="M8 13h5" />
             </svg>
           </div>
-          <h2 class="mb-3 text-[19px] font-black leading-snug">문의 유형 자동 분류</h2>
+          <h2 class="mb-3 whitespace-nowrap text-[17px] font-black leading-snug">문의 유형 자동 분류</h2>
           <p class="break-keep text-[15px] leading-7 text-[#244762]">결제, 버그, 계정 문의를 빠르게 구분해 필요한 흐름으로 안내합니다.</p>
         </article>
         <article class="min-h-[198px] rounded-2xl border border-brand-blue/18 bg-white/68 p-6 text-left shadow-[0_18px_40px_rgba(16,47,74,0.08)]">
@@ -434,7 +442,7 @@
               <path d="M10 15h4" />
             </svg>
           </div>
-          <h2 class="mb-3 text-[19px] font-black leading-snug">게임 기록 기반 안내</h2>
+          <h2 class="mb-3 whitespace-nowrap text-[17px] font-black leading-snug">게임 기록 기반 안내</h2>
           <p class="break-keep text-[15px] leading-7 text-[#244762]">계정의 최근 상태를 참고해 더 구체적인 답변을 제공합니다.</p>
         </article>
         <article class="min-h-[198px] rounded-2xl border border-brand-blue/18 bg-white/68 p-6 text-left shadow-[0_18px_40px_rgba(16,47,74,0.08)]">
@@ -444,7 +452,7 @@
               <path d="M21 12a9 9 0 1 1-6.2-8.6" />
             </svg>
           </div>
-          <h2 class="mb-3 text-[19px] font-black leading-snug">처리 상태 확인</h2>
+          <h2 class="mb-3 whitespace-nowrap text-[17px] font-black leading-snug">처리 상태 확인</h2>
           <p class="break-keep text-[15px] leading-7 text-[#244762]">접수된 문의와 이전 상담 내역을 이어서 확인할 수 있습니다.</p>
         </article>
       </div>
@@ -1796,6 +1804,14 @@
       );
     }
 
+    function isGenericFallbackSummary(text) {
+      return /(정확한 안내|즉각적인 해결책|답변).{0,18}(어렵|제공하기 어렵|드리기 어렵)/.test(String(text || ""));
+    }
+
+    function isGenericFollowupLine(text) {
+      return /(필요한 경우|문제가 지속될 경우|추가 확인이 필요한 경우).{0,24}(담당자|운영자|확인|검토).{0,24}(안내|진행|드리겠습니다)/.test(String(text || ""));
+    }
+
     function createAnswerSection(heading = "") {
       return {
         heading,
@@ -1958,6 +1974,16 @@
           section && (section.content || (section.items && section.items.length > 0))
         );
 
+        if (
+          isGenericFallbackSummary(result.summary)
+          && result.sections.length === 1
+          && result.sections[0].heading === "확인 사항"
+          && !result.sections[0].items.length
+          && isGenericFollowupLine(result.sections[0].content)
+        ) {
+          result.sections = [];
+        }
+
         if (!result.summary && result.sections.length) {
           result.summary = "문의하신 내용에 대한 안내입니다.";
         }
@@ -1993,7 +2019,7 @@
           ? `<div class="answer-section-content">${formatAnswerLine(section.content, emphasisState)}</div>`
           : "";
         const listHtml = section.items.length
-          ? `<ul class="answer-list">${section.items.map((item) => `<li>${formatAnswerLine(item, emphasisState)}</li>`).join("")}</ul>`
+          ? `<ul class="answer-list${section.items.length === 1 ? " answer-list-single" : ""}">${section.items.map((item) => `<li>${formatAnswerLine(item, emphasisState)}</li>`).join("")}</ul>`
           : "";
         return `<div class="answer-section">${sectionTitleHtml}${sectionContentHtml}${listHtml}</div>`;
       }).join("");
