@@ -16,7 +16,8 @@ from psycopg.rows import dict_row
 ROOT_DIR = Path(__file__).resolve().parents[4]
 EVAL_DIR = Path(__file__).resolve().parent
 AGENT_NAME = "answer_agent"
-DATASET_PATH = ROOT_DIR / "data" / "tests" / "answer_agents" / "answer_agent_eval_live_gold_20260618.json"
+DEFAULT_DATASET_PATH = ROOT_DIR / "apps" / "cs_auto" / "backend" / "evals" / "answer_agent_eval_dataset_live.json"
+DATASET_PATH = Path(os.environ.get("CS_AUTO_ANSWER_EVAL_DATASET", str(DEFAULT_DATASET_PATH)))
 os.environ.setdefault("CS_AUTO_KEYWORD_DIR", str(ROOT_DIR / "data" / "keywords"))
 os.environ.setdefault("CS_AUTO_SQL_DIR", str(ROOT_DIR / "data" / "sql"))
 
@@ -82,13 +83,19 @@ def _title_from_question(question: str, max_chars: int = 60) -> str:
 
 
 def _derive_category(example: dict[str, Any]) -> str:
+    answer_target = example.get("answer_target")
+    if isinstance(answer_target, dict) and answer_target.get("category"):
+        return str(answer_target.get("category"))
     return str(example.get("category") or "general")
 
 
 def _expected_query_type(example: dict[str, Any], category: str) -> str:
     if example.get("routing_target") not in DB_ROUTING_TARGETS:
         return ""
-    return str(example.get("gold_query_type") or "fixed_sql")
+    value = str(example.get("gold_query_type") or "").strip()
+    if value:
+        return value
+    return ""
 
 
 def _build_ticket_payload(example: dict[str, Any], question: str) -> dict[str, object]:
@@ -124,7 +131,12 @@ def _stringify_error(exc: Exception) -> str:
 
 
 def _extract_gold_documents(example: dict[str, Any]) -> list[dict[str, Any]]:
-    documents = example.get("gold_documents") or []
+    documents = example.get("gold_documents")
+    if documents is None:
+        gold_policy = example.get("gold_policy")
+        if isinstance(gold_policy, dict):
+            documents = gold_policy.get("documents")
+    documents = documents or []
     return [document for document in documents if isinstance(document, dict)]
 
 
@@ -209,7 +221,7 @@ def _run_db_case(router: DbSearchRouter, ticket_payload: dict[str, object], anal
     return {
         "expected_query_type": expected_query_type,
         "actual_query_type": actual_query_type,
-        "router_match": actual_query_type == expected_query_type,
+        "router_match": "" if not expected_query_type else actual_query_type == expected_query_type,
         "router_reason": "" if not router_decision else str(router_decision.get("reason") or ""),
         "router_error": router_error,
         "fixed_sql_ok": not fixed_error and bool(fixed_result.get("sql")),
@@ -348,6 +360,8 @@ def _build_report(case_results: list[dict[str, Any]]) -> dict[str, Any]:
 
     expected_counts = Counter(str(case["expected_query_type"]) for case in db_cases if case["expected_query_type"] != "")
     actual_counts = Counter(str(case["actual_query_type"]) or "error" for case in db_cases)
+    comparable_db_cases = [case for case in db_cases if case["expected_query_type"]]
+    doc_cases_with_gold = [case for case in doc_cases if int(case["gold_doc_total"] or 0) > 0]
 
     report = {
         "dataset_path": str(DATASET_PATH),
@@ -357,9 +371,15 @@ def _build_report(case_results: list[dict[str, Any]]) -> dict[str, Any]:
         "generated_at": datetime.now().isoformat(),
         "metrics": {
             "router_decision": {
-                "correct": sum(1 for case in db_cases if case["router_match"] is True),
-                "total": len(db_cases),
-                "accuracy": round(sum(1 for case in db_cases if case["router_match"] is True) / len(db_cases), 4) if db_cases else 0.0,
+                "correct": sum(1 for case in comparable_db_cases if case["router_match"] is True),
+                "total": len(comparable_db_cases),
+                "accuracy": round(
+                    sum(1 for case in comparable_db_cases if case["router_match"] is True) / len(comparable_db_cases),
+                    4,
+                )
+                if comparable_db_cases
+                else 0.0,
+                "comparable_cases": len(comparable_db_cases),
                 "expected_counts": dict(expected_counts),
                 "actual_counts": dict(actual_counts),
             },
@@ -386,23 +406,25 @@ def _build_report(case_results: list[dict[str, Any]]) -> dict[str, Any]:
                 "executed_ok": sum(1 for case in db_cases if case["chosen_path_ok"] is True),
                 "non_empty_rows": sum(1 for case in db_cases if int(case["chosen_path_row_count"] or 0) > 0),
                 "router_match_and_non_empty_rows": sum(
-                    1 for case in db_cases if case["router_match"] is True and int(case["chosen_path_row_count"] or 0) > 0
+                    1 for case in comparable_db_cases if case["router_match"] is True and int(case["chosen_path_row_count"] or 0) > 0
                 ),
             },
             "document_retrieval": {
                 "attempted": len(doc_cases),
                 "executed_ok": sum(1 for case in doc_cases if case["document_eval_ok"] is True),
                 "non_empty_results": sum(1 for case in doc_cases if int(case["document_result_count"] or 0) > 0),
-                "gold_chunk_hit_cases": sum(1 for case in doc_cases if case["document_gold_chunk_hit"] is True),
-                "gold_document_hit_cases": sum(1 for case in doc_cases if case["document_gold_document_hit"] is True),
+                "gold_doc_available_cases": len(doc_cases_with_gold),
+                "gold_chunk_hit_cases": sum(1 for case in doc_cases_with_gold if case["document_gold_chunk_hit"] is True),
+                "gold_document_hit_cases": sum(1 for case in doc_cases_with_gold if case["document_gold_document_hit"] is True),
             },
             "dataset_live_db_verification": {
                 "doc_cases": len(doc_cases),
-                "all_gold_document_ids_exist_cases": sum(1 for case in doc_cases if case["all_gold_document_ids_exist"] is True),
-                "all_gold_chunk_ids_exist_cases": sum(1 for case in doc_cases if case["all_gold_chunk_ids_exist"] is True),
-                "gold_documents_total": sum(int(case["gold_doc_total"] or 0) for case in doc_cases),
-                "gold_document_ids_verified_total": sum(int(case["gold_doc_verified_count"] or 0) for case in doc_cases),
-                "gold_chunk_ids_verified_total": sum(int(case["gold_chunk_verified_count"] or 0) for case in doc_cases),
+                "doc_cases_with_gold": len(doc_cases_with_gold),
+                "all_gold_document_ids_exist_cases": sum(1 for case in doc_cases_with_gold if case["all_gold_document_ids_exist"] is True),
+                "all_gold_chunk_ids_exist_cases": sum(1 for case in doc_cases_with_gold if case["all_gold_chunk_ids_exist"] is True),
+                "gold_documents_total": sum(int(case["gold_doc_total"] or 0) for case in doc_cases_with_gold),
+                "gold_document_ids_verified_total": sum(int(case["gold_doc_verified_count"] or 0) for case in doc_cases_with_gold),
+                "gold_chunk_ids_verified_total": sum(int(case["gold_chunk_verified_count"] or 0) for case in doc_cases_with_gold),
             },
         },
         "errors": [
@@ -464,6 +486,7 @@ def _save_artifacts(report: dict[str, Any], output_dir: Path) -> None:
             "correct",
             "total",
             "accuracy",
+            "comparable_cases",
             "attempted",
             "executed_ok",
             "non_empty_rows",
@@ -471,9 +494,11 @@ def _save_artifacts(report: dict[str, Any], output_dir: Path) -> None:
             "expected_cases",
             "expected_cases_with_rows",
             "router_match_and_non_empty_rows",
+            "gold_doc_available_cases",
             "gold_chunk_hit_cases",
             "gold_document_hit_cases",
             "doc_cases",
+            "doc_cases_with_gold",
             "all_gold_document_ids_exist_cases",
             "all_gold_chunk_ids_exist_cases",
             "gold_documents_total",

@@ -6,10 +6,12 @@ from chatbot.generation.response.fixed_responses import (
     fallback_response_for_category,
 )
 from chatbot.notifications.github_issue import dispatch_github_issue_notification
+from chatbot.observability.langfuse import link_chatbot_trace
 from chatbot.observability.logger import EVENT_TICKET_COMPLETION_COMPLETED, log_event
 from chatbot.repository.failed_query_repository import save_failed_query
 from chatbot.repository.ticket_repository import delete_qa_ticket, update_qa_ticket_raw_query
 from chatbot.schemas import ChatbotState
+from common.observability.langfuse import observe_if_enabled
 
 
 def _ticket_status_for_decision(decision: str, review_required: bool | None = None) -> str:
@@ -25,6 +27,23 @@ def _ticket_status_for_state(state: ChatbotState, decision: str) -> str:
     return _ticket_status_for_decision(decision, state.get("review_required"))
 
 
+def _normalized_bug_text(text: str) -> str:
+    return "\n".join(line.strip() for line in str(text or "").splitlines() if line.strip())
+
+
+def _join_unique_bug_parts(parts: list[str]) -> str:
+    normalized_seen: set[str] = set()
+    unique_parts: list[str] = []
+    for part in parts:
+        clean_part = str(part or "").strip()
+        normalized = _normalized_bug_text(clean_part)
+        if not normalized or normalized in normalized_seen:
+            continue
+        normalized_seen.add(normalized)
+        unique_parts.append(clean_part)
+    return "\n\n".join(unique_parts)
+
+
 def _format_bug_collection_user_text(state: ChatbotState) -> str | None:
     status = state.get("bug_collection_status")
     if status not in {"collecting", "ready_for_review"}:
@@ -35,7 +54,7 @@ def _format_bug_collection_user_text(state: ChatbotState) -> str | None:
         return initial_query
 
     reproduction_info = str(state.get("bug_report_form") or state.get("raw_query") or "").strip()
-    return "\n\n".join(part for part in [initial_query, reproduction_info] if part)
+    return _join_unique_bug_parts([initial_query, reproduction_info])
 
 
 def _is_category_redirect_response(final_text: str) -> bool:
@@ -128,12 +147,13 @@ def ticket_completion_node(state: ChatbotState) -> dict:
 
     raw_query = state.get("raw_query") or ""
     formatted_user_text = _format_bug_collection_user_text(state)
+    github_issue_content = formatted_user_text or raw_query
     formatted_raw_query = f"User: {formatted_user_text or raw_query}\nAI: {final_text}"
     notification_result = dispatch_github_issue_notification(
         {
             **state,
             "final_text": final_text,
-            "github_issue_content": formatted_raw_query if formatted_user_text else None,
+            "github_issue_content": github_issue_content,
         }
     )
     failed_query_result = _record_faq_safe_fallback_query(state, decision)
@@ -170,3 +190,32 @@ def ticket_completion_node(state: ChatbotState) -> dict:
         "failed_query_result": failed_query_result,
         "ticket_status_result": ticket_status_result,
     }
+
+
+_original_ticket_completion_node = ticket_completion_node
+
+
+@observe_if_enabled(
+    name="ticket_completion",
+    as_type="chain",
+    tags=["chatbot", "feature:completion"],
+)
+def ticket_completion_node(state: ChatbotState) -> dict:
+    link_chatbot_trace(
+        state,
+        tags=["feature:completion"],
+        input_payload={
+            "ticket_id": state.get("ticket_id"),
+            "safety_action": state.get("safety_action"),
+            "review_required": state.get("review_required"),
+            "draft_text_length": len(state.get("draft_text") or ""),
+        },
+    )
+    result = _original_ticket_completion_node(state)
+    link_chatbot_trace(
+        state,
+        tags=["feature:completion"],
+        metadata_source={**state, **result},
+        output_payload=result,
+    )
+    return result

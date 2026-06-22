@@ -5,11 +5,14 @@ from __future__ import annotations
 import asyncio
 import functools
 import importlib
+import logging
 import os
+from contextlib import AbstractContextManager, nullcontext
 from typing import Any, Callable, Final
 
 from dotenv import load_dotenv
 
+logger = logging.getLogger(__name__)
 
 _TRUE_VALUES: Final[set[str]] = {"1", "true", "yes", "on"}
 _DEFAULT_TRACE_METADATA_FIELDS: Final[tuple[str, ...]] = (
@@ -52,6 +55,13 @@ _ACTIVE_CONFIG: dict[str, Any] = {
 }
 
 
+def _langfuse_module() -> Any | None:
+    try:
+        return importlib.import_module("langfuse")
+    except Exception:
+        return None
+
+
 def _env_flag(name: str, default: bool) -> bool:
     value = os.getenv(name)
     if value is None:
@@ -77,25 +87,13 @@ def _prefixes_for_app(app_name: str) -> tuple[str, ...]:
 
 
 def _langfuse_sdk_available() -> bool:
-    try:
-        importlib.import_module("langfuse.decorators")
-        return True
-    except Exception:
-        return False
+    module = _langfuse_module()
+    return bool(module and hasattr(module, "observe") and hasattr(module, "get_client"))
 
 
 def _set_env_if_present(name: str, value: str) -> None:
     if value:
         os.environ[name] = value
-
-
-def _disable_legacy_langsmith_tracing() -> None:
-    os.environ["LANGSMITH_TRACING"] = "false"
-    os.environ["LANGCHAIN_TRACING_V2"] = "false"
-    os.environ["LANGSMITH_API_KEY"] = ""
-    os.environ["LANGCHAIN_API_KEY"] = ""
-    os.environ["LANGSMITH_PROJECT"] = ""
-    os.environ["LANGCHAIN_PROJECT"] = ""
 
 
 def configure_langfuse(
@@ -118,30 +116,22 @@ def configure_langfuse(
         modern_enabled = os.getenv(f"{prefix}_LANGFUSE_ENABLED")
         if modern_enabled is not None:
             enabled = _env_flag(f"{prefix}_LANGFUSE_ENABLED", enabled)
-        else:
-            enabled = _env_flag(f"{prefix}_LANGSMITH_TRACING", enabled)
 
         modern_public_key = _non_empty(os.getenv(f"{prefix}_LANGFUSE_PUBLIC_KEY"))
         if modern_public_key:
             public_key = modern_public_key
 
         modern_secret_key = _non_empty(os.getenv(f"{prefix}_LANGFUSE_SECRET_KEY"))
-        legacy_secret_key = _non_empty(os.getenv(f"{prefix}_LANGSMITH_API_KEY"))
         if modern_secret_key:
             secret_key = modern_secret_key
-        elif not secret_key and legacy_secret_key:
-            secret_key = legacy_secret_key
 
         modern_host = _non_empty(os.getenv(f"{prefix}_LANGFUSE_HOST"))
         if modern_host:
             host = modern_host
 
         modern_project = _non_empty(os.getenv(f"{prefix}_LANGFUSE_PROJECT"))
-        legacy_project = _non_empty(os.getenv(f"{prefix}_LANGSMITH_PROJECT"))
         if modern_project:
             project = modern_project
-        elif not project and legacy_project:
-            project = legacy_project
 
     sdk_available = _langfuse_sdk_available()
     project = project or app_name
@@ -164,9 +154,17 @@ def configure_langfuse(
     _set_env_if_present("LANGFUSE_PUBLIC_KEY", public_key)
     _set_env_if_present("LANGFUSE_SECRET_KEY", secret_key)
     _set_env_if_present("LANGFUSE_HOST", host)
+    _set_env_if_present("LANGFUSE_BASE_URL", host)
     _set_env_if_present("LANGFUSE_PROJECT", project)
     os.environ["LANGFUSE_ENABLED"] = "true" if enabled else "false"
-    _disable_legacy_langsmith_tracing()
+
+    if not sdk_available:
+        logger.warning("Langfuse SDK is not available; tracing disabled for app=%s", app_name)
+    elif _env_flag("LANGFUSE_ENABLED", False) and not enabled:
+        logger.warning(
+            "Langfuse tracing requested but not enabled for app=%s; check keys and environment configuration",
+            app_name,
+        )
 
     return dict(_ACTIVE_CONFIG)
 
@@ -216,14 +214,59 @@ def build_trace_metadata(
     return metadata
 
 
-def _langfuse_context() -> Any | None:
+def _langfuse_client() -> Any | None:
     if not langfuse_enabled():
         return None
     try:
-        module = importlib.import_module("langfuse.decorators")
-        return getattr(module, "langfuse_context", None)
+        module = _langfuse_module()
+        if module is None:
+            return None
+        return getattr(module, "get_client")()
     except Exception:
         return None
+
+
+def _propagation_metadata(metadata: dict[str, Any] | None) -> dict[str, str] | None:
+    if not metadata:
+        return None
+
+    normalized: dict[str, str] = {}
+    for key, value in metadata.items():
+        if value is None:
+            continue
+        normalized_key = "".join(char for char in str(key) if char.isalnum() or char == "_")
+        if not normalized_key:
+            continue
+        normalized_value = str(value)[:200]
+        if normalized_value:
+            normalized[normalized_key] = normalized_value
+    return normalized or None
+
+
+def trace_attributes(
+    *,
+    user_id: str | int | None = None,
+    session_id: str | int | None = None,
+    tags: list[str] | tuple[str, ...] | None = None,
+    metadata: dict[str, Any] | None = None,
+    trace_name: str | None = None,
+) -> AbstractContextManager[Any]:
+    client = _langfuse_client()
+    if client is None:
+        return nullcontext()
+
+    try:
+        module = _langfuse_module()
+        propagate_attributes = getattr(module, "propagate_attributes")
+        return propagate_attributes(
+            user_id=None if user_id is None else str(user_id),
+            session_id=None if session_id is None else str(session_id),
+            tags=build_trace_tags(*(tags or [])),
+            metadata=_propagation_metadata(metadata),
+            trace_name=trace_name,
+        )
+    except Exception:
+        return nullcontext()
 
 
 def link_current_trace(
@@ -235,30 +278,71 @@ def link_current_trace(
     input_payload: Any | None = None,
     output_payload: Any | None = None,
 ) -> None:
-    context = _langfuse_context()
-    if context is None:
+    client = _langfuse_client()
+    if client is None:
         return
 
-    trace_payload = {
-        "user_id": None if user_id is None else str(user_id),
-        "session_id": None if session_id is None else str(session_id),
-        "tags": build_trace_tags(*(tags or [])),
-        "metadata": metadata or {},
-    }
-    observation_payload = {
-        "input": input_payload,
-        "output": output_payload,
-        "metadata": metadata or {},
-    }
+    try:
+        with trace_attributes(
+            user_id=user_id,
+            session_id=session_id,
+            tags=tags,
+            metadata=metadata,
+        ):
+            client.update_current_span(
+                input=input_payload,
+                output=output_payload,
+                metadata=metadata or {},
+            )
+            if input_payload is not None or output_payload is not None:
+                client.set_current_trace_io(input=input_payload, output=output_payload)
+    except Exception:
+        pass
 
-    try:
-        context.update_current_trace(**trace_payload)
-    except Exception:
-        pass
-    try:
-        context.update_current_observation(**observation_payload)
-    except Exception:
-        pass
+
+def _score_value(value: Any) -> float | None:
+    if isinstance(value, bool):
+        return 1.0 if value else 0.0
+    if isinstance(value, (int, float)):
+        return float(value)
+    return None
+
+
+def record_current_scores(
+    scores: dict[str, Any],
+    *,
+    comments: dict[str, str] | None = None,
+) -> None:
+    client = _langfuse_client()
+    if client is None:
+        return
+
+    score_methods = [
+        getattr(client, "score_current_observation", None),
+        getattr(client, "score_current_trace", None),
+    ]
+    score_methods = [method for method in score_methods if callable(method)]
+    if not score_methods:
+        return
+
+    for name, raw_value in scores.items():
+        value = _score_value(raw_value)
+        if value is None:
+            continue
+
+        comment = None if comments is None else comments.get(name)
+        for method in score_methods:
+            try:
+                method(name=name, value=value, comment=comment)
+                break
+            except TypeError:
+                try:
+                    method(name, value, comment)
+                    break
+                except Exception:
+                    continue
+            except Exception:
+                continue
 
 
 def observe_if_enabled(
@@ -270,17 +354,22 @@ def observe_if_enabled(
     """Wrap a function with Langfuse observe when the SDK is available."""
 
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
-        merged_tags = build_trace_tags(*(tags or []))
-
         if not langfuse_enabled():
             return func
 
         try:
-            observe = getattr(importlib.import_module("langfuse.decorators"), "observe")
+            module = _langfuse_module()
+            if module is None:
+                return func
+            observe = getattr(module, "observe")
         except Exception:
             return func
 
-        decorator_kwargs: dict[str, Any] = {"name": name}
+        decorator_kwargs: dict[str, Any] = {
+            "name": name,
+            "capture_input": False,
+            "capture_output": False,
+        }
         if as_type:
             decorator_kwargs["as_type"] = as_type
 
@@ -288,16 +377,47 @@ def observe_if_enabled(
 
             @functools.wraps(func)
             async def observed_async(*args: Any, **kwargs: Any) -> Any:
-                link_current_trace(tags=merged_tags)
+                link_current_trace(tags=tags)
                 return await func(*args, **kwargs)
 
             return observe(**decorator_kwargs)(observed_async)
 
         @functools.wraps(func)
         def observed(*args: Any, **kwargs: Any) -> Any:
-            link_current_trace(tags=merged_tags)
+            link_current_trace(tags=tags)
             return func(*args, **kwargs)
 
         return observe(**decorator_kwargs)(observed)
 
     return decorator
+
+
+def get_langchain_config() -> dict[str, Any] | None:
+    if not langfuse_enabled():
+        return None
+    try:
+        module = importlib.import_module("langfuse.langchain")
+        callback_handler = getattr(module, "CallbackHandler")()
+        return {"callbacks": [callback_handler]}
+    except Exception:
+        return None
+
+
+def flush_langfuse() -> None:
+    client = _langfuse_client()
+    if client is None:
+        return
+    try:
+        client.flush()
+    except Exception:
+        logger.exception("Failed to flush Langfuse client")
+
+
+def shutdown_langfuse() -> None:
+    client = _langfuse_client()
+    if client is None:
+        return
+    try:
+        client.shutdown()
+    except Exception:
+        logger.exception("Failed to shutdown Langfuse client")

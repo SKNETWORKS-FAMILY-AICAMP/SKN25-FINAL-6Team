@@ -9,9 +9,16 @@ from typing import Any
 from ai.row_interpret import generate_review_row_interpretations
 from build.distributions import normalize_text, distribution, format_change
 from build.review_rows import pick_review_rows, build_analysis_rows_payload
+from common.observability.langfuse import observe_if_enabled
+from weekly_report_langfuse import link_weekly_report_trace
 from utils.stats import rate, safe_average
 
 
+@observe_if_enabled(
+    name="weekly_report_build_payload",
+    as_type="chain",
+    tags=["weekly-report", "feature:payload-build"],
+)
 def build_report_payload(
     *,
     window: dict[str, Any],
@@ -171,7 +178,7 @@ def build_report_payload(
         "window_end": previous_window["window_end"].isoformat(),
     }
 
-    return {
+    report_payload = {
         "title": f"운영 주간 보고서 - {window['window_end'].date().isoformat()}",
         "generated_at": generated_at.isoformat(),
         "window": window_payload,
@@ -244,3 +251,29 @@ def build_report_payload(
             ],
         ],
     }
+    link_weekly_report_trace(
+        report_payload,
+        tags=["weekly-report", "feature:payload-build"],
+        input_payload={
+            "days": int(window["days"]),
+            "current_rows_count": len(current_rows),
+            "previous_rows_count": len(previous_rows),
+            "top_requests_count": len(requests),
+        },
+        output_payload={
+            "title": report_payload["title"],
+            "analysis_count": report_payload["summary"]["analysis_count"],
+            "review_rows_count": len(report_payload["review_rows"]),
+        },
+        window_start=window["window_start"].isoformat(),
+        window_end=window["window_end"].isoformat(),
+        days=int(window["days"]),
+        current_rows_count=len(current_rows),
+        previous_rows_count=len(previous_rows),
+        analysis_count=report_payload["summary"]["analysis_count"],
+        review_rows_count=len(report_payload["review_rows"]),
+        top_requests_count=len(requests),
+        alerts_count=sum(len(alerts.get(key, [])) for key in ("hourly", "daily", "monthly")),
+        title=report_payload["title"],
+    )
+    return report_payload

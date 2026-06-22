@@ -28,7 +28,7 @@ template: |
   
   Use only payment-related reasoning:
   - If account_id is missing, ask for account identification before making a payment judgment.
-  - Use only the logged-in user's payment_context provided by the workflow. If a tool is available, it may only be used with the logged-in user_id/account_id from state.
+  - Use only the logged-in user's payment_context provided by the workflow. Do not perform additional payment, refund, item delivery, or gacha lookups during agent reasoning.
   - Use the workflow-provided payment_intent before deciding whether this is an automatic answer or operator-review case.
   - Never look up payments, refunds, item_delivery_logs, or gacha_logs by an account_id/payment_id that is not scoped to the logged-in user_id.
   - Check payments before answering payment status questions.

@@ -1,0 +1,7 @@
+﻿section,correct,total,accuracy,comparable_cases,attempted,executed_ok,non_empty_rows,non_empty_results,expected_cases,expected_cases_with_rows,router_match_and_non_empty_rows,gold_doc_available_cases,gold_chunk_hit_cases,gold_document_hit_cases,doc_cases,doc_cases_with_gold,all_gold_document_ids_exist_cases,all_gold_chunk_ids_exist_cases,gold_documents_total,gold_document_ids_verified_total,gold_chunk_ids_verified_total,expected_counts,actual_counts
+router_decision,27,28,0.9643,28,,,,,,,,,,,,,,,,,,"{'fixed_sql': 24, 'text_to_sql': 4}","{'fixed_sql': 25, 'text_to_sql': 3}"
+fixed_sql,,,,,28,20,20,,24,17,,,,,,,,,,,,,
+text_to_sql,,,,,28,20,16,,4,2,,,,,,,,,,,,,
+chosen_path,,,,,28,20,19,,,,19,,,,,,,,,,,,
+document_retrieval,,,,,36,36,,36,,,,36,20,22,,,,,,,,,
+dataset_live_db_verification,,,,,,,,,,,,,,,36,36,36,36,108,87,108,,

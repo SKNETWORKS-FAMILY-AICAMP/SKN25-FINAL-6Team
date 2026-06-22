@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from pydantic import BaseModel
+from common.observability.langfuse import get_langchain_config
 
 load_dotenv()
 
@@ -59,6 +60,7 @@ def invoke_structured_llm(
         [
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_prompt),
-        ]
+        ],
+        config=get_langchain_config(),
     )
     return response_model.model_validate(response)

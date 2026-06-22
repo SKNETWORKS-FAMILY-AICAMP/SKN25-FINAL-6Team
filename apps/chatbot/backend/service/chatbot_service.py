@@ -3,10 +3,11 @@ from __future__ import annotations
 import os
 from typing import Any
 
+from chatbot.constants import DEFAULT_DEMO_USER_ID
 from chatbot.observability.langfuse import build_chatbot_trace_metadata
 from chatbot.observability.logger import EVENT_NODE_COMPLETED, log_event
 from chatbot.utils.input_preprocessing import preprocess_user_input
-from common.observability.langfuse import link_current_trace, observe_if_enabled
+from common.observability.langfuse import get_langchain_config, link_current_trace, observe_if_enabled, trace_attributes
 
 
 def build_state(
@@ -14,7 +15,7 @@ def build_state(
     user_message: str,
     category: str | None = None,
     account_id: int | None = None,
-    user_id: int = 1,
+    user_id: int = DEFAULT_DEMO_USER_ID,
     session_id: str = "1-1",
     source_type: str = "chatbot",
     ui_category: str | None = None,
@@ -177,7 +178,7 @@ def run_chatbot(
     user_message: str,
     category: str | None = None,
     account_id: int | None = None,
-    user_id: int = 1,
+    user_id: int = DEFAULT_DEMO_USER_ID,
     session_id: str = "1-1",
     source_type: str = "chatbot",
     ui_category: str | None = None,
@@ -211,14 +212,21 @@ def run_chatbot(
         bug_collection_status=bug_collection_status,
         bug_report_form=bug_report_form,
     )
-    link_current_trace(
+    trace_metadata = build_chatbot_trace_metadata(state)
+    with trace_attributes(
         user_id=user_id,
         session_id=session_id,
         tags=["chatbot", "feature:generation"],
-        metadata=build_chatbot_trace_metadata(state),
-        input_payload=_chat_trace_inputs({"user_message": user_message}),
-    )
-    result = graph.invoke(state)
+        metadata=trace_metadata,
+    ):
+        link_current_trace(
+            user_id=user_id,
+            session_id=session_id,
+            tags=["chatbot", "feature:generation"],
+            metadata=trace_metadata,
+            input_payload=_chat_trace_inputs({"user_message": user_message}),
+        )
+        result = graph.invoke(state, config=get_langchain_config())
     log_event(
         "langfuse_trace_metadata_linked",
         ticket_id=ticket_id,
@@ -257,7 +265,7 @@ def stream_chatbot(
     user_message: str,
     category: str | None = None,
     account_id: int | None = None,
-    user_id: int = 1,
+    user_id: int = DEFAULT_DEMO_USER_ID,
     session_id: str = "1-1",
     source_type: str = "chatbot",
     ui_category: str | None = None,
@@ -291,33 +299,41 @@ def stream_chatbot(
         bug_collection_status=bug_collection_status,
         bug_report_form=bug_report_form,
     )
+    trace_metadata = build_chatbot_trace_metadata(state)
     link_current_trace(
         user_id=user_id,
         session_id=session_id,
         tags=["chatbot", "feature:generation", "feature:stream"],
-        metadata=build_chatbot_trace_metadata(state),
+        metadata=trace_metadata,
         input_payload=_chat_trace_inputs({"user_message": user_message}),
     )
     result: dict[str, Any] = {}
     node_summaries: list[dict[str, Any]] = []
 
-    for chunk in graph.stream(
-        state,
-        stream_mode="updates",
+    with trace_attributes(
+        user_id=user_id,
+        session_id=session_id,
+        tags=["chatbot", "feature:generation", "feature:stream"],
+        metadata=trace_metadata,
     ):
-        for node_name, node_update in chunk.items():
-            summary = _node_summary(node_name, node_update, {**state, **result})
-            node_summaries.append(summary)
-            _print_node_summary(summary)
-            log_event(
-                EVENT_NODE_COMPLETED,
-                ticket_id=ticket_id,
-                session_id=session_id,
-                node_name=f"stream:{node_name}",
-                status="stream_update",
-                metadata={"updated_keys": sorted(node_update.keys())},
-            )
-            result.update(node_update)
+        for chunk in graph.stream(
+            state,
+            config=get_langchain_config(),
+            stream_mode="updates",
+        ):
+            for node_name, node_update in chunk.items():
+                summary = _node_summary(node_name, node_update, {**state, **result})
+                node_summaries.append(summary)
+                _print_node_summary(summary)
+                log_event(
+                    EVENT_NODE_COMPLETED,
+                    ticket_id=ticket_id,
+                    session_id=session_id,
+                    node_name=f"stream:{node_name}",
+                    status="stream_update",
+                    metadata={"updated_keys": sorted(node_update.keys())},
+                )
+                result.update(node_update)
 
     log_event(
         "langfuse_trace_metadata_linked",

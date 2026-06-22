@@ -12,6 +12,10 @@ from typing import Any
 
 from xhtml2pdf import pisa
 
+from common.observability.langfuse import observe_if_enabled
+from weekly_report_langfuse import link_weekly_report_trace
+from utils.labels import translate_value
+
 
 FONT_FAMILY_NAME = "DashboardKorean"
 FONT_REGULAR_ENV = "DASHBOARD_WEEKLY_REPORT_FONT_REGULAR"
@@ -93,6 +97,45 @@ def _text(value: object, fallback: str = "-") -> str:
     return raw if raw else fallback
 
 
+def _category_metric_rows(report: dict[str, Any]) -> list[dict[str, Any]]:
+    rows = report.get("category_comparisons") or []
+    normalized: list[dict[str, Any]] = []
+    for row in rows:
+        category = str(row.get("category") or "unknown")
+        normalized.append(
+            {
+                "category": category,
+                "label": str(translate_value(category, key="category")),
+                "current": int(row.get("current") or 0),
+                "previous": int(row.get("previous") or 0),
+            }
+        )
+    if normalized:
+        return normalized
+
+    cur_map = {
+        str(row.get("category") or "unknown"): int(row.get("count") or 0)
+        for row in (report.get("category_counts_current") or [])
+    }
+    prev_map = {
+        str(row.get("category") or "unknown"): int(row.get("count") or 0)
+        for row in (report.get("category_counts_previous") or [])
+    }
+    ordered_categories = list(cur_map)
+    for category in prev_map:
+        if category not in cur_map:
+            ordered_categories.append(category)
+    return [
+        {
+            "category": category,
+            "label": str(translate_value(category, key="category")),
+            "current": cur_map.get(category, 0),
+            "previous": prev_map.get(category, 0),
+        }
+        for category in ordered_categories
+    ]
+
+
 # ── 차트 렌더링 ────────────────────────────────────────────────────────────────
 
 def _make_bar_chart_png(
@@ -132,6 +175,47 @@ def _make_bar_chart_png(
         return None
 
 
+def _make_line_chart_png(
+    labels: list[str],
+    series: list[dict[str, Any]],
+    *,
+    width: int = 720,
+    height: int = 280,
+) -> str | None:
+    """Plotly 라인차트 PNG → data URI. 실패하면 None."""
+    if not labels or not series:
+        return None
+    try:
+        import plotly.graph_objects as go
+        import plotly.io as pio
+
+        fig = go.Figure()
+        for item in series:
+            fig.add_trace(
+                go.Scatter(
+                    x=labels,
+                    y=item["values"],
+                    mode="lines+markers",
+                    name=item["name"],
+                    line={"color": item["color"], "dash": item.get("dash", "solid"), "width": 3},
+                    marker={"size": 6},
+                )
+            )
+        fig.update_layout(
+            paper_bgcolor="#ffffff",
+            plot_bgcolor="#f8f9fb",
+            margin={"l": 36, "r": 20, "t": 18, "b": 40},
+            font={"family": "Arial", "size": 11, "color": "#1a1a2e"},
+            legend={"orientation": "h", "y": 1.12, "x": 0.0},
+            yaxis={"gridcolor": "#f3f4f6", "zeroline": False, "title": "문의 건수"},
+            xaxis={"tickfont": {"size": 10}, "title": "시간"},
+        )
+        image_bytes = pio.to_image(fig, format="png", width=width, height=height, scale=2)
+        return "data:image/png;base64," + base64.b64encode(image_bytes).decode("ascii")
+    except Exception:
+        return None
+
+
 # ── 섹션 빌더 ──────────────────────────────────────────────────────────────────
 
 def _summary_bullets(report: dict[str, Any]) -> list[str]:
@@ -144,20 +228,15 @@ def _summary_bullets(report: dict[str, Any]) -> list[str]:
     change_rate = _text(comp.get("change_rate"), "-")
     bullets.append(f"총 응대 건수 {total:,}건 — 전주 대비 {change_rate}")
 
-    cur_map = {r.get("category", ""): int(r.get("count", 0))
-               for r in (report.get("category_counts_current") or [])}
-    prev_map = {r.get("category", ""): int(r.get("count", 0))
-                for r in (report.get("category_counts_previous") or [])}
-
     notable: list[tuple[float, str]] = []
-    for cat in _CATEGORIES:
-        cur = cur_map.get(cat, 0)
-        prev = prev_map.get(cat, 0)
+    for row in _category_metric_rows(report):
+        cur = row["current"]
+        prev = row["previous"]
         if prev > 0:
             pct = (cur - prev) / prev * 100
             if abs(pct) >= 10:
                 word = "증가" if pct > 0 else "감소"
-                notable.append((abs(pct), f"{cat} 카테고리 전주 대비 {abs(pct):.0f}% {word}"))
+                notable.append((abs(pct), f"{row['label']} 카테고리 전주 대비 {abs(pct):.0f}% {word}"))
     for _, txt in sorted(notable, reverse=True)[:2]:
         bullets.append(txt)
 
@@ -214,15 +293,14 @@ def _build_ai_section(report: dict[str, Any]) -> str:
 
 def _build_category_blocks(report: dict[str, Any]) -> str:
     """카테고리별 건수 블록 — 건수 · ▲▼ badge · 증감 텍스트."""
-    cur_map = {r.get("category", ""): int(r.get("count", 0))
-               for r in (report.get("category_counts_current") or [])}
-    prev_map = {r.get("category", ""): int(r.get("count", 0))
-                for r in (report.get("category_counts_previous") or [])}
+    category_rows = _category_metric_rows(report)
+    if not category_rows:
+        return "<div class='no-data'>카테고리 지표 데이터가 없습니다.</div>"
 
     cells: list[str] = []
-    for cat in _CATEGORIES:
-        cur = cur_map.get(cat, 0)
-        prev = prev_map.get(cat, 0)
+    for row in category_rows:
+        cur = row["current"]
+        prev = row["previous"]
 
         if prev > 0:
             pct = (cur - prev) / prev * 100
@@ -239,13 +317,16 @@ def _build_category_blocks(report: dict[str, Any]) -> str:
                 arrow = "→"
                 note = "전주와 동일합니다"
             badge_html = f'<div><span class="{badge_cls}">{arrow} {abs(pct):.0f}%</span></div>'
+        elif cur > 0:
+            badge_html = '<div><span class="badge-up">NEW</span></div>'
+            note = "전주 대비 신규 발생"
         else:
             badge_html = '<div><span class="badge-eq">— 비교 없음</span></div>'
             note = "전주 비교 데이터 없음"
 
         cells.append(f"""
         <td class="m-block">
-            <div class="m-cat">{escape(cat)}</div>
+            <div class="m-cat">{escape(row["label"])}</div>
             <div class="m-count">{cur:,}</div>
             {badge_html}
             <div class="m-note">{escape(note)}</div>
@@ -255,52 +336,51 @@ def _build_category_blocks(report: dict[str, Any]) -> str:
     return f"<table class='m-row'><tr>{''.join(cells)}</tr></table>"
 
 
-def _build_heatmap(hourly: list[dict[str, Any]]) -> str:
-    """24시간 히트맵 — 두 줄(AM/PM) 테이블, Z-Score 기반 색상."""
-    by_hour = {item["hour"]: item for item in hourly}
+def _build_hourly_comparison_chart(hourly_volume: dict[str, Any]) -> str:
+    """이번 주 vs 최근 4주 평균 시간대별 문의량 2선 차트."""
+    labels = [str(label) for label in (hourly_volume.get("labels") or [])]
+    current = [float(value) for value in (hourly_volume.get("current") or [])]
+    baseline = [float(value) for value in (hourly_volume.get("baseline") or [])]
+    baseline_label = str(hourly_volume.get("baseline_label") or "최근 4주 평균")
+    if not labels or len(labels) != len(current) or len(labels) != len(baseline):
+        return "<div class='no-data'>시간대 비교 데이터가 없습니다.</div>"
 
-    def cell(h: int) -> str:
-        item = by_hour.get(h, {})
-        level = item.get("level", "normal")
-        cnt = item.get("current", "")
-        if level == "critical":
-            bg, fg = "#b45309", "#ffffff"
-        elif level == "warning":
-            bg, fg = "#f97316", "#ffffff"
-        else:
-            bg, fg = "#f0f2f5", "#9ca3af"
-        cnt_txt = f"<br/>{cnt}" if cnt else ""
-        return (
-            f'<td style="background:{bg};color:{fg};text-align:center;'
-            f'padding:4px 1px;font-size:7pt;border:1px solid #e5e7eb;width:4.16%;">'
-            f'{h:02d}시{cnt_txt}</td>'
-        )
-
-    am = "".join(cell(h) for h in range(12))
-    pm = "".join(cell(h) for h in range(12, 24))
-    legend = (
-        '<div style="font-size:7pt;color:#888;margin-top:3px;">'
-        '<span style="color:#b45309;font-weight:bold;">■ 위험(Z≥3)</span>&nbsp;&nbsp;'
-        '<span style="color:#f97316;font-weight:bold;">■ 경고(Z≥2)</span>&nbsp;&nbsp;'
-        '□ 정상</div>'
+    uri = _make_line_chart_png(
+        labels,
+        [
+            {"name": "이번 주", "values": current, "color": "#1e3a5f"},
+            {"name": baseline_label, "values": baseline, "color": "#f97316", "dash": "dot"},
+        ],
+        width=480,
+        height=240,
     )
+    if uri:
+        chart = f'<img style="width:100%;height:auto;" src="{uri}" />'
+    else:
+        chart = (
+            "<table class='fb-table'>"
+            "<tr><td><strong>시간</strong></td><td><strong>이번 주</strong></td>"
+            f"<td><strong>{escape(baseline_label)}</strong></td></tr>"
+            + "".join(
+                f"<tr><td>{escape(label)}시</td><td>{int(current[index]):,}건</td><td>{baseline[index]:,.1f}건</td></tr>"
+                for index, label in enumerate(labels)
+            )
+            + "</table>"
+        )
     return (
-        f'<div class="heat-label">시간별 문의량 (운영 인력 배치)</div>'
-        f'<table style="width:100%;table-layout:fixed;border-collapse:collapse;">'
-        f'<tr>{am}</tr><tr>{pm}</tr></table>'
-        f'<div style="font-size:7pt;color:#bbb;margin-top:1px;">'
-        f'위: 00~11시 / 아래: 12~23시</div>'
-        f'{legend}'
+        '<div class="heat-label">시간별 문의량 추이</div>'
+        f'<div class="sr-sub">실선: 이번 주 / 점선: {escape(baseline_label)}</div>'
+        f"{chart}"
     )
 
 
 def _build_spike_section(spike_alerts: dict[str, Any]) -> str:
     """전주 폭증(좌) · 월별 추세(우) 2컬럼."""
     daily = spike_alerts.get("daily") or []
-    hourly = spike_alerts.get("hourly") or []
+    hourly_volume = spike_alerts.get("hourly_volume") or {}
     monthly = spike_alerts.get("monthly") or []
 
-    # ── 좌: 7일 바차트 + 히트맵 ──
+    # ── 좌: 7일 바차트 + 시간대별 2선 차트 ──
     if daily:
         labels = [r.get("day", "?") for r in daily]
         values = [float(r.get("this_week", 0)) for r in daily]
@@ -364,10 +444,10 @@ def _build_spike_section(spike_alerts: dict[str, Any]) -> str:
     <table class="sr-table">
         <tr>
             <td class="sr-col">
-                <div class="sr-badge sr-spike">전주 대비 폭증 문의</div>
+                <div class="sr-badge sr-spike">주간 문의량 추이</div>
                 {f'<div class="sr-sub">{escape(sub)}</div>' if sub else ''}
                 {left_chart}
-                {_build_heatmap(hourly)}
+                {_build_hourly_comparison_chart(hourly_volume)}
             </td>
             <td class="sr-col">
                 <div class="sr-badge sr-spike">월별 폭증 문의</div>
@@ -393,8 +473,8 @@ def _build_top5_section(top_requests: list[dict[str, Any]]) -> str:
         rows = ""
         for item in items:
             rank = escape(str(item.get("rank", "?")))
-            cat = escape(str(item.get("category", "?")))
-            kw = escape(" / ".join(item.get("topic_keywords") or []) or "—")
+            cat = escape(str(translate_value(item.get("category"), key="category")))
+            kw = escape(" / ".join(item.get("topic_keywords") or []) or "-")
             cnt = int(item.get("count", 0))
             rows += f"""
             <li>
@@ -631,10 +711,30 @@ def _build_html(report: dict[str, Any]) -> str:
     """
 
 
+@observe_if_enabled(
+    name="weekly_report_render_pdf",
+    as_type="generation",
+    tags=["weekly-report", "feature:pdf-render"],
+)
 def render_report_pdf(report: dict[str, Any]) -> bytes:
+    link_weekly_report_trace(
+        report,
+        tags=["weekly-report", "feature:pdf-render"],
+        input_payload={"title": report.get("title"), "generated_at": report.get("generated_at")},
+        pdf_rendered=False,
+        title=str(report.get("title") or ""),
+    )
     html = _build_html(report)
     buffer = io.BytesIO()
     result = pisa.CreatePDF(src=html, dest=buffer, encoding="utf-8", link_callback=_resolve_resource_path)
     if result.err:
         raise RuntimeError("주간 리포트 PDF 렌더링에 실패했습니다")
-    return buffer.getvalue()
+    pdf_bytes = buffer.getvalue()
+    link_weekly_report_trace(
+        report,
+        tags=["weekly-report", "feature:pdf-render"],
+        output_payload={"pdf_bytes": len(pdf_bytes)},
+        pdf_rendered=True,
+        title=str(report.get("title") or ""),
+    )
+    return pdf_bytes

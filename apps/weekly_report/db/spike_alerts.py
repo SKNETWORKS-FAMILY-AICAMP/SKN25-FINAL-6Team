@@ -20,7 +20,9 @@ import math
 from datetime import datetime, timedelta
 from typing import Any
 
+from common.observability.langfuse import observe_if_enabled
 from db.connection import _fetch_all, db_connection, dict_row
+from weekly_report_langfuse import link_weekly_report_trace
 
 # Z-Score 임계값: Grubbs(1969) 기준 — 2.0은 95%, 3.0은 99.7% 신뢰 수준.
 _ZSCORE_WARNING = 2.0
@@ -130,6 +132,62 @@ def _calculate_zscore_by_hour(window: dict[str, Any]) -> list[dict[str, Any]]:
 
     # Z-Score 내림차순 정렬 — 가장 이상한 시간대가 상단에 오도록 한다.
     return sorted(results, key=lambda x: -x["zscore"])
+
+
+def _calculate_hourly_volume_comparison(window: dict[str, Any]) -> dict[str, Any]:
+    """이번 주 24시간 문의량과 최근 4주 동일 시간대 평균을 반환한다."""
+    current_start: datetime = window["window_start"]
+    current_end: datetime = window["window_end"]
+    past_start = current_start - timedelta(weeks=_PAST_WEEKS)
+
+    with db_connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            current_rows = _fetch_all(
+                cur,
+                """
+                SELECT
+                    EXTRACT(HOUR FROM t.inquiry_created_at)::int AS hour,
+                    COUNT(*) AS cnt
+                FROM qa_ticket t
+                WHERE t.inquiry_created_at >= %s
+                  AND t.inquiry_created_at < %s
+                GROUP BY 1
+                """,
+                (current_start, current_end),
+            )
+            past_rows = _fetch_all(
+                cur,
+                """
+                SELECT
+                    EXTRACT(HOUR FROM t.inquiry_created_at)::int AS hour,
+                    DATE_TRUNC('week', t.inquiry_created_at) AS week_start,
+                    COUNT(*) AS cnt
+                FROM qa_ticket t
+                WHERE t.inquiry_created_at >= %s
+                  AND t.inquiry_created_at < %s
+                GROUP BY 1, 2
+                """,
+                (past_start, current_start),
+            )
+
+    current_by_hour = {int(row["hour"]): int(row["cnt"]) for row in current_rows}
+    past_by_hour: dict[int, list[float]] = {}
+    for row in past_rows:
+        hour = int(row["hour"])
+        past_by_hour.setdefault(hour, []).append(float(row["cnt"]))
+
+    labels = [f"{hour:02d}" for hour in range(24)]
+    current = [current_by_hour.get(hour, 0) for hour in range(24)]
+    baseline = [
+        round(sum(past_by_hour.get(hour, [])) / len(past_by_hour[hour]), 2) if past_by_hour.get(hour) else 0.0
+        for hour in range(24)
+    ]
+    return {
+        "labels": labels,
+        "current": current,
+        "baseline": baseline,
+        "baseline_label": f"최근 {_PAST_WEEKS}주 평균",
+    }
 
 
 def _calculate_wow_by_day(window: dict[str, Any]) -> list[dict[str, Any]]:
@@ -321,18 +379,52 @@ def build_spike_slack_blocks(alerts: dict[str, Any]) -> list[dict]:
     return blocks
 
 
+@observe_if_enabled(
+    name="weekly_report_detect_spike_alerts",
+    as_type="generation",
+    tags=["weekly-report", "feature:data-fetch", "source:spike-alerts"],
+)
 def detect(window: dict[str, Any]) -> dict[str, Any]:
     """세 가지 방법론으로 폭증·위험 현황을 감지해 반환한다.
 
     반환 구조:
     {
         "hourly":  [Z-Score 이상 시간대 리스트],
+        "hourly_volume": {"labels": [...], "current": [...], "baseline": [...]},
         "daily":   [WoW 이상 요일 리스트],
         "monthly": [직전 4주 추세 리스트],
     }
     """
-    return {
+    link_weekly_report_trace(
+        window,
+        tags=["weekly-report", "feature:data-fetch", "source:spike-alerts"],
+        input_payload={
+            "window_start": window["window_start"].isoformat(),
+            "window_end": window["window_end"].isoformat(),
+            "days": window["days"],
+        },
+        window_start=window["window_start"].isoformat(),
+        window_end=window["window_end"].isoformat(),
+        days=int(window["days"]),
+    )
+    result = {
         "hourly": _calculate_zscore_by_hour(window),
+        "hourly_volume": _calculate_hourly_volume_comparison(window),
         "daily": _calculate_wow_by_day(window),
         "monthly": _calculate_monthly_trend(window),
     }
+    link_weekly_report_trace(
+        {"window_start": window["window_start"].isoformat(), "window_end": window["window_end"].isoformat()},
+        tags=["weekly-report", "feature:data-fetch", "source:spike-alerts"],
+        output_payload={
+            "hourly_alert_count": len(result["hourly"]),
+            "daily_alert_count": len(result["daily"]),
+            "monthly_trend_count": len(result["monthly"]),
+        },
+        window_start=window["window_start"].isoformat(),
+        window_end=window["window_end"].isoformat(),
+        hourly_alert_count=len(result["hourly"]),
+        daily_alert_count=len(result["daily"]),
+        monthly_trend_count=len(result["monthly"]),
+    )
+    return result

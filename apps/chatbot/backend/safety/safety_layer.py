@@ -16,9 +16,11 @@ from chatbot.constants import (
     TOXICITY_THRESHOLD,
 )
 from chatbot.generation.response.fixed_responses import SAFE_FALLBACK_RESPONSE
+from chatbot.observability.langfuse import link_chatbot_trace
 from chatbot.observability.logger import EVENT_SAFETY_CHECKED, log_event
 from chatbot.repository.safety_repository import save_safety_results
 from chatbot.schemas import ChatbotState
+from common.observability.langfuse import observe_if_enabled, record_current_scores
 from common.observability.logger import estimate_tokens, record_usage
 
 
@@ -357,7 +359,13 @@ def _payment_context_requires_review(state: ChatbotState) -> tuple[bool, str | N
         "delivery_status",
         {"pending", "failed", "processing", "requested", "미지급", "대기", "실패"},
     )
-    if asks_delivery_or_reward and has_completed_payment and (has_pending_or_failed_delivery or not has_delivered_item):
+    delivery_is_missing_or_unresolved = has_pending_or_failed_delivery or not has_delivered_item
+    requires_paid_delivery_review = (
+        asks_delivery_or_reward
+        and has_completed_payment
+        and delivery_is_missing_or_unresolved
+    )
+    if requires_paid_delivery_review:
         return True, "paid_item_delivery_requires_operator_review"
 
     return False, None
@@ -626,3 +634,47 @@ def safety_layer_node(state: ChatbotState) -> dict:
         "retry_count": state["retry_count"] + (1 if not safety_passed else 0),
         "safety_result": safety_result,
     }
+
+
+_original_safety_layer_node = safety_layer_node
+
+
+@observe_if_enabled(
+    name="safety_layer",
+    as_type="chain",
+    tags=["chatbot", "feature:safety"],
+)
+def safety_layer_node(state: ChatbotState) -> dict:
+    link_chatbot_trace(
+        state,
+        tags=["feature:safety"],
+        input_payload={
+            "ticket_id": state.get("ticket_id"),
+            "draft_id": state.get("draft_id"),
+            "draft_text_length": len(state.get("draft_text") or ""),
+            "retrieved_count": len(state.get("retrieved_documents") or []),
+            "reasoning_node": state.get("reasoning_node"),
+        },
+    )
+    result = _original_safety_layer_node(state)
+    record_current_scores(
+        {
+            "factuality_score": result.get("factuality_score"),
+            "hallucination_score": result.get("hallucination_score"),
+            "toxicity_score": result.get("toxicity_score"),
+            "policy_violation_score": result.get("policy_violation_score"),
+            "review_required": result.get("review_required"),
+            "safety_passed": result.get("safety_passed"),
+        },
+        comments={
+            "review_required": str(result.get("safety_reason") or ""),
+            "safety_passed": str(result.get("safety_action") or ""),
+        },
+    )
+    link_chatbot_trace(
+        state,
+        tags=["feature:safety"],
+        metadata_source={**state, **result},
+        output_payload=result,
+    )
+    return result

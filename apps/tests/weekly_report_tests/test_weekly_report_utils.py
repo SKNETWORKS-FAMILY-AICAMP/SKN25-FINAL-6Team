@@ -246,6 +246,13 @@ class TestTranslateValue:
         # key 없이도 VALUE_LABELS에 정확히 있으면 번역(범용 폴백)
         assert translate_value("unknown") == "확인 필요"
 
+    def test_weekly_report_category_values_are_translated(self):
+        assert translate_value("payment") == "결제"
+        assert translate_value("bug") == "인게임버그"
+        assert translate_value("account") == "계정"
+        assert translate_value("gacha") == "뽑기"
+        assert translate_value("policy") == "정책"
+
     def test_unknown_value_without_key_returns_original(self):
         # 매핑 완전 미정의 → 원본 그대로 반환해 데이터 소실 방지
         assert translate_value("totally_unmapped_value") == "totally_unmapped_value"

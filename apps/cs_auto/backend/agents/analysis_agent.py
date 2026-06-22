@@ -25,8 +25,11 @@ from common.llm.client import get_chat_llm
 from common.observability.langfuse import (
     build_trace_metadata,
     configure_langfuse,
+    flush_langfuse,
+    get_langchain_config,
     link_current_trace,
     observe_if_enabled,
+    trace_attributes,
 )
 
 configure_langfuse("cs-auto", default_tags=["cs-auto", "analysis"])
@@ -324,7 +327,7 @@ def _category_llm():
 def _classify_category(enriched: EnrichedTicket) -> Category:
     chain = CATEGORY_PROMPT | _category_llm() | CATEGORY_DECISION_PARSER
     try:
-        decision = chain.invoke(_build_category_prompt_input(enriched))
+        decision = chain.invoke(_build_category_prompt_input(enriched), config=get_langchain_config())
         return decision.category
     except Exception:
         return _classify_category_by_keywords(enriched)
@@ -333,7 +336,7 @@ def _classify_category(enriched: EnrichedTicket) -> Category:
 def _add_routing_target(parts: dict[str, object]) -> dict[str, object]:
     # LCEL 체인으로 응답 근거 경로를 결정하고 기존 분석 중간값에 routing_target을 추가한다.
     chain = ROUTING_PROMPT | _routing_llm() | ROUTING_DECISION_PARSER
-    decision = chain.invoke(_build_routing_prompt_input(parts))
+    decision = chain.invoke(_build_routing_prompt_input(parts), config=get_langchain_config())
     return {**parts, "routing_target": decision.routing_target}
 
 
@@ -363,63 +366,72 @@ def build_analysis_result(ticket: dict[str, object] | TicketPayload) -> Analysis
 
     # 1. 원본 티켓을 검증하고 제목+본문을 분석 가능한 텍스트로 정규화한다.
     enriched = _build_enriched_ticket(_to_ticket_payload(ticket))
-    link_current_trace(
+    trace_metadata = build_trace_metadata(
+        enriched.ticket.model_dump(),
+        analysis_stage="build_analysis_result",
+    )
+    with trace_attributes(
         user_id=enriched.ticket.user_id,
         session_id=enriched.ticket.session_id,
         tags=["feature:analysis"],
-        metadata=build_trace_metadata(
-            enriched.ticket.model_dump(),
-            analysis_stage="build_analysis_result",
-        ),
-        input_payload={"ticket_id": enriched.ticket.ticket_id},
-    )
+        metadata=trace_metadata,
+    ):
+        link_current_trace(
+            user_id=enriched.ticket.user_id,
+            session_id=enriched.ticket.session_id,
+            tags=["feature:analysis"],
+            metadata=trace_metadata,
+            input_payload={"ticket_id": enriched.ticket.ticket_id},
+        )
 
-    # 2. 키워드 기반으로 카테고리, 감성, 위험도를 먼저 계산한다.
-    category = _classify_category(enriched)
-    sentiment = _score_sentiment(enriched)
-    risk_level = _score_risk(enriched, category)
+        # 2. 키워드 기반으로 카테고리, 감성, 위험도를 먼저 계산한다.
+        category = _classify_category(enriched)
+        sentiment = _score_sentiment(enriched)
+        risk_level = _score_risk(enriched, category)
 
-    # 3. 계산된 분석값을 바탕으로 답변 생성에 필요한 근거 경로를 LLM이 결정한다.
-    routed = _add_routing_target(
-        {
-            "enriched": enriched,
-            "category": category,
-            "sentiment": sentiment,
-            "risk_level": risk_level,
-        }
-    )
-    routing_target = routed["routing_target"]
+        # 3. 계산된 분석값을 바탕으로 답변 생성에 필요한 근거 경로를 LLM이 결정한다.
+        routed = _add_routing_target(
+            {
+                "enriched": enriched,
+                "category": category,
+                "sentiment": sentiment,
+                "risk_level": risk_level,
+            }
+        )
+        routing_target = routed["routing_target"]
 
-    # 4. ticket_analysis 테이블에 저장할 최종 분석 모델을 만든다.
-    result = AnalysisResult(
-        ticket_id=enriched.ticket.ticket_id,
-        category=category,
-        enriched_query=enriched.enriched_query,
-        risk_level=risk_level,
-        sentiment=sentiment,
-        routing_target=routing_target,
-        summary=_summarize(enriched, category, routing_target, sentiment, risk_level),
-    )
-    link_current_trace(
-        user_id=enriched.ticket.user_id,
-        session_id=enriched.ticket.session_id,
-        tags=["feature:analysis"],
-        metadata=build_trace_metadata(result.model_dump(), analysis_stage="build_analysis_result"),
-        output_payload={"ticket_id": result.ticket_id, "category": result.category},
-    )
-    return result
+        # 4. ticket_analysis 테이블에 저장할 최종 분석 모델을 만든다.
+        result = AnalysisResult(
+            ticket_id=enriched.ticket.ticket_id,
+            category=category,
+            enriched_query=enriched.enriched_query,
+            risk_level=risk_level,
+            sentiment=sentiment,
+            routing_target=routing_target,
+            summary=_summarize(enriched, category, routing_target, sentiment, risk_level),
+        )
+        link_current_trace(
+            user_id=enriched.ticket.user_id,
+            session_id=enriched.ticket.session_id,
+            tags=["feature:analysis"],
+            metadata=build_trace_metadata(result.model_dump(), analysis_stage="build_analysis_result"),
+            output_payload={"ticket_id": result.ticket_id, "category": result.category},
+        )
+        return result
 
 
 @observe_if_enabled(name="cs_auto_run_analysis_agent", as_type="chain", tags=["feature:analysis"])
 def run_analysis_agent() -> None:
     """분석되지 않은 문의를 순차 처리한다."""
-
-    targets = fetch_unanalyzed_tickets()
-    for ticket in targets:
-        analysis = analyze_ticket(ticket)
-        saved = save_ticket_analysis(analysis)
-        # 분석 저장이 끝난 티켓은 재처리되지 않도록 qa_ticket 상태를 완료 처리한다.
-        mark_ticket_analysis_completed(int(saved["ticket_id"]))
+    try:
+        targets = fetch_unanalyzed_tickets()
+        for ticket in targets:
+            analysis = analyze_ticket(ticket)
+            saved = save_ticket_analysis(analysis)
+            # 분석 저장이 끝난 티켓은 재처리되지 않도록 qa_ticket 상태를 완료 처리한다.
+            mark_ticket_analysis_completed(int(saved["ticket_id"]))
+    finally:
+        flush_langfuse()
 
 
 def fetch_unanalyzed_tickets() -> list[dict[str, object]]:

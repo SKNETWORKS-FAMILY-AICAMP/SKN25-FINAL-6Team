@@ -38,6 +38,50 @@ def test_preprocess_user_input_masks_sensitive_values_without_dropping_question(
         "결제 문의입니다. email test@example.com phone 010-1234-5678 비밀번호: qwer1234"
     )
 
+
+def test_safety_layer_records_langfuse_scores(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_record(scores, **kwargs):
+        captured["scores"] = scores
+        captured["kwargs"] = kwargs
+
+    monkeypatch.setattr(
+        safety_layer,
+        "_original_safety_layer_node",
+        lambda state: {
+            "factuality_score": 0.9,
+            "hallucination_score": 0.1,
+            "toxicity_score": 0.0,
+            "policy_violation_score": 0.0,
+            "review_required": False,
+            "safety_passed": True,
+            "safety_action": "AUTO_RESPONSE",
+            "safety_reason": "ok",
+            **preprocess_user_input(
+                "寃곗젣 臾몄쓽?낅땲?? email test@example.com phone 010-1234-5678 鍮꾨?踰덊샇: qwer1234"
+                ),
+                "raw_content": "\uacb0\uc81c \ubb38\uc758\uc785\ub2c8\ub2e4. email test@example.com phone 010-1234-5678 \ube44\ubc00\ubc88\ud638: qwer1234",
+                "masked_content": "\uacb0\uc81c \ubb38\uc758\uc785\ub2c8\ub2e4. email [\uc774\uba54\uc77c] phone [\uc804\ud654\ubc88\ud638] \ube44\ubc00\ubc88\ud638: [\ube44\ubc00\ubc88\ud638]",
+                "detected_labels": ["email", "phone", "password"],
+            },
+        )
+    monkeypatch.setattr(safety_layer, "record_current_scores", fake_record)
+
+    result = safety_layer.safety_layer_node(
+        {
+            "ticket_id": 1,
+            "draft_id": 2,
+            "draft_text": "answer",
+            "retrieved_documents": [],
+            "reasoning_node": "faq_agent",
+        }
+    )
+
+    assert result["factuality_score"] == 0.9
+    assert captured["scores"]["review_required"] is False
+    assert captured["scores"]["safety_passed"] is True
+
     assert result["raw_content"].startswith("결제 문의입니다.")
     assert "test@example.com" not in result["masked_content"]
     assert "010-1234-5678" not in result["masked_content"]
@@ -780,7 +824,48 @@ def test_ticket_completion_stores_ready_bug_form_for_github(monkeypatch) -> None
         "오류 메시지: 없음\n"
         "AI: 제공해주신 내용 기준으로 오류 문의가 접수되었습니다."
     )
-    assert payloads["notification"][0]["github_issue_content"] == payloads["ticket"][0]["raw_query"]
+    assert payloads["notification"][0]["github_issue_content"] == (
+        "게임이 튕겨요\n\n"
+        "발생 시점: 로그인 화면\n"
+        "오류 메시지: 없음"
+    )
+
+
+def test_ticket_completion_deduplicates_ready_bug_form_before_db_and_github(monkeypatch) -> None:
+    payloads = {"ticket": [], "notification": []}
+    form_text = (
+        "발생 시점: 이상민\n"
+        "오류 메시지: 이상민\n"
+        "사용 기기/OS: 이상민\n"
+        "오류 내용: 이상만"
+    )
+
+    monkeypatch.setattr(
+        "chatbot.generation.response.ticket_completion.update_qa_ticket_raw_query",
+        lambda payload: payloads["ticket"].append(payload) or {"stored": True, "ticket_id": payload["ticket_id"]},
+    )
+    monkeypatch.setattr(
+        "chatbot.generation.response.ticket_completion.dispatch_github_issue_notification",
+        lambda state: payloads["notification"].append(state) or {"status": "ok"},
+    )
+
+    ticket_completion_node({
+        **_final_state("bug", "REVIEW_REQUIRED"),
+        "routing_target": "bug_agent",
+        "reasoning_node": "bug_agent",
+        "raw_query": form_text,
+        "initial_bug_query": form_text,
+        "bug_report_form": form_text,
+        "bug_collection_status": "ready_for_review",
+        "draft_text": "제공해주신 내용 기준으로 오류 문의가 접수되었습니다.",
+        "review_required": True,
+    })
+
+    assert payloads["ticket"][0]["raw_query"] == (
+        f"User: {form_text}\n"
+        "AI: 제공해주신 내용 기준으로 오류 문의가 접수되었습니다."
+    )
+    assert payloads["notification"][0]["github_issue_content"] == form_text
 
 
 def test_ticket_completion_does_not_write_chatbot_insight(monkeypatch) -> None:
@@ -833,6 +918,8 @@ def test_dispatch_github_issue_creates_issue_for_review_required_bug(monkeypatch
     assert result["status"] == "ok"
     assert github_calls
     assert github_calls[0][0] == "[버그 검토 필요] game closes after loading"
+    assert "## Final Response" not in github_calls[0][1]
+    assert "operator will review" not in github_calls[0][1]
     assert [payload["channel"] for payload in notification_logs] == ["github_issue"]
 
 

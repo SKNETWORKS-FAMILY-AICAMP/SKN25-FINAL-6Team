@@ -2,18 +2,17 @@
 
 from __future__ import annotations
 
-import json
 import io
 import logging
 import os
 import time
-from datetime import datetime
 from typing import Any
 
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 
-from common.db.connection import db_connection
+from common.observability.langfuse import observe_if_enabled
+from weekly_report_langfuse import link_weekly_report_trace
 
 from errors import SlackReportError
 
@@ -26,70 +25,6 @@ _MAX_UPLOAD_RETRIES = 3
 _RETRY_BASE_SECONDS = 5
 
 LOGGER = logging.getLogger(__name__)
-
-# admin_event_logs 삽입 시 고정으로 사용하는 컨텍스트 값들
-LOGGER_EVENT_NODE = "weekly_report"
-LOGGER_EVENT_TYPE = "weekly_report_slack"
-LOGGER_EVENT_CATEGORY = "report"
-LOGGER_EVENT_ROUTING_TARGET = "slack"
-LOGGER_EVENT_TOOL_NAME = "slack_sdk.files_upload_v2"
-
-
-def _log_weekly_report_slack_event(
-    *,
-    status: str,
-    channel: str,
-    channel_id: str | None,
-    filename: str,
-    title: str,
-    byte_length: int,
-    comment: str | None,
-    error_message: str | None = None,
-    error_category: str | None = None,
-    slack_response: dict[str, Any] | None = None,
-) -> None:
-    """Slack 전송 결과를 admin_event_logs에 기록한다. 실패해도 예외를 흡수한다.
-
-    로그 저장 자체가 실패해도 보고서 전송 흐름을 중단하지 않기 위해
-    모든 예외를 로거로만 남기고 바깥으로 전파하지 않는다.
-    """
-    metadata = {
-        "channel": channel,
-        "channel_id": channel_id,
-        "filename": filename,
-        "title": title,
-        "byte_length": byte_length,
-        "comment": comment,
-        "slack_response": slack_response or {},
-        "logged_at": datetime.now().isoformat(),
-    }
-    try:
-        with db_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    """
-                    INSERT INTO admin_event_logs (
-                        ticket_id, node_name, event_type, category,
-                        routing_target, tool_name, status,
-                        error_message, error_category, metadata
-                    )
-                    VALUES (NULL, %s, %s, %s, %s, %s, %s, %s, %s, %s::json)
-                    """,
-                    (
-                        LOGGER_EVENT_NODE,
-                        LOGGER_EVENT_TYPE,
-                        LOGGER_EVENT_CATEGORY,
-                        LOGGER_EVENT_ROUTING_TARGET,
-                        LOGGER_EVENT_TOOL_NAME,
-                        status,
-                        error_message,
-                        error_category,
-                        json.dumps(metadata, ensure_ascii=False),
-                    ),
-                )
-    except Exception:
-        LOGGER.exception("주간 리포트 Slack 로그 저장에 실패했습니다")
-
 
 def _resolve_channel_id(client: WebClient, channel: str) -> str:
     """채널 이름(#ops) 또는 채널 ID(C0123456789)를 채널 ID로 변환한다.
@@ -194,6 +129,11 @@ def _upload_with_retry(
     raise last_exc  # type: ignore[misc]
 
 
+@observe_if_enabled(
+    name="weekly_report_send_slack",
+    as_type="generation",
+    tags=["weekly-report", "feature:slack-delivery"],
+)
 def send_weekly_report_pdf(
     *,
     pdf_bytes: bytes,
@@ -210,42 +150,35 @@ def send_weekly_report_pdf(
     2. 채널 이름 → ID 변환
     3. 봇 채널 멤버십 확인
     4. files_upload_v2 호출 (재시도 포함)
-    5. 성공/실패 모두 admin_event_logs에 기록
 
     반환 구조에 delivery_mode와 channel_id를 추가해 호출부가 어떤 방식으로 전송됐는지 알 수 있게 한다.
     """
     # 환경변수 우선, 인자로 직접 전달도 허용 (테스트 용이성).
+    link_weekly_report_trace(
+        {"channel": channel, "filename": filename, "title": title},
+        tags=["weekly-report", "feature:slack-delivery"],
+        input_payload={
+            "channel": channel,
+            "filename": filename,
+            "title": title,
+            "comment_present": bool(comment),
+            "pdf_bytes": len(pdf_bytes),
+        },
+        channel=channel,
+        filename=filename,
+        title=title,
+    )
     slack_token = (token or os.environ.get("DASHBOARD_SLACK_BOT_TOKEN") or "").strip()
     if not slack_token:
-        _log_weekly_report_slack_event(
-            status="failed", channel=channel, channel_id=None,
-            filename=filename, title=title, byte_length=len(pdf_bytes),
-            comment=comment, error_message="DASHBOARD_SLACK_BOT_TOKEN 설정이 없습니다",
-            error_category="config_error",
-        )
         raise SlackReportError("DASHBOARD_SLACK_BOT_TOKEN 설정이 없습니다")
 
     if not channel.strip():
-        _log_weekly_report_slack_event(
-            status="failed", channel=channel, channel_id=None,
-            filename=filename, title=title, byte_length=len(pdf_bytes),
-            comment=comment, error_message="Slack 채널이 필요합니다",
-            error_category="config_error",
-        )
         raise SlackReportError("Slack 채널이 필요합니다")
 
     byte_length = len(pdf_bytes)
     if byte_length <= 0:
-        _log_weekly_report_slack_event(
-            status="failed", channel=channel, channel_id=None,
-            filename=filename, title=title, byte_length=byte_length,
-            comment=comment, error_message="PDF 내용이 비어 있습니다",
-            error_category="config_error",
-        )
         raise SlackReportError("PDF 내용이 비어 있습니다")
 
-    # channel_id는 로그 기록을 위해 try 블록 밖에서 초기화한다.
-    channel_id: str | None = None
     try:
         client = WebClient(token=slack_token)
         channel_id = _resolve_channel_id(client, channel)
@@ -254,40 +187,30 @@ def send_weekly_report_pdf(
 
     except SlackApiError as exc:
         error = exc.response.get("error") if exc.response is not None else str(exc)
-        _log_weekly_report_slack_event(
-            status="failed", channel=channel, channel_id=channel_id,
-            filename=filename, title=title, byte_length=byte_length,
-            comment=comment, error_message=str(error) or "Slack 업로드에 실패했습니다",
-            error_category="slack_api_error",
-        )
         raise SlackReportError(str(error) or "Slack 업로드에 실패했습니다") from exc
 
-    except SlackReportError as exc:
-        # _resolve_channel_id, _validate_channel_access에서 발생한 예외 — 로그 후 재발생.
-        _log_weekly_report_slack_event(
-            status="failed", channel=channel, channel_id=channel_id,
-            filename=filename, title=title, byte_length=byte_length,
-            comment=comment, error_message=str(exc),
-            error_category="slack_report_error",
-        )
+    except SlackReportError:
         raise
 
     except Exception as exc:  # noqa: BLE001
-        _log_weekly_report_slack_event(
-            status="failed", channel=channel, channel_id=channel_id,
-            filename=filename, title=title, byte_length=byte_length,
-            comment=comment, error_message=str(exc),
-            error_category="unexpected_error",
-        )
         raise SlackReportError("Slack 업로드 중 알 수 없는 오류가 발생했습니다") from exc
 
     # slack_sdk 버전에 따라 response.data 속성이 없을 수 있으므로 방어적으로 처리한다.
     result = dict(response.data) if hasattr(response, "data") else dict(response)
     result["delivery_mode"] = "native_file_share"
     result["channel_id"] = channel_id
-    _log_weekly_report_slack_event(
-        status="success", channel=channel, channel_id=channel_id,
-        filename=filename, title=title, byte_length=byte_length,
-        comment=comment, slack_response=result,
+    link_weekly_report_trace(
+        result,
+        tags=["weekly-report", "feature:slack-delivery"],
+        output_payload={
+            "ok": result.get("ok"),
+            "channel_id": channel_id,
+            "delivery_mode": result["delivery_mode"],
+        },
+        channel=channel,
+        filename=filename,
+        title=title,
+        slack_sent=True,
+        status="success",
     )
     return result

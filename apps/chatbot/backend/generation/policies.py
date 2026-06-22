@@ -7,7 +7,7 @@ from typing import Any
 
 import yaml
 
-from chatbot.tools.db_tools import collect_user_payment_context, read_gacha_logs, read_item_delivery_logs
+from chatbot.tools.db_tools import read_gacha_logs, read_item_delivery_logs
 
 
 PROMPT_ROOT = Path(
@@ -43,7 +43,7 @@ class AgentPolicy:
 PAYMENT_POLICY = AgentPolicy(
     name="payment_agent",
     system_prompt=PAYMENT_AGENT_PROMPT,
-    tools=[collect_user_payment_context],
+    tools=[],
 )
 
 FAQ_POLICY = AgentPolicy(

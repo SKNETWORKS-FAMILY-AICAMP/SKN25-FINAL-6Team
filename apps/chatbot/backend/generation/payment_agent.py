@@ -11,10 +11,11 @@ from pydantic import BaseModel, Field
 from chatbot.agent import invoke_payment_agent
 from chatbot.generation.drafting_agent import build_draft_update
 from chatbot.generation.policies import PAYMENT_POLICY
+from chatbot.observability.langfuse import link_chatbot_trace
 from chatbot.observability.logger import EVENT_NODE_COMPLETED, EVENT_NODE_STARTED, log_event
 from chatbot.repository.operation_log_repository import collect_payment_context_by_user
 from chatbot.schemas import ChatbotState
-from common.observability.langfuse import link_current_trace, observe_if_enabled
+from common.observability.langfuse import get_langchain_config, link_current_trace, observe_if_enabled
 from common.observability.logger import record_chat_model_usage
 
 
@@ -172,7 +173,8 @@ def _classify_payment_intent_by_llm(text: str) -> PaymentIntentResult | None:
                 ),
             },
             {"role": "user", "content": text},
-        ]
+        ],
+        config=get_langchain_config(),
     )
     record_chat_model_usage("payment_intent_classifier", model, raw_result.get("raw"))
     result = raw_result.get("parsed")
@@ -527,3 +529,32 @@ def payment_agent_node(state: ChatbotState) -> dict:
         },
     )
     return update
+
+
+_original_payment_agent_node = payment_agent_node
+
+
+@observe_if_enabled(
+    name="payment_agent",
+    as_type="chain",
+    tags=["chatbot", "feature:generation", "payment"],
+)
+def payment_agent_node(state: ChatbotState) -> dict:
+    link_chatbot_trace(
+        state,
+        tags=["feature:generation", "payment"],
+        input_payload={
+            "ticket_id": state.get("ticket_id"),
+            "query": state.get("normalized_query") or state.get("raw_query"),
+            "routing_target": state.get("routing_target"),
+            "account_id": state.get("account_id"),
+        },
+    )
+    result = _original_payment_agent_node(state)
+    link_chatbot_trace(
+        state,
+        tags=["feature:generation", "payment"],
+        metadata_source={**state, **result},
+        output_payload=result,
+    )
+    return result

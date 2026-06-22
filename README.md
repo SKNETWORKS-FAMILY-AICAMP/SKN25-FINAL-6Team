@@ -34,6 +34,45 @@
 
 ## Services
 
+```mermaid
+flowchart TB
+    Input["사용자 채팅 입력"] --> API["FastAPI POST /chat"]
+    API --> Session["session_id / ticket_id 생성<br/>이전 대화 캐시 복원"]
+    Session --> Preprocess["입력 전처리<br/>PII 마스킹 / Prompt Injection 탐지"]
+    Preprocess --> Inject{"Prompt Injection?"}
+
+    Inject -->|Yes| Complete["차단 응답 생성<br/>ticket_completion"]
+    Inject -->|No| Route{"카테고리 라우팅<br/>payment / bug / faq / voc"}
+
+    Route -->|payment| Payment["Payment Agent<br/>결제 Intent 분류 + DB 조회 + 답변 초안"]
+    Route -->|bug| Bug["Bug Agent<br/>버그 FAQ 검색 / 재현정보 수집 / 이슈화 준비"]
+    Route -->|faq| FAQ["FAQ Agent<br/>RAG 검색 + rerank + 근거 기반 답변"]
+    Route -->|voc| VOC["VOC Agent<br/>고정 감사 응답 생성"]
+
+    Payment --> Persist["Draft Persistence<br/>answer_draft + evidence 저장"]
+    Bug --> Persist
+    FAQ --> Persist
+    VOC --> Persist
+
+    Persist --> SafetyRoute{"Safety 검사 필요?"}
+    SafetyRoute -->|VOC / 버그 수집중| Complete
+    SafetyRoute -->|일반 답변| Safety["Safety Layer<br/>마스킹 / grounding / moderation"]
+
+    Safety --> SafetyDecision{"Safety 결과"}
+    SafetyDecision -->|PASS| Complete
+    SafetyDecision -->|MASKING retry| Persist
+    SafetyDecision -->|재생성 가능| Route
+    SafetyDecision -->|BLOCK / FALLBACK / REVIEW| Complete
+
+    Complete --> Cache["세션 캐시 저장"]
+    Cache --> Response["사용자 최종 응답 반환"]
+
+    style FAQ fill:#d4edda,stroke:#28a745
+    style Complete fill:#d4edda,stroke:#28a745
+    style Safety fill:#fff3cd,stroke:#ffc107
+    style Inject fill:#f8d7da,stroke:#dc3545
+```
+
 ### 1. Chatbot
 
 - FastAPI 엔드포인트: [apps/chatbot/backend/api/main.py](/C:/SKN25-FINAL-6Team/apps/chatbot/backend/api/main.py)

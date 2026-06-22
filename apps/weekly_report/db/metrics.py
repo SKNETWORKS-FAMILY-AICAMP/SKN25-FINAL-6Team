@@ -12,10 +12,17 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
+from common.observability.langfuse import observe_if_enabled
 from db.connection import _fetch_one, _fetch_all, db_connection, dict_row
+from weekly_report_langfuse import link_weekly_report_trace
 from utils.stats import rate
 
 
+@observe_if_enabled(
+    name="weekly_report_fetch_metrics",
+    as_type="generation",
+    tags=["weekly-report", "feature:data-fetch", "source:metrics"],
+)
 def fetch(window: dict[str, Any]) -> dict[str, Any]:
     """window 기간의 7개 핵심 KPI + 카테고리별 집계를 반환한다.
 
@@ -24,6 +31,14 @@ def fetch(window: dict[str, Any]) -> dict[str, Any]:
     """
     start: datetime = window["window_start"]
     end: datetime = window["window_end"]
+    link_weekly_report_trace(
+        window,
+        tags=["weekly-report", "feature:data-fetch", "source:metrics"],
+        input_payload={"window_start": start.isoformat(), "window_end": end.isoformat(), "days": window["days"]},
+        window_start=start.isoformat(),
+        window_end=end.isoformat(),
+        days=int(window["days"]),
+    )
 
     with db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
@@ -145,7 +160,7 @@ def fetch(window: dict[str, Any]) -> dict[str, Any]:
     draft_ticket_count = int(draft.get("draft_ticket_count") or 0)
     final_ticket_count = int(final_resp.get("final_response_ticket_count") or 0)
 
-    return {
+    result = {
         # 비율(rate)은 분모가 0이면 0.0을 반환하도록 utils.stats.rate()가 처리한다.
         "response_rate": rate(responded, total),
         "analysis_coverage_rate": rate(analyzed, total),
@@ -160,3 +175,15 @@ def fetch(window: dict[str, Any]) -> dict[str, Any]:
             for row in category_rows
         ],
     }
+    link_weekly_report_trace(
+        result,
+        tags=["weekly-report", "feature:data-fetch", "source:metrics"],
+        output_payload={
+            "total_tickets": result["total_tickets"],
+            "category_count_buckets": len(result["category_counts"]),
+        },
+        window_start=start.isoformat(),
+        window_end=end.isoformat(),
+        days=int(window["days"]),
+    )
+    return result

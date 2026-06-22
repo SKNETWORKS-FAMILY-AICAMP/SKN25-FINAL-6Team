@@ -5,6 +5,16 @@ from dataclasses import dataclass
 from typing import Any
 
 from common.db.connection import db_connection
+from common.observability.langfuse import get_langchain_config
+
+
+# 오래된 대화 요약은 토큰 비용을 막기 위해 최근 12턴까지만 원문 transcript로 사용한다.
+DEFAULT_SUMMARY_SOURCE_TURN_LIMIT = 12
+# summary는 후속 질문 해석에 필요한 사실만 남기므로 700자 안쪽으로 압축하도록 LLM에 지시한다.
+SUMMARY_TARGET_CHARS = 700
+# LLM 요약 실패 시 fallback summary가 커지지 않도록 Q/A별 표시 길이를 제한한다.
+FALLBACK_SUMMARY_USER_CLIP_CHARS = 160
+FALLBACK_SUMMARY_ASSISTANT_CLIP_CHARS = 200
 
 
 # 이전 ticket 한 건을 현재 대화 context에 넣기 위한 최소 단위다.
@@ -143,7 +153,7 @@ def _summarize_older_turns(turns: list[ConversationTurn]) -> str | None:
     if not turns:
         return None
 
-    max_turns = int(os.environ.get("CHATBOT_SUMMARY_MAX_TURNS", "12"))
+    max_turns = int(os.environ.get("CHATBOT_SUMMARY_MAX_TURNS", str(DEFAULT_SUMMARY_SOURCE_TURN_LIMIT)))
     source_turns = turns[-max_turns:]
     transcript = _format_turns(source_turns)
     summary = _summarize_with_llm(transcript)
@@ -169,11 +179,12 @@ def _summarize_with_llm(transcript: str) -> str | None:
                         "Summarize the previous customer support conversation in Korean. "
                         "Keep only facts useful for answering the next turn: user intent, "
                         "account/payment/bug context, prior answers, and unresolved issues. "
-                        "Do not invent facts. Keep it under 700 characters."
+                        f"Do not invent facts. Keep it under {SUMMARY_TARGET_CHARS} characters."
                     ),
                 },
                 {"role": "user", "content": transcript},
-            ]
+            ],
+            config=get_langchain_config(),
         )
         content = getattr(response, "content", "")
         if isinstance(content, str):
@@ -186,9 +197,9 @@ def _summarize_with_llm(transcript: str) -> str | None:
 def _fallback_summary(turns: list[ConversationTurn]) -> str:
     lines = ["이전 대화 요약:"]
     for turn in turns:
-        lines.append(f"- Q: {_clip(turn.user_text, 160)}")
+        lines.append(f"- Q: {_clip(turn.user_text, FALLBACK_SUMMARY_USER_CLIP_CHARS)}")
         if turn.assistant_text:
-            lines.append(f"  A: {_clip(turn.assistant_text, 200)}")
+            lines.append(f"  A: {_clip(turn.assistant_text, FALLBACK_SUMMARY_ASSISTANT_CLIP_CHARS)}")
     return "\n".join(lines)
 
 

@@ -24,12 +24,12 @@ for path in (PROJECT_ROOT, REPO_ROOT):
         sys.path.insert(0, path_str)
 
 from common.db.connection import db_connection
+from common.observability.langfuse import configure_langfuse
 
 
 DATASET_DIR = Path(__file__).parent / "datasets"
 DEFAULT_DATASET = DATASET_DIR / "sj-documents-retrievable-ragas-30-v3.json"
 DEFAULT_OUTPUT = Path(__file__).parent / "outputs" / "sj_embedding_model_comparison.json"
-DEFAULT_LANGSMITH_DATASET = "sj-documents-retrievable-ragas-30-v3"
 
 PROFILES = {
     "small": {
@@ -79,19 +79,11 @@ STOPWORD_TOKENS = {
 }
 
 
-def load_chatbot_langsmith_env() -> None:
+configure_langfuse("chatbot", default_tags=["chatbot", "eval", "retrieval"])
+
+
+def load_chatbot_env() -> None:
     load_dotenv(REPO_ROOT / ".env", override=True)
-    mappings = {
-        "CHATBOT_LANGSMITH_API_KEY": "LANGSMITH_API_KEY",
-        "CHATBOT_LANGSMITH_PROJECT": "LANGSMITH_PROJECT",
-        "CHATBOT_LANGSMITH_TRACING": "LANGSMITH_TRACING",
-    }
-    for source, target in mappings.items():
-        value = os.environ.get(source)
-        if value:
-            os.environ[target] = value
-    if os.environ.get("LANGSMITH_TRACING"):
-        os.environ["LANGCHAIN_TRACING_V2"] = os.environ["LANGSMITH_TRACING"]
 
 
 def load_dataset(path: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
@@ -395,29 +387,6 @@ async def evaluate_profile(
     return rows
 
 
-def langsmith_target(profile_name: str) -> Any:
-    profile = PROFILES[profile_name]
-
-    def target(inputs: dict[str, Any]) -> dict[str, Any]:
-        question = str(inputs.get("user_message") or "")
-        top_k = int(inputs.get("top_k") or os.environ.get("SJ_EVAL_TOP_K", "5"))
-        started_at = time.perf_counter()
-        contexts = retrieve_contexts(profile=profile, question=question, top_k=top_k)
-        latency_ms = (time.perf_counter() - started_at) * 1000
-        answer = make_answer(question, contexts)
-        return {
-            "answer": answer,
-            "retrieved_contexts": [str(row.get("chunk_text") or "") for row in contexts],
-            "top_contexts": contexts,
-            "profile": profile_name,
-            "embedding_model": profile["embedding_model"],
-            "embeddings_table": profile["embeddings_table"],
-            "latency_ms": round(latency_ms, 2),
-        }
-
-    return target
-
-
 def keyword_recall(outputs: dict[str, Any], reference_outputs: dict[str, Any]) -> dict[str, Any]:
     expected_keywords = [str(value) for value in reference_outputs.get("expected_keywords") or []]
     if not expected_keywords:
@@ -457,130 +426,6 @@ def answer_non_empty(outputs: dict[str, Any]) -> dict[str, Any]:
 def latency(outputs: dict[str, Any]) -> dict[str, Any]:
     value = float(outputs.get("latency_ms") or 0)
     return {"key": "latency_ms", "score": value < 5000, "value": round(value, 2)}
-
-
-def ragas_langsmith_metric(metric_name: str) -> Any:
-    key = metric_name
-
-    def evaluator(
-        inputs: dict[str, Any],
-        outputs: dict[str, Any],
-        reference_outputs: dict[str, Any],
-    ) -> dict[str, Any]:
-        question = str(inputs.get("user_message") or "")
-        answer = str(outputs.get("answer") or "")
-        contexts = [str(value) for value in outputs.get("retrieved_contexts") or []]
-        reference = str(reference_outputs.get("reference_answer") or "")
-        rubrics = {
-            str(rubric_key): str(rubric_value)
-            for rubric_key, rubric_value in dict(reference_outputs.get("rubrics") or {}).items()
-            if rubric_value is not None
-        }
-        if not answer:
-            return {"key": key, "value": "not_applicable"}
-        if metric_name in {"faithfulness", "context_precision", "context_recall"} and not contexts:
-            return {"key": key, "score": 0.0, "value": "no_retrieved_contexts"}
-        try:
-            score = asyncio.run(
-                ragas_score_one(
-                    metric_name=metric_name,
-                    question=question,
-                    answer=answer,
-                    reference=reference,
-                    contexts=contexts,
-                    rubrics=rubrics,
-                )
-            )
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            try:
-                score = loop.run_until_complete(
-                    ragas_score_one(
-                        metric_name=metric_name,
-                        question=question,
-                        answer=answer,
-                        reference=reference,
-                        contexts=contexts,
-                        rubrics=rubrics,
-                    )
-                )
-            finally:
-                loop.close()
-        if isinstance(score, str):
-            return {"key": key, "value": score}
-        return {"key": key, "score": score, "value": round(float(score), 3)}
-
-    evaluator.__name__ = key
-    return evaluator
-
-
-def upload_langsmith_dataset(
-    *,
-    examples: list[dict[str, Any]],
-    dataset_name: str,
-    description: str,
-    recreate: bool,
-) -> None:
-    from langsmith import Client
-
-    client = Client()
-    if recreate:
-        try:
-            client.delete_dataset(dataset_name=dataset_name)
-        except Exception:
-            pass
-    try:
-        dataset = client.create_dataset(dataset_name=dataset_name, description=description)
-    except Exception:
-        dataset = client.read_dataset(dataset_name=dataset_name)
-
-    client.create_examples(
-        dataset_id=dataset.id,
-        inputs=[row["inputs"] for row in examples],
-        outputs=[row.get("outputs") for row in examples],
-        metadata=[row.get("metadata") for row in examples],
-    )
-    print(f"Uploaded {len(examples)} examples to LangSmith dataset: {dataset_name}")
-
-
-def run_langsmith_evaluations(
-    *,
-    dataset_name: str,
-    profiles: list[str],
-    experiment_prefix: str,
-    max_concurrency: int,
-    limit: int | None,
-    enable_ragas: bool,
-) -> None:
-    from langsmith import Client, evaluate
-
-    data: Any = dataset_name
-    if limit is not None:
-        client = Client()
-        data = list(client.list_examples(dataset_name=dataset_name))[:limit]
-
-    evaluators = [keyword_recall, source_document_hit, answer_non_empty, latency]
-    if enable_ragas:
-        evaluators.extend(
-            [
-                ragas_langsmith_metric("faithfulness"),
-                ragas_langsmith_metric("answer_relevancy"),
-                ragas_langsmith_metric("context_precision"),
-                ragas_langsmith_metric("context_recall"),
-                ragas_langsmith_metric("instance_rubrics"),
-            ]
-        )
-
-    for profile_name in profiles:
-        os.environ["SJ_EVAL_TOP_K"] = os.environ.get("SJ_EVAL_TOP_K", "5")
-        results = evaluate(
-            langsmith_target(profile_name),
-            data=data,
-            evaluators=evaluators,
-            experiment_prefix=f"{experiment_prefix}-{profile_name}",
-            max_concurrency=max_concurrency,
-        )
-        print(results)
 
 
 def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
@@ -657,40 +502,11 @@ async def main() -> None:
     parser.add_argument("--top-k", type=int, default=5)
     parser.add_argument("--generate-answers", action="store_true")
     parser.add_argument("--enable-ragas", action="store_true")
-    parser.add_argument("--upload-langsmith-dataset", action="store_true")
-    parser.add_argument("--langsmith", action="store_true", help="Run small/large comparison as LangSmith experiments.")
-    parser.add_argument("--langsmith-dataset-name", default=DEFAULT_LANGSMITH_DATASET)
-    parser.add_argument("--langsmith-recreate-dataset", action="store_true")
-    parser.add_argument("--experiment-prefix", default="sj-embedding-model-comparison")
-    parser.add_argument("--max-concurrency", type=int, default=1)
     parser.add_argument("--limit", type=int)
     args = parser.parse_args()
 
-    load_chatbot_langsmith_env()
+    load_chatbot_env()
     dataset_info, examples = load_dataset(args.dataset)
-
-    if args.upload_langsmith_dataset:
-        upload_examples = examples[: args.limit] if args.limit is not None else examples
-        upload_langsmith_dataset(
-            examples=upload_examples,
-            dataset_name=args.langsmith_dataset_name,
-            description=str((dataset_info.get("dataset_info") or {}).get("description") or ""),
-            recreate=args.langsmith_recreate_dataset,
-        )
-        if not args.langsmith:
-            return
-
-    if args.langsmith:
-        os.environ["SJ_EVAL_TOP_K"] = str(args.top_k)
-        run_langsmith_evaluations(
-            dataset_name=args.langsmith_dataset_name,
-            profiles=list(args.profiles),
-            experiment_prefix=args.experiment_prefix,
-            max_concurrency=args.max_concurrency,
-            limit=args.limit,
-            enable_ragas=args.enable_ragas,
-        )
-        return
 
     eval_examples = examples[: args.limit] if args.limit is not None else examples
     all_rows: list[dict[str, Any]] = []

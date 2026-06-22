@@ -13,7 +13,9 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
+from common.observability.langfuse import observe_if_enabled
 from db.connection import _fetch_all, db_connection, dict_row
+from weekly_report_langfuse import link_weekly_report_trace
 
 # Nielsen(1994) 심각도 0~4 척도를 정수로 매핑한다.
 # unknown은 최소 심각도(1)로 처리해 미분류 항목이 상위에 오르지 않게 한다.
@@ -190,10 +192,27 @@ def build_top5_slack_blocks(top5: list[dict]) -> list[dict]:
     return blocks
 
 
+@observe_if_enabled(
+    name="weekly_report_fetch_top_requests",
+    as_type="generation",
+    tags=["weekly-report", "feature:data-fetch", "source:top-requests"],
+)
 def fetch(window: dict[str, Any]) -> list[dict[str, Any]]:
     """우선순위 점수 기준 상위 TOP_N개를 rank와 improvement_type을 붙여 반환한다."""
+    link_weekly_report_trace(
+        window,
+        tags=["weekly-report", "feature:data-fetch", "source:top-requests"],
+        input_payload={
+            "window_start": window["window_start"].isoformat(),
+            "window_end": window["window_end"].isoformat(),
+            "days": window["days"],
+        },
+        window_start=window["window_start"].isoformat(),
+        window_end=window["window_end"].isoformat(),
+        days=int(window["days"]),
+    )
     scored = calculate_priority_score(window)
-    return [
+    result = [
         {
             "rank": i + 1,
             **item,
@@ -202,3 +221,12 @@ def fetch(window: dict[str, Any]) -> list[dict[str, Any]]:
         }
         for i, item in enumerate(scored[:TOP_N])
     ]
+    link_weekly_report_trace(
+        {"window_start": window["window_start"].isoformat(), "window_end": window["window_end"].isoformat()},
+        tags=["weekly-report", "feature:data-fetch", "source:top-requests"],
+        output_payload={"top_requests_count": len(result)},
+        window_start=window["window_start"].isoformat(),
+        window_end=window["window_end"].isoformat(),
+        top_requests_count=len(result),
+    )
+    return result
