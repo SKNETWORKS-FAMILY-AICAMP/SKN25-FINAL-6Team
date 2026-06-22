@@ -50,7 +50,7 @@ def _github_issue_title(state: dict[str, Any]) -> str:
 
 
 def _github_issue_body(state: dict[str, Any]) -> str:
-    # GitHub issue만 보고도 문의 맥락과 처리 상태를 추적할 수 있게 핵심 state만 담는다.
+    # GitHub issue는 운영자가 확인해야 할 사용자 문의 원문만 전달하고, AI 답변은 제외한다.
     return (
         "## Ticket\n"
         f"- ticket_id: {state.get('ticket_id')}\n"
@@ -63,9 +63,7 @@ def _github_issue_body(state: dict[str, Any]) -> str:
         f"- safety_action: {state.get('safety_action')}\n"
         f"- review_required: {state.get('review_required')}\n\n"
         "## Inquiry\n"
-        f"{_inquiry_content(state)}\n\n"
-        "## Final Response\n"
-        f"{state.get('final_text') or ''}\n"
+        f"{_inquiry_content(state)}\n"
     )
 
 

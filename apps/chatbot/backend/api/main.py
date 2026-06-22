@@ -255,7 +255,11 @@ def _extract_user_text(raw_query: str | None) -> str:
 
 
 def _extract_initial_bug_query(raw_query: str | None) -> str:
-    return _extract_section(raw_query, "초기 문의") or _extract_user_text(raw_query)
+    candidate = _extract_section(raw_query, "초기 문의") or _extract_user_text(raw_query)
+    # 재현 정보 폼은 초기 문의가 아니므로 다음 turn에서 다시 합치지 않는다.
+    if _looks_like_bug_report_form(candidate):
+        return ""
+    return candidate
 
 
 def _looks_like_bug_report_form(text: str) -> bool:

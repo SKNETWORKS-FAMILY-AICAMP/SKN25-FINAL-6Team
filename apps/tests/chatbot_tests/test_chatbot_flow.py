@@ -824,7 +824,48 @@ def test_ticket_completion_stores_ready_bug_form_for_github(monkeypatch) -> None
         "오류 메시지: 없음\n"
         "AI: 제공해주신 내용 기준으로 오류 문의가 접수되었습니다."
     )
-    assert payloads["notification"][0]["github_issue_content"] == payloads["ticket"][0]["raw_query"]
+    assert payloads["notification"][0]["github_issue_content"] == (
+        "게임이 튕겨요\n\n"
+        "발생 시점: 로그인 화면\n"
+        "오류 메시지: 없음"
+    )
+
+
+def test_ticket_completion_deduplicates_ready_bug_form_before_db_and_github(monkeypatch) -> None:
+    payloads = {"ticket": [], "notification": []}
+    form_text = (
+        "발생 시점: 이상민\n"
+        "오류 메시지: 이상민\n"
+        "사용 기기/OS: 이상민\n"
+        "오류 내용: 이상만"
+    )
+
+    monkeypatch.setattr(
+        "chatbot.generation.response.ticket_completion.update_qa_ticket_raw_query",
+        lambda payload: payloads["ticket"].append(payload) or {"stored": True, "ticket_id": payload["ticket_id"]},
+    )
+    monkeypatch.setattr(
+        "chatbot.generation.response.ticket_completion.dispatch_github_issue_notification",
+        lambda state: payloads["notification"].append(state) or {"status": "ok"},
+    )
+
+    ticket_completion_node({
+        **_final_state("bug", "REVIEW_REQUIRED"),
+        "routing_target": "bug_agent",
+        "reasoning_node": "bug_agent",
+        "raw_query": form_text,
+        "initial_bug_query": form_text,
+        "bug_report_form": form_text,
+        "bug_collection_status": "ready_for_review",
+        "draft_text": "제공해주신 내용 기준으로 오류 문의가 접수되었습니다.",
+        "review_required": True,
+    })
+
+    assert payloads["ticket"][0]["raw_query"] == (
+        f"User: {form_text}\n"
+        "AI: 제공해주신 내용 기준으로 오류 문의가 접수되었습니다."
+    )
+    assert payloads["notification"][0]["github_issue_content"] == form_text
 
 
 def test_ticket_completion_does_not_write_chatbot_insight(monkeypatch) -> None:
@@ -877,6 +918,8 @@ def test_dispatch_github_issue_creates_issue_for_review_required_bug(monkeypatch
     assert result["status"] == "ok"
     assert github_calls
     assert github_calls[0][0] == "[버그 검토 필요] game closes after loading"
+    assert "## Final Response" not in github_calls[0][1]
+    assert "operator will review" not in github_calls[0][1]
     assert [payload["channel"] for payload in notification_logs] == ["github_issue"]
 
 
