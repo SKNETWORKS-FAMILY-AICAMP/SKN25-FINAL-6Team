@@ -9,12 +9,17 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
 from common.db.connection import db_connection
-from common.observability.langfuse import configure_langfuse, observe_if_enabled
+from common.observability.langfuse import configure_langfuse, observe_if_enabled, shutdown_langfuse
 from observability.langfuse import link_weekly_report_trace
 
 configure_langfuse("weekly-report", default_tags=["weekly-report", "api"])
 
 app = FastAPI(title="Weekly Report API")
+
+
+@app.on_event("shutdown")
+def _shutdown_langfuse_client() -> None:
+    shutdown_langfuse()
 
 
 @app.get("/health")

@@ -15,7 +15,7 @@ from chatbot.generation.policies import BUG_POLICY
 from chatbot.observability.langfuse import link_chatbot_trace
 from chatbot.observability.logger import EVENT_NODE_COMPLETED, EVENT_NODE_STARTED, EVENT_TOOL_COMPLETED, log_event
 from chatbot.schemas import ChatbotState
-from common.observability.langfuse import observe_if_enabled
+from common.observability.langfuse import get_langchain_config, observe_if_enabled
 from common.observability.logger import record_chat_model_usage
 from common.retrieval.vector_tools import RetrievalQuery, search_document_chunks
 
@@ -149,7 +149,8 @@ def _classify_bug_intent_by_llm(text: str) -> BugIntentResult | None:
                 ),
             },
             {"role": "user", "content": text},
-        ]
+        ],
+        config=get_langchain_config(),
     )
     record_chat_model_usage("bug_intent_classifier", model, raw_result.get("raw"))
     result = raw_result.get("parsed")

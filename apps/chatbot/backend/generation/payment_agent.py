@@ -15,7 +15,7 @@ from chatbot.observability.langfuse import link_chatbot_trace
 from chatbot.observability.logger import EVENT_NODE_COMPLETED, EVENT_NODE_STARTED, log_event
 from chatbot.repository.operation_log_repository import collect_payment_context_by_user
 from chatbot.schemas import ChatbotState
-from common.observability.langfuse import link_current_trace, observe_if_enabled
+from common.observability.langfuse import get_langchain_config, link_current_trace, observe_if_enabled
 from common.observability.logger import record_chat_model_usage
 
 
@@ -173,7 +173,8 @@ def _classify_payment_intent_by_llm(text: str) -> PaymentIntentResult | None:
                 ),
             },
             {"role": "user", "content": text},
-        ]
+        ],
+        config=get_langchain_config(),
     )
     record_chat_model_usage("payment_intent_classifier", model, raw_result.get("raw"))
     result = raw_result.get("parsed")

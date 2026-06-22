@@ -28,9 +28,12 @@ from common.llm.client import get_chat_llm
 from common.observability.langfuse import (
     build_trace_metadata,
     configure_langfuse,
+    flush_langfuse,
+    get_langchain_config,
     link_current_trace,
     observe_if_enabled,
     record_current_scores,
+    trace_attributes,
 )
 
 configure_langfuse("cs-auto", default_tags=["cs-auto", "answer"])
@@ -371,17 +374,24 @@ class AnswerDraftGenerator:
 
     @observe_if_enabled(name="cs_auto_generate_answer_draft_text", as_type="generation", tags=["feature:answer"])
     def generate(self, context: AnswerDraftContext) -> AnswerDraftResult:
-        link_current_trace(
+        trace_metadata = build_trace_metadata(
+            context.ticket.model_dump(),
+            answer_stage="generate_draft",
+            evidence_count=len(context.evidence_docs),
+        )
+        with trace_attributes(
             user_id=context.ticket.user_id,
             session_id=context.ticket.ticket_id,
             tags=["feature:answer"],
-            metadata=build_trace_metadata(
-                context.ticket.model_dump(),
-                answer_stage="generate_draft",
-                evidence_count=len(context.evidence_docs),
-            ),
-        )
-        return AnswerDraftResult.model_validate(self.chain.invoke(context))
+            metadata=trace_metadata,
+        ):
+            link_current_trace(
+                user_id=context.ticket.user_id,
+                session_id=context.ticket.ticket_id,
+                tags=["feature:answer"],
+                metadata=trace_metadata,
+            )
+            return AnswerDraftResult.model_validate(self.chain.invoke(context, config=get_langchain_config()))
 
 
 # 생성된 초안과 근거를 바탕으로 safety_results 형식의 점수를 평가하는 LCEL 클래스다.
@@ -423,7 +433,27 @@ class AnswerSafetyEvaluator:
 
     @observe_if_enabled(name="cs_auto_evaluate_answer_safety", as_type="generation", tags=["feature:answer", "feature:safety"])
     def evaluate(self, context: AnswerDraftContext, draft: AnswerDraftResult) -> AnswerSafetyResult:
-        result = AnswerSafetyResult.model_validate(self.chain.invoke({"context": context, "draft": draft}))
+        trace_metadata = build_trace_metadata(
+            context.ticket.model_dump(),
+            answer_stage="evaluate_safety",
+            evidence_count=len(context.evidence_docs),
+        )
+        with trace_attributes(
+            user_id=context.ticket.user_id,
+            session_id=context.ticket.ticket_id,
+            tags=["feature:answer", "feature:safety"],
+            metadata=trace_metadata,
+        ):
+            link_current_trace(
+                user_id=context.ticket.user_id,
+                session_id=context.ticket.ticket_id,
+                tags=["feature:answer", "feature:safety"],
+                metadata=trace_metadata,
+                input_payload={"ticket_id": context.ticket.ticket_id, "draft_text_length": len(draft.draft_text or "")},
+            )
+            result = AnswerSafetyResult.model_validate(
+                self.chain.invoke({"context": context, "draft": draft}, config=get_langchain_config())
+            )
         average_score = (
             (1 - result.hallucination_score)
             + (1 - result.toxicity_score)
@@ -646,56 +676,65 @@ class AnswerAgent:
     @observe_if_enabled(name="cs_auto_generate_answer_draft", as_type="chain", tags=["feature:answer"])
     def generate_answer_draft(self, ticket_id: int) -> dict[str, object]:
         target = self.target_repository.fetch(ticket_id)
-        link_current_trace(
+        trace_metadata = build_trace_metadata(target.model_dump(), answer_stage="generate_answer_draft")
+        with trace_attributes(
             user_id=target.user_id,
             session_id=target.ticket_id,
             tags=["feature:answer"],
-            metadata=build_trace_metadata(target.model_dump(), answer_stage="generate_answer_draft"),
-            input_payload={"ticket_id": ticket_id},
-        )
-        evidence_docs = self.evidence_collector.collect(target)
-        context = AnswerDraftContext(ticket=target, evidence_docs=evidence_docs)
-        draft_result = self.draft_generator.generate(context)
-        safety_result = self.safety_evaluator.evaluate(context, draft_result)
-        result = self.safety_router.route(context, draft_result, safety_result)
+            metadata=trace_metadata,
+        ):
+            link_current_trace(
+                user_id=target.user_id,
+                session_id=target.ticket_id,
+                tags=["feature:answer"],
+                metadata=trace_metadata,
+                input_payload={"ticket_id": ticket_id},
+            )
+            evidence_docs = self.evidence_collector.collect(target)
+            context = AnswerDraftContext(ticket=target, evidence_docs=evidence_docs)
+            draft_result = self.draft_generator.generate(context)
+            safety_result = self.safety_evaluator.evaluate(context, draft_result)
+            result = self.safety_router.route(context, draft_result, safety_result)
 
-        draft_id = self.draft_repository.save_draft(target, result)
-        self.draft_repository.save_evidence_docs(draft_id, evidence_docs)
-        safety_id = self.draft_repository.save_safety_results(draft_id, safety_result)
+            draft_id = self.draft_repository.save_draft(target, result)
+            self.draft_repository.save_evidence_docs(draft_id, evidence_docs)
+            safety_id = self.draft_repository.save_safety_results(draft_id, safety_result)
 
-        result_payload = {
-            "ticket_id": target.ticket_id,
-            "draft_id": draft_id,
-            "safety_id": safety_id,
-            "draft_text": result.draft_text,
-            "safety_label": result.safety_label,
-            "review_reason": result.review_reason,
-            "evidence_docs": evidence_docs,
-            "safety": safety_result.model_dump(),
-            "metadata": result.metadata,
-        }
-        link_current_trace(
-            user_id=target.user_id,
-            session_id=target.ticket_id,
-            tags=["feature:answer", "feature:safety", "feature:persistence"],
-            metadata=build_trace_metadata({**target.model_dump(), **result_payload}),
-            output_payload={
+            result_payload = {
                 "ticket_id": target.ticket_id,
                 "draft_id": draft_id,
                 "safety_id": safety_id,
-                "safety_label": result_payload["safety_label"],
-            },
-        )
-        return result_payload
+                "draft_text": result.draft_text,
+                "safety_label": result.safety_label,
+                "review_reason": result.review_reason,
+                "evidence_docs": evidence_docs,
+                "safety": safety_result.model_dump(),
+                "metadata": result.metadata,
+            }
+            link_current_trace(
+                user_id=target.user_id,
+                session_id=target.ticket_id,
+                tags=["feature:answer", "feature:safety", "feature:persistence"],
+                metadata=build_trace_metadata({**target.model_dump(), **result_payload}),
+                output_payload={
+                    "ticket_id": target.ticket_id,
+                    "draft_id": draft_id,
+                    "safety_id": safety_id,
+                    "safety_label": result_payload["safety_label"],
+                },
+            )
+            return result_payload
 
 
 @observe_if_enabled(name="cs_auto_run_answer_agent", as_type="chain", tags=["feature:answer"])
 def run_answer_agent() -> None:
     """Generate answer drafts for analyzed tickets that do not have one yet."""
-
-    agent = AnswerAgent()
-    targets = fetch_undrafted_tickets()
-    for target in targets:
-        ticket_id = int(target["ticket_id"])
-        agent.generate_answer_draft(ticket_id)
-        mark_answer_draft_completed(ticket_id)
+    try:
+        agent = AnswerAgent()
+        targets = fetch_undrafted_tickets()
+        for target in targets:
+            ticket_id = int(target["ticket_id"])
+            agent.generate_answer_draft(ticket_id)
+            mark_answer_draft_completed(ticket_id)
+    finally:
+        flush_langfuse()

@@ -8,7 +8,7 @@ from collections.abc import Sequence
 from chatbot.generation.policies import BUG_POLICY, PAYMENT_POLICY
 from chatbot.observability.langfuse import link_chatbot_trace
 from chatbot.schemas import ChatbotState
-from common.observability.langfuse import observe_if_enabled
+from common.observability.langfuse import get_langchain_config, observe_if_enabled
 from common.observability.logger import record_chat_model_usage
 
 
@@ -51,7 +51,7 @@ def _build_and_invoke_agent(
         system_prompt=system_prompt,
         tools=tools,
     )
-    result = runtime_agent.invoke(state)
+    result = runtime_agent.invoke(state, config=get_langchain_config())
     for message in result.get("messages") or []:
         record_chat_model_usage(usage_component, os.environ.get("LLM_MODEL"), message)
     return result

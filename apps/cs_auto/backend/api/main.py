@@ -15,7 +15,7 @@ from api.services.approve_draft import approve_answer_draft as approve_answer_dr
 from api.services.load_ticket import get_review_tickets, get_ticket_detail
 from api.services.regenerate_draft import regenerate_answer_draft as regenerate_answer_draft_service
 from apps.cs_auto.backend.api.services.edit_draft import update_answer_draft as update_answer_draft_service
-from common.observability.langfuse import configure_langfuse, observe_if_enabled
+from common.observability.langfuse import configure_langfuse, observe_if_enabled, shutdown_langfuse
 from observability.langfuse import link_cs_auto_trace
 from utils.email.send_answer_email import send_answer_email as send_answer_email_service
 from utils.login.admin_login import create_admin_session, revoke_admin_session, verify_admin_user_credentials
@@ -44,6 +44,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("shutdown")
+def _shutdown_langfuse_client() -> None:
+    shutdown_langfuse()
 
 
 class AdminLoginRequest(BaseModel):

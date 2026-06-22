@@ -5,7 +5,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from common.observability.langfuse import link_current_trace, observe_if_enabled
+from common.observability.langfuse import get_langchain_config, link_current_trace, observe_if_enabled
 
 
 CATEGORY_ALIASES = {
@@ -98,7 +98,8 @@ def rewrite_query_with_llm(
                         ]
                     ),
                 ),
-            ]
+            ],
+            config=get_langchain_config(),
         )
         rewritten = normalize_query_text(response.query_text)
         if not rewritten or rewritten == normalize_query_text(failed_query):

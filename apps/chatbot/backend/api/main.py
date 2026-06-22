@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from common.db.connection import db_connection
-from common.observability.langfuse import configure_langfuse
+from common.observability.langfuse import configure_langfuse, shutdown_langfuse
 from common.retrieval.cache_store import get_cached_session_state, set_cached_session_state
 
 configure_langfuse("chatbot", default_tags=["chatbot", "api"])
@@ -36,6 +36,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("shutdown")
+def _shutdown_langfuse_client() -> None:
+    shutdown_langfuse()
 
 ChatCategory = Literal["payment", "bug", "faq", "voc"]
 

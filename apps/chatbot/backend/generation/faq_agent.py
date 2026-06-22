@@ -19,7 +19,7 @@ from chatbot.repository.failed_query_repository import save_failed_query
 from common.retrieval.vector_tools import embed_query, enrich_retrieval_query, rerank_documents, search_document_chunks
 from chatbot.schemas import ChatbotState
 from chatbot.utils.query_enrichment import rewrite_query_with_llm
-from common.observability.langfuse import observe_if_enabled
+from common.observability.langfuse import get_langchain_config, observe_if_enabled
 
 
 NOTICE_SOURCE_TYPES = ("naver_cafe_notice",)
@@ -181,7 +181,7 @@ def _write_failed_query(payload: dict[str, Any]) -> str:
 
 
 def _embed_query(text: str) -> str:
-    return embed_query.invoke({"text": text})
+    return embed_query.invoke({"text": text}, config=get_langchain_config())
 
 
 def _rerank_documents(documents: list[dict[str, Any]], query: str) -> list[dict[str, Any]]:
@@ -189,7 +189,8 @@ def _rerank_documents(documents: list[dict[str, Any]], query: str) -> list[dict[
         {
             "docs_json": json.dumps(documents, ensure_ascii=False, default=str),
             "query": query,
-        }
+        },
+        config=get_langchain_config(),
     )
     return json.loads(reranked_json)
 
@@ -619,7 +620,8 @@ def _generate_evidence_answer(
                     "Use the normalized FAQ search question as the intended meaning when it is clearer than the customer's slang."
                 )
             ),
-        ]
+        ],
+        config=get_langchain_config(),
     )
     record_chat_model_usage("faq_answer_generation", model, response)
     return str(response.content).strip()
