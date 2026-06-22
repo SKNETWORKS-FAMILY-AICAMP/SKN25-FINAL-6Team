@@ -102,6 +102,9 @@ def api_get_review_tickets(
     category: str | None = None,
     risk_level: str | None = None,
     page: int | None = None,
+    source_type: str | None = None,
+    has_draft: bool | None = None,
+    # has_response: bool | None = None,
 ) -> dict[str, object]:
     trace_payload = {
         "admin_id": assignee_admin_id,
@@ -128,12 +131,8 @@ def api_get_review_tickets(
         category=category,
         risk_level=risk_level,
         page=page,
-    )
-    link_cs_auto_trace(
-        trace_payload,
-        tags=["api", "tickets"],
-        metadata_source={**trace_payload, **result},
-        output_payload={"count": result.get("count"), "filters": result.get("filters")},
+        # source_type=source_type,
+        # has_response=has_response,
     )
     return result
 

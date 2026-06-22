@@ -17,6 +17,8 @@ def get_review_tickets(
     category: str | None = None,
     risk_level: str | None = None,
     page: int | None = None,
+    source_type: str | None = None,
+    has_draft: bool | None = None,
 ) -> dict[str, object]:
     trace_payload = {
         "admin_id": assignee_admin_id,
@@ -43,6 +45,8 @@ def get_review_tickets(
         category=category,
         risk_level=risk_level,
         page=page,
+        source_type=source_type,
+        has_draft=has_draft,
     )
     result = {
         "tickets": tickets,
@@ -54,6 +58,8 @@ def get_review_tickets(
             "category": category,
             "risk_level": risk_level,
             "page": page,
+            "source_type": source_type,
+            "has_draft": has_draft,
         },
     }
     link_cs_auto_trace(trace_payload, tags=["tickets"], output_payload={"count": result["count"]})
@@ -91,6 +97,8 @@ def fetch_tickets(
     category: str | None = None,
     risk_level: str | None = None,
     page: int | None = None,
+    source_type: str | None = None,
+    has_draft: bool | None = None,
 ) -> list[dict[str, Any]]:
     trace_payload = {
         "admin_id": assignee_admin_id,
@@ -128,6 +136,13 @@ def fetch_tickets(
     if risk_level:
         where_clauses.append("LOWER(COALESCE(a.risk_level, '')) = LOWER(%s)")
         params.append(risk_level)
+    if source_type:
+        where_clauses.append("LOWER(COALESCE(t.source_type, '')) = LOWER(%s)")
+        params.append(source_type)
+    if has_draft is True:
+        where_clauses.append("d.draft_id IS NOT NULL")
+    elif has_draft is False:
+        where_clauses.append("d.draft_id IS NULL")
 
     where_sql = " AND ".join(where_clauses) if where_clauses else "TRUE"
 
