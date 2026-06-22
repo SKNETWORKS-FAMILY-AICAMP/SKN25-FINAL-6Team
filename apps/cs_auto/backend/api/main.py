@@ -104,7 +104,8 @@ def api_get_review_tickets(
     category: str | None = None,
     risk_level: str | None = None,
     page: int | None = None,
-    # source_type: str | None = None,
+    source_type: str | None = None,
+    has_draft: bool | None = None,
     # has_response: bool | None = None,
 ) -> dict[str, object]:
     # source_type/has_response 확장 버전은 전 로직 복구를 위해 사용 중지한다.
@@ -115,7 +116,8 @@ def api_get_review_tickets(
         category=category,
         risk_level=risk_level,
         page=page,
-        # source_type=source_type,
+        source_type=source_type,
+        has_draft=has_draft,
         # has_response=has_response,
     )
 
