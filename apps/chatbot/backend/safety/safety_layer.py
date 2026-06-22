@@ -359,7 +359,13 @@ def _payment_context_requires_review(state: ChatbotState) -> tuple[bool, str | N
         "delivery_status",
         {"pending", "failed", "processing", "requested", "미지급", "대기", "실패"},
     )
-    if asks_delivery_or_reward and has_completed_payment and (has_pending_or_failed_delivery or not has_delivered_item):
+    delivery_is_missing_or_unresolved = has_pending_or_failed_delivery or not has_delivered_item
+    requires_paid_delivery_review = (
+        asks_delivery_or_reward
+        and has_completed_payment
+        and delivery_is_missing_or_unresolved
+    )
+    if requires_paid_delivery_review:
         return True, "paid_item_delivery_requires_operator_review"
 
     return False, None

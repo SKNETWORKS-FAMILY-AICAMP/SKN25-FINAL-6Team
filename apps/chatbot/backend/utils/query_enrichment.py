@@ -10,9 +10,9 @@ from common.observability.langfuse import get_langchain_config, link_current_tra
 
 CATEGORY_ALIASES = {
     "payment": "payment",
-    "寃곗젣": "payment",
+    "결제": "payment",
     "bug": "bug",
-    "?멸쾶??踰꾧렇": "bug",
+    "버그": "bug",
     "faq": "faq",
     "FAQ": "faq",
     "voc": "voc",

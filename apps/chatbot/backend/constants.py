@@ -4,9 +4,16 @@ from __future__ import annotations
 MAX_SAFETY_RETRY = 2
 MAX_MASKING_RETRY = 2
 
+# Development/demo fallback used only when a caller does not provide an authenticated user_id.
+# Production clients should pass the logged-in user's real user_id from the login flow.
+DEFAULT_DEMO_USER_ID = 1
+
 ROUTING_TARGET = ["rag_reply", "payment_agent", "bug_agent", "faq_agent", "voc_agent"]
 CATEGORY = ["payment", "bug", "faq", "voc"]
 
+# Safety thresholds are conservative operating guardrails for the rule-based grounding check
+# plus OpenAI moderation. They should be recalibrated with regression/eval datasets before
+# being treated as product-quality policy limits.
 FACTUALITY_THRESHOLD = 0.8
 HALLUCINATION_THRESHOLD = 0.3
 FACTUALITY_WARN_THRESHOLD = 0.5

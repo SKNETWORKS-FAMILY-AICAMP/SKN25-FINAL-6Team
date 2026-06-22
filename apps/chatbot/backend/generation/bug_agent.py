@@ -205,6 +205,70 @@ def _state_with_bug_intent(state: ChatbotState, bug_intent: dict[str, object]) -
     return updated
 
 
+def _base_bug_update(
+    state: ChatbotState,
+    bug_intent: dict[str, object],
+    *,
+    draft_text: str,
+    safety_action: str,
+    review_required: bool,
+) -> dict[str, Any]:
+    return {
+        "draft_text": draft_text,
+        "retry_count": state["retry_count"],
+        "category": state["category"],
+        "routing_target": state["routing_target"],
+        "reasoning_node": BUG_POLICY.name,
+        "bug_intent": bug_intent,
+        "safety_action": safety_action,
+        "safety_passed": True,
+        "review_required": review_required,
+    }
+
+
+def _build_bug_off_topic_update(state: ChatbotState, bug_intent: dict[str, object]) -> dict[str, Any]:
+    return _base_bug_update(
+        state,
+        bug_intent,
+        draft_text=BUG_OFF_TOPIC_RESPONSE,
+        safety_action="AUTO_RESPONSE",
+        review_required=False,
+    )
+
+
+def _build_bug_faq_update(bug_faq_update: dict[str, Any], bug_intent: dict[str, object]) -> dict[str, Any]:
+    return {**bug_faq_update, "bug_intent": bug_intent, "review_required": False}
+
+
+def _build_bug_collection_update(state: ChatbotState, bug_intent: dict[str, object]) -> dict[str, Any]:
+    return _base_bug_update(
+        state,
+        bug_intent,
+        draft_text=BUG_REPRODUCTION_FORM_RESPONSE,
+        safety_action="AUTO_RESPONSE",
+        review_required=False,
+    )
+
+
+def _build_bug_review_update(state: ChatbotState, bug_intent: dict[str, object]) -> dict[str, Any]:
+    return _base_bug_update(
+        state,
+        bug_intent,
+        draft_text=BUG_ACCEPTED_RESPONSE,
+        safety_action="REVIEW_REQUIRED",
+        review_required=True,
+    )
+
+
+def _build_bug_agent_update(state: ChatbotState, bug_intent: dict[str, object]) -> dict[str, Any]:
+    result = invoke_bug_agent(_state_with_bug_intent(state, bug_intent))
+    return {
+        **build_draft_update(state, result, BUG_POLICY.name),
+        "bug_intent": bug_intent,
+        "review_required": True,
+    }
+
+
 def _bug_faq_category() -> str:
     return os.environ.get("BUG_FAQ_CATEGORY", "bug_faq").strip()
 
@@ -384,52 +448,17 @@ def bug_agent_node(state: ChatbotState) -> dict:
     )
 
     if bug_intent.get("intent_type") == "NOT_BUG":
-        update = {
-            "draft_text": BUG_OFF_TOPIC_RESPONSE,
-            "retry_count": state["retry_count"],
-            "category": state["category"],
-            "routing_target": state["routing_target"],
-            "reasoning_node": BUG_POLICY.name,
-            "bug_intent": bug_intent,
-            "safety_action": "AUTO_RESPONSE",
-            "safety_passed": True,
-            "review_required": False,
-        }
+        update = _build_bug_off_topic_update(state, bug_intent)
     else:
         bug_faq_update = _run_bug_faq_precheck(state)
         if bug_faq_update is not None:
-            update = {**bug_faq_update, "bug_intent": bug_intent, "review_required": False}
+            update = _build_bug_faq_update(bug_faq_update, bug_intent)
         elif state.get("bug_collection_status") == "collecting":
-            update = {
-                "draft_text": BUG_REPRODUCTION_FORM_RESPONSE,
-                "retry_count": state["retry_count"],
-                "category": state["category"],
-                "routing_target": state["routing_target"],
-                "reasoning_node": BUG_POLICY.name,
-                "bug_intent": bug_intent,
-                "safety_action": "AUTO_RESPONSE",
-                "safety_passed": True,
-                "review_required": False,
-            }
+            update = _build_bug_collection_update(state, bug_intent)
         elif state.get("bug_collection_status") == "ready_for_review":
-            update = {
-                "draft_text": BUG_ACCEPTED_RESPONSE,
-                "retry_count": state["retry_count"],
-                "category": state["category"],
-                "routing_target": state["routing_target"],
-                "reasoning_node": BUG_POLICY.name,
-                "bug_intent": bug_intent,
-                "safety_action": "REVIEW_REQUIRED",
-                "safety_passed": True,
-                "review_required": True,
-            }
+            update = _build_bug_review_update(state, bug_intent)
         else:
-            result = invoke_bug_agent(_state_with_bug_intent(state, bug_intent))
-            update = {
-                **build_draft_update(state, result, BUG_POLICY.name),
-                "bug_intent": bug_intent,
-                "review_required": True,
-            }
+            update = _build_bug_agent_update(state, bug_intent)
 
     # 2단계: 생성된 버그 초안 길이를 기록하고 공통 draft_persistence 노드로 넘긴다.
     log_event(

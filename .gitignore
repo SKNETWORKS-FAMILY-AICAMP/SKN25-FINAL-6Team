@@ -36,4 +36,5 @@ tests/operation/operation_workflow_graph.png
 src/chatbot/evals/experiments/
 src/chatbot/evals/datasets/
 apps/chatbot/backend/evals/reports/
+apps/chatbot/backend/evals/outputs/
 local-results/

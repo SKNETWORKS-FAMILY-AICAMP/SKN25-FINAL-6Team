@@ -4,9 +4,9 @@
 Workflow-required writes call repository functions directly from the workflow nodes.
 
 Read tools:
-- `read_item_delivery_logs(account_id)`
-- `read_gacha_logs(account_id)`
-- `collect_user_payment_context(user_id, account_id=None)`
+- `read_item_delivery_logs(user_id, account_id)`
+- `read_gacha_logs(user_id, account_id)`
+- `collect_user_payment_context(user_id, account_id=None)` (compatibility/manual lookup; not registered in `PAYMENT_POLICY.tools`)
 
 Repository-direct workflow writes:
 - `save_qa_ticket(payload)`

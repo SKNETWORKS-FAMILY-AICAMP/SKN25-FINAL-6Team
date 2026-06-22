@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
+from chatbot.constants import DEFAULT_DEMO_USER_ID
 from chatbot.observability.langfuse import build_chatbot_trace_metadata
 from chatbot.observability.logger import EVENT_NODE_COMPLETED, log_event
 from chatbot.utils.input_preprocessing import preprocess_user_input
@@ -14,7 +15,7 @@ def build_state(
     user_message: str,
     category: str | None = None,
     account_id: int | None = None,
-    user_id: int = 1,
+    user_id: int = DEFAULT_DEMO_USER_ID,
     session_id: str = "1-1",
     source_type: str = "chatbot",
     ui_category: str | None = None,
@@ -177,7 +178,7 @@ def run_chatbot(
     user_message: str,
     category: str | None = None,
     account_id: int | None = None,
-    user_id: int = 1,
+    user_id: int = DEFAULT_DEMO_USER_ID,
     session_id: str = "1-1",
     source_type: str = "chatbot",
     ui_category: str | None = None,
@@ -264,7 +265,7 @@ def stream_chatbot(
     user_message: str,
     category: str | None = None,
     account_id: int | None = None,
-    user_id: int = 1,
+    user_id: int = DEFAULT_DEMO_USER_ID,
     session_id: str = "1-1",
     source_type: str = "chatbot",
     ui_category: str | None = None,

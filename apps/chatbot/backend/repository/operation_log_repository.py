@@ -8,6 +8,10 @@ from chatbot.repository.base import read_response, safe_read
 
 
 PAYMENT_CONTEXT_LIMIT = 20
+# 한 글자 조사는 검색 잡음을 키우므로 2자 이상 토큰만 payment context matching에 사용한다.
+PAYMENT_SEARCH_MIN_TOKEN_CHARS = 2
+# ILIKE 조건이 과도하게 늘어나지 않도록 사용자 질문에서 최대 12개 토큰만 검색 패턴으로 쓴다.
+PAYMENT_SEARCH_MAX_PATTERNS = 12
 
 
 # operation log 조회는 여러 함수에서 같은 DB connection/cursor 패턴을 사용한다.
@@ -23,13 +27,13 @@ def _payment_search_patterns(query_text: str | None) -> list[str]:
     terms = [
         token
         for token in re.findall(r"[0-9A-Za-z가-힣]+", text)
-        if len(token) >= 2
+        if len(token) >= PAYMENT_SEARCH_MIN_TOKEN_CHARS
     ]
-    return [f"%{term}%" for term in list(dict.fromkeys(terms))[:12]]
+    return [f"%{term}%" for term in list(dict.fromkeys(terms))[:PAYMENT_SEARCH_MAX_PATTERNS]]
 
 
-# 특정 게임 계정의 아이템 지급 로그를 조회한다.
-def read_item_delivery_logs_by_account(account_id: int) -> dict[str, Any]:
+# 로그인 사용자 소유 계정의 아이템 지급 로그만 조회한다.
+def read_item_delivery_logs_by_account(*, user_id: int, account_id: int) -> dict[str, Any]:
     def _read() -> dict[str, Any]:
         db_connection, dict_row = _db_context()
         with db_connection() as conn:
@@ -39,27 +43,29 @@ def read_item_delivery_logs_by_account(account_id: int) -> dict[str, Any]:
                     SELECT
                         delivery_id,
                         payment_id,
-                        account_id,
+                        d.account_id,
                         source_type,
                         item_name,
                         quantity,
                         delivery_status,
                         expected_at,
                         delivered_at
-                    FROM item_delivery_logs
-                    WHERE account_id = %s
+                    FROM item_delivery_logs d
+                    JOIN game_accounts a ON a.account_id = d.account_id
+                    WHERE a.user_id = %s
+                        AND d.account_id = %s
                     ORDER BY expected_at DESC NULLS LAST, delivered_at DESC NULLS LAST
                     LIMIT %s
                     """,
-                    (account_id, PAYMENT_CONTEXT_LIMIT),
+                    (user_id, account_id, PAYMENT_CONTEXT_LIMIT),
                 )
                 return read_response([dict(row) for row in cur.fetchall()])
 
     return safe_read(operation="read_item_delivery_logs", reader=_read)
 
 
-# 특정 게임 계정의 가챠/뽑기 로그를 조회한다.
-def read_gacha_logs_by_account(account_id: int) -> dict[str, Any]:
+# 로그인 사용자 소유 계정의 가챠/뽑기 로그만 조회한다.
+def read_gacha_logs_by_account(*, user_id: int, account_id: int) -> dict[str, Any]:
     def _read() -> dict[str, Any]:
         db_connection, dict_row = _db_context()
         with db_connection() as conn:
@@ -68,19 +74,21 @@ def read_gacha_logs_by_account(account_id: int) -> dict[str, Any]:
                     """
                     SELECT
                         gacha_id,
-                        account_id,
+                        g.account_id,
                         banner_name,
                         item_name,
                         item_type,
                         rarity,
                         pity_count,
                         pulled_at
-                    FROM gacha_logs
-                    WHERE account_id = %s
+                    FROM gacha_logs g
+                    JOIN game_accounts a ON a.account_id = g.account_id
+                    WHERE a.user_id = %s
+                        AND g.account_id = %s
                     ORDER BY pulled_at DESC NULLS LAST
                     LIMIT %s
                     """,
-                    (account_id, PAYMENT_CONTEXT_LIMIT),
+                    (user_id, account_id, PAYMENT_CONTEXT_LIMIT),
                 )
                 return read_response([dict(row) for row in cur.fetchall()])
 

@@ -14,6 +14,7 @@ from common.retrieval.cache_store import get_cached_session_state, set_cached_se
 
 configure_langfuse("chatbot", default_tags=["chatbot", "api"])
 
+from chatbot.constants import DEFAULT_DEMO_USER_ID
 from chatbot.service.account_service import get_server_regions, login_with_credentials
 from chatbot.service.chatbot_service import run_chatbot
 from chatbot.service.multiturn_service import build_session_context
@@ -44,13 +45,31 @@ def _shutdown_langfuse_client() -> None:
 
 ChatCategory = Literal["payment", "bug", "faq", "voc"]
 
+# 생성 ID는 작은 fixture/test ID와 구분하기 쉽도록 9자리 숫자 범위에서 만든다.
+# DB integer 컬럼 범위 안에 머물면서도 사람이 로그에서 식별하기 쉬운 값이다.
+NUMERIC_ID_MIN_VALUE = 100_000_000
+NUMERIC_ID_RANDOM_SPAN = 800_000_000
+# 랜덤 ID 충돌 가능성은 낮지만, DB 확인 횟수는 제한해 요청 지연을 막는다.
+TICKET_ID_COLLISION_RETRY_LIMIT = 8
+# 세션 캐시와 멀티턴 context가 과도하게 커지지 않도록 제한한다.
+SESSION_TEXT_CLIP_CHARS = 1200
+SESSION_DOCUMENT_META_LIMIT = 5
+DEFAULT_SESSION_MAX_MESSAGES = 40
+DEFAULT_RECENT_SESSION_TURNS = 3
+
+# 알려진 재현정보 필드가 2개 이상 있을 때만 버그 보고서 폼으로 본다.
+BUG_REPORT_FORM_MIN_LABEL_MATCHES = 2
+# 문의 내역 화면은 첫 진입 시 최근 20건만 보여주고, 한 번에 최대 100건까지만 조회한다.
+DEFAULT_TICKET_HISTORY_LIMIT = 20
+MAX_TICKET_HISTORY_LIMIT = 100
 
 class ChatRequest(BaseModel):
     ticket_id: int | None = None
     user_message: str = Field(min_length=1)
     category: ChatCategory
     account_id: int | None = None
-    user_id: int = 1
+    # Demo fallback; authenticated clients should send the logged-in user's real user_id.
+    user_id: int = DEFAULT_DEMO_USER_ID
     session_id: str | int | None = None
     source_type: str = "chatbot"
     ui_category: str | None = None
@@ -112,12 +131,12 @@ def _extract_ai_response(raw_query: str | None) -> str | None:
 
 
 def _new_numeric_id() -> int:
-    return 100_000_000 + secrets.randbelow(800_000_000)
+    return NUMERIC_ID_MIN_VALUE + secrets.randbelow(NUMERIC_ID_RANDOM_SPAN)
 
 
 def _new_ticket_id() -> int:
     # 프론트가 ticket_id를 만들지 않도록, 서버에서 충돌 가능성이 낮은 숫자 ID를 생성한다.
-    for _ in range(8):
+    for _ in range(TICKET_ID_COLLISION_RETRY_LIMIT):
         ticket_id = _new_numeric_id()
         try:
             with db_connection() as conn:
@@ -145,7 +164,7 @@ def _next_session_turn_id(previous_session_id: str | int | None) -> str:
     return f"{session_id}-1"
 
 
-def _clip_session_text(value: Any, limit: int = 1200) -> str:
+def _clip_session_text(value: Any, limit: int = SESSION_TEXT_CLIP_CHARS) -> str:
     text = " ".join(str(value or "").replace("\\n", "\n").split())
     if len(text) <= limit:
         return text
@@ -161,13 +180,13 @@ def _session_messages_from_cache(payload: dict[str, Any]) -> list[dict[str, str]
         if not isinstance(message, dict):
             continue
         role = str(message.get("role") or "").strip()
-        content = _clip_session_text(message.get("content"), 1200)
+        content = _clip_session_text(message.get("content"), SESSION_TEXT_CLIP_CHARS)
         if role and content:
             normalized.append({"role": role, "content": content})
     return normalized
 
 
-def _document_session_meta(documents: Any, limit: int = 5) -> list[dict[str, Any]]:
+def _document_session_meta(documents: Any, limit: int = SESSION_DOCUMENT_META_LIMIT) -> list[dict[str, Any]]:
     if not isinstance(documents, list):
         return []
     result: list[dict[str, Any]] = []
@@ -196,7 +215,7 @@ def _build_session_cache_payload(
     answer: str,
     state: dict[str, Any],
 ) -> dict[str, Any]:
-    max_messages = int(os.environ.get("CHATBOT_SESSION_MAX_MESSAGES", "40"))
+    max_messages = int(os.environ.get("CHATBOT_SESSION_MAX_MESSAGES", str(DEFAULT_SESSION_MAX_MESSAGES)))
     messages = list(previous_messages or [])
     messages.extend(
         [
@@ -270,7 +289,7 @@ def _looks_like_bug_report_form(text: str) -> bool:
         "사용 기기",
         "오류 내용",
     )
-    return sum(1 for label in labels if label in text) >= 2
+    return sum(1 for label in labels if label in text) >= BUG_REPORT_FORM_MIN_LABEL_MATCHES
 
 
 @app.get("/health")
@@ -296,7 +315,7 @@ def login(request: LoginRequest) -> LoginResponse:
 def list_tickets(
     user_id: int = Query(..., ge=1),
     account_id: int | None = Query(default=None, ge=1),
-    limit: int = Query(default=20, ge=1, le=100),
+    limit: int = Query(default=DEFAULT_TICKET_HISTORY_LIMIT, ge=1, le=MAX_TICKET_HISTORY_LIMIT),
 ) -> list[InquiryHistoryItem]:
     # 문의 내역 화면은 qa_ticket의 최신 chatbot 문의를 읽고, raw_query 안의 AI 답변을 분리해 표시한다.
     params: list[Any] = [user_id]
@@ -387,7 +406,7 @@ def chat(request: ChatRequest) -> ChatResponse:
             user_id=request.user_id,
             account_id=request.account_id,
             current_ticket_id=ticket_id,
-            recent_turns=3,
+            recent_turns=DEFAULT_RECENT_SESSION_TURNS,
         )
         previous_messages = context.previous_messages
         conversation_summary = conversation_summary or context.conversation_summary

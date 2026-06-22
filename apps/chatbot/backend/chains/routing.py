@@ -29,15 +29,19 @@ def _is_voc_state(state: ChatbotState) -> bool:
     return category == "voc" or state.get("reasoning_node") == "voc_agent"
 
 
+def _is_bug_collection_auto_response(state: ChatbotState) -> bool:
+    return (
+        state.get("reasoning_node") == "bug_agent"
+        and state.get("bug_collection_status") in {"collecting", "ready_for_review"}
+        and not state.get("retrieved_documents")
+    )
+
+
 def route_after_draft_persistence(state: ChatbotState) -> str:
     # VOC는 고정 감사 응답이므로 safety 검사를 생략하고, 나머지 답변은 safety_layer로 보낸다.
     if _is_voc_state(state):
         return "ticket_completion"
-    if (
-        state.get("reasoning_node") == "bug_agent"
-        and state.get("bug_collection_status") in {"collecting", "ready_for_review"}
-        and not state.get("retrieved_documents")
-    ):
+    if _is_bug_collection_auto_response(state):
         return "ticket_completion"
     return "safety_layer"
 

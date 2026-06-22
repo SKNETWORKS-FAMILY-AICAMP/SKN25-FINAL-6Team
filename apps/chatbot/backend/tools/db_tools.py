@@ -11,30 +11,32 @@ def _json(data: object) -> str:
     return json.dumps(data, ensure_ascii=False, indent=2, default=str)
 
 
-# 버그 agent가 아이템 미지급 문의를 검토할 때 계정별 지급 로그를 조회한다.
+# 버그 agent가 아이템 미지급 문의를 검토할 때 로그인 사용자 소유 계정의 지급 로그만 조회한다.
 @tool(parse_docstring=True)
-def read_item_delivery_logs(account_id: int) -> str:
-    """Read item delivery log records for the given account.
+def read_item_delivery_logs(user_id: int, account_id: int) -> str:
+    """Read item delivery log records for an account owned by the logged-in user.
 
     Args:
-        account_id: Game account ID to look up delivery logs for.
+        user_id: Logged-in community user ID. This is the ownership boundary.
+        account_id: Game account ID to look up delivery logs for, only if it belongs to user_id.
     """
     from chatbot.repository.operation_log_repository import read_item_delivery_logs_by_account
 
-    return _json(read_item_delivery_logs_by_account(account_id))
+    return _json(read_item_delivery_logs_by_account(user_id=user_id, account_id=account_id))
 
 
-# 버그 agent가 가챠/뽑기 결과 문의를 검토할 때 계정별 뽑기 로그를 조회한다.
+# 버그 agent가 가챠/뽑기 결과 문의를 검토할 때 로그인 사용자 소유 계정의 뽑기 로그만 조회한다.
 @tool(parse_docstring=True)
-def read_gacha_logs(account_id: int) -> str:
-    """Read gacha pull log records for the given account.
+def read_gacha_logs(user_id: int, account_id: int) -> str:
+    """Read gacha pull log records for an account owned by the logged-in user.
 
     Args:
-        account_id: Game account ID to look up gacha logs.
+        user_id: Logged-in community user ID. This is the ownership boundary.
+        account_id: Game account ID to look up gacha logs, only if it belongs to user_id.
     """
     from chatbot.repository.operation_log_repository import read_gacha_logs_by_account
 
-    return _json(read_gacha_logs_by_account(account_id))
+    return _json(read_gacha_logs_by_account(user_id=user_id, account_id=account_id))
 
 
 # payment agent가 결제/환불/아이템 지급/가챠 로그를 사용자 소유 범위 안에서 한 번에 모은다.
