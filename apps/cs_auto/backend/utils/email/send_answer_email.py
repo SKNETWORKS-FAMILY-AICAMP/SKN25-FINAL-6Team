@@ -77,10 +77,9 @@ def send_answer_email(ticket_id: int, admin_id: int | None = None) -> dict[str, 
                     channel,
                     status,
                     message,
-                    error_message,
-                    error_category
+                    error_message
                 )
-                VALUES (%s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s)
                 RETURNING notification_id, sent_at
                 """,
                 (
@@ -88,7 +87,6 @@ def send_answer_email(ticket_id: int, admin_id: int | None = None) -> dict[str, 
                     "email",
                     "sent",
                     body,
-                    None,
                     None,
                 ),
             )
