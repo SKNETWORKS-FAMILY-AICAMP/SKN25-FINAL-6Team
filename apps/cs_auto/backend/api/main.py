@@ -334,6 +334,14 @@ def _format_frontend_display_date(value: object) -> str:
     return parsed.strftime("%m-%d %H:%M")
 
 
+def _get_frontend_channel_label(source_type: str) -> str:
+    if source_type == "naver_cafe":
+        return "고객센터"
+    if source_type == "chatbot":
+        return "챗봇"
+    return source_type or "-"
+
+
 def build_frontend_ticket_payload(row: dict[str, object] | None) -> dict[str, object] | None:
     if not row:
         return None
@@ -356,7 +364,7 @@ def build_frontend_ticket_payload(row: dict[str, object] | None) -> dict[str, ob
         "priorityLabel": priority_label,
         "priorityTone": priority_tone,
         "level": risk_level,
-        "channel": source_type or "-",
+        "channel": _get_frontend_channel_label(source_type),
         "channelIcon": "brand-blogger" if source_type == "naver_cafe" else "robot" if source_type == "chatbot" else "mail",
         "category": row.get("category") or "미분류",
         "status": status,

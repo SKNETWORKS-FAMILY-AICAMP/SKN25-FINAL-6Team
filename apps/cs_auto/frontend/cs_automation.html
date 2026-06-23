@@ -382,6 +382,12 @@ function formatDisplayDate(value) {
   return `${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")} ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
+function getChannelLabel(sourceType) {
+  if (sourceType === "naver_cafe") return "고객센터";
+  if (sourceType === "chatbot") return "챗봇";
+  return sourceType || "-";
+}
+
 function mapApiTicketToUiTicket(row) {
   const riskLevel = String(row.risk_level || "LOW").toUpperCase();
   const rawStatus = String(row.status || "");
@@ -397,7 +403,7 @@ function mapApiTicketToUiTicket(row) {
     draftId: row.draft_id || null,
     responseId: row.response_id || null,
     level: riskLevel,
-    channel: sourceType || "-",
+    channel: getChannelLabel(sourceType),
     channelIcon: sourceType === "naver_cafe" ? "brand-blogger" : sourceType === "chatbot" ? "robot" : "mail",
     category: row.category || "미분류",
     status,
