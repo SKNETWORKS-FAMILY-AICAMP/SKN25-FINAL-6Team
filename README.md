@@ -1042,7 +1042,7 @@ CS 자동화 평가는 분석 단계와 답변 생성 단계를 분리해 측정
   <tr>
     <td align="center">
       <a href="https://github.com/kimdappi">
-        <img src="https://img.shields.io/badge/rosie1025-181717?style=flat-square&logo=github&logoColor=white" />
+        <img src="https://img.shields.io/badge/kimdappi-181717?style=flat-square&logo=github&logoColor=white" />
       </a>
     </td>
     <td align="center">
