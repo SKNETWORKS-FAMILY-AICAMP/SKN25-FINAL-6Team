@@ -117,7 +117,7 @@ AI가 일반 문의를 자동 처리하고, 위험도가 높은 이슈와 운영
 | 서비스 | 내용 |
 | :--- | :--- |
 | **챗봇** | 사용자 로그인 후 챗봇으로 문의를 접수합니다. 입력 전처리·카테고리 라우팅·DB 조회·RAG 검색·안전성 검사를 거쳐 근거 기반 최종 응답을 자동 생성합니다. |
-| **CS 자동화** | 운영자는 Airflow 배치로 생성된 분석 결과와 답변 초안을 검토하고, 필요 시 수정·재생성 후 승인합니다. 승인된 답변은 고객에게 메일로 자동 발송됩니다. |
+| **CS 자동화** | 운영자는 Airflow 배치로 생성된 분석 결과와 답변 초안을 검토하고, 필요 시 수정·재생성 후 승인합니다. 승인된 답변은 메일 발송 기능을 통해 전달할 수 있습니다. |
 | **주간 운영 리포트** | 매주 월요일 09:00 KST, Airflow가 전주 운영 지표를 자동 집계하고 이상치 탐지·AI 권장 액션이 포함된 PDF 리포트를 Slack 채널로 발송합니다. |
 
 ### 타겟 사용자
@@ -160,7 +160,7 @@ AI가 일반 문의를 자동 처리하고, 위험도가 높은 이슈와 운영
 | :--- | :--- |
 | **CS 처리 효율 향상** | 반복 문의에 대한 분석과 답변 초안 생성을 자동화해 운영자가 근거 확인과 최종 검수에 집중할 수 있습니다. |
 | **답변 품질 일관성 확보** | DB 조회와 RAG 검색을 통해 확인된 근거를 기반으로 답변을 생성하고, 안전성 검증 계층으로 환각·정책 위반·유해 표현 가능성을 검수합니다. |
-| **운영 안정성 강화** | AI가 고객에게 직접 최종 답변을 발송하지 않고 운영자 승인 단계를 거치는 Human-in-the-loop 구조로 자동화 효율과 검수 안정성을 함께 확보합니다. |
+| **운영 안정성 강화** | 챗봇은 안전성 검수 후 자동 응답하고, CS 자동화는 운영자 승인 단계를 거쳐 최종 발송하는 구조로 자동화 효율과 검수 안정성을 함께 확보합니다. |
 | **기획·운영 인사이트 제공** | 주간 문의 지표, 급증 이슈, 개선 요청 Top 5, AI 권장 액션을 리포트로 제공해 반복 문제와 사용자 불편 흐름을 빠르게 파악할 수 있습니다. |
 | **업무 흐름 통합** | 챗봇, CS 자동화, 주간 운영 리포트를 연결해 문의 접수부터 리포트 공유까지 분리된 업무를 하나의 운영 흐름으로 관리합니다. |
 
@@ -174,7 +174,7 @@ AI가 일반 문의를 자동 처리하고, 위험도가 높은 이슈와 운영
 
 | 데이터 | 출처 | 수집 방식 | 활용 위치 |
 | :--- | :--- | :--- | :--- |
-| 고객 문의 데이터 | QNA API, 네이버 카페 문의 게시글 | API/URL 기반 수집 후 정규화 | 챗봇 문의 접수, CS자동화 분석/답변 생성 |
+| 고객 문의 데이터 | QNA API, 네이버 카페 문의 게시글 | API/URL 기반 수집 후 정규화 | 챗봇 문의 접수, CS 자동화 분석/답변 생성 |
 | 정책·FAQ·공지 문서 | 게임 운영 정책, FAQ, 공지, 가이드 문서 | URL 수집 및 HTML 본문 추출 | RAG 기반 근거 검색 |
 | 사용자/계정 데이터 | 커뮤니티 사용자, 게임 계정 DB | PostgreSQL 테이블 적재 | 로그인, 계정 식별, 문의 이력 조회 |
 | 게임 운영 로그 | 결제, 환불, 아이템 지급, 가챠 로그 DB | 업무 테이블 적재 및 SQL 조회 | 결제/환불/아이템 문의 근거 조회 |
@@ -309,9 +309,9 @@ SKN25-FINAL-6Team/
 <table width="100%">
   <thead>
     <tr>
-      <th width="33%">Chatbot</th>
-      <th width="33%">CS Auto</th>
-      <th width="33%">Weekly Report</th>
+      <th width="33%">챗봇</th>
+      <th width="33%">CS 자동화</th>
+      <th width="33%">주간 운영 리포트</th>
     </tr>
   </thead>
   <tbody>
@@ -320,10 +320,10 @@ SKN25-FINAL-6Team/
         <b>사용자 문의 접수 및 자동 응답</b><br><br>
         - 사용자 로그인 및 문의 이력 조회<br>
         - 결제 / 버그 / FAQ / VOC 문의 유형별 응답 처리<br>
-        - LangGraph 기반 멀티스텝 workflow<br>
-        - 개인정보 마스킹 및 Prompt Injection 탐지<br>
+        - LangGraph 기반 다단계 워크플로우<br>
+        - 개인정보 마스킹 및 프롬프트 인젝션 탐지<br>
         - DB 조회와 RAG 검색 기반 답변 생성<br>
-        - Safety Layer 기반 최종 응답 검증
+        - 안전성 검증 계층 기반 최종 응답 검증
       </td>
       <td valign="top">
         <b>운영자 검수 및 답변 승인</b><br><br>
@@ -331,7 +331,7 @@ SKN25-FINAL-6Team/
         - AI 분석 결과, 초안, 근거 문서 확인<br>
         - 답변 초안 수정 / 재생성 / 승인<br>
         - 승인 답변 고객 메일 발송<br>
-        - 새벽 시간대 Agent 배치 처리<br>
+        - 새벽 시간대 에이전트 배치 처리<br>
         - 고정 SQL / 동적 SQL 조회 전략 분리
       </td>
       <td valign="top">
@@ -356,21 +356,21 @@ SKN25-FINAL-6Team/
 <table width="100%">
   <tr>
     <td align="center" width="50%">
-      <b>Chatbot</b><br><br>
+      <b>챗봇</b><br><br>
       <img src="./assets/frontend/chatbot_first.png" alt="chatbot" width="100%" />
     </td>
     <td align="center" width="50%">
-      <b>CS Auto</b><br><br>
+      <b>CS 자동화</b><br><br>
       <img src="./assets/frontend/cafe_screenshot.png" alt="cs-auto" width="100%" />
     </td>
   </tr>
   <tr>
     <td align="center" width="50%">
-      <b>Weekly Report</b><br><br>
+      <b>주간 운영 리포트</b><br><br>
       <img src="./assets/frontend/report_screenshot.png" alt="weekly-report" width="100%" />
     </td>
     <td align="center" width="50%">
-      <b>Slack Report</b><br><br>
+      <b>Slack 리포트</b><br><br>
       <img src="./assets/frontend/weekly_report_slack.png" alt="weekly-report-slack" width="100%" />
     </td>
   </tr>
@@ -424,7 +424,7 @@ flowchart TD
 
     Review --> Edit["수정 / 재생성 / 승인"]
     Edit --> Final["최종 응답 저장"]
-    Final --> Send["댓글 / 이메일 응답"]
+    Final --> Send["이메일 응답"]
 ```
 ### 주간 운영 리포트 아키텍처
 
@@ -445,7 +445,7 @@ flowchart TD
     PDF --> Slack["Slack 자동 공유"]
 ```
 
-### CS 자동화 아카택처
+### CS 자동화 아키텍처
 
 CS 자동화는 분석 에이전트와 답변 초안 작성 에이전트를 분리해 처리합니다. 분석 에이전트는 미분석 문의를 읽고 카테고리, 감성, 위험도, 필요한 근거 자료 종류를 먼저 결정합니다. 답변 초안 작성 에이전트는 분석 결과를 바탕으로 DB 또는 문서 근거를 수집하고, 고객 답변 초안과 안전성 결과를 생성합니다.
 
@@ -581,7 +581,7 @@ CS 자동화의 DB 조회는 문의 유형에 따라 고정 SQL과 동적 SQL을
 - PostgreSQL 16+ 및 pgvector
 - Docker / Docker Compose
 - LLM API Key
-- Slack Bot Token 또는 Slack Webhook URL
+- Slack Bot Token 
 - SMTP App Password
 
 ### 환경 변수
@@ -767,7 +767,7 @@ pytest common\tests
 
 ### 챗봇 평가 요약
 
-챗봇 평가는 실제 workflow 처리 정확도를 중심으로 구성했습니다. 입력 전처리, 에이전트별 작업 선택, 근거 문서 탐색, 답변 근거 충실도, Safety 검수 통과 여부, 챗봇 워크플로우(전체 처리 성공률)를 분리해 측정했습니다.
+챗봇 평가는 실제 워크플로우 처리 정확도를 중심으로 구성했습니다. 입력 전처리, 에이전트별 작업 선택, 근거 문서 탐색, 답변 근거 충실도, Safety 검수 통과 여부, 챗봇 워크플로우(전체 처리 성공률)를 분리해 측정했습니다.
 
 #### 실험 데이터셋
 
@@ -785,7 +785,7 @@ pytest common\tests
 | 평가 영역 | 주요 지표 | 결과 |
 | :--- | :--- | :--- |
 | 운영 품질 | 고정 답변 전환률 | FAQ 25% |
-| 운영 품질 | 운영자 검수 전환률 / 판단 일치율 | FAQ 12.5%, 결제 42.9%, 버그 100% / 90.9% |
+| 운영 품질 | 운영자 검수 전환율 / 판단 일치율 | FAQ 12.5%, 결제 42.9%, 버그 100% / 90.9% |
 | 운영 품질 | 평균 응답 시간 / 비용 | 5.46초 / 13.27원 |
 
 ### CS 자동화 평가 요약
@@ -969,8 +969,8 @@ CS 자동화 평가는 분석 단계와 답변 생성 단계를 분리해 측정
 | [docs/DB/descriptions.md](./docs/DB/descriptions.md) | DB 테이블/컬럼 상세 |
 | [docs/weekly_report/prd.md](./docs/weekly_report/prd.md) | 주간 리포트 요구사항 |
 | [docs/weekly_report/architecture.md](./docs/weekly_report/architecture.md) | 주간 리포트 아키텍처 |
-| [docs/cs_auto/analysis_agent_eval.md](./docs/cs_auto/analysis_agent_eval.md) | 분석 Agent 평가 |
-| [docs/cs_auto/analysis_agent_mermaid.md](./docs/cs_auto/analysis_agent_mermaid.md) | 분석 Agent 흐름도 |
+| [docs/cs_auto/analysis_agent_eval.md](./docs/cs_auto/analysis_agent_eval.md) | 분석 에이전트 평가 |
+| [docs/cs_auto/analysis_agent_mermaid.md](./docs/cs_auto/analysis_agent_mermaid.md) | 분석 에이전트 흐름도 |
 | [docs/chatbot/refactor-handoff.md](./docs/chatbot/refactor-handoff.md) | 챗봇 리팩터링 인수인계 |
 | [deploy/README.md](./deploy/README.md) | 배포 메모 |
 
@@ -993,11 +993,11 @@ CS 자동화 평가는 분석 단계와 답변 생성 단계를 분리해 측정
     <th align="center">임하영</th>
   </tr>
   <tr>
-    <td align="center">팀장<br>CS Auto 전체 설계 및 구현</td>
+    <td align="center">팀장<br>CS 자동화 전체 설계 및 구현</td>
     <td align="center">챗봇 RAG 파이프라인<br>공통 모듈</td>
-    <td align="center">Weekly Report<br>Airflow / Slack</td>
+    <td align="center">주간 운영 리포트<br>Airflow / Slack</td>
     <td align="center">챗봇 프론트엔드<br>DB 설계</td>
-    <td align="center">CS Auto 에이전트<br>인프라 배포</td>
+    <td align="center">CS 자동화 에이전트<br>인프라 배포</td>
   </tr>
   <tr>
     <td align="center">
