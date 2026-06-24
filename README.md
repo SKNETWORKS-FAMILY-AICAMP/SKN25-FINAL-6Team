@@ -116,9 +116,9 @@ AI가 일반 문의를 자동 처리하고, 위험도가 높은 이슈와 운영
 
 | 서비스 | 내용 |
 | :--- | :--- |
-| **Chatbot** | 사용자 로그인 후 챗봇으로 문의를 접수합니다. 입력 전처리·카테고리 라우팅·DB 조회·RAG 검색·안전성 검사를 거쳐 근거 기반 최종 응답을 자동 생성합니다. |
-| **CS Auto** | 운영자는 Airflow 배치로 생성된 분석 결과와 답변 초안을 검토하고, 필요 시 수정·재생성 후 승인합니다. 승인된 답변은 고객에게 메일로 자동 발송됩니다. |
-| **Weekly Report** | 매주 월요일 09:00 KST, Airflow가 전주 운영 지표를 자동 집계하고 이상치 탐지·AI 권장 액션이 포함된 PDF 리포트를 Slack 채널로 발송합니다. |
+| **챗봇** | 사용자 로그인 후 챗봇으로 문의를 접수합니다. 입력 전처리·카테고리 라우팅·DB 조회·RAG 검색·안전성 검사를 거쳐 근거 기반 최종 응답을 자동 생성합니다. |
+| **CS 자동화** | 운영자는 Airflow 배치로 생성된 분석 결과와 답변 초안을 검토하고, 필요 시 수정·재생성 후 승인합니다. 승인된 답변은 고객에게 메일로 자동 발송됩니다. |
+| **주간 운영 리포트** | 매주 월요일 09:00 KST, Airflow가 전주 운영 지표를 자동 집계하고 이상치 탐지·AI 권장 액션이 포함된 PDF 리포트를 Slack 채널로 발송합니다. |
 
 ### 타겟 사용자
 
@@ -386,102 +386,63 @@ SKN25-FINAL-6Team/
 
 ```mermaid
 flowchart TD
-    User["게임 유저"] --> UI["Chatbot Frontend<br/>HTML/CSS/JS"]
+    User["게임 유저가 문의 입력"] --> Chatbot["챗봇이 문의 접수"]
 
-    UI --> API["Chatbot FastAPI"]
+    Chatbot --> Preprocess["개인정보 / 위험 문구 확인"]
+    Preprocess --> Type["문의 유형 확인"]
 
-    API --> Login["계정 연동<br/>user_id / account_id 확인"]
-    Login --> DBAccount["회원 / 게임 계정 DB"]
-
-    API --> Preprocess["입력 전처리<br/>마스킹 / 정규화"]
-    Preprocess --> Dispatch{"카테고리 기반 분기<br/>Rule-based"}
-
-    Dispatch --> FAQ["FAQ / 공지 Agent<br/>RAG 검색"]
-    Dispatch --> Payment["결제 / 환불 / 아이템 Agent<br/>게임 로그 DB 조회"]
-    Dispatch --> Bug["버그 Agent<br/>오류 정보 수집"]
-    Dispatch --> VOC["VOC Agent<br/>건의 / 기타 접수"]
-
-    FAQ --> Docs["문서 DB<br/>FAQ / 공지 / 정책"]
-    Payment --> GameLogs["게임 운영 DB<br/>결제 / 환불 / 지급 / 가챠"]
-    Bug --> Github["GitHub Issue<br/>검토 필요 버그 등록"]
+    Type --> FAQ["FAQ 문의<br/>공지·정책 문서 검색"]
+    Type --> Payment["결제 문의<br/>결제·환불 기록 조회"]
+    Type --> Bug["버그 문의<br/>재현 정보 수집"]
+    Type --> VOC["건의 / 기타 문의<br/>고정 응답"]
 
     FAQ --> Draft["답변 초안 저장"]
     Payment --> Draft
     Bug --> Draft
-    VOC --> Draft
+    VOC --> Complete["최종 응답 저장"]
 
-    Draft --> Safety["Safety Layer<br/>개인정보 / 환각 / 유해성 검수"]
-    Safety --> Final["최종 응답 저장"]
-    Final --> UI
+    Draft --> Safety["답변 안전성 검수"]
+    Safety --> Complete
 
-    API <--> Redis["Redis Cache<br/>세션 / 검색 캐시"]
-    API --> Obs["Langfuse<br/>Trace / 로그"]
+    Complete --> User["사용자에게 응답"]
 ```
-
 ### CS 자동화 아키텍처
 
 ```mermaid
 flowchart TD
-    Cafe["네이버 카페 / 외부 문의"] --> Collect["문의 수집"]
-    Collect --> TicketDB["문의 DB<br/>qa_ticket"]
+    Source["카페 / 이메일 문의 수집"] --> Ticket["문의 목록 저장"]
 
-    TicketDB --> Analysis["Analysis Agent<br/>카테고리 / 위험도 / 처리 방향 분석"]
-    Analysis --> AnalysisDB["분석 결과 저장<br/>ticket_analysis"]
+    Ticket --> Analysis["문의 분석<br/>유형·위험도·처리 방향 확인"]
+    Analysis --> Target["답변 생성 대상 선정"]
 
-    AnalysisDB --> Route{"처리 방식 결정"}
-    Route --> AutoDraft["Answer Agent<br/>답변 초안 생성"]
-    Route --> HumanReview["운영자 검토 대기"]
+    Target --> Evidence["관련 기록 / 문서 확인"]
+    Evidence --> Draft["답변 초안 생성"]
+    Draft --> Safety["답변 안전성 평가"]
 
-    AutoDraft --> DBSearch["DB Search Worker<br/>결제 / 환불 / 계정 / 아이템 조회"]
-    AutoDraft --> DocSearch["Document Search Worker<br/>FAQ / 정책 / 공지 검색"]
+    Safety --> Save["초안 / 근거 / 검수 결과 저장"]
+    Save --> Review["운영자 검토 화면"]
 
-    DBSearch --> GameDB["게임 운영 DB"]
-    DocSearch --> Docs["문서 DB"]
-
-    AutoDraft --> DraftDB["답변 초안 저장<br/>answer_draft / evidence_docs"]
-    DraftDB --> Safety["Safety Evaluator<br/>근거성 / 정책 위반 검수"]
-
-    Safety --> ReviewUI["CS Auto Frontend<br/>운영자 검토 화면"]
-    HumanReview --> ReviewUI
-
-    ReviewUI --> Edit["수정 / 재생성 / 승인"]
-    Edit --> FinalDB["최종 응답 저장<br/>final_response"]
-    FinalDB --> Send["댓글 / 이메일 응답 전송"]
-
-    AutoDraft --> LLM["OpenAI LLM"]
-    Analysis --> LLM
-    ReviewUI --> Obs["Langfuse<br/>Trace / 운영 로그"]
+    Review --> Edit["수정 / 재생성 / 승인"]
+    Edit --> Final["최종 응답 저장"]
+    Final --> Send["댓글 / 이메일 응답"]
 ```
 ### 주간 운영 리포트 아키텍처
 
 ```mermaid
 flowchart TD
-    Scheduler["Airflow Scheduler"] --> AnalysisDAG["CS Analysis DAG<br/>문의 분석 배치"]
-    Scheduler --> AnswerDAG["CS Answer DAG<br/>답변 초안 생성 배치"]
-    Scheduler --> ReportDAG["Weekly Report DAG<br/>주간 리포트 생성"]
+    Schedule["정해진 시간에 자동 실행"] --> Data["한 주간 문의 데이터 조회"]
 
-    AnalysisDAG --> TicketDB["문의 DB<br/>qa_ticket"]
-    AnalysisDAG --> AnalysisAgent["Analysis Agent"]
-    AnalysisAgent --> AnalysisDB["분석 결과 DB<br/>ticket_analysis"]
+    Data --> Metrics["문의 수 / 처리 상태 집계"]
+    Data --> Spike["급증 문의 탐지"]
+    Data --> Requests["반복 요청 추출"]
 
-    AnswerDAG --> PendingTickets["검토 대상 문의 조회"]
-    PendingTickets --> AnswerAgent["Answer Agent"]
-    AnswerAgent --> GameDB["게임 운영 DB<br/>결제 / 환불 / 지급 / 가챠"]
-    AnswerAgent --> Docs["문서 DB<br/>FAQ / 정책 / 공지"]
-    AnswerAgent --> DraftDB["답변 초안 / 근거 저장"]
+    Metrics --> AI["AI 운영 액션 제안"]
+    Spike --> AI
+    Requests --> AI
 
-    ReportDAG --> Metrics["운영 지표 집계<br/>문의 수 / 처리 상태 / 카테고리 분포"]
-    ReportDAG --> Spike["이상 징후 탐지<br/>급증 문의 / 위험 신호"]
-    ReportDAG --> TopRequests["반복 요청 추출<br/>Top 개선 요청"]
-    ReportDAG --> AIAction["AI Action Generator<br/>운영 액션 제안"]
-
-    Metrics --> Report["Weekly Report PDF"]
-    Spike --> Report
-    TopRequests --> Report
-    AIAction --> Report
-
-    Report --> Slack["Slack 자동 전송"]
-    Scheduler --> Obs["Langfuse<br/>Batch Trace / 로그"]
+    AI --> Report["주간 리포트 생성"]
+    Report --> PDF["PDF 생성"]
+    PDF --> Slack["Slack 자동 공유"]
 ```
 
 ### CS 자동화 아카택처
@@ -544,7 +505,7 @@ CS 자동화의 DB 조회는 문의 유형에 따라 고정 SQL과 동적 SQL을
 
 ## 주요 API
 
-### Chatbot API
+### 챗봇 API
 
 | Method | Endpoint | 설명 |
 | :--- | :--- | :--- |
@@ -554,7 +515,7 @@ CS 자동화의 DB 조회는 문의 유형에 따라 고정 SQL과 동적 SQL을
 | GET | `/tickets` | 사용자 문의 이력 조회 |
 | POST | `/chat` | 챗봇 대화 요청 |
 
-### CS Auto API
+### CS 자동화 API
 
 | Method | Endpoint | 설명 |
 | :--- | :--- | :--- |
@@ -568,7 +529,7 @@ CS 자동화의 DB 조회는 문의 유형에 따라 고정 SQL과 동적 SQL을
 | POST | `/api/cs-auto/tickets/{ticket_id}/draft/approve` | 답변 초안 승인 |
 | POST | `/api/cs-auto/tickets/{ticket_id}/send-email` | 고객 답변 메일 발송 |
 
-### Weekly Report API
+### 주간 운영 리포트 API
 
 | Method | Endpoint | 설명 |
 | :--- | :--- | :--- |
@@ -698,7 +659,7 @@ python -m pip install -r apps\weekly_report\requirements.txt
 
 각 백엔드 실행 명령은 `SKN25-FINAL-6Team` 저장소 루트에서 실행하는 기준입니다.
 
-Chatbot Backend:
+챗봇 백엔드:
 
 ```powershell
 $env:PYTHONPATH="$PWD;$PWD\apps\chatbot\backend"
@@ -709,7 +670,7 @@ python -m uvicorn api.main:app --host 127.0.0.1 --port 8000
 http://127.0.0.1:8000/health
 ```
 
-Chatbot Frontend:
+챗봇 프론트엔드:
 
 ```powershell
 cd apps\chatbot\frontend\static
@@ -720,7 +681,7 @@ python -m http.server 5173
 http://127.0.0.1:5173
 ```
 
-CS Auto Backend:
+CS 자동화 백엔드:
 
 ```powershell
 $env:PYTHONPATH="$PWD;$PWD\apps\cs_auto\backend"
@@ -731,7 +692,7 @@ python -m uvicorn api.main:app --host 127.0.0.1 --port 8001
 http://127.0.0.1:8001/api/cs-auto/health
 ```
 
-CS Auto Frontend:
+CS 자동화 프론트엔드:
 
 ```powershell
 cd apps\cs_auto\frontend
@@ -742,7 +703,7 @@ python -m http.server 5174
 http://127.0.0.1:5174/cs_automation.html
 ```
 
-Weekly Report API:
+주간 운영 리포트 API:
 
 ```powershell
 $env:PYTHONPATH="$PWD;$PWD\apps\weekly_report"
@@ -804,18 +765,18 @@ pytest common\tests
 
 일부 통합 테스트는 실제 DB, LLM, Slack, SMTP 환경 변수를 필요로 합니다.
 
-### Chatbot 평가 요약
+### 챗봇 평가 요약
 
-챗봇 평가는 실제 workflow 처리 정확도를 중심으로 구성했습니다. 입력 전처리, Agent별 작업 선택, 근거 문서 탐색, 답변 근거 충실도, Safety 검수 통과 여부, 챗봇 워크플로우(전체 처리 성공률)를 분리해 측정했습니다.
+챗봇 평가는 실제 workflow 처리 정확도를 중심으로 구성했습니다. 입력 전처리, 에이전트별 작업 선택, 근거 문서 탐색, 답변 근거 충실도, Safety 검수 통과 여부, 챗봇 워크플로우(전체 처리 성공률)를 분리해 측정했습니다.
 
 #### 실험 데이터셋
 
 | 평가 영역 | 건수 | 결과 |
 | :--- | ---: | :--- |
 | 입력 전처리 / 안전성 검사 대상 탐지 | 20건 | 100% |
-| FAQ Agent | 40건 | 90% |
-| Payment Agent | 30건 | 100% |
-| Bug Agent | 20건 | 100% |
+| FAQ 에이전트 | 40건 | 90% |
+| 결제 에이전트 | 30건 | 100% |
+| 버그 에이전트 | 20건 | 100% |
 | 챗봇 워크플로우(전체 처리 성공률) | 22건 | 95.45% |
 | **총합** | **132건** | - |
 
@@ -824,10 +785,10 @@ pytest common\tests
 | 평가 영역 | 주요 지표 | 결과 |
 | :--- | :--- | :--- |
 | 운영 품질 | 고정 답변 전환률 | FAQ 25% |
-| 운영 품질 | 운영자 검수 전환률 / 판단 일치율 | FAQ 12.5%, Payment 42.9%, Bug 100% / 90.9% |
+| 운영 품질 | 운영자 검수 전환률 / 판단 일치율 | FAQ 12.5%, 결제 42.9%, 버그 100% / 90.9% |
 | 운영 품질 | 평균 응답 시간 / 비용 | 5.46초 / 13.27원 |
 
-### CS Auto 평가 요약
+### CS 자동화 평가 요약
 
 CS 자동화 평가는 분석 단계와 답변 생성 단계를 분리해 측정했습니다. 분석 단계는 문의 유형, 위험도, 사용할 문서 선택의 정확성을 확인했고, 답변 생성 단계는 DB 조회와 문서 검색, 정답 근거 문단 탐색 성능을 중심으로 평가했습니다.
 
@@ -881,7 +842,7 @@ CS 자동화 평가는 분석 단계와 답변 생성 단계를 분리해 측정
 | LLM 라우팅 → 2차 카테고리 라우팅 | 의도 분류 LLM 호출로 지연·비용이 발생하고 일부 오분류가 있었습니다. | 사용자가 선택한 카테고리를 기준으로 규칙 기반 2차 매핑을 적용했습니다. | 응답 5.938초 → 5.024초, 비용 13.94원 → 12.53원/건, 정확도 90.91% → 100% |
 | 검색 후보 / Rerank Top-K 조정 | 후보를 많이 가져와도 품질 개선은 제한적이고 토큰·지연이 증가했습니다. | 검색 후보와 rerank 설정을 10/3에서 6/4로 조정했습니다. | hit@5 72.5% → 75.0%, faithfulness 0.72 → 0.81, 토큰 17,373개 절감 |
 | Python cosine → DB-side pgvector | raw embedding 전송 후 Python 계산으로 네트워크·계산 병목이 발생했습니다. | pgvector `<=>` 연산으로 DB 내부에서 유사도를 계산하고 결과만 전달했습니다. | 평균 6.700초 → 5.334초, p95 9.519초 → 7.634초, hit@5 75.0% 유지 |
-| 평가 지표 재설계 | 답변 중심 지표만으로는 workflow 실패 지점을 찾기 어려웠습니다. | Agent별 작업 성공률과 전체 workflow 성공률을 함께 평가했습니다. | 검색, DB 조회, 라우팅, Safety 중 오류 발생 단계를 진단하기 쉬워졌습니다. |
+| 평가 지표 재설계 | 답변 중심 지표만으로는 workflow 실패 지점을 찾기 어려웠습니다. | 에이전트별 작업 성공률과 전체 workflow 성공률을 함께 평가했습니다. | 검색, DB 조회, 라우팅, Safety 중 오류 발생 단계를 진단하기 쉬워졌습니다. |
 
 ### 예상 월 운영비
 
@@ -889,13 +850,13 @@ CS 자동화 평가는 분석 단계와 답변 생성 단계를 분리해 측정
 
 | 시스템 | 일 처리량 | 월 처리량 |
 | :--- | ---: | ---: |
-| Chatbot | 300건 | 9,000건 |
-| CS Auto | 150건 | 4,500건 |
+| 챗봇 | 300건 | 9,000건 |
+| CS 자동화 | 150건 | 4,500건 |
 
 | 시스템 | 최소 | 중간 | 최대 |
 | :--- | ---: | ---: | ---: |
-| Chatbot | $109.36 | $135.00 | $164.70 |
-| CS Auto | $121.33 | $121.33 | $121.33 |
+| 챗봇 | $109.36 | $135.00 | $164.70 |
+| CS 자동화 | $121.33 | $121.33 | $121.33 |
 | **합계** | **$230.69 / 월** | **$256.33 / 월** | **$286.03 / 월** |
 
 중간 시나리오 기준 월 13,500건 처리 시 AI 호출 비용은 약 `$256.33`, 건당 약 `$0.019` 수준입니다.
@@ -908,9 +869,9 @@ CS 자동화 평가는 분석 단계와 답변 생성 단계를 분리해 측정
 
 | 영역 | 개선 방향 |
 | :--- | :--- |
-| **Chatbot** | 실제 문의 데이터를 기반으로 라우팅 평가셋을 확장하고, 복합 문의 분류 정확도와 멀티턴 대화 맥락 관리를 개선합니다. RAG 검색 품질 향상을 위해 chunk 전략, reranking, hybrid search를 고도화하고, 운영자 수정 이력을 피드백 데이터로 축적합니다. |
-| **CS Auto** | 동적 SQL 생성 시 허용 테이블·컬럼·조건 검증을 강화하고, 운영자 승인/반려 이력을 분석해 답변 초안 품질을 지속적으로 개선합니다. 위험도 판단과 고객 감정 판단 평가셋을 확장해 운영 검수 우선순위를 더 정교하게 만들 계획입니다. |
-| **Weekly Report** | PDF 기반 주간 리포트에서 나아가 대시보드형 모니터링으로 확장하고, 반복 이슈·급증 문의·유저 개선 요청을 실시간으로 추적할 수 있도록 지표를 고도화합니다. |
+| **챗봇** | 실제 문의 데이터를 기반으로 라우팅 평가셋을 확장하고, 복합 문의 분류 정확도와 멀티턴 대화 맥락 관리를 개선합니다. RAG 검색 품질 향상을 위해 chunk 전략, reranking, hybrid search를 고도화하고, 운영자 수정 이력을 피드백 데이터로 축적합니다. |
+| **CS 자동화** | 동적 SQL 생성 시 허용 테이블·컬럼·조건 검증을 강화하고, 운영자 승인/반려 이력을 분석해 답변 초안 품질을 지속적으로 개선합니다. 위험도 판단과 고객 감정 판단 평가셋을 확장해 운영 검수 우선순위를 더 정교하게 만들 계획입니다. |
+| **주간 운영 리포트** | PDF 기반 주간 리포트에서 나아가 대시보드형 모니터링으로 확장하고, 반복 이슈·급증 문의·유저 개선 요청을 실시간으로 추적할 수 있도록 지표를 고도화합니다. |
 | **운영 품질** | 응답 시간, 토큰 비용, 환각률, 근거 검색률, 운영자 수정률을 지속 모니터링하는 평가 파이프라인을 구축해 기능 개선과 비용 최적화를 함께 관리합니다. |
 
 <br>
@@ -919,7 +880,7 @@ CS 자동화 평가는 분석 단계와 답변 생성 단계를 분리해 측정
 
 ## 기술 스택
 
-### Backend
+### 백엔드
 
 <table width="100%">
   <tr>
