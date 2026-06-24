@@ -60,6 +60,15 @@ def update_answer_draft(
                 (cleaned_text, draft_id, ticket_id),
             )
 
+            cur.execute(
+                """
+                UPDATE qa_ticket
+                SET assignee_admin_id = %s
+                WHERE ticket_id = %s
+                """,
+                (admin_id, ticket_id),
+            )
+
     ticket = fetch_ticket_detail(ticket_id)
     if ticket is None:
         result = {"ok": False, "message": "ticket_not_found_after_update"}

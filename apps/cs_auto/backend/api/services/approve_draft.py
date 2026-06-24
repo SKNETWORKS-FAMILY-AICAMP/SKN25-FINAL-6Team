@@ -139,10 +139,11 @@ def approve_answer_draft(
             cur.execute(
                 """
                 UPDATE qa_ticket
-                SET status = %s
+                SET status = %s,
+                    assignee_admin_id = %s
                 WHERE ticket_id = %s
                 """,
-                (RESOLVED_TICKET_STATUS, ticket_id),
+                (RESOLVED_TICKET_STATUS, admin_id, ticket_id),
             )
 
     ticket = fetch_ticket_detail(ticket_id)
