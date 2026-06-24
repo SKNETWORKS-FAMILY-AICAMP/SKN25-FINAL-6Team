@@ -320,7 +320,7 @@ SKN25-FINAL-6Team/
       <td valign="top">
         <b>사용자 문의 접수 및 자동 응답</b><br><br>
         - 사용자 로그인 및 문의 이력 조회<br>
-        - 결제 / 버그 / FAQ / VOC 카테고리 라우팅<br>
+        - 결제 / 버그 / FAQ / VOC 문의 유형별 응답 처리<br>
         - LangGraph 기반 멀티스텝 workflow<br>
         - 개인정보 마스킹 및 Prompt Injection 탐지<br>
         - DB 조회와 RAG 검색 기반 답변 생성<br>
@@ -807,25 +807,25 @@ pytest common\tests
 
 ### Chatbot 평가 요약
 
-챗봇 평가는 실제 workflow 처리 정확도를 중심으로 구성했습니다. 입력 전처리, 카테고리 매핑, Agent별 작업 선택, 근거 문서 탐색, 답변 근거 충실도, Safety 검수 통과 여부를 분리해 측정했습니다.
+챗봇 평가는 실제 workflow 처리 정확도를 중심으로 구성했습니다. 입력 전처리, Agent별 작업 선택, 근거 문서 탐색, 답변 근거 충실도, Safety 검수 통과 여부, 챗봇 워크플로우(전체 처리 성공률)를 분리해 측정했습니다.
 
 #### 실험 데이터셋
 
 | 평가 영역 | 건수 | 결과 |
 | :--- | ---: | :--- |
-| 고정 답변 대상 탐지 | 20건 | 100% |
-| Category Mapping | 20건 | 90% |
+| 입력 전처리 / 안전성 검사 대상 탐지 | 20건 | 100% |
 | FAQ Agent | 40건 | 90% |
 | Payment Agent | 30건 | 100% |
 | Bug Agent | 20건 | 100% |
-| **총합** | **130건** | - |
+| 챗봇 워크플로우(전체 처리 성공률) | 22건 | 95.45% |
+| **총합** | **132건** | - |
 
 #### 운영 품질 지표
 
 | 평가 영역 | 주요 지표 | 결과 |
 | :--- | :--- | :--- |
-| E2E | 고정 답변 전환률 | FAQ 25% / VOC 0% |
-| E2E | 운영자 검수 전환률 | FAQ 12.5% / Bug 100% |
+| 운영 품질 | 고정 답변 전환률 | FAQ 25% |
+| 운영 품질 | 운영자 검수 전환률 / 판단 일치율 | FAQ 12.5%, Payment 42.9%, Bug 100% / 90.9% |
 | 운영 품질 | 평균 응답 시간 / 비용 | 5.46초 / 13.27원 |
 
 ### CS Auto 평가 요약
@@ -1056,13 +1056,13 @@ CS 자동화 평가는 분석 단계와 답변 생성 단계를 분리해 측정
       </a>
     </td>
     <td align="center">
-      <a href="https://github.com/pureunsaerok">
-        <img src="https://img.shields.io/badge/pureunsaerok-181717?style=flat-square&logo=github&logoColor=white" />
+      <a href="https://github.com/acegikmoop-code"> 
+        <img src="https://img.shields.io/badge/acegikmoop--code-181717?style=flat-square&logo=github&logoColor=white" />
       </a>
     </td>
     <td align="center">
-      <a href="https://github.com/acegikmoop-code">
-        <img src="https://img.shields.io/badge/acegikmoop--code-181717?style=flat-square&logo=github&logoColor=white" />
+        <a href="https://github.com/pureunsaerok-ship-it">
+    <img src="https://img.shields.io/badge/pureunsaerok--ship--it-181717?style=flat-square&logo=github&logoColor=white" />
       </a>
     </td>
   </tr>
