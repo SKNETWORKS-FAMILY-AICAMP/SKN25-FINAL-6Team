@@ -481,9 +481,15 @@ async function loadTicketsFromApi() {
   const data = await window.CSAutoApi.getTickets(limit, sourceType, hasDraft, riskLevel);
   if (Array.isArray(data.tickets) && data.tickets.length > 0) {
     appState.tickets = data.tickets.map(mapApiTicketToUiTicket);
-    appState.selectedTicketId = appState.tickets[0].id;
+    const visibleTickets = getVisibleTicketsForSideTab();
+    appState.selectedTicketId = visibleTickets[0]?.id || null;
     appState.ticketListPage = 1;
-    await loadTicketDetailFromApi(appState.tickets[0].ticketId, false);
+    if (visibleTickets[0]?.ticketId) {
+      await loadTicketDetailFromApi(visibleTickets[0].ticketId, false);
+    } else {
+      appState.evidence = [];
+      appState.history = [];
+    }
     render();
     return;
   }
@@ -575,7 +581,9 @@ function getTicketDisplayMeta(ticket) {
 function getVisibleTicketsForSideTab() {
   return appState.tickets.filter((ticket) => {
     const meta = getTicketDisplayMeta(ticket);
-    if (appState.activeSideTab === "긴급") return meta.isUrgent && String(ticket.rawStatus || "").toLowerCase() !== "resolved" && meta.status !== "done";
+    const matchesCustomerCenterTab = ticket.sourceType === "naver_cafe" && Boolean(ticket.draftId);
+    const matchesChatbotTab = ticket.sourceType === "chatbot" && ticket.rawStatus === "pending";
+    if (appState.activeSideTab === "긴급") return meta.isUrgent && (matchesCustomerCenterTab || matchesChatbotTab);
     if (appState.activeSideTab === "고객센터 문의") return ticket.sourceType === "naver_cafe" && Boolean(ticket.draftId);
     if (appState.activeSideTab === "챗봇 문의") {
       return ticket.sourceType === "chatbot" && ticket.rawStatus === "pending";

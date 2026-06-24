@@ -41,7 +41,7 @@
 
   global.CSAutoApi = {
     request,
-    getTickets(limit = 50, sourceType = null, hasDraft = null, riskLevel = null) {
+    getTickets(limit = 50, sourceType = null, hasDraft = null, riskLevel = null, excludeStatus = null, hasResponse = null) {
       const params = new URLSearchParams({ limit: String(limit) });
       if (sourceType) {
         params.set("source_type", sourceType);
@@ -51,6 +51,12 @@
       }
       if (riskLevel) {
         params.set("risk_level", riskLevel);
+      }
+      if (excludeStatus) {
+        params.set("exclude_status", excludeStatus);
+      }
+      if (hasResponse !== null) {
+        params.set("has_response", String(hasResponse));
       }
       return request(`/tickets?${params.toString()}`);
     },
