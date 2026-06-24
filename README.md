@@ -249,6 +249,7 @@ AI가 일반 문의를 자동 처리하고, 위험도가 높은 이슈와 운영
 
 ## 프로젝트 구조
 
+```text
 SKN25-FINAL-6Team/
 ├── apps/
 │   ├── chatbot/
@@ -329,6 +330,7 @@ SKN25-FINAL-6Team/
 │
 ├── requirements.txt                 # 공통 Python 의존성
 └── README.md
+```
 
 <br>
 
