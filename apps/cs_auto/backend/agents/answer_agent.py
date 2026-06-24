@@ -258,7 +258,7 @@ def mark_answer_draft_completed(ticket_id: int) -> None:
                 SET status = %s
                 WHERE ticket_id = %s
                 """,
-                ("draft_generated", ticket_id),
+                ("resolved", ticket_id),
             )
 
 
