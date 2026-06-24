@@ -13,12 +13,14 @@ from observability.langfuse import link_cs_auto_trace
 def get_review_tickets(
     limit: int | None = None,
     status: str | None = None,
+    exclude_status: str | None = None,
     assignee_admin_id: int | None = None,
     category: str | None = None,
     risk_level: str | None = None,
     page: int | None = None,
     source_type: str | None = None,
     has_draft: bool | None = None,
+    has_response: bool | None = None,
 ) -> dict[str, object]:
     trace_payload = {
         "admin_id": assignee_admin_id,
@@ -32,21 +34,27 @@ def get_review_tickets(
         input_payload={
             "limit": limit,
             "status": status,
+            "exclude_status": exclude_status,
             "assignee_admin_id": assignee_admin_id,
             "category": category,
             "risk_level": risk_level,
             "page": page,
+            "source_type": source_type,
+            "has_draft": has_draft,
+            "has_response": has_response,
         },
     )
     tickets = fetch_tickets(
         limit=limit,
         status=status,
+        exclude_status=exclude_status,
         assignee_admin_id=assignee_admin_id,
         category=category,
         risk_level=risk_level,
         page=page,
         source_type=source_type,
         has_draft=has_draft,
+        has_response=has_response,
     )
     result = {
         "tickets": tickets,
@@ -54,12 +62,14 @@ def get_review_tickets(
         "filters": {
             "limit": limit,
             "status": status,
+            "exclude_status": exclude_status,
             "assignee_admin_id": assignee_admin_id,
             "category": category,
             "risk_level": risk_level,
             "page": page,
             "source_type": source_type,
             "has_draft": has_draft,
+            "has_response": has_response,
         },
     }
     link_cs_auto_trace(trace_payload, tags=["tickets"], output_payload={"count": result["count"]})
@@ -93,12 +103,14 @@ def get_ticket_detail(ticket_id: int) -> dict[str, object]:
 def fetch_tickets(
     limit: int | None = None,
     status: str | None = None,
+    exclude_status: str | None = None,
     assignee_admin_id: int | None = None,
     category: str | None = None,
     risk_level: str | None = None,
     page: int | None = None,
     source_type: str | None = None,
     has_draft: bool | None = None,
+    has_response: bool | None = None,
 ) -> list[dict[str, Any]]:
     trace_payload = {
         "admin_id": assignee_admin_id,
@@ -112,10 +124,14 @@ def fetch_tickets(
         input_payload={
             "limit": limit,
             "status": status,
+            "exclude_status": exclude_status,
             "assignee_admin_id": assignee_admin_id,
             "category": category,
             "risk_level": risk_level,
             "page": page,
+            "source_type": source_type,
+            "has_draft": has_draft,
+            "has_response": has_response,
         },
     )
     page_size = limit or 200
@@ -127,6 +143,9 @@ def fetch_tickets(
     if status:
         where_clauses.append("LOWER(COALESCE(t.status, '')) = LOWER(%s)")
         params.append(status)
+    if exclude_status:
+        where_clauses.append("LOWER(COALESCE(t.status, '')) <> LOWER(%s)")
+        params.append(exclude_status)
     if assignee_admin_id is not None:
         where_clauses.append("t.assignee_admin_id = %s")
         params.append(assignee_admin_id)
@@ -143,6 +162,10 @@ def fetch_tickets(
         where_clauses.append("d.draft_id IS NOT NULL")
     elif has_draft is False:
         where_clauses.append("d.draft_id IS NULL")
+    if has_response is True:
+        where_clauses.append("fr.response_id IS NOT NULL")
+    elif has_response is False:
+        where_clauses.append("fr.response_id IS NULL")
 
     where_sql = " AND ".join(where_clauses) if where_clauses else "TRUE"
 

@@ -96,13 +96,14 @@ def api_health_check() -> dict[str, object]:
 def api_get_review_tickets(
     limit: int | None = None,
     status: str | None = None,
+    exclude_status: str | None = None,
     assignee_admin_id: int | None = None,
     category: str | None = None,
     risk_level: str | None = None,
     page: int | None = None,
     source_type: str | None = None,
     has_draft: bool | None = None,
-    # has_response: bool | None = None,
+    has_response: bool | None = None,
 ) -> dict[str, object]:
     trace_payload = {
         "admin_id": assignee_admin_id,
@@ -116,23 +117,27 @@ def api_get_review_tickets(
         input_payload={
             "limit": limit,
             "status": status,
+            "exclude_status": exclude_status,
             "assignee_admin_id": assignee_admin_id,
             "category": category,
             "risk_level": risk_level,
             "page": page,
             "source_type": source_type,
             "has_draft": has_draft,
+            "has_response": has_response,
         },
     )
     result = get_review_tickets(
         limit=limit,
         status=status,
+        exclude_status=exclude_status,
         assignee_admin_id=assignee_admin_id,
         category=category,
         risk_level=risk_level,
         page=page,
         source_type=source_type,
         has_draft=has_draft,
+        has_response=has_response,
     )
     return result
 
