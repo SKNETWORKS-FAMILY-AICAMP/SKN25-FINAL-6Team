@@ -201,6 +201,7 @@ def fetch_tickets(
                     d.created_at AS draft_created_at,
                     fr.response_id,
                     fr.final_text,
+                    fr.created_at AS response_created_at,
                     s.retry_count,
                     s.safety_action
                 FROM qa_ticket t
@@ -234,7 +235,8 @@ def fetch_tickets(
                 LEFT JOIN LATERAL (
                     SELECT
                         fr.response_id,
-                        fr.final_text
+                        fr.final_text,
+                        fr.created_at
                     FROM final_response fr
                     WHERE fr.ticket_id = t.ticket_id
                     ORDER BY fr.created_at DESC NULLS LAST, fr.response_id DESC
@@ -290,6 +292,7 @@ def fetch_ticket_detail(ticket_id: int) -> dict[str, Any] | None:
                     d.created_at AS draft_created_at,
                     fr.response_id,
                     fr.final_text,
+                    fr.created_at AS response_created_at,
                     s.retry_count
                 FROM qa_ticket t
                 LEFT JOIN community_users u ON u.user_id = t.user_id
@@ -318,7 +321,8 @@ def fetch_ticket_detail(ticket_id: int) -> dict[str, Any] | None:
                 LEFT JOIN LATERAL (
                     SELECT
                         fr.response_id,
-                        fr.final_text
+                        fr.final_text,
+                        fr.created_at
                     FROM final_response fr
                     WHERE fr.ticket_id = t.ticket_id
                     ORDER BY fr.created_at DESC NULLS LAST, fr.response_id DESC

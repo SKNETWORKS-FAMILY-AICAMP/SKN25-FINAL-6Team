@@ -417,6 +417,7 @@ function mapApiTicketToUiTicket(row) {
     email: row.email || "-",
     accountId: row.account_id || "-",
     createdAt: formatDisplayDate(row.inquiry_created_at),
+    responseCreatedAt: formatDisplayDate(row.response_created_at),
     body: row.raw_query || "",
     aiSummary: row.summary || "",
     draft: row.draft_text || row.final_text || "",
@@ -500,6 +501,38 @@ async function loadTicketsFromApi() {
   render();
 }
 
+async function loadReviewHistoryFromApi() {
+  if (!appState.currentReviewerId) {
+    appState.tickets = [];
+    appState.selectedTicketId = null;
+    appState.evidence = [];
+    appState.history = [];
+    render();
+    return;
+  }
+
+  const data = await window.CSAutoApi.getTickets(500, null, null, null, null, null, appState.currentReviewerId);
+  if (Array.isArray(data.tickets) && data.tickets.length > 0) {
+    appState.tickets = data.tickets.map(mapApiTicketToUiTicket);
+    const reviewedTickets = getReviewedTickets();
+    appState.selectedTicketId = reviewedTickets[0]?.id || null;
+    if (reviewedTickets[0]?.ticketId) {
+      await loadTicketDetailFromApi(reviewedTickets[0].ticketId, false);
+    } else {
+      appState.evidence = [];
+      appState.history = [];
+    }
+    render();
+    return;
+  }
+
+  appState.tickets = [];
+  appState.selectedTicketId = null;
+  appState.evidence = [];
+  appState.history = [];
+  render();
+}
+
 function mergeTicketFromApi(apiTicket) {
   if (!apiTicket || !apiTicket.id) return;
   const index = appState.tickets.findIndex((item) => item.id === apiTicket.id);
@@ -534,6 +567,7 @@ function getEmptyTicket() {
     email: "-",
     accountId: "-",
     createdAt: "-",
+    responseCreatedAt: "-",
     body: "",
     aiSummary: "",
     draft: "",
@@ -651,8 +685,11 @@ async function doLogin() {
   if (overlay) {
     overlay.classList.add("hidden");
   }
+  if (appState.activeTopTab === "검토 이력") {
+    await loadReviewHistoryFromApi();
+    return;
+  }
   await loadTicketsFromApi();
-  render();
 }
 
 async function doLogout() {
@@ -965,10 +1002,19 @@ async function regenerateDraft() {
 }
 
 function getReviewedTickets() {
-  if (!appState.currentReviewer) {
+  if (!appState.currentReviewerId) {
     return [];
   }
-  return appState.tickets.filter((ticket) => ticket.assignee === appState.currentReviewer);
+  const currentReviewerId = Number(appState.currentReviewerId || 0);
+  return appState.tickets.filter((ticket) => Number(ticket.assigneeAdminId || 0) === currentReviewerId);
+}
+
+function getReviewReferenceDateTime(ticket) {
+  return ticket.responseCreatedAt || ticket.lastGeneratedAt || ticket.createdAt || "-";
+}
+
+function getReviewReferenceDateKey(ticket) {
+  return String(getReviewReferenceDateTime(ticket)).split(" ")[0];
 }
 
 function getTicketListPagination() {
@@ -995,7 +1041,7 @@ function formatReviewDateLabel(createdAt) {
 function getReviewHistorySidebarGroups() {
   const groups = new Map();
   getReviewedTickets().forEach((ticket) => {
-    const key = String(ticket.createdAt).split(" ")[0];
+    const key = getReviewReferenceDateKey(ticket);
     if (!groups.has(key)) {
       groups.set(key, []);
     }
@@ -1017,7 +1063,7 @@ function getReviewSelectedDateKey() {
   }
   const selectedTicket = getReviewedTickets().find((ticket) => ticket.id === appState.selectedTicketId);
   if (selectedTicket) {
-    return String(selectedTicket.createdAt).split(" ")[0];
+    return getReviewReferenceDateKey(selectedTicket);
   }
   return getReviewHistorySidebarGroups()[0]?.dateKey || null;
 }
@@ -1039,7 +1085,7 @@ function syncReviewCalendarState() {
 function getReviewCalendarEvents() {
   return getReviewedTickets().map((ticket) => ({
     title: ticket.title,
-    start: `2026-${String(ticket.createdAt).split(" ")[0]}`,
+    start: `2026-${getReviewReferenceDateKey(ticket)}`,
     allDay: true,
     extendedProps: {
       ticketId: ticket.id
@@ -1091,7 +1137,7 @@ function initReviewHistoryCalendar() {
     dateClick(info) {
       if (info.dateStr.startsWith("2026-")) {
         appState.reviewSelectedDate = info.dateStr.slice(5);
-        const targetTicket = getReviewedTickets().find((ticket) => `2026-${String(ticket.createdAt).split(" ")[0]}` === info.dateStr);
+        const targetTicket = getReviewedTickets().find((ticket) => `2026-${getReviewReferenceDateKey(ticket)}` === info.dateStr);
         if (targetTicket) {
           appState.selectedTicketId = targetTicket.id;
         }
@@ -1118,20 +1164,7 @@ function initReviewHistoryCalendar() {
 
 function renderReviewHistoryContent() {
   const selectedDateKey = getReviewSelectedDateKey();
-  const reviewedTickets = getReviewedTickets().filter((ticket) => {
-    const sameDate = String(ticket.createdAt).split(" ")[0] === selectedDateKey;
-    const meta = getTicketDisplayMeta(ticket);
-    if (!sameDate) {
-      return false;
-    }
-    if (appState.reviewHistoryStatusFilter === "전체") {
-      return true;
-    }
-    if (appState.reviewHistoryStatusFilter === "완료") {
-      return meta.status === "done";
-    }
-    return meta.label === appState.reviewHistoryStatusFilter;
-  });
+  const reviewedTickets = getReviewedTickets().filter((ticket) => getReviewReferenceDateKey(ticket) === selectedDateKey);
   const selectedReviewedTicket = reviewedTickets.find((ticket) => ticket.id === appState.selectedTicketId) || reviewedTickets[0];
 
   return `
@@ -1145,13 +1178,6 @@ function renderReviewHistoryContent() {
         <div class="flex min-h-0 flex-1 flex-col overflow-hidden bg-white p-3">
             <div class="grid h-full min-h-0 flex-1 grid-cols-[minmax(0,1fr)_320px] gap-2.5">
               <div class="flex min-h-0 h-full flex-col overflow-hidden rounded-[10px] border border-sand-300 bg-white">
-                <div class="flex flex-wrap gap-1 border-b border-sand-300 bg-white px-3 py-2">
-                  ${["전체", "긴급", "검토 중", "대기", "완료"].map((status) => `
-                    <button class="filter-chip ${appState.reviewHistoryStatusFilter === status ? "active" : ""}" data-review-status="${status}">
-                      ${status}
-                    </button>
-                  `).join("")}
-                </div>
                 <div class="grid grid-cols-[92px_minmax(0,1fr)_88px] border-b border-sand-300 bg-sand-100 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-500">
                   <div>접수 시각</div>
                   <div>문의 제목</div>
@@ -1162,7 +1188,7 @@ function renderReviewHistoryContent() {
                     const reviewMeta = getTicketDisplayMeta(reviewedTicket);
                     return `
                     <button class="grid w-full grid-cols-[92px_minmax(0,1fr)_88px] items-start gap-2 border-b border-sand-300 px-3 py-2.5 text-left transition hover:bg-sand-100 ${selectedReviewedTicket && selectedReviewedTicket.id === reviewedTicket.id ? "bg-brand-500/5" : "bg-white"}" data-ticket-id="${reviewedTicket.id}">
-                      <div class="text-[11px] text-ink-500">${escapeHtml(reviewedTicket.createdAt)}</div>
+                      <div class="text-[11px] text-ink-500">${escapeHtml(getReviewReferenceDateTime(reviewedTicket))}</div>
                       <div>
                         <div class="text-xs font-medium leading-[1.5] text-ink-900">${escapeHtml(reviewedTicket.title)}</div>
                         <div class="mt-1 text-[10px] text-ink-500">${escapeHtml(reviewedTicket.nickname)} / ${escapeHtml(reviewedTicket.accountId)}</div>
@@ -1201,8 +1227,8 @@ function renderReviewHistoryContent() {
                           <div class="mt-1 break-all text-[10px] text-ink-500">${escapeHtml(selectedReviewedTicket.userEmail || selectedReviewedTicket.email || "-")}</div>
                         </div>
                         <div class="rounded-[7px] border border-sand-300 bg-white px-2.5 py-2">
-                          <div class="text-[10px] uppercase tracking-[0.08em] text-ink-500">최종 편집 일시</div>
-                          <div class="mt-1 font-medium text-ink-900">${escapeHtml(selectedReviewedTicket.lastGeneratedAt || "-")}</div>
+                          <div class="text-[10px] uppercase tracking-[0.08em] text-ink-500">답변 처리 일시</div>
+                          <div class="mt-1 font-medium text-ink-900">${escapeHtml(getReviewReferenceDateTime(selectedReviewedTicket))}</div>
                         </div>
                       </div>
                     </div>
@@ -1489,10 +1515,12 @@ function render() {
 
 function bindEvents() {
   document.querySelectorAll("[data-top-tab]").forEach((button) => {
-    button.addEventListener("click", () => {
+    button.addEventListener("click", async () => {
       appState.activeTopTab = button.dataset.topTab;
       if (button.dataset.topTab === "검토 이력") {
         appState.reviewDetailVisible = false;
+        await loadReviewHistoryFromApi();
+        return;
       }
       render();
     });

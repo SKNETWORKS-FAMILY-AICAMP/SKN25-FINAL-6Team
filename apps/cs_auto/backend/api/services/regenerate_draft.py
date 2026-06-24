@@ -57,6 +57,16 @@ def regenerate_answer_draft(
                 )
                 current_draft = cur.fetchone()
 
+                if current_draft is not None:
+                    cur.execute(
+                        """
+                        UPDATE qa_ticket
+                        SET assignee_admin_id = %s
+                        WHERE ticket_id = %s
+                        """,
+                        (admin_id, ticket_id),
+                    )
+
         if current_draft is None:
             result = {"ok": False, "message": "draft_not_found"}
             link_cs_auto_trace({**trace_payload, **result}, tags=["draft", "regeneration"], output_payload=result)

@@ -383,6 +383,7 @@ def build_frontend_ticket_payload(row: dict[str, object] | None) -> dict[str, ob
         "email": row.get("email") or "-",
         "accountId": row.get("account_id") or "-",
         "createdAt": _format_frontend_display_date(row.get("inquiry_created_at")),
+        "responseCreatedAt": _format_frontend_display_date(row.get("response_created_at")),
         "body": row.get("raw_query") or "",
         "aiSummary": row.get("summary") or "",
         "route": row.get("routing_target") or "-",
