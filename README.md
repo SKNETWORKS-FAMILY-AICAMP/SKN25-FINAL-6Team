@@ -29,7 +29,7 @@
   </tr>
   <tr>
     <td align="center"><b>핵심 기능</b></td>
-    <td>Chatbot · CS Auto · Weekly Report</td>
+    <td>챗봇 · CS 자동화 · 주간 리포트</td>
   </tr>
   <tr>
     <td align="center"><b>주요 기술</b></td>
@@ -159,10 +159,10 @@ AI가 일반 문의를 자동 처리하고, 위험도가 높은 이슈와 운영
 | 기대 효과 | 설명 |
 | :--- | :--- |
 | **CS 처리 효율 향상** | 반복 문의에 대한 분석과 답변 초안 생성을 자동화해 운영자가 근거 확인과 최종 검수에 집중할 수 있습니다. |
-| **답변 품질 일관성 확보** | DB 조회와 RAG 검색을 통해 확인된 근거를 기반으로 답변을 생성하고, Safety Layer로 환각·정책 위반·유해 표현 가능성을 검수합니다. |
+| **답변 품질 일관성 확보** | DB 조회와 RAG 검색을 통해 확인된 근거를 기반으로 답변을 생성하고, 안전성 검증 계층으로 환각·정책 위반·유해 표현 가능성을 검수합니다. |
 | **운영 안정성 강화** | AI가 고객에게 직접 최종 답변을 발송하지 않고 운영자 승인 단계를 거치는 Human-in-the-loop 구조로 자동화 효율과 검수 안정성을 함께 확보합니다. |
 | **기획·운영 인사이트 제공** | 주간 문의 지표, 급증 이슈, 개선 요청 Top 5, AI 권장 액션을 리포트로 제공해 반복 문제와 사용자 불편 흐름을 빠르게 파악할 수 있습니다. |
-| **업무 흐름 통합** | Chatbot, CS Auto, Weekly Report를 연결해 문의 접수부터 리포트 공유까지 분리된 업무를 하나의 운영 흐름으로 관리합니다. |
+| **업무 흐름 통합** | 챗봇, CS 자동화, 주간 운영 리포트를 연결해 문의 접수부터 리포트 공유까지 분리된 업무를 하나의 운영 흐름으로 관리합니다. |
 
 <br>
 
@@ -174,11 +174,11 @@ AI가 일반 문의를 자동 처리하고, 위험도가 높은 이슈와 운영
 
 | 데이터 | 출처 | 수집 방식 | 활용 위치 |
 | :--- | :--- | :--- | :--- |
-| 고객 문의 데이터 | QNA API, 네이버 카페 문의 게시글 | API/URL 기반 수집 후 정규화 | Chatbot 문의 접수, CS Auto 분석/답변 생성 |
+| 고객 문의 데이터 | QNA API, 네이버 카페 문의 게시글 | API/URL 기반 수집 후 정규화 | 챗봇 문의 접수, CS자동화 분석/답변 생성 |
 | 정책·FAQ·공지 문서 | 게임 운영 정책, FAQ, 공지, 가이드 문서 | URL 수집 및 HTML 본문 추출 | RAG 기반 근거 검색 |
 | 사용자/계정 데이터 | 커뮤니티 사용자, 게임 계정 DB | PostgreSQL 테이블 적재 | 로그인, 계정 식별, 문의 이력 조회 |
 | 게임 운영 로그 | 결제, 환불, 아이템 지급, 가챠 로그 DB | 업무 테이블 적재 및 SQL 조회 | 결제/환불/아이템 문의 근거 조회 |
-| 분석·답변 결과 | Agent 분석 결과, 답변 초안, 안전성 평가 | 서비스 실행 결과 DB 저장 | 운영자 검수, 최종 답변, 주간 리포트 |
+| 분석·답변 결과 | 에이전트 분석 결과, 답변 초안, 안전성 평가 | 서비스 실행 결과 DB 저장 | 운영자 검수, 최종 답변, 주간 리포트 |
 
 수집 문서는 QNA API URL 85건, 네이버 카페 URL 1,114건, 약관/개인정보 문서 2건을 기준으로 구성했습니다. 고객센터 문의 해결과 직접 관련성이 낮은 `성우 공개` 카테고리 문서 99건은 검색 품질 저하를 막기 위해 제외했고, 전처리 후 본문이 비어버린 문서 11건도 제거했습니다.
 
@@ -253,49 +253,48 @@ AI가 일반 문의를 자동 처리하고, 위험도가 높은 이슈와 운영
 SKN25-FINAL-6Team/
 ├── apps/
 │   ├── chatbot/
-│   │   ├── backend/
-│   │   │   ├── api/                 # FastAPI endpoint
-│   │   │   ├── chains/              # LangGraph workflow, routing, persistence
-│   │   │   ├── generation/          # payment / bug / faq / voc agent
-│   │   │   ├── repository/          # DB access layer
-│   │   │   ├── safety/              # safety layer
-│   │   │   ├── service/             # chatbot service
-│   │   │   └── evals/               # chatbot evaluation scripts
-│   │   └── frontend/static/         # chatbot static UI
+│   │   │   ├── api/                 # FastAPI 엔드포인트
+│   │   │   ├── chains/              # LangGraph 워크플로우, 라우팅, 영속화
+│   │   │   ├── generation/          # 결제 / 버그 / FAQ / VOC 에이전트
+│   │   │   ├── repository/          # DB 접근 계층
+│   │   │   ├── safety/              # 안전성 검증 계층
+│   │   │   ├── service/             # 챗봇 서비스
+│   │   │   └── evals/               # 챗봇 평가 스크립트
+│   │   └── frontend/static/         # 챗봇 정적 UI
 │   │
 │   ├── cs_auto/
 │   │   ├── backend/
-│   │   │   ├── agents/              # analysis agent, answer agent
-│   │   │   ├── api/                 # CS Auto API and services
-│   │   │   ├── airflow/             # Airflow DAGs
-│   │   │   ├── evals/               # evaluation dataset builders
-│   │   │   └── utils/               # login, email utilities
-│   │   ├── frontend/                # operator UI
-│   │   └── deploy/                  # app-specific deploy scripts
+│   │   │   ├── agents/              # 분석 에이전트, 답변 에이전트
+│   │   │   ├── api/                 # CS 자동화 API 및 서비스
+│   │   │   ├── airflow/             # Airflow DAG
+│   │   │   ├── evals/               # 평가 데이터셋 생성 도구
+│   │   │   └── utils/               # 로그인, 이메일 유틸리티
+│   │   ├── frontend/                # 운영자 UI
+│   │   └── deploy/                  # 앱별 배포 스크립트
 │   │
 │   ├── weekly_report/
-│   │   ├── ai/                      # AI action generation
-│   │   ├── airflow/                 # weekly report DAG
-│   │   ├── api/                     # report trigger API
-│   │   ├── build/                   # report payload builders
-│   │   ├── db/                      # report queries
-│   │   ├── output/                  # PDF and Slack output
-│   │   └── report.py                # pipeline entrypoint
+│   │   ├── ai/                      # AI 액션 생성
+│   │   ├── airflow/                 # 주간 운영 리포트 DAG
+│   │   ├── api/                     # 리포트 실행 API
+│   │   ├── build/                   # 리포트 데이터 생성기
+│   │   ├── db/                      # 리포트 조회 쿼리
+│   │   ├── output/                  # PDF 및 Slack 출력
+│   │   └── report.py                # 파이프라인 진입점
 │   │
-│   └── tests/                       # service tests
+│   └── tests/                       # 서비스 테스트
 │
 ├── common/
-│   ├── db/                          # shared DB connection
-│   ├── documents_processing/         # normalize, chunk, embed pipeline
-│   ├── drafting/                    # shared answer drafting
-│   ├── llm/                         # LLM client wrapper
-│   ├── observability/               # shared Langfuse/logger
-│   └── retrieval/                   # embedding, vector search, rerank
+│   ├── db/                          # 공통 DB 연결
+│   ├── documents_processing/         # 정규화, 청킹, 임베딩 파이프라인
+│   ├── drafting/                    # 공통 답변 초안 생성
+│   ├── llm/                         # LLM 클라이언트 래퍼
+│   ├── observability/               # 공통 관측성 및 로거
+│   └── retrieval/                   # 임베딩, 벡터 검색, 재정렬
 │
-├── data/                            # keywords, prompts, raw data, SQL
-├── deploy/                          # docker-compose, nginx, env example
-├── docs/                            # PRD, architecture, DB, deploy, eval docs
-├── assets/                          # screenshots, ERD images
+├── data/                            # 키워드, 프롬프트, 원천 데이터, SQL
+├── deploy/                          # Docker Compose, Nginx, 환경변수 예시
+├── docs/                            # PRD, 아키텍처, DB, 배포, 평가 문서
+├── assets/                          # 스크린샷, ERD 이미지
 └── requirements.txt
 ```
 
@@ -383,7 +382,7 @@ SKN25-FINAL-6Team/
 
 ## 아키텍처
 
-### Chatbot Architecture
+### 챗봇 아키텍처
 
 ```mermaid
 flowchart TD
@@ -419,7 +418,7 @@ flowchart TD
     API --> Obs["Langfuse<br/>Trace / 로그"]
 ```
 
-### CS Auto Architecture
+### CS 자동화 아키텍처
 
 ```mermaid
 flowchart TD
@@ -453,7 +452,7 @@ flowchart TD
     Analysis --> LLM
     ReviewUI --> Obs["Langfuse<br/>Trace / 운영 로그"]
 ```
-### Weekly Report Architecture
+### 주간 운영 리포트 아키텍처
 
 ```mermaid
 flowchart TD
@@ -485,19 +484,19 @@ flowchart TD
     Scheduler --> Obs["Langfuse<br/>Batch Trace / 로그"]
 ```
 
-### CS Auto Event Flow
+### CS 자동화 아카택처
 
-CS Auto는 분석 Agent와 답변 초안 작성 Agent를 분리해 처리합니다. 분석 Agent는 미분석 문의를 읽고 카테고리, 감성, 위험도, 필요한 근거 자료 종류를 먼저 결정합니다. 답변 초안 작성 Agent는 분석 결과를 바탕으로 DB 또는 문서 근거를 수집하고, 고객 답변 초안과 안전성 결과를 생성합니다.
+CS 자동화는 분석 에이전트와 답변 초안 작성 에이전트를 분리해 처리합니다. 분석 에이전트는 미분석 문의를 읽고 카테고리, 감성, 위험도, 필요한 근거 자료 종류를 먼저 결정합니다. 답변 초안 작성 에이전트는 분석 결과를 바탕으로 DB 또는 문서 근거를 수집하고, 고객 답변 초안과 안전성 결과를 생성합니다.
 
 | 단계 | 역할 | 주요 처리 |
 | :--- | :--- | :--- |
-| 문의 분석 Agent | 미분석 문의 분석 | 카테고리, 감성, 위험도, 근거 자료 종류 결정 |
-| 답변 초안 작성 Agent | 근거 기반 답변 생성 | DB/문서 근거 수집, 초안 작성, 안전성 검사 |
+| 문의 분석 에이전트 | 미분석 문의 분석 | 카테고리, 감성, 위험도, 근거 자료 종류 결정 |
+| 답변 초안 작성 에이전트 | 근거 기반 답변 생성 | DB/문서 근거 수집, 초안 작성, 안전성 검사 |
 | 문서 검색 담당자 | 문서 근거 검색 | 공지, FAQ, 정책, 가이드 문서를 검색해 답변 생성에 필요한 근거 전달 |
 | 답변 초안 작성 담당자 | 근거 기반 답변 제한 | 수집된 근거만 사용하도록 프롬프트와 생성 흐름을 제한해 임의 답변 방지 |
 | 답변 안전성 검수 담당자 | 안전성 점수 판단 | 기준 미달 시 고정 답변 템플릿으로 전환 |
 
-문의 분석 배치는 문의량이 가장 낮은 04~05시를 기준으로 실행합니다. 해당 시간대에 하루치 문의 데이터를 DB에서 조회해 Agent가 처리하고, 실시간 응대와 분석/답변 초안 생성 흐름이 서로 영향을 주지 않도록 분리했습니다.
+문의 분석 배치는 문의량이 가장 낮은 04~05시를 기준으로 실행합니다. 해당 시간대에 하루치 문의 데이터를 DB에서 조회해 에이전트가 처리하고, 실시간 응대와 분석/답변 초안 생성 흐름이 서로 영향을 주지 않도록 분리했습니다.
 
 안전성 기준 미달 시에는 고정 답변으로 전환합니다. 종합 안전성 점수는 아래 기준으로 계산하며, `0.7` 이하일 경우 고정 답변 템플릿을 사용합니다.
 
@@ -514,7 +513,7 @@ CS Auto는 분석 Agent와 답변 초안 작성 Agent를 분리해 처리합니�
 
 ### DB 조회 전략
 
-CS Auto의 DB 조회는 문의 유형에 따라 고정 SQL과 동적 SQL을 분리해 사용합니다. 반복 문의는 사전 정의된 SQL 템플릿으로 빠르게 조회하고, 복합 문의는 필요한 조건을 분석해 안전한 SQL로 변환해 실행합니다.
+CS 자동화의 DB 조회는 문의 유형에 따라 고정 SQL과 동적 SQL을 분리해 사용합니다. 반복 문의는 사전 정의된 SQL 템플릿으로 빠르게 조회하고, 복합 문의는 필요한 조건을 분석해 안전한 SQL로 변환해 실행합니다.
 
 | 담당 모듈 | 역할 | 설명 |
 | :--- | :--- | :--- |
@@ -526,7 +525,7 @@ CS Auto의 DB 조회는 문의 유형에 따라 고정 SQL과 동적 SQL을 분�
 
 <br>
 
-### Weekly Report 구성
+### 주간 운영 리포트 구성
 
 주간 운영 리포트는 기획팀과 운영자가 같은 지표를 기준으로 문제 흐름을 확인할 수 있도록 구성했습니다.
 
