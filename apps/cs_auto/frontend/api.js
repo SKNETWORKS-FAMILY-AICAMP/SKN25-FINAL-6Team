@@ -41,13 +41,16 @@
 
   global.CSAutoApi = {
     request,
-    getTickets(limit = 50, sourceType = null, hasDraft = null) {
+    getTickets(limit = 50, sourceType = null, hasDraft = null, riskLevel = null) {
       const params = new URLSearchParams({ limit: String(limit) });
       if (sourceType) {
         params.set("source_type", sourceType);
       }
       if (hasDraft !== null) {
         params.set("has_draft", String(hasDraft));
+      }
+      if (riskLevel) {
+        params.set("risk_level", riskLevel);
       }
       return request(`/tickets?${params.toString()}`);
     },

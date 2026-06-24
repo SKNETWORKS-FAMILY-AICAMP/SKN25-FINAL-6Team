@@ -86,7 +86,7 @@ def test_analyze_ticket_returns_dict_with_null_routing_target_for_chatbot(monkey
 
 
 # Airflow가 호출하는 배치 함수가 조회, 분석, 저장, 완료 표시 순서로 동작하는지 확인한다.
-def test_run_analysis_agent_fetches_saves_and_marks_completed(monkeypatch) -> None:
+def test_run_analysis_agent_fetches_and_saves(monkeypatch) -> None:
     calls: list[tuple[str, int]] = []
     tickets = [_ticket(ticket_id=21), _ticket(ticket_id=22)]
 
@@ -101,22 +101,71 @@ def test_run_analysis_agent_fetches_saves_and_marks_completed(monkeypatch) -> No
         "save_ticket_analysis",
         lambda analysis: calls.append(("save", int(analysis["ticket_id"]))) or {"ticket_id": analysis["ticket_id"]},
     )
-    monkeypatch.setattr(
-        agent,
-        "mark_ticket_analysis_completed",
-        lambda ticket_id: calls.append(("mark", int(ticket_id))),
-    )
-
     agent.run_analysis_agent()
 
     assert calls == [
         ("analyze", 21),
         ("save", 21),
-        ("mark", 21),
         ("analyze", 22),
         ("save", 22),
-        ("mark", 22),
     ]
+
+
+def test_score_risk_high_keyword_takes_priority(monkeypatch) -> None:
+    monkeypatch.setattr(agent, "HIGH_RISK_KEYWORDS", ("lawsuit",))
+    monkeypatch.setattr(agent, "NEGATIVE_KEYWORDS", ())
+    monkeypatch.setattr(agent, "ROUTING_STATUS_LOOKUP_KEYWORDS", ())
+    monkeypatch.setattr(agent, "ROUTING_SANCTION_OR_EXCEPTION_KEYWORDS", ())
+    monkeypatch.setitem(agent.CATEGORY_KEYWORDS, "account", ("login",))
+
+    enriched = agent._build_enriched_ticket(
+        agent._to_ticket_payload(_ticket(title="general inquiry", raw_query="lawsuit over this charge"))
+    )
+
+    assert agent._score_risk(enriched, "account") == "HIGH"
+
+
+def test_score_risk_account_defaults_to_mid_without_escalation_signals(monkeypatch) -> None:
+    monkeypatch.setattr(agent, "HIGH_RISK_KEYWORDS", ())
+    monkeypatch.setattr(agent, "NEGATIVE_KEYWORDS", ("angry",))
+    monkeypatch.setattr(agent, "ROUTING_STATUS_LOOKUP_KEYWORDS", ("status",))
+    monkeypatch.setattr(agent, "ROUTING_SANCTION_OR_EXCEPTION_KEYWORDS", ("ban",))
+    monkeypatch.setitem(agent.CATEGORY_KEYWORDS, "account", ("login", "password"))
+
+    enriched = agent._build_enriched_ticket(
+        agent._to_ticket_payload(_ticket(title="login help", raw_query="I cannot find the password reset page"))
+    )
+
+    assert agent._score_risk(enriched, "account") == "MID"
+
+
+def test_score_risk_account_escalates_with_uid_and_status_lookup(monkeypatch) -> None:
+    monkeypatch.setattr(agent, "HIGH_RISK_KEYWORDS", ())
+    monkeypatch.setattr(agent, "NEGATIVE_KEYWORDS", ())
+    monkeypatch.setattr(agent, "ROUTING_STATUS_LOOKUP_KEYWORDS", ("status",))
+    monkeypatch.setattr(agent, "ROUTING_SANCTION_OR_EXCEPTION_KEYWORDS", ())
+    monkeypatch.setitem(agent.CATEGORY_KEYWORDS, "account", ("account",))
+
+    enriched = agent._build_enriched_ticket(
+        agent._to_ticket_payload(_ticket(title="account issue", raw_query="uid 12345678 account status check please"))
+    )
+
+    assert agent._score_risk(enriched, "account") == "HIGH"
+
+
+def test_score_risk_general_escalates_to_mid_on_repeated_negative_status_signals(monkeypatch) -> None:
+    monkeypatch.setattr(agent, "HIGH_RISK_KEYWORDS", ())
+    monkeypatch.setattr(agent, "NEGATIVE_KEYWORDS", ("angry", "frustrated"))
+    monkeypatch.setattr(agent, "ROUTING_STATUS_LOOKUP_KEYWORDS", ("status",))
+    monkeypatch.setattr(agent, "ROUTING_SANCTION_OR_EXCEPTION_KEYWORDS", ())
+
+    enriched = agent._build_enriched_ticket(
+        agent._to_ticket_payload(
+            _ticket(title="need help", raw_query="angry and frustrated about uid 12345678 status update")
+        )
+    )
+
+    assert agent._score_risk(enriched, "general") == "MID"
 
 
 # 직접 실행할 때 루트 .env에 있는 LLM 설정을 읽어 실제 라우팅 LLM 호출이 가능하게 한다.

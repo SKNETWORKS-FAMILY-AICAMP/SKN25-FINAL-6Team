@@ -243,13 +243,59 @@ def _score_sentiment(enriched: EnrichedTicket) -> Sentiment:
         return "positive"
     return "neutral"
 
-
+"""
+위험도를 결정짓는 로직. 룰베이스 처리. 주간 운영 리포트와 운영검수시스템에서 위험도 기반 필터링에 필요하다
+"""
 def _score_risk(enriched: EnrichedTicket, category: Category) -> RiskLevel:
     text = enriched.normalized_query
-    if _contains_any(text, HIGH_RISK_KEYWORDS):
+    # 고위험 키워드 직접 언급 수. 예: 고소, 개인정보, 사기, 무단결제 등
+    high_keyword_hits = _keyword_score(text, HIGH_RISK_KEYWORDS)
+    # 부정 감정 키워드 수. 강한 항의/불만 맥락인지 보는 보조 신호다.
+    negative_hits = _keyword_score(text, NEGATIVE_KEYWORDS)
+    # 현재 카테고리와 직접 연결되는 키워드가 얼마나 반복되는지 측정한다.
+    category_hits = _keyword_score(text, CATEGORY_KEYWORDS.get(category, ()))
+    # uid, 서버명, 긴 숫자 식별자 등 개인 케이스 조회 가능성이 큰 표현 포함 여부
+    mentions_uid_or_server = _contains_uid_pattern(text)
+    # "상태 확인", "언제 처리", "조회"처럼 운영/DB 확인이 필요한 문의인지 판단
+    asks_status_lookup = _contains_any(text, ROUTING_STATUS_LOOKUP_KEYWORDS)
+    # 제재 해제, 예외 요청, 정책 완화처럼 민감한 운영 판단이 필요한지 판단
+    asks_sanction_or_exception = _contains_any(text, ROUTING_SANCTION_OR_EXCEPTION_KEYWORDS)
+    # 너무 짧거나 문맥이 부족한 문의는 과도한 상향을 피하기 위해 따로 본다.
+    short_or_contextless = _is_short_or_contextless(enriched.enriched_query)
+
+    # 1. 고위험 키워드가 하나라도 직접 등장하면 최우선으로 HIGH 처리한다.
+    if high_keyword_hits > 0:
         return "HIGH"
-    if category in {"payment", "refund", "account"}:
+    # 2. 결제/환불 카테고리는 운영 리스크가 커서 기본적으로 HIGH로 본다.
+    if category in {"payment", "refund"}:
+        return "HIGH"
+    # 3. 계정 카테고리는 기본 MID지만, 개인 식별/제재 문맥이 강하면 HIGH로 올린다.
+    if category == "account":
+        # 제재/예외 관련 문의는 민감도가 높아 바로 HIGH
+        if asks_sanction_or_exception:
+            return "HIGH"
+        # uid/서버 정보와 상태조회가 같이 나오면 개인 계정 조사 성격이 강하므로 HIGH
+        if mentions_uid_or_server and asks_status_lookup:
+            return "HIGH"
+        # 부정 표현이 있고 계정 관련 키워드가 반복되면 강한 계정 이슈로 간주해 HIGH
+        if negative_hits > 0 and category_hits >= 2:
+            return "HIGH"
+        # 그 외 일반 계정 문의는 MID 유지
         return "MID"
+    # 4. 버그/정책/가챠는 기본 LOW지만, 강한 불만이나 조사성 문맥이 있으면 MID로 올린다.
+    if category in {"bug", "policy", "gacha"}:
+        # 부정 표현이 여러 번 나오고 카테고리 키워드도 명확하면 운영 주의가 필요하므로 MID
+        if negative_hits >= 2 and category_hits > 0:
+            return "MID"
+        # uid/서버 정보와 상태조회가 있고 문맥도 충분하면 단순 문의보다 높은 MID로 본다.
+        if mentions_uid_or_server and asks_status_lookup and not short_or_contextless:
+            return "MID"
+        return "LOW"
+    # 5. 일반 문의도 강한 부정 표현 + 개인/상태조회 문맥이 겹치면 MID로 상향한다.
+    if category == "general":
+        if negative_hits >= 2 and (mentions_uid_or_server or asks_status_lookup) and not short_or_contextless:
+            return "MID"
+    # 6. 나머지는 운영상 기본 LOW
     return "LOW"
 
 
@@ -258,7 +304,6 @@ def _score_risk(enriched: EnrichedTicket, category: Category) -> RiskLevel:
 이전버전으로 언제든지 ROLLBACK 할 수 있어야하며, 변경 history도 필요하다.
 
 운영자들이 업로드하면 자동으로 코드에 적용되게 자동화를 적용할 수 있는걸 적용할 수 있는지?에 대해서 고려해보았는가???
-
 """
 
 
@@ -427,9 +472,8 @@ def run_analysis_agent() -> None:
         targets = fetch_unanalyzed_tickets()
         for ticket in targets:
             analysis = analyze_ticket(ticket)
-            saved = save_ticket_analysis(analysis)
+            save_ticket_analysis(analysis)
             # 분석 저장이 끝난 티켓은 재처리되지 않도록 qa_ticket 상태를 완료 처리한다.
-            mark_ticket_analysis_completed(int(saved["ticket_id"]))
     finally:
         flush_langfuse()
 

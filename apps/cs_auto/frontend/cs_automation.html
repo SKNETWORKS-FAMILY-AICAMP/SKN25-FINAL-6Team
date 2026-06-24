@@ -471,11 +471,14 @@ async function loadTicketDetailFromApi(ticketId, shouldRender = true) {
 }
 
 async function loadTicketsFromApi() {
+  const isUrgentTab = appState.activeSideTab === "긴급";
   const sourceType = appState.activeSideTab === "고객센터 문의" ? "naver_cafe" : null;
   const hasDraft = appState.activeSideTab === "고객센터 문의" ? true : null;
+  const riskLevel = isUrgentTab ? "HIGH" : null;
+  const limit = isUrgentTab ? 500 : 150;
   // 서버 페이지네이션 버전은 목록 미노출 이슈로 중단한다.
   // const data = await window.CSAutoApi.getTickets(buildTicketQueryParams(page));
-  const data = await window.CSAutoApi.getTickets(150, sourceType, hasDraft);
+  const data = await window.CSAutoApi.getTickets(limit, sourceType, hasDraft, riskLevel);
   if (Array.isArray(data.tickets) && data.tickets.length > 0) {
     appState.tickets = data.tickets.map(mapApiTicketToUiTicket);
     appState.selectedTicketId = appState.tickets[0].id;
@@ -572,9 +575,11 @@ function getTicketDisplayMeta(ticket) {
 function getVisibleTicketsForSideTab() {
   return appState.tickets.filter((ticket) => {
     const meta = getTicketDisplayMeta(ticket);
-    if (appState.activeSideTab === "긴급") return meta.isUrgent && (ticket.sourceType === "naver_cafe" || ticket.sourceType === "chatbot") && meta.status !== "done";
+    if (appState.activeSideTab === "긴급") return meta.isUrgent && String(ticket.rawStatus || "").toLowerCase() !== "resolved" && meta.status !== "done";
     if (appState.activeSideTab === "고객센터 문의") return ticket.sourceType === "naver_cafe" && Boolean(ticket.draftId);
-    if (appState.activeSideTab === "챗봇 문의") return ticket.sourceType === "chatbot";
+    if (appState.activeSideTab === "챗봇 문의") {
+      return ticket.sourceType === "chatbot" && ticket.rawStatus === "pending";
+      }
     return true;
   });
 }
@@ -1337,7 +1342,8 @@ function render() {
       <div class="relative min-h-0 flex-1 overflow-y-auto bg-white pr-8 pl-4 pb-3.5 pt-3.5">
         <div class="section-head rounded-t-xl bg-white">
             <div class="min-w-0 flex-1">
-              <h3 class="text-[18px] font-semibold leading-[1.3] text-ink-900">${ticket.title}</h3>
+              <!-- 문의 종류가 chatbot이면 챗봇 문의로 title을 세팅한다. -->
+              <h3 class="text-[18px] font-semibold leading-[1.3] text-ink-900">${ticket.sourceType === "chatbot" ? "챗봇 문의" : ticket.title}</h3>
               <div class="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-ink-500">
                 <span>#${ticket.id}</span>
                 <span>|</span>
