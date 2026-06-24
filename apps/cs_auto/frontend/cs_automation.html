@@ -338,7 +338,7 @@ const topTabs = [
 
 const primarySideTabs = [
   { label: "긴급", icon: "flame", red: true },
-  { label: "네이버 카페 문의", icon: "brand-blogger" },
+  { label: "고객센터 문의", icon: "brand-blogger" },
   { label: "챗봇 문의", icon: "robot" }
 ];
 
@@ -471,8 +471,8 @@ async function loadTicketDetailFromApi(ticketId, shouldRender = true) {
 }
 
 async function loadTicketsFromApi() {
-  const sourceType = appState.activeSideTab === "네이버 카페 문의" ? "naver_cafe" : null;
-  const hasDraft = appState.activeSideTab === "네이버 카페 문의" ? true : null;
+  const sourceType = appState.activeSideTab === "고객센터 문의" ? "naver_cafe" : null;
+  const hasDraft = appState.activeSideTab === "고객센터 문의" ? true : null;
   // 서버 페이지네이션 버전은 목록 미노출 이슈로 중단한다.
   // const data = await window.CSAutoApi.getTickets(buildTicketQueryParams(page));
   const data = await window.CSAutoApi.getTickets(150, sourceType, hasDraft);
@@ -573,7 +573,7 @@ function getVisibleTicketsForSideTab() {
   return appState.tickets.filter((ticket) => {
     const meta = getTicketDisplayMeta(ticket);
     if (appState.activeSideTab === "긴급") return meta.isUrgent && (ticket.sourceType === "naver_cafe" || ticket.sourceType === "chatbot") && meta.status !== "done";
-    if (appState.activeSideTab === "네이버 카페 문의") return ticket.sourceType === "naver_cafe" && Boolean(ticket.draftId);
+    if (appState.activeSideTab === "고객센터 문의") return ticket.sourceType === "naver_cafe" && Boolean(ticket.draftId);
     if (appState.activeSideTab === "챗봇 문의") return ticket.sourceType === "chatbot";
     return true;
   });
@@ -834,7 +834,15 @@ async function confirmDraft() {
 
 async function approveDraft() {
   const ticket = getSelectedTicket();
-  if (!ticket.ticketId || !ticket.draftId || !appState.currentReviewerId) {
+  if (!ticket.ticketId || !appState.currentReviewerId) {
+    pushAlert("답변 완료에 필요한 티켓 정보가 없습니다.", "error");
+    return;
+  }
+  if (ticket.sourceType === "chatbot" && !String(ticket.draft || "").trim()) {
+    pushAlert("답변 작성란에 텍스트를 입력한 뒤 저장하세요.", "error");
+    return;
+  }
+  if (ticket.sourceType !== "chatbot" && !ticket.draftId) {
     pushAlert("답변 완료에 필요한 티켓 정보가 없습니다.", "error");
     return;
   }
@@ -1217,8 +1225,9 @@ function render() {
   const ticket = getSelectedTicket() || getEmptyTicket();
   const isChatbotTicket = ticket.sourceType === "chatbot";
   const hasDraft = Boolean(ticket.draftId);
-  const canApprove = hasDraft && ticket.status !== "done" && !appState.isApproving;
-  const displayedDraft = isChatbotTicket ? "" : ticket.draft;
+  const hasDraftText = Boolean(String(ticket.draft || "").trim());
+  const canApprove = (isChatbotTicket ? hasDraftText : hasDraft) && ticket.status !== "done" && !appState.isApproving;
+  const displayedDraft = ticket.draft;
   const remainingRegens = Math.max((ticket.regenLimit || 3) - (ticket.regenCount || 0), 0);
   const ticketListPagination = getTicketListPagination();
   const reviewHistorySidebarGroups = getReviewHistorySidebarGroups();
@@ -1358,20 +1367,20 @@ function render() {
                 <div class="subcard">
                   <div class="subcard-head">
                     <div class="flex items-center gap-1.5 text-xs font-bold text-ink-900">
-                      <i class="ti ti-message-2 text-sm text-brand-500"></i> 답변 초안
+                      <i class="ti ti-message-2 text-sm text-brand-500"></i> ${isChatbotTicket ? "답변 작성란" : "답변 초안"}
                     </div>
-                    <div class="flex items-center gap-1.5">
+                    <div class="flex items-center gap-1.5 ${isChatbotTicket ? "hidden" : ""}">
                       <span class="text-[10px] text-ink-500">재생성 ${ticket.regenCount || 0}/${ticket.regenLimit || 3}</span>
                     </div>
                   </div>
                   <div class="subcard-body">
-                    <textarea id="draft-input" class="min-h-[180px] w-full resize-y rounded-[7px] border border-sand-300 bg-white px-3 py-2.5 text-xs leading-[1.6] text-ink-900 outline-none ${ticket.isDraftEditing ? "focus:border-brand-500" : "text-ink-500"}" style="height:${DEFAULT_DRAFT_TEXTAREA_HEIGHT}px" ${ticket.isDraftEditing ? "" : "readonly"}>${escapeHtml(displayedDraft)}</textarea>
-                    <div class="mt-2 flex flex-wrap gap-1.5">
+                    <textarea id="draft-input" class="min-h-[180px] w-full resize-y rounded-[7px] border border-sand-300 bg-white px-3 py-2.5 text-xs leading-[1.6] text-ink-900 outline-none ${(ticket.isDraftEditing || isChatbotTicket) ? "focus:border-brand-500" : "text-ink-500"}" style="height:${DEFAULT_DRAFT_TEXTAREA_HEIGHT}px" ${(ticket.isDraftEditing || isChatbotTicket) ? "" : "readonly"}>${escapeHtml(displayedDraft)}</textarea>
+                    <div class="mt-2 flex flex-wrap gap-1.5 ${isChatbotTicket ? "hidden" : ""}">
                       <button id="confirm-draft-btn" class="btn btn-ghost btn-sm ${!hasDraft ? "cursor-not-allowed opacity-40 hover:border-sand-300 hover:text-ink-700" : ""}" ${!hasDraft ? "disabled" : ""}><i class="ti ti-device-floppy"></i> ${ticket.isDraftEditing ? "수정 완료" : "수정"}</button>
                       <button id="regen-toggle-btn" class="btn btn-ghost btn-sm ml-auto ${!hasDraft || remainingRegens === 0 || appState.isRegenerating ? "cursor-not-allowed opacity-40 hover:border-sand-300 hover:text-ink-700" : ""}" ${!hasDraft || remainingRegens === 0 || appState.isRegenerating ? "disabled" : ""}><i class="ti ti-refresh"></i> 재생성</button>
                     </div>
-                    ${!hasDraft ? `<div class="mt-2 text-[11px] text-ink-500">${isChatbotTicket ? "챗봇 문의는 답변 초안이 제공되지 않습니다." : "이 티켓은 아직 답변 초안이 생성되지 않아 수정할 수 없습니다."}</div>` : ""}
-                    <div class="${appState.showRegenBox ? "block" : "hidden"} mt-2 rounded-lg border border-brand-200 bg-brand-500/5 p-3">
+                    ${!hasDraft && !isChatbotTicket ? `<div class="mt-2 text-[11px] text-ink-500">${isChatbotTicket ? "챗봇 문의는 답변 초안이 제공되지 않습니다." : "이 티켓은 아직 답변 초안이 생성되지 않아 수정할 수 없습니다."}</div>` : ""}
+                    <div class="${appState.showRegenBox && !isChatbotTicket ? "block" : "hidden"} mt-2 rounded-lg border border-brand-200 bg-brand-500/5 p-3">
                       <label class="mb-1 block text-[11px] font-medium text-brand-500">재생성 사유 입력</label>
                       <textarea id="regen-reason-input" class="min-h-[52px] w-full resize-none rounded-md border border-brand-200 bg-white px-2.5 py-2 text-xs outline-none" placeholder="예: 문체를 더 정중하게 수정, 환불 기준 문구 반영">${escapeHtml(appState.regenReason)}</textarea>
                       <div class="mt-1.5 flex gap-1">
@@ -1389,7 +1398,7 @@ function render() {
                     <div class="mt-3 flex flex-col gap-1.5">
                       <button id="complete-answer-btn" class="btn btn-primary btn-sm w-full justify-center ${!canApprove ? "cursor-not-allowed opacity-40 hover:bg-brand-500" : ""}" ${!canApprove ? "disabled" : ""}><i class="ti ${appState.isApproving ? "ti-loader-2 animate-spin" : "ti-check"}"></i> ${appState.isApproving ? "처리 중..." : "답변 저장"}</button>
                       <button id="send-response-email-btn" class="btn btn-ghost btn-sm w-full justify-center ${appState.isSendingResponseEmail ? "cursor-not-allowed opacity-40 hover:border-sand-300 hover:text-ink-700" : ""}" ${appState.isSendingResponseEmail ? "disabled" : ""}><i class="ti ${appState.isSendingResponseEmail ? "ti-loader-2 animate-spin" : "ti-mail-forward"}"></i> ${appState.isSendingResponseEmail ? "발송 중..." : "고객 답변 메일 발송"}</button>
-                      ${!canApprove && ticket.status !== "done" ? `<div class="text-[11px] text-ink-500">${appState.isApproving ? "답변을 저장 중입니다." : "답변이 있어야 저장할 수 있습니다."}</div>` : ""}
+                      <div id="complete-answer-help" class="text-[11px] text-ink-500 ${!canApprove && ticket.status !== "done" ? "" : "hidden"}">${appState.isApproving ? "답변을 저장 중입니다." : isChatbotTicket ? "답변 작성란에 텍스트를 입력하면 저장할 수 있습니다." : "답변이 있어야 저장할 수 있습니다."}</div>
                     </div>
                   </div>
                 </div>
@@ -1675,6 +1684,20 @@ function bindEvents() {
     draftInput.addEventListener("input", (event) => {
       const ticket = getSelectedTicket();
       ticket.draft = event.target.value;
+      if (ticket?.sourceType === "chatbot" && ticket.status !== "done" && !appState.isApproving) {
+        const completeAnswerBtn = document.getElementById("complete-answer-btn");
+        const completeAnswerHelp = document.getElementById("complete-answer-help");
+        const hasDraftText = Boolean(String(event.target.value || "").trim());
+        if (completeAnswerBtn) {
+          completeAnswerBtn.disabled = !hasDraftText;
+          completeAnswerBtn.classList.toggle("cursor-not-allowed", !hasDraftText);
+          completeAnswerBtn.classList.toggle("opacity-40", !hasDraftText);
+          completeAnswerBtn.classList.toggle("hover:bg-brand-500", !hasDraftText);
+        }
+        if (completeAnswerHelp) {
+          completeAnswerHelp.classList.toggle("hidden", hasDraftText);
+        }
+      }
     });
   }
 

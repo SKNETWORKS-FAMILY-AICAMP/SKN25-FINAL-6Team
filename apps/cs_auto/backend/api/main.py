@@ -73,7 +73,7 @@ class DraftRegenerateRequest(BaseModel):
 
 
 class DraftApproveRequest(BaseModel):
-    draft_id: int
+    draft_id: int | None = None
     final_text: str
     admin_id: int
     edit_reason: str | None = None
