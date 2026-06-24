@@ -253,49 +253,83 @@ AI가 일반 문의를 자동 처리하고, 위험도가 높은 이슈와 운영
 SKN25-FINAL-6Team/
 ├── apps/
 │   ├── chatbot/
-│   │   │   ├── api/                 # FastAPI 엔드포인트
-│   │   │   ├── chains/              # LangGraph 워크플로우, 라우팅, 영속화
-│   │   │   ├── generation/          # 결제 / 버그 / FAQ / VOC 에이전트
-│   │   │   ├── repository/          # DB 접근 계층
-│   │   │   ├── safety/              # 안전성 검증 계층
-│   │   │   ├── service/             # 챗봇 서비스
-│   │   │   └── evals/               # 챗봇 평가 스크립트
-│   │   └── frontend/static/         # 챗봇 정적 UI
+│   │   ├── backend/
+│   │   │   ├── api/                 # 챗봇 FastAPI 엔드포인트
+│   │   │   ├── chains/              # LangGraph 워크플로우, 라우팅, 저장 흐름
+│   │   │   ├── generation/          # FAQ / 결제 / 버그 / VOC 응답 생성 로직
+│   │   │   ├── repository/          # 챗봇 DB 조회 계층
+│   │   │   ├── safety/              # 개인정보, 환각, 유해성 등 안전성 검증
+│   │   │   ├── service/             # 챗봇 실행 서비스
+│   │   │   ├── tools/               # 챗봇에서 사용하는 DB 도구
+│   │   │   ├── evals/               # 챗봇 평가 데이터셋 및 평가 스크립트
+│   │   │   ├── observability/       # 챗봇 관측성 설정
+│   │   │   ├── utils/               # 입력 전처리 등 유틸리티
+│   │   │   ├── agent.py             # LangChain Agent 호출부
+│   │   │   ├── constants.py         # 챗봇 상수
+│   │   │   └── schemas.py           # 챗봇 상태 및 타입 정의
+│   │   └── frontend/
+│   │       └── static/              # 챗봇 정적 프론트엔드
 │   │
 │   ├── cs_auto/
 │   │   ├── backend/
-│   │   │   ├── agents/              # 분석 에이전트, 답변 에이전트
-│   │   │   ├── api/                 # CS 자동화 API 및 서비스
-│   │   │   ├── airflow/             # Airflow DAG
-│   │   │   ├── evals/               # 평가 데이터셋 생성 도구
-│   │   │   └── utils/               # 로그인, 이메일 유틸리티
-│   │   ├── frontend/                # 운영자 UI
-│   │   └── deploy/                  # 앱별 배포 스크립트
+│   │   │   ├── agents/              # 문의 분석, 답변 초안 생성, DB/문서 검색 도구
+│   │   │   ├── api/                 # 운영자 검토 화면용 API
+│   │   │   ├── airflow/             # 분석/답변 생성 배치 DAG
+│   │   │   ├── evals/               # CS 자동화 평가 데이터셋 생성 도구
+│   │   │   ├── observability/       # CS 자동화 관측성 설정
+│   │   │   └── utils/               # 로그인, 이메일 발송 유틸리티
+│   │   ├── frontend/                # 운영자 검토 화면
+│   │   └── deploy/                  # CS 자동화 배포 스크립트 및 Dockerfile
 │   │
 │   ├── weekly_report/
-│   │   ├── ai/                      # AI 액션 생성
-│   │   ├── airflow/                 # 주간 운영 리포트 DAG
-│   │   ├── api/                     # 리포트 실행 API
-│   │   ├── build/                   # 리포트 데이터 생성기
-│   │   ├── db/                      # 리포트 조회 쿼리
-│   │   ├── output/                  # PDF 및 Slack 출력
-│   │   └── report.py                # 파이프라인 진입점
+│   │   ├── ai/                      # AI 운영 액션 생성
+│   │   ├── airflow/                 # 주간 리포트 Airflow DAG
+│   │   ├── api/                     # 주간 리포트 수동 실행 API
+│   │   ├── build/                   # 리포트 데이터 조립
+│   │   ├── db/                      # 리포트용 DB 조회 쿼리
+│   │   ├── observability/           # 주간 리포트 관측성 설정
+│   │   ├── output/                  # PDF 생성 및 Slack 전송
+│   │   ├── utils/                   # 날짜, 라벨, 통계 유틸리티
+│   │   └── report.py                # 주간 리포트 파이프라인 진입점
 │   │
-│   └── tests/                       # 서비스 테스트
+│   └── tests/                       # 챗봇, CS 자동화, 주간 리포트 테스트
 │
 ├── common/
 │   ├── db/                          # 공통 DB 연결
-│   ├── documents_processing/         # 정규화, 청킹, 임베딩 파이프라인
-│   ├── drafting/                    # 공통 답변 초안 생성
+│   ├── documents_processing/         # 문서 정규화, 청킹, 임베딩 처리
+│   ├── drafting/                    # 공통 답변 생성 보조 로직
 │   ├── llm/                         # LLM 클라이언트 래퍼
-│   ├── observability/               # 공통 관측성 및 로거
-│   └── retrieval/                   # 임베딩, 벡터 검색, 재정렬
+│   ├── observability/               # 공통 Langfuse / 로깅 설정
+│   └── retrieval/                   # 임베딩, 벡터 검색, 재정렬, 검색 캐시
 │
-├── data/                            # 키워드, 프롬프트, 원천 데이터, SQL
-├── deploy/                          # Docker Compose, Nginx, 환경변수 예시
-├── docs/                            # PRD, 아키텍처, DB, 배포, 평가 문서
-├── assets/                          # 스크린샷, ERD 이미지
-└── requirements.txt
+├── data/
+│   ├── keywords/                    # 분류, 위험도, 감성, 라우팅 키워드
+│   ├── prompts/                     # 챗봇 / CS 자동화 프롬프트
+│   ├── raw/                         # 원천 데이터
+│   ├── sql/                         # 고정 SQL 템플릿
+│   └── tests/                       # 평가용 데이터
+│
+├── deploy/
+│   ├── nginx/                       # Nginx 설정 및 Dockerfile
+│   ├── docker-compose.chatbot.yml   # 챗봇 배포 구성
+│   ├── docker-compose.cs-auto.yml   # CS 자동화 배포 구성
+│   ├── docker-compose.airflow.yml   # Airflow 배포 구성
+│   └── .env.example                 # 배포 환경변수 예시
+│
+├── docs/
+│   ├── DB/                          # DB 스키마 및 테이블 설명
+│   ├── chatbot/                     # 챗봇 설계 및 리팩터링 문서
+│   ├── cs_auto/                     # CS 자동화 설계 및 평가 문서
+│   ├── weekly_report/               # 주간 리포트 요구사항 및 아키텍처
+│   ├── data_generation/             # 데이터 생성 및 전처리 문서
+│   └── test_strategy.md             # 테스트 전략
+│
+├── assets/
+│   ├── erd/                         # ERD 이미지
+│   └── frontend/                    # 화면 예시 이미지
+│
+├── requirements.txt                 # 공통 Python 의존성
+└── README.md
 ```
 
 <br>
