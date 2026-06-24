@@ -100,11 +100,11 @@ AI가 일반 문의를 자동 처리하고, 위험도가 높은 이슈와 운영
 
 <table>
   <tr>
-    <td align="center"><b>고객 문의</b><br><sub>Chatbot</sub></td>
+    <td align="center"><b>고객 문의</b><br><sub>챗봇</sub></td>
     <td align="center">&nbsp;&nbsp;→&nbsp;&nbsp;</td>
     <td align="center"><b>AI 답변 생성</b><br><sub>LangGraph · RAG</sub></td>
     <td align="center">&nbsp;&nbsp;→&nbsp;&nbsp;</td>
-    <td align="center"><b>운영자 검수</b><br><sub>CS Auto</sub></td>
+    <td align="center"><b>운영자 검수</b><br><sub>CS 자동화</sub></td>
     <td align="center">&nbsp;&nbsp;→&nbsp;&nbsp;</td>
     <td align="center"><b>주간 리포트</b><br><sub>Airflow · Slack</sub></td>
   </tr>
