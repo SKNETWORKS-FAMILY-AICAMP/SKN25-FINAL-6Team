@@ -22,8 +22,6 @@ def _ticket_status_for_decision(decision: str, review_required: bool | None = No
 
 
 def _ticket_status_for_state(state: ChatbotState, decision: str) -> str:
-    if state.get("bug_collection_status") == "collecting":
-        return "collecting"
     return _ticket_status_for_decision(decision, state.get("review_required"))
 
 

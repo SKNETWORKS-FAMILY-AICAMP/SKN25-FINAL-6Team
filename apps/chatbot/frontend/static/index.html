@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="icon" type="image/png" sizes="256x256" href="assets/favicon.png?v=4" />
-  <link rel="shortcut icon" href="favicon.ico?v=4" />
-  <link rel="apple-touch-icon" href="assets/favicon.png?v=4" />
+  <link rel="icon" type="image/png" sizes="256x256" href="assets/favicon.png?v=7" />
+  <link rel="shortcut icon" href="favicon.ico?v=7" />
+  <link rel="apple-touch-icon" href="assets/favicon.png?v=7" />
   <title>일상 고객센터 - 챗봇</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -2583,7 +2583,11 @@
       if (!primaryCategory) {
         return clientState.selectedCategoryInfo || inferDirectMessageCategoryInfo(message);
       }
-      return clientState.selectedCategoryInfo || getDefaultCategoryInfo(primaryCategory);
+      return clientState.selectedCategoryInfo;
+    }
+
+    function isBugCategoryInfo(categoryInfo) {
+      return categoryInfo?.routing_target === "bug_agent" || categoryInfo?.category === "bug";
     }
 
     function getCategoryInputTemplate(categoryInfo) {
@@ -2598,7 +2602,17 @@
       if (splitIndex === -1) {
         return message;
       }
-      return `${message.slice(0, splitIndex).trim()}\n입력창에 양식을 넣어두었어요. 각 항목의 콜론 뒤에 내용을 작성한 뒤 전송해 주세요.`;
+      if (isBugCategoryInfo(categoryInfo)) {
+        return `${message.slice(0, splitIndex).trim()}\n먼저 겪고 있는 문제를 자유롭게 입력해 주세요. 알려진 오류나 해결 방법을 먼저 찾아본 뒤, 추가 확인이 필요하면 재현정보 양식을 안내해 드릴게요.`;
+      }
+      return `${message.slice(0, splitIndex).trim()}\n더 자세한 확인이 필요하면 아래 양식에 맞게 입력해 주세요.\n입력창에 양식을 넣어두었어요. 각 항목의 콜론 뒤에 내용을 작성한 뒤 전송해 주세요.`;
+    }
+
+    function getBugReproductionPrompt(categoryInfo) {
+      const message = String(categoryInfo?.message || "");
+      const splitIndex = message.indexOf("\n\n");
+      const intro = splitIndex === -1 ? message : message.slice(0, splitIndex).trim();
+      return `${intro}\n더 자세한 확인이 필요하면 아래 양식에 맞게 입력해 주세요.\n입력창에 양식을 넣어두었어요. 각 항목의 콜론 뒤에 내용을 작성한 뒤 전송해 주세요.`;
     }
 
     function isBugReproductionFormAnswer(answerText) {
@@ -2762,7 +2776,11 @@
             clientState.selectedCategoryInfo = categoryInfo;
             clientState.selectedCategory = categoryInfo?.category || null;
             addAssistantMessage(getCategoryInstructionMessage(categoryInfo) || `${selected.label} 문의 내용을 자유롭게 입력해 주세요.`);
-            applyCategoryInputTemplate(categoryInfo);
+            if (isBugCategoryInfo(categoryInfo)) {
+              clearCategoryInputTemplate();
+            } else {
+              applyCategoryInputTemplate(categoryInfo);
+            }
             return;
           }
           addAssistantHtmlMessage(`
@@ -2802,7 +2820,11 @@
           renderCategoryFaq(primaryCategory);
           addUserMessage(categoryInfo.label);
           addAssistantMessage(getCategoryInstructionMessage(categoryInfo) || `${categoryInfo.label} 문의 내용을 입력해 주세요.`);
-          applyCategoryInputTemplate(categoryInfo);
+          if (isBugCategoryInfo(categoryInfo)) {
+            clearCategoryInputTemplate();
+          } else {
+            applyCategoryInputTemplate(categoryInfo);
+          }
         });
       });
     }
@@ -2958,7 +2980,10 @@
         loadingMessage.finish(displayAnswer, {
           showNewInquiryAction: shouldLockSession,
         });
-        if (isFormAnswer) {
+        if (!shouldLockSession && isBugCategoryInfo(categoryInfo) && getCategoryInputTemplate(categoryInfo)) {
+          if (!isFormAnswer) {
+            addAssistantMessage(getBugReproductionPrompt(categoryInfo));
+          }
           applyCategoryInputTemplate(categoryInfo);
         }
         if (shouldLockSession) {
