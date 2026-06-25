@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import argparse
 import json
@@ -22,7 +22,7 @@ for path in (PROJECT_ROOT, REPO_ROOT):
     if path_str not in sys.path:
         sys.path.insert(0, path_str)
 
-from chatbot.service.chatbot_service import stream_chatbot
+from service.chatbot_service import stream_chatbot
 from common.observability.langfuse import (
     build_trace_metadata,
     configure_langfuse,
@@ -480,7 +480,7 @@ def chatbot_target(inputs: dict[str, Any]) -> dict[str, Any]:
     user_id = int(inputs.get("user_id") or 0)
     ticket_id = int(inputs.get("ticket_id") or int(time.time() * 1000) % 1_000_000_000)
 
-    from chatbot.generation import faq_agent
+    from generation import faq_agent
 
     cache_events: list[dict[str, Any]] = []
     original_log_event = faq_agent.log_event

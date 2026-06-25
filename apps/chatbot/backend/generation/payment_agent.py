@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 import os
@@ -8,13 +8,14 @@ from typing import Any, Literal
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
-from chatbot.agent import invoke_payment_agent
-from chatbot.generation.drafting_agent import build_draft_update
-from chatbot.generation.policies import PAYMENT_POLICY
-from chatbot.observability.langfuse import link_chatbot_trace
-from chatbot.observability.logger import EVENT_NODE_COMPLETED, EVENT_NODE_STARTED, log_event
-from chatbot.repository.operation_log_repository import collect_payment_context_by_user
-from chatbot.schemas import ChatbotState
+from agent import invoke_payment_agent
+from generation.drafting_agent import build_draft_update
+from generation.policies import PAYMENT_POLICY
+from observability.langfuse import link_chatbot_trace
+from observability.logger import EVENT_NODE_COMPLETED, EVENT_NODE_STARTED, log_event
+from repository.operation_log_repository import collect_payment_context_by_user
+from schemas import ChatbotState
+from utils.config_loader import get_list_config, get_text_config
 from common.observability.langfuse import get_langchain_config, link_current_trace, observe_if_enabled
 from common.observability.logger import record_chat_model_usage
 
@@ -22,10 +23,7 @@ from common.observability.logger import record_chat_model_usage
 PaymentIntentType = Literal["READ_ONLY", "ACTION_REQUEST", "OUT_OF_SCOPE"]
 
 
-PAYMENT_CLARIFICATION_RESPONSE = (
-    "결제/환불 문의 내용을 조금 더 구체적으로 입력해 주세요.\n"
-    "예: 결제 상품명, 결제 일시, 주문번호, 결제 플랫폼, 환불 또는 미지급 상황"
-)
+PAYMENT_CLARIFICATION_RESPONSE = get_text_config("responses.yaml", "payment_clarification")
 
 
 class PaymentIntentResult(BaseModel):
@@ -40,61 +38,11 @@ class _PaymentIntentLLMOutput(BaseModel):
     reason: str = ""
 
 
-READ_ONLY_PATTERNS = (
-    r"내역",
-    r"상태",
-    r"조회",
-    r"확인(?:해\s*줘|해주세요|부탁|하고\s*싶|하고싶|할\s*수|되나요|해도|)$",
-    r"알려\s*줘",
-    r"알고\s*싶",
-    r"기록",
-    r"로그",
-    r"결과",
-    r"천장",
-    r"어떻게\s*처리",
-    r"진행\s*상황",
-)
-
-ACTION_PATTERNS = (
-    r"환불(?:해\s*줘|해주세요|처리|신청|진행)",
-    r"결제\s*취소",
-    r"취소(?:해\s*줘|해주세요|처리)",
-    r"지급(?:해\s*줘|해주세요|처리|해\s*주세요)",
-    r"재지급",
-    r"넣어\s*줘",
-    r"넣어주세요",
-    r"보상(?:해\s*줘|해주세요|넣어|지급|처리)",
-    r"복구(?:해\s*줘|해주세요|처리)",
-    r"해결(?:해\s*줘|해주세요|처리)",
-    r"조치(?:해\s*줘|해주세요|부탁|처리)",
-    r"처리(?:해\s*줘|해주세요|부탁)",
-    r"승인(?:해\s*줘|해주세요|처리)",
-    r"반려(?:해\s*줘|해주세요|처리)",
-)
-
-PAYMENT_DOMAIN_PATTERNS = (
-    r"결제",
-    r"환불",
-    r"취소",
-    r"주문",
-    r"영수증",
-    r"구매",
-    r"상품",
-    r"금액",
-    r"플랫폼",
-    r"카드",
-    r"아이템",
-    r"미지급",
-    r"지급",
-    r"보상",
-    r"우편",
-    r"가챠",
-    r"뽑기",
-    r"재화",
-    r"원석",
-    r"코인",
-    r"패키지",
-)
+PAYMENT_INTENT_RULES = "rules/payment_intent.yaml"
+READ_ONLY_PATTERNS = get_list_config(PAYMENT_INTENT_RULES, "read_only_patterns")
+ACTION_PATTERNS = get_list_config(PAYMENT_INTENT_RULES, "action_patterns")
+PAYMENT_DOMAIN_PATTERNS = get_list_config(PAYMENT_INTENT_RULES, "domain_patterns")
+PAYMENT_INTENT_CLASSIFIER_PROMPT = get_text_config("prompts/payment_intent_classifier.yaml", "template")
 
 
 def _normalize_intent_text(text: str) -> str:
@@ -161,16 +109,7 @@ def _classify_payment_intent_by_llm(text: str) -> PaymentIntentResult | None:
         [
             {
                 "role": "system",
-                "content": (
-                    "Classify a Korean game customer-support payment inquiry.\n"
-                    "Return READ_ONLY when the user only asks to view, check, confirm, or explain "
-                    "payment/refund/item-delivery/gacha records, status, history, logs, results, or pity count.\n"
-                    "Return ACTION_REQUEST only when the user asks the operator or system to perform "
-                    "a change or handling action such as refund, cancel, grant, redeliver, recover, compensate, fix, or resolve.\n"
-                    "Return OUT_OF_SCOPE when the message is random text, empty, test input, or not about payment, refund, "
-                    "item delivery, reward, or gacha.\n"
-                    "If the message is a status inquiry even with words like 처리 상태 or 어떻게 처리됐는지, classify READ_ONLY."
-                ),
+                "content": PAYMENT_INTENT_CLASSIFIER_PROMPT,
             },
             {"role": "user", "content": text},
         ],
@@ -271,29 +210,7 @@ def _payment_context_message(context: dict[str, Any], payment_intent: dict[str, 
     }
 
 
-ITEM_MATCH_STOPWORDS = {
-    "아이템",
-    "보상",
-    "상자",
-    "상품",
-    "패키지",
-    "지급",
-    "미지급",
-    "확인",
-    "로그",
-    "인벤토리",
-    "알림",
-    "실제",
-    "어제",
-    "오늘",
-    "언제",
-    "들어오",
-    "들어온",
-    "받았",
-    "받은",
-    "봐주",
-    "해주세요",
-}
+ITEM_MATCH_STOPWORDS = set(get_list_config(PAYMENT_INTENT_RULES, "item_match_stopwords"))
 
 
 def _normalize_match_text(value: Any) -> str:

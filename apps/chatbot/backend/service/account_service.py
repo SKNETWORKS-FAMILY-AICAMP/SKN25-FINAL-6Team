@@ -1,10 +1,10 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from typing import Any
 
-from chatbot.observability.langfuse import build_login_trace_metadata
-from chatbot.observability.logger import log_event
-from chatbot.repository.account_repository import read_server_regions, verify_user_login
+from observability.langfuse import build_login_trace_metadata
+from observability.logger import log_event
+from repository.account_repository import read_server_regions, verify_user_login
 from common.observability.langfuse import link_current_trace, observe_if_enabled
 
 DEFAULT_SERVER_REGIONS = ["ASIA", "KR", "EU", "NA"]

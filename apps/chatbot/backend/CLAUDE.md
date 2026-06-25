@@ -1,7 +1,7 @@
-# Chatbot 모듈 개요
+﻿# Chatbot 모듈 개요
 
 게임 CS 고객 응대 챗봇이다. 현재 메인 실행 경로는 FastAPI `/chat`에서
-`chatbot.service.chatbot_service`를 거쳐 LangGraph `StateGraph` workflow를
+`service.chatbot_service`를 거쳐 LangGraph `StateGraph` workflow를
 호출하는 구조다. 결제/버그는 LangChain `create_agent` 기반 reasoning unit을
 사용하고, FAQ는 별도 RAG 흐름을 사용한다.
 
@@ -9,14 +9,14 @@
 
 ```text
 api.main:/chat
-  -> chatbot.service.chatbot_service.run_chatbot
-  -> chatbot.chains.workflow.graph
+  -> service.chatbot_service.run_chatbot
+  -> chains.workflow.graph
   -> ticket_preprocess -> payment/faq/bug/voc node
   -> draft_persistence -> safety_layer 또는 ticket_completion
   -> ticket_completion
 ```
 
-`chatbot.agent`는 payment/bug policy가 넘긴 prompt/tools로 category별
+`agent`는 payment/bug policy가 넘긴 prompt/tools로 category별
 `create_agent`를 생성한다. FAQ는 `generation/faq_agent.py`에서 검색,
 근거 구성, 답변 생성을 직접 수행한다.
 
@@ -69,7 +69,7 @@ VOC 이해
 ## 실행 예시
 
 ```python
-from chatbot.agent import invoke_payment_agent
+from agent import invoke_payment_agent
 
 result = invoke_payment_agent({
     "messages": [

@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import argparse
 import csv
@@ -19,8 +19,8 @@ for path in (PROJECT_ROOT, REPO_ROOT):
     if path_str not in sys.path:
         sys.path.insert(0, path_str)
 
-from chatbot.generation.payment_agent import payment_agent_node
-from chatbot.generation.response.fixed_responses import PAYMENT_FALLBACK_RESPONSE, SAFE_FALLBACK_RESPONSE
+from generation.payment_agent import payment_agent_node
+from generation.response.fixed_responses import PAYMENT_FALLBACK_RESPONSE, SAFE_FALLBACK_RESPONSE
 from common.observability.logger import summarize_usage, usage_tracking_context
 
 

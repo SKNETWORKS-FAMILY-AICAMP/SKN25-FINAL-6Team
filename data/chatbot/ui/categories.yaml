@@ -1,0 +1,235 @@
+category_tree:
+  payment:
+    label: 결제/환불
+    children:
+      payment_history:
+        label: 결제 내역 확인
+        backend_category: payment
+        routing_target: payment_agent
+        message: '결제 내역 확인을 도와드릴게요.
+
+          결제 일시, 결제 상품명, 결제 플랫폼, 주문번호를 함께 입력해 주세요.'
+      missing_item:
+        label: 아이템 미지급
+        backend_category: payment
+        routing_target: payment_agent
+        message: '결제 후 아이템이 지급되지 않은 경우 확인을 도와드릴게요.
+
+          결제 상품명, 결제 일시, 주문번호, 지급되지 않은 아이템명을 입력해 주세요.'
+      duplicate_payment:
+        label: 중복 결제
+        backend_category: payment
+        routing_target: payment_agent
+        message: '중복 결제가 의심되는 경우 확인을 도와드릴게요.
+
+          같은 상품을 몇 번 결제했는지, 결제 일시, 주문번호, 결제 플랫폼을 입력해 주세요.'
+      payment_method:
+        label: 결제 방법 안내
+        backend_category: faq
+        routing_target: faq_agent
+        message: '결제 방법에 대한 안내를 도와드릴게요.
+
+          궁금한 결제 수단이나 결제하려는 상품명을 입력해 주세요.'
+      refund_policy:
+        label: 환불 정책 안내
+        backend_category: faq
+        routing_target: faq_agent
+        message: '환불 가능 여부와 절차를 안내해 드릴게요.
+
+          결제 상품명, 사용 여부, 지급 여부, 결제 플랫폼을 함께 입력해 주세요.'
+  account:
+    label: 계정/로그인
+    children:
+      login_issue:
+        label: 로그인 문제
+        backend_category: faq
+        routing_target: faq_agent
+        message: '로그인 문제 확인을 도와드릴게요.
+
+          로그인이 되지 않는 상황, 오류 메시지, 사용 중인 로그인 방식을 입력해 주세요.'
+      account_recovery:
+        label: 계정 복구 문의
+        backend_category: faq
+        routing_target: faq_agent
+        message: '계정 복구 관련 안내를 도와드릴게요.
+
+          계정을 잃어버린 상황, 기억하는 계정 정보, 마지막 접속 시점, 연동 정보가 있다면 입력해 주세요.'
+      account_linking:
+        label: 계정 연동 안내
+        backend_category: faq
+        routing_target: faq_agent
+        message: '계정 연동 방법을 안내해 드릴게요.
+
+          연동하려는 플랫폼이나 계정 종류를 입력해 주세요.'
+      phone_change:
+        label: 번호 변경 방법
+        backend_category: faq
+        routing_target: faq_agent
+        message: '휴대폰 번호 변경 방법을 안내해 드릴게요.
+
+          현재 로그인이 가능한지와 변경하려는 상황을 입력해 주세요.'
+  reward:
+    label: 아이템 보상
+    children:
+      product_not_delivered:
+        label: 상품 미배송
+        backend_category: payment
+        routing_target: payment_agent
+        message: '구매한 상품이 지급되지 않은 경우 확인을 도와드릴게요.
+
+          상품명, 결제 일시, 주문번호, 지급되지 않은 아이템명을 입력해 주세요.'
+      mail_reward:
+        label: 우편 보상
+        backend_category: faq
+        routing_target: faq_agent
+        message: '우편 보상 관련 안내를 도와드릴게요.
+
+          받지 못한 보상의 이름, 이벤트명, 우편함 확인 여부를 입력해 주세요.'
+      coupon_usage:
+        label: 쿠폰 사용 안내
+        backend_category: faq
+        routing_target: faq_agent
+        message: '쿠폰 사용 방법과 사용 내역 관련 안내를 도와드릴게요.
+
+          쿠폰 코드, 사용 시도 시간, 오류 메시지가 있다면 입력해 주세요.'
+  bug:
+    label: 버그/오류
+    children:
+      launch_access_error:
+        label: 실행/접속 오류
+        backend_category: bug
+        routing_target: bug_agent
+        message: '실행 또는 접속 오류 확인을 위해 아래 항목을 작성해 주세요.
+
+
+          발생 시점:
+
+          오류 메시지:
+
+          사용 기기/OS:
+
+          오류 내용:'
+      gameplay_progress_error:
+        label: 게임 진행 오류
+        backend_category: bug
+        routing_target: bug_agent
+        message: '게임 진행 오류 확인을 위해 아래 항목을 작성해 주세요.
+
+
+          발생 시점:
+
+          오류 메시지:
+
+          사용 기기/OS:
+
+          오류 내용:'
+      graphics_sound_error:
+        label: 그래픽/사운드 오류
+        backend_category: bug
+        routing_target: bug_agent
+        message: '그래픽 또는 사운드 오류 확인을 위해 아래 항목을 작성해 주세요.
+
+
+          발생 시점:
+
+          오류 메시지:
+
+          사용 기기/OS:
+
+          오류 내용:'
+      crash_error_message:
+        label: 오류 메시지/크래시
+        backend_category: bug
+        routing_target: bug_agent
+        message: '오류 메시지 또는 크래시 확인을 위해 아래 항목을 작성해 주세요.
+
+
+          발생 시점:
+
+          오류 메시지:
+
+          사용 기기/OS:
+
+          오류 내용:'
+      paid_item_missing:
+        label: 결제 후 아이템 미지급
+        backend_category: payment
+        routing_target: payment_agent
+        message: '결제 후 아이템 미지급 확인을 위해 아래 형식으로 알려주세요.
+
+
+          결제 상품명:
+
+          결제 일시:
+
+          주문번호:
+
+          지급되지 않은 아이템:
+
+          결제 플랫폼:'
+      reward_mail_missing:
+        label: 보상/우편 미수령
+        backend_category: payment
+        routing_target: payment_agent
+        message: '보상 또는 우편 미수령 확인을 위해 아래 형식으로 알려주세요.
+
+
+          보상명:
+
+          이벤트명:
+
+          우편함 확인 여부:
+
+          받지 못한 시점:
+
+          수령을 시도한 시간:'
+      gacha_log_issue:
+        label: 가챠/뽑기 기록 이상
+        backend_category: payment
+        routing_target: payment_agent
+        message: '가챠 또는 뽑기 기록 이상 확인을 위해 아래 형식으로 알려주세요.
+
+
+          뽑기 시점:
+
+          배너명:
+
+          기대한 결과:
+
+          실제 결과:
+
+          사용한 재화/횟수:'
+      bug_etc:
+        label: 기타 오류 제보
+        backend_category: bug
+        routing_target: bug_agent
+        message: '기타 오류 확인을 위해 아래 항목을 작성해 주세요.
+
+
+          발생 시점:
+
+          오류 메시지:
+
+          사용 기기/OS:
+
+          오류 내용:'
+  notice:
+    label: 공지/이벤트
+    children:
+      notice_event:
+        label: 공지/이벤트
+        backend_category: faq
+        routing_target: faq_agent
+        message: '공지사항 또는 이벤트 관련 내용을 찾아 안내해 드릴게요.
+
+          확인하고 싶은 공지 제목, 이벤트명, 보상명, 추가 내용을 입력해 주세요.'
+  voc:
+    label: 건의/기타
+    children:
+      voc_etc:
+        label: 건의/기타
+        backend_category: voc
+        routing_target: voc_agent
+        message: '건의 사항이나 기타 의견을 남겨주시면 운영 검토에 참고하겠습니다.
+
+          개선이 필요한 점, 불편했던 점, 기타 문의 내용을 자유롭게 입력해 주세요.'

@@ -1,8 +1,8 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from typing import Any
 
-from chatbot.schemas import ChatbotState
+from schemas import ChatbotState
 
 
 # agent 응답 message에서 실제 텍스트 content만 추출한다.

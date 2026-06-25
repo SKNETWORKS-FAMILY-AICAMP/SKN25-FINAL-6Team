@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import argparse
 import csv
@@ -20,7 +20,7 @@ for path in (PROJECT_ROOT, REPO_ROOT):
     if path_str not in sys.path:
         sys.path.insert(0, path_str)
 
-from chatbot.service.chatbot_service import run_chatbot
+from service.chatbot_service import run_chatbot
 from common.observability.logger import summarize_usage, usage_tracking_context
 
 

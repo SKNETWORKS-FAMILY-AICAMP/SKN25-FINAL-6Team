@@ -14,11 +14,11 @@ from common.retrieval.cache_store import get_cached_session_state, set_cached_se
 
 configure_langfuse("chatbot", default_tags=["chatbot", "api"])
 
-from chatbot.constants import DEFAULT_DEMO_USER_ID
-from chatbot.service.account_service import get_server_regions, login_with_credentials
-from chatbot.service.chatbot_service import run_chatbot
-from chatbot.service.multiturn_service import build_session_context
-from chatbot.repository.ticket_repository import find_collecting_bug_ticket
+from constants import DEFAULT_DEMO_USER_ID
+from service.account_service import get_server_regions, login_with_credentials
+from service.chatbot_service import run_chatbot
+from service.multiturn_service import build_session_context
+from utils.config_loader import load_chatbot_yaml
 
 
 app = FastAPI(title="GameOps Chatbot API")
@@ -57,8 +57,6 @@ SESSION_DOCUMENT_META_LIMIT = 5
 DEFAULT_SESSION_MAX_MESSAGES = 40
 DEFAULT_RECENT_SESSION_TURNS = 3
 
-# 알려진 재현정보 필드가 2개 이상 있을 때만 버그 보고서 폼으로 본다.
-BUG_REPORT_FORM_MIN_LABEL_MATCHES = 2
 # 문의 내역 화면은 첫 진입 시 최근 20건만 보여주고, 한 번에 최대 100건까지만 조회한다.
 DEFAULT_TICKET_HISTORY_LIMIT = 20
 MAX_TICKET_HISTORY_LIMIT = 100
@@ -247,49 +245,36 @@ def _is_bug_route(request: ChatRequest) -> bool:
     )
 
 
-def _extract_section(raw_query: str | None, section_name: str) -> str:
-    if not raw_query:
-        return ""
-    marker = f"[{section_name}]"
-    start = raw_query.find(marker)
-    if start == -1:
-        return ""
-    start += len(marker)
-    next_section = raw_query.find("\n[", start)
-    end = next_section if next_section != -1 else len(raw_query)
-    return raw_query[start:end].strip()
+def _initial_bug_query_from_messages(messages: list[dict[str, str]] | None) -> str:
+    for message in reversed(messages or []):
+        if not isinstance(message, dict) or message.get("role") != "user":
+            continue
+        content = str(message.get("content") or "").strip()
+        if content and not _looks_like_bug_report_form(content):
+            return content
+    return ""
 
 
-def _extract_user_text(raw_query: str | None) -> str:
-    if not raw_query:
-        return ""
-    text = str(raw_query)
-    if not text.startswith("User:"):
-        return ""
-    start = len("User:")
-    end = text.find("\nAI:", start)
-    if end == -1:
-        end = len(text)
-    return text[start:end].strip()
+def _bug_report_form_config() -> dict[str, Any]:
+    return load_chatbot_yaml("forms/bug_report.yaml")
 
 
-def _extract_initial_bug_query(raw_query: str | None) -> str:
-    candidate = _extract_section(raw_query, "초기 문의") or _extract_user_text(raw_query)
-    # 재현 정보 폼은 초기 문의가 아니므로 다음 turn에서 다시 합치지 않는다.
-    if _looks_like_bug_report_form(candidate):
-        return ""
-    return candidate
+def _bug_report_form_aliases() -> tuple[str, ...]:
+    raw_aliases = _bug_report_form_config().get("aliases")
+    if not isinstance(raw_aliases, list) or not all(isinstance(label, str) for label in raw_aliases):
+        raise ValueError("forms/bug_report.yaml:aliases must be list[str]")
+    return tuple(raw_aliases)
+
+
+def _bug_report_form_min_label_matches() -> int:
+    value = _bug_report_form_config().get("min_label_matches", 2)
+    if not isinstance(value, int):
+        raise ValueError("forms/bug_report.yaml:min_label_matches must be an integer")
+    return value
 
 
 def _looks_like_bug_report_form(text: str) -> bool:
-    labels = (
-        "발생 시점",
-        "오류 메시지",
-        "사용 기기/OS",
-        "사용 기기",
-        "오류 내용",
-    )
-    return sum(1 for label in labels if label in text) >= BUG_REPORT_FORM_MIN_LABEL_MATCHES
+    return sum(1 for label in _bug_report_form_aliases() if label in text) >= _bug_report_form_min_label_matches()
 
 
 @app.get("/health")
@@ -302,6 +287,15 @@ def health() -> dict[str, str]:
 def server_regions() -> dict[str, list[str]]:
     # 로그인 화면의 서버 선택 목록은 DB 값을 우선 사용하고, 실패 시 service 계층에서 기본값으로 보정한다.
     return {"items": get_server_regions()}
+
+
+@app.get("/config")
+def chatbot_config() -> dict[str, Any]:
+    return {
+        "category_tree": load_chatbot_yaml("ui/categories.yaml").get("category_tree", {}),
+        "recommended_faq": load_chatbot_yaml("ui/recommended_faq.yaml").get("recommended_faq", {}),
+        "bug_report_form": _bug_report_form_config(),
+    }
 
 
 @app.post("/login", response_model=LoginResponse)
@@ -365,35 +359,8 @@ def list_tickets(
 def chat(request: ChatRequest) -> ChatResponse:
     session_id = _next_session_turn_id(request.session_id)
     initial_bug_query: str | None = None
-    bug_collection_status: str | None = None
     bug_report_form: str | None = None
-
-    collecting_ticket: dict[str, Any] | None = None
-    if _is_bug_route(request):
-        lookup = find_collecting_bug_ticket(
-            {
-                "user_id": request.user_id,
-                "account_id": request.account_id,
-                "session_id": session_id,
-            }
-        )
-        rows = lookup.get("data") or []
-        collecting_ticket = rows[0] if rows else None
-
-    if collecting_ticket:
-        ticket_id = int(collecting_ticket["ticket_id"])
-        initial_bug_query = _extract_initial_bug_query(collecting_ticket.get("raw_query"))
-        bug_collection_status = "ready_for_review"
-        bug_report_form = request.user_message
-    else:
-        ticket_id = _new_ticket_id()
-        if _is_bug_route(request):
-            initial_bug_query = request.user_message
-            if _looks_like_bug_report_form(request.user_message):
-                bug_collection_status = "ready_for_review"
-                bug_report_form = request.user_message
-            else:
-                bug_collection_status = "collecting"
+    ticket_id = _new_ticket_id()
 
     # 이전 대화가 요청에 없으면 DB에서 같은 session base의 최근 turn을 가져와 멀티턴 context로 사용한다.
     session_cache = get_cached_session_state(session_id)
@@ -411,6 +378,13 @@ def chat(request: ChatRequest) -> ChatResponse:
         previous_messages = context.previous_messages
         conversation_summary = conversation_summary or context.conversation_summary
 
+    if _is_bug_route(request):
+        if _looks_like_bug_report_form(request.user_message):
+            initial_bug_query = _initial_bug_query_from_messages(previous_messages)
+            bug_report_form = request.user_message
+        else:
+            initial_bug_query = request.user_message
+
     # chatbot_service가 LangGraph workflow를 실행하고 최종 답변과 state를 반환한다.
     output: dict[str, Any] = run_chatbot(
         ticket_id=ticket_id,
@@ -427,7 +401,6 @@ def chat(request: ChatRequest) -> ChatResponse:
         previous_messages=previous_messages,
         conversation_summary=conversation_summary,
         initial_bug_query=initial_bug_query,
-        bug_collection_status=bug_collection_status,
         bug_report_form=bug_report_form,
     )
     state = output["state"]

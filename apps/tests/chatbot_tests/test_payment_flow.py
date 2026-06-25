@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from chatbot.generation import payment_agent
-from chatbot.repository import operation_log_repository
+from generation import payment_agent
+from repository import operation_log_repository
 
 
 def test_payment_agent_collects_context_by_logged_in_user(monkeypatch) -> None:
@@ -88,8 +88,7 @@ def test_payment_agent_does_not_collect_without_user_id(monkeypatch) -> None:
         }
     )
 
-    assert result["payment_context"]["status"] == "skipped"
-    assert result["payment_context"]["reason"] == "missing_user_id"
+    assert "payment_context" not in result
     assert result["retrieved_documents"] == []
 
 

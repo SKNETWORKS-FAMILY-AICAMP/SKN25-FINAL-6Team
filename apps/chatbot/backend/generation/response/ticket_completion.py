@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-from chatbot.generation.response.fixed_responses import (
+from generation.response.fixed_responses import (
     BLOCK_RESPONSE,
     REVIEW_REQUIRED_RESPONSE,
     fallback_response_for_category,
 )
-from chatbot.notifications.github_issue import dispatch_github_issue_notification
-from chatbot.observability.langfuse import link_chatbot_trace
-from chatbot.observability.logger import EVENT_TICKET_COMPLETION_COMPLETED, log_event
-from chatbot.repository.failed_query_repository import save_failed_query
-from chatbot.repository.ticket_repository import delete_qa_ticket, update_qa_ticket_raw_query
-from chatbot.schemas import ChatbotState
+from notifications.github_issue import dispatch_github_issue_notification
+from observability.langfuse import link_chatbot_trace
+from observability.logger import EVENT_TICKET_COMPLETION_COMPLETED, log_event
+from repository.failed_query_repository import save_failed_query
+from repository.ticket_repository import delete_qa_ticket, update_qa_ticket_raw_query, update_session_qa_tickets_status
+from schemas import ChatbotState
 from common.observability.langfuse import observe_if_enabled
 
 
@@ -43,16 +43,57 @@ def _join_unique_bug_parts(parts: list[str]) -> str:
 
 
 def _format_bug_collection_user_text(state: ChatbotState) -> str | None:
-    status = state.get("bug_collection_status")
-    if status not in {"collecting", "ready_for_review"}:
+    if not state.get("bug_report_form"):
         return None
 
     initial_query = str(state.get("initial_bug_query") or state.get("raw_query") or "").strip()
-    if status == "collecting":
-        return initial_query
-
     reproduction_info = str(state.get("bug_report_form") or state.get("raw_query") or "").strip()
     return _join_unique_bug_parts([initial_query, reproduction_info])
+
+
+def _format_bug_review_session_text(state: ChatbotState) -> str | None:
+    if not state.get("bug_report_form"):
+        return None
+
+    parts: list[str] = []
+    previous_lines: list[str] = []
+    for message in state.get("previous_messages") or []:
+        if not isinstance(message, dict):
+            continue
+        role = str(message.get("role") or "").strip()
+        content = str(message.get("content") or "").strip()
+        if not role or not content:
+            continue
+        label = "User" if role == "user" else "AI" if role == "assistant" else role
+        previous_lines.append(f"{label}: {content}")
+
+    if previous_lines:
+        parts.append("[이전 대화]\n" + "\n".join(previous_lines))
+
+    reproduction_info = str(state.get("bug_report_form") or state.get("raw_query") or "").strip()
+    initial_query = "" if previous_lines else str(state.get("initial_bug_query") or "").strip()
+    if initial_query and _normalized_bug_text(initial_query) != _normalized_bug_text(reproduction_info):
+        parts.append("[초기 문의]\n" + initial_query)
+
+    if reproduction_info:
+        parts.append("[재현 정보]\n" + reproduction_info)
+
+    return _join_unique_bug_parts(parts)
+
+
+def _update_bug_review_session_status(state: ChatbotState) -> dict | None:
+    if not state.get("bug_report_form"):
+        return None
+    if state.get("review_required") is not True and state.get("safety_action") != "REVIEW_REQUIRED":
+        return None
+    return update_session_qa_tickets_status(
+        {
+            "session_id": state.get("session_id"),
+            "user_id": state.get("user_id"),
+            "account_id": state.get("account_id"),
+            "status": "pending",
+        }
+    )
 
 
 def _is_category_redirect_response(final_text: str) -> bool:
@@ -144,7 +185,8 @@ def ticket_completion_node(state: ChatbotState) -> dict:
         }
 
     raw_query = state.get("raw_query") or ""
-    formatted_user_text = _format_bug_collection_user_text(state)
+    formatted_session_text = _format_bug_review_session_text(state)
+    formatted_user_text = formatted_session_text or _format_bug_collection_user_text(state)
     github_issue_content = formatted_user_text or raw_query
     formatted_raw_query = f"User: {formatted_user_text or raw_query}\nAI: {final_text}"
     notification_result = dispatch_github_issue_notification(
@@ -164,6 +206,7 @@ def ticket_completion_node(state: ChatbotState) -> dict:
             "status": _ticket_status_for_state(state, decision),
         }
     )
+    session_status_result = _update_bug_review_session_status(state)
 
     # 5단계: Langfuse/admin log에서 최종 처리 결과를 추적할 수 있게 이벤트를 남긴다.
     log_event(
@@ -179,6 +222,7 @@ def ticket_completion_node(state: ChatbotState) -> dict:
             "notification_status": notification_result.get("status"),
             "failed_query_result": failed_query_result,
             "ticket_status_result": ticket_status_result,
+            "session_status_result": session_status_result,
         },
     )
 
@@ -187,6 +231,7 @@ def ticket_completion_node(state: ChatbotState) -> dict:
         "notification_result": notification_result,
         "failed_query_result": failed_query_result,
         "ticket_status_result": ticket_status_result,
+        "session_status_result": session_status_result,
     }
 
 

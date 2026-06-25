@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from chatbot.service.multiturn_service import (
+from service.multiturn_service import (
     ConversationTurn,
     _extract_ai_response,
     _extract_user_query,

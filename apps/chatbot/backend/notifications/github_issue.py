@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 import os
@@ -6,10 +6,10 @@ from typing import Any
 from urllib import request
 from urllib.error import HTTPError
 
-from chatbot.observability.error_classifier import classify_error
-from chatbot.observability.langfuse import build_chatbot_trace_metadata
-from chatbot.observability.logger import EVENT_NOTIFICATION_DISPATCHED, EVENT_NOTIFICATION_FAILED, log_event
-from chatbot.repository.notification_repository import notification_log_exists, save_notification_log
+from observability.error_classifier import classify_error
+from observability.langfuse import build_chatbot_trace_metadata
+from observability.logger import EVENT_NOTIFICATION_DISPATCHED, EVENT_NOTIFICATION_FAILED, log_event
+from repository.notification_repository import notification_log_exists, save_notification_log
 from common.observability.langfuse import link_current_trace, observe_if_enabled
 
 

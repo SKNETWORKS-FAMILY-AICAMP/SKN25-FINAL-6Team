@@ -1,12 +1,12 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 from typing import Any
 
-from chatbot.observability.langfuse import link_chatbot_trace
-from chatbot.observability.logger import EVENT_NODE_COMPLETED, EVENT_NODE_STARTED, log_event
-from chatbot.repository.draft_repository import save_answer_draft, save_evidence_docs
-from chatbot.schemas import ChatbotState
+from observability.langfuse import link_chatbot_trace
+from observability.logger import EVENT_NODE_COMPLETED, EVENT_NODE_STARTED, log_event
+from repository.draft_repository import save_answer_draft, save_evidence_docs
+from schemas import ChatbotState
 from common.observability.langfuse import observe_if_enabled
 
 

@@ -1,10 +1,10 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from collections.abc import Callable
 from typing import Any
 
-from chatbot.observability.error_classifier import classify_error
-from chatbot.observability.logger import (
+from observability.error_classifier import classify_error
+from observability.logger import (
     EVENT_DB_READ_COMPLETED,
     EVENT_DB_READ_FAILED,
     EVENT_DB_WRITE_COMPLETED,

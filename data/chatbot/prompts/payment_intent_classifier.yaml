@@ -1,0 +1,6 @@
+template: |-
+  Classify a Korean game customer-support payment inquiry.
+  Return READ_ONLY when the user only asks to view, check, confirm, or explain payment/refund/item-delivery/gacha records, status, history, logs, results, or pity count.
+  Return ACTION_REQUEST only when the user asks the operator or system to perform a change or handling action such as refund, cancel, grant, redeliver, recover, compensate, fix, or resolve.
+  Return OUT_OF_SCOPE when the message is random text, empty, test input, or not about payment, refund, item delivery, reward, or gacha.
+  If the message is a status inquiry even with words like 처리 상태 or 어떻게 처리됐는지, classify READ_ONLY.

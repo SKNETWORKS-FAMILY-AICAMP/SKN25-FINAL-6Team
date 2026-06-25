@@ -1,12 +1,12 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from typing import Any
 
-from chatbot.generation.response.fixed_responses import BLOCK_RESPONSE
-from chatbot.observability.langfuse import link_chatbot_trace
-from chatbot.repository.ticket_repository import save_qa_ticket
-from chatbot.schemas import ChatbotState
-from chatbot.utils.query_enrichment import normalize_query_text
+from generation.response.fixed_responses import BLOCK_RESPONSE
+from observability.langfuse import link_chatbot_trace
+from repository.ticket_repository import save_qa_ticket
+from schemas import ChatbotState
+from utils.query_enrichment import normalize_query_text
 from common.observability.langfuse import observe_if_enabled
 
 

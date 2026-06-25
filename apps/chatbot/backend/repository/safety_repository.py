@@ -1,10 +1,10 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from typing import Any
 
 from common.db.connection import db_connection
 
-from chatbot.repository.base import safe_write
+from repository.base import safe_write
 
 
 # safety_layer가 계산한 action/score/reason을 DB에 남긴다.

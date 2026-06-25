@@ -201,7 +201,6 @@ voc_agent     -> voc_agent
 rag_reply     -> faq_agent
 ```
 
-`urgent_alert`는 더 이상 routing_target으로 사용하지 않는다. GitHub issue 생성 여부는 `review_required`와 버그성 문의 여부로 판단한다.
 
 프론트에서는 사용자가 고른 subcategory routing을 우선한다. 현재는 문장 키워드로 category를 다시 뒤집는 LLM 라우터를 사용하지 않는다.
 

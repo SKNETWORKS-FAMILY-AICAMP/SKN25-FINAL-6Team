@@ -3,8 +3,8 @@ from __future__ import annotations
 from time import perf_counter
 from typing import Any
 
-from chatbot.constants import MAX_MASKING_RETRY, MAX_SAFETY_RETRY
-from chatbot.schemas import ChatbotState
+from constants import MAX_MASKING_RETRY, MAX_SAFETY_RETRY
+from schemas import ChatbotState
 from common.observability.langfuse import link_current_trace, observe_if_enabled
 
 
@@ -32,7 +32,7 @@ def _is_voc_state(state: ChatbotState) -> bool:
 def _is_bug_collection_auto_response(state: ChatbotState) -> bool:
     return (
         state.get("reasoning_node") == "bug_agent"
-        and state.get("bug_collection_status") in {"collecting", "ready_for_review"}
+        and bool(state.get("bug_report_form"))
         and not state.get("retrieved_documents")
     )
 

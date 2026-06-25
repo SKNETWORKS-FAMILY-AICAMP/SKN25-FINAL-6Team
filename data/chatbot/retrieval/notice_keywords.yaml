@@ -1,0 +1,15 @@
+source_types:
+  - 'naver_cafe_notice'
+latest_keywords:
+  - '최근'
+  - '최신'
+  - '새로운'
+  - '가장 최근'
+  - '마지막'
+query_keywords:
+  - '공지'
+  - '공지사항'
+  - '이벤트'
+  - '업데이트'
+  - '점검'
+  - '버전'

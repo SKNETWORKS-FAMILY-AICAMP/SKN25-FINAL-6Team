@@ -1,4 +1,4 @@
-# Chatbot
+﻿# Chatbot
 
 게임 CS 고객 문의를 접수하고, 문의 유형을 분류한 뒤 필요한 근거를 조회해 답변 초안을 생성하는 챗봇 데모 베이스라인입니다.
 
@@ -32,7 +32,7 @@ streamlit run src\chatbot\frontend\app.py
 API만 확인할 때는 다음을 사용합니다.
 
 ```powershell
-uvicorn chatbot.api.main:app --reload
+uvicorn api.main:app --reload
 ```
 
 ### 계정 로그인
@@ -130,7 +130,7 @@ VOC 이해
 고객-facing 답변 초안 생성
 ```
 
-현재 `chatbot.agent`는 legacy singleton을 유지하지 않고, category policy가 넘긴 prompt/tools로 `create_agent`를 생성합니다.
+현재 `agent`는 legacy singleton을 유지하지 않고, category policy가 넘긴 prompt/tools로 `create_agent`를 생성합니다.
 
 ## 역할
 
@@ -170,7 +170,7 @@ chatbot/
 | `service/chatbot_service.py` | API 요청을 LangGraph workflow state로 변환하고 실행 |
 | `agent.py` | 결제/버그용 LangChain `create_agent` adapter |
 | `schemas.py` | 챗봇 state 스키마와 카테고리/라우팅 타입 정의 |
-| `constants.py` | 카테고리, 라우팅, safety threshold 상수 |
+| `constants.py` | demo user id, safety threshold, 고정 응답 상수 |
 | `tools/db_tools.py` | DB 조회/저장 tool |
 | `generation/faq_agent.py` | FAQ/RAG 검색, 근거 구성, 답변 생성 |
 | `generation/payment_agent.py` | 결제/환불/아이템/가챠 DB 기반 답변 생성 |
@@ -317,7 +317,7 @@ write_safety_results
 ## State Example
 
 ```python
-from chatbot.agent import invoke_payment_agent
+from agent import invoke_payment_agent
 
 result = invoke_payment_agent({
     "messages": [
@@ -360,9 +360,9 @@ PYTHONPATH=.:apps/chatbot/backend \
 python -m uvicorn api.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-Python 코드에서 직접 확인할 때는 `chatbot.service.chatbot_service.run_chatbot` 또는
+Python 코드에서 직접 확인할 때는 `service.chatbot_service.run_chatbot` 또는
 `stream_chatbot`을 사용합니다. 결제/버그 단위 agent만 별도로 확인해야 하는 경우
-`chatbot.agent.invoke_payment_agent`, `chatbot.agent.invoke_bug_agent`를 import할 수 있습니다.
+`agent.invoke_payment_agent`, `agent.invoke_bug_agent`를 import할 수 있습니다.
 
 ## 간단 멀티턴 테스트 설계
 

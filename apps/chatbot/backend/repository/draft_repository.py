@@ -1,10 +1,10 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from typing import Any
 
 from common.db.connection import db_connection
 
-from chatbot.repository.base import safe_write
+from repository.base import safe_write
 
 
 # category agent가 만든 초안을 answer_draft에 저장한다.

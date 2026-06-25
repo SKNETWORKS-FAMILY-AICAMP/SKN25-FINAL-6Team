@@ -1,39 +1,52 @@
 from __future__ import annotations
 
-from chatbot.constants import VOC_FIXED_RESPONSE
+from constants import VOC_FIXED_RESPONSE
+from utils.config_loader import load_chatbot_yaml
 
 
-SAFE_FALLBACK_RESPONSE = (
-    "현재 문의 내용만으로는 정확한 안내를 드리기 어렵습니다. "
-    "필요한 경우 담당자가 확인 후 다시 안내드리겠습니다."
-)
-PAYMENT_FALLBACK_RESPONSE = (
-    "결제 관련 문의는 계정 및 결제 내역 확인이 필요합니다. "
-    "담당자가 결제 상태와 지급 여부를 확인할 수 있도록 접수하겠습니다."
-)
-BUG_FALLBACK_RESPONSE = (
-    "게임 이용 중 발생한 문제는 기기 환경과 발생 상황 확인이 필요합니다. "
-    "담당자가 재현 정보와 로그를 확인할 수 있도록 접수하겠습니다."
-)
-FAQ_FALLBACK_RESPONSE = SAFE_FALLBACK_RESPONSE
-BLOCK_RESPONSE = (
-    "안전한 상담을 위해 해당 문의에는 자동 답변을 제공하기 어렵습니다. "
-    "필요한 경우 담당자가 확인 후 안내드리겠습니다."
-)
-REVIEW_REQUIRED_RESPONSE = "문의가 접수되었습니다. 담당자가 확인 후 안내드리겠습니다."
+_RESPONSES = load_chatbot_yaml("responses.yaml")
 
-CATEGORY_FALLBACK_RESPONSES = {
-    "payment": PAYMENT_FALLBACK_RESPONSE,
-    "bug": BUG_FALLBACK_RESPONSE,
-    "faq": FAQ_FALLBACK_RESPONSE,
-    "voc": VOC_FIXED_RESPONSE,
-    "결제": PAYMENT_FALLBACK_RESPONSE,
-    "버그": BUG_FALLBACK_RESPONSE,
-    "인게임/버그": BUG_FALLBACK_RESPONSE,
-    "인게임 버그": BUG_FALLBACK_RESPONSE,
-    "FAQ": FAQ_FALLBACK_RESPONSE,
-    "VOC": VOC_FIXED_RESPONSE,
+
+def _response_text(key: str) -> str:
+    value = _RESPONSES.get(key)
+    if not isinstance(value, str):
+        raise ValueError(f"responses.yaml:{key} must be a string")
+    return value.strip()
+
+
+SAFE_FALLBACK_RESPONSE = _response_text("safe_fallback")
+PAYMENT_FALLBACK_RESPONSE = _response_text("payment_fallback")
+BUG_FALLBACK_RESPONSE = _response_text("bug_fallback")
+FAQ_FALLBACK_RESPONSE = _response_text("faq_fallback")
+BLOCK_RESPONSE = _response_text("block_response")
+REVIEW_REQUIRED_RESPONSE = _response_text("review_required")
+
+_RESPONSE_BY_KEY = {
+    "safe_fallback": SAFE_FALLBACK_RESPONSE,
+    "payment_fallback": PAYMENT_FALLBACK_RESPONSE,
+    "bug_fallback": BUG_FALLBACK_RESPONSE,
+    "faq_fallback": FAQ_FALLBACK_RESPONSE,
+    "block_response": BLOCK_RESPONSE,
+    "review_required": REVIEW_REQUIRED_RESPONSE,
+    "voc_fixed": VOC_FIXED_RESPONSE,
 }
+
+
+def _load_category_fallbacks() -> dict[str, str]:
+    raw_fallbacks = _RESPONSES.get("category_fallbacks")
+    if not isinstance(raw_fallbacks, dict):
+        raise ValueError("responses.yaml:category_fallbacks must be a mapping")
+    result = {}
+    for category, response_key in raw_fallbacks.items():
+        if not isinstance(category, str) or not isinstance(response_key, str):
+            raise ValueError("responses.yaml:category_fallbacks must map string to string")
+        if response_key not in _RESPONSE_BY_KEY:
+            raise ValueError(f"Unknown response key in responses.yaml: {response_key}")
+        result[category] = _RESPONSE_BY_KEY[response_key]
+    return result
+
+
+CATEGORY_FALLBACK_RESPONSES = _load_category_fallbacks()
 
 
 def fallback_response_for_category(category: str | None) -> str:

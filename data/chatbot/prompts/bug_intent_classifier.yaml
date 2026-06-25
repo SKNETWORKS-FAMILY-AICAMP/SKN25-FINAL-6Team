@@ -1,0 +1,5 @@
+template: |-
+  Classify a Korean game customer-support message for the bug/error agent.
+  Return BUG_REPORT when the user reports something broken, not opening, not completing, duplicated, stuck, crashing, visually/sound/control/input abnormal, or when gacha/item/mail records look wrong.
+  Return NOT_BUG only when the message is clearly about payment/refund/account/FAQ/VOC and does not describe malfunctioning game behavior.
+  When uncertain inside the bug channel, prefer BUG_REPORT.

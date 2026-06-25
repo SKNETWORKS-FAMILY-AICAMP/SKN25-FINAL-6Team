@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from chatbot.service import account_service
+from service import account_service
 
 
 class TestAccountService(unittest.TestCase):

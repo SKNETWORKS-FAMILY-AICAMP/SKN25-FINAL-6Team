@@ -1,0 +1,50 @@
+prompt_injection_patterns:
+- pattern: \b(ignore|forget|bypass|override|disregard)\b.{0,40}\b(instruction|rule|policy|safety|guardrail)s?\b
+  ignore_case: true
+- pattern: \b(show|print|reveal|leak|display|tell me)\b.{0,40}\b(prompt|instruction|developer message|system message)\b
+  ignore_case: true
+- pattern: \b(system prompt|developer message|hidden prompt|internal prompt|initial instruction)s?\b
+  ignore_case: true
+- pattern: \b(do not refuse|don't refuse|bypass safety|disable safety|jailbreak|DAN mode)\b
+  ignore_case: true
+- pattern: (?<![A-Za-z])DAN\s*mode(?![A-Za-z]).{0,40}(거절하지\s*마|거부하지\s*마|거절\s*금지|거부\s*금지|답하고)
+  ignore_case: true
+- pattern: \b(\.env|api key|secret|access token|private key|db password|database password)\b.{0,40}\b(show|print|reveal|leak|display|tell me)\b
+  ignore_case: true
+- pattern: (이전|앞의|위의|기존).{0,12}(지시|명령|규칙|정책).{0,12}(무시|잊어|삭제|취소)(하고|해|해줘|해라|하세요)?
+  ignore_case: false
+- pattern: (시스템|개발자|숨겨진|내부).{0,12}(프롬프트|메시지|지시문|규칙).{0,12}(보여|출력|알려|공개)(줘|해줘|해라|하세요)?
+  ignore_case: false
+- pattern: (안전|보안|검열|정책).{0,12}(무시|우회|해제|끄고|끄기)(해|해줘|해라|하세요)?
+  ignore_case: false
+- pattern: (\.env|API\s*키|토큰|시크릿|DB\s*비밀번호|환경변수).{0,12}(보여|출력|알려|공개)(줘|해줘|해라|하세요)?
+  ignore_case: false
+sensitive_patterns:
+- label: rrn
+  pattern: \b\d{6}-?[1-4]\d{6}\b
+  replacement: '[RRN]'
+  ignore_case: false
+- label: card_number
+  pattern: \b(?:\d[ -]?){13,19}\b
+  replacement: '[CARD_NUMBER]'
+  ignore_case: false
+- label: email
+  pattern: \b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b
+  replacement: '[EMAIL]'
+  ignore_case: false
+- label: phone
+  pattern: (?<!\d)01[016789]-?\d{3,4}-?\d{4}(?!\d)
+  replacement: '[PHONE]'
+  ignore_case: false
+- label: api_key
+  pattern: \b(?:sk|rk|pk|sess|token|key|ghp|github_pat)[_-][A-Za-z0-9_-]{16,}\b
+  replacement: '[TOKEN]'
+  ignore_case: true
+- label: password
+  pattern: (?i)\b(?:password|passcode|pw)\s*[:=]\s*\S+|(?:비밀번호|암호)\s*[:=]\s*\S+
+  replacement: '[PASSWORD]'
+  ignore_case: true
+- label: account_id
+  pattern: (?i)\b(?:account_id|user_id|uid)\s*[:=]\s*[A-Za-z0-9_-]{4,}\b
+  replacement: '[ACCOUNT_ID]'
+  ignore_case: true

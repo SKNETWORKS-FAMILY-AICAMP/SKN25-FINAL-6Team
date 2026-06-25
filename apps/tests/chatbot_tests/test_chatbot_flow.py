@@ -4,23 +4,23 @@ import json
 
 import pytest
 
-from chatbot.chains.routing import route_after_draft_persistence, route_after_safety, route_by_category
+from chains.routing import route_after_draft_persistence, route_after_safety, route_by_category
 
-from chatbot.constants import VOC_FIXED_RESPONSE
-from chatbot.generation import bug_agent, payment_agent, ticket_preprocess, voc_agent
-from chatbot.generation.response.ticket_completion import ticket_completion_node
-from chatbot.generation.response.fixed_responses import (
+from constants import VOC_FIXED_RESPONSE
+from generation import bug_agent, payment_agent, ticket_preprocess, voc_agent
+from generation.response.ticket_completion import ticket_completion_node
+from generation.response.fixed_responses import (
     BLOCK_RESPONSE,
     BUG_FALLBACK_RESPONSE,
     FAQ_FALLBACK_RESPONSE,
     PAYMENT_FALLBACK_RESPONSE,
     SAFE_FALLBACK_RESPONSE,
 )
-from chatbot.notifications import github_issue
-from chatbot.observability.logger import log_event
-from chatbot.safety import safety_layer
-from chatbot.service.chatbot_service import build_state, last_message_text
-from chatbot.utils.input_preprocessing import preprocess_user_input
+from notifications import github_issue
+from observability.logger import log_event
+from safety import safety_layer
+from service.chatbot_service import build_state, last_message_text
+from utils.input_preprocessing import preprocess_user_input
 
 
 def test_build_state_keeps_conversation_summary() -> None:
@@ -91,33 +91,47 @@ def test_safety_layer_records_langfuse_scores(monkeypatch) -> None:
     assert result["detected_labels"] == ["email", "phone", "password"]
 
 
-def test_bug_agent_answers_known_bug_faq_before_collecting_form(monkeypatch) -> None:
+def test_bug_intent_llm_is_disabled_by_default(monkeypatch) -> None:
+    monkeypatch.delenv("BUG_INTENT_LLM_ENABLED", raising=False)
+    monkeypatch.setattr(
+        bug_agent,
+        "_classify_bug_intent_by_llm",
+        lambda text: (_ for _ in ()).throw(AssertionError("bug intent LLM should be disabled by default")),
+    )
+
+    result = bug_agent.classify_bug_intent("화면이 이상해요")
+
+    assert result["intent_type"] == "BUG_REPORT"
+    assert result["method"] == "fallback"
+
+
+def test_bug_agent_uses_faq_rag_before_reproduction_form(monkeypatch) -> None:
     docs = [
         {
             "chunk_id": "QNA-GSN-51::chunk::1",
             "document_id": "QNA-GSN-51",
             "source_type": "hoyoverse_qna_common",
-            "category": "bug_faq",
+            "category": "클라이언트_문제",
             "title": "버그, 튕김 관련 FAQ",
             "chunk_text": "게임을 켜자마자 튕기는 경우 그래픽카드 드라이버 업데이트를 시도합니다.",
             "cosine_score": 0.91,
         }
     ]
 
-    monkeypatch.setattr(bug_agent, "_embed_query", lambda query: "[1.0,0.0]")
-    search_payloads = []
+    rag_states = []
 
-    def fake_search_document_chunks(**kwargs):
-        search_payloads.append(kwargs)
-        return docs
+    def fake_run_faq_rag(state, **kwargs):
+        rag_states.append(state)
+        rag_states.append(kwargs)
+        return {
+            "draft_text": "확인된 FAQ 기준으로 안내드립니다.",
+            "retrieved_documents": docs,
+            "retrieval_query": "게임 켜자마자 튕겨요",
+            "retrieval_enrichment": {"query_text": "게임 켜자마자 튕겨요"},
+            "faq_failure_reason": None,
+        }
 
-    monkeypatch.setattr(bug_agent, "search_document_chunks", fake_search_document_chunks)
-    monkeypatch.setattr(bug_agent, "_rerank_documents", lambda documents, query: documents)
-    monkeypatch.setattr(
-        bug_agent,
-        "_generate_evidence_answer",
-        lambda **kwargs: "확인된 FAQ 기준으로 안내드립니다.",
-    )
+    monkeypatch.setattr(bug_agent, "run_faq_rag", fake_run_faq_rag)
 
     update = bug_agent.bug_agent_node(
         {
@@ -128,40 +142,27 @@ def test_bug_agent_answers_known_bug_faq_before_collecting_form(monkeypatch) -> 
             "retry_count": 0,
             "category": "bug",
             "routing_target": "bug_agent",
-            "bug_collection_status": "collecting",
         }
     )
 
     assert update["draft_text"] == "확인된 FAQ 기준으로 안내드립니다."
-    assert update["bug_collection_status"] is None
     assert update["retrieved_documents"] == docs
-    assert search_payloads[0]["enrichment"].preferred_categories == ["bug_faq"]
+    assert update["reasoning_node"] == "bug_agent"
+    assert update["review_required"] is False
+    assert rag_states[1]["retry_on_low_evidence"] is False
 
 
-def test_bug_agent_accepts_reranked_bug_faq_chunk_with_realistic_scores(monkeypatch) -> None:
-    docs = [
-        {
-            "chunk_id": "QNA-GSN-51::chunk::0",
-            "document_id": "QNA-GSN-51",
-            "source_type": "universe_qna_onlydaily",
-            "category": "bug_faq",
-            "title": "버그, 튕김 관련 FAQ",
-            "chunk_text": "Q: 게임을 켜자마자 튕기는데 어떡해야 하나요?\nA: 지원 기종 확인 후 재설치 등을 시도합니다.",
-            "cosine_score": 0.388024,
-            "bm25_score": 1.387389,
-            "score": 0.038522,
-            "rerank_rank": 1,
+def test_bug_agent_returns_faq_fallback_before_reproduction_form(monkeypatch) -> None:
+    def fake_run_faq_rag(state, **kwargs):
+        return {
+            "draft_text": "관련 문서를 찾지 못했습니다.",
+            "retrieved_documents": [],
+            "retrieval_query": state["raw_query"],
+            "retrieval_enrichment": {"query_text": state["raw_query"]},
+            "faq_failure_reason": "no_retrieved_documents",
         }
-    ]
 
-    monkeypatch.setattr(bug_agent, "_embed_query", lambda query: "[1.0,0.0]")
-    monkeypatch.setattr(bug_agent, "search_document_chunks", lambda **kwargs: docs)
-    monkeypatch.setattr(bug_agent, "_rerank_documents", lambda documents, query: documents)
-    monkeypatch.setattr(
-        bug_agent,
-        "_generate_evidence_answer",
-        lambda **kwargs: "FAQ 문서 기준으로 답변합니다.",
-    )
+    monkeypatch.setattr(bug_agent, "run_faq_rag", fake_run_faq_rag)
 
     update = bug_agent.bug_agent_node(
         {
@@ -172,14 +173,13 @@ def test_bug_agent_accepts_reranked_bug_faq_chunk_with_realistic_scores(monkeypa
             "retry_count": 0,
             "category": "bug",
             "routing_target": "bug_agent",
-            "bug_collection_status": "collecting",
         }
     )
 
-    assert update["draft_text"] == "FAQ 문서 기준으로 답변합니다."
-    assert update["bug_collection_status"] is None
-    assert update["retrieval_enrichment"]["best_cosine_score"] == pytest.approx(0.388024)
-    assert update["retrieval_enrichment"]["best_bm25_score"] == pytest.approx(1.387389)
+    assert update["draft_text"] == "관련 문서를 찾지 못했습니다."
+    assert update["retrieved_documents"] == []
+    assert update["faq_failure_reason"] == "no_retrieved_documents"
+    assert update["review_required"] is False
 
 
 def test_build_state_uses_masked_content_for_runtime_message_but_keeps_raw_query() -> None:
@@ -695,19 +695,23 @@ def _final_state(category: str, safety_action: str = "SAFE_FALLBACK") -> dict:
 
 
 def _patch_ticket_completion_writes(monkeypatch) -> dict[str, list[dict]]:
-    payloads = {"ticket": []}
+    payloads = {"ticket": [], "session": []}
 
     def fake_update_raw_query(payload):
         payloads["ticket"].append(payload)
         return {"stored": True, "ticket_id": payload["ticket_id"]}
 
     monkeypatch.setattr(
-        "chatbot.generation.response.ticket_completion.update_qa_ticket_raw_query",
+        "generation.response.ticket_completion.update_qa_ticket_raw_query",
         fake_update_raw_query,
     )
     monkeypatch.setattr(
-        "chatbot.generation.response.ticket_completion.dispatch_github_issue_notification",
+        "generation.response.ticket_completion.dispatch_github_issue_notification",
         lambda state: {"status": "skipped"},
+    )
+    monkeypatch.setattr(
+        "generation.response.ticket_completion.update_session_qa_tickets_status",
+        lambda payload: payloads["session"].append(payload) or {"stored": True, "updated_count": 1},
     )
     return payloads
 
@@ -743,15 +747,15 @@ def test_ticket_completion_deletes_category_redirect_ticket(monkeypatch) -> None
     payloads = {"ticket": [], "notification": [], "delete": []}
 
     monkeypatch.setattr(
-        "chatbot.generation.response.ticket_completion.update_qa_ticket_raw_query",
+        "generation.response.ticket_completion.update_qa_ticket_raw_query",
         lambda payload: payloads["ticket"].append(payload) or {"stored": True},
     )
     monkeypatch.setattr(
-        "chatbot.generation.response.ticket_completion.dispatch_github_issue_notification",
+        "generation.response.ticket_completion.dispatch_github_issue_notification",
         lambda state: payloads["notification"].append(state) or {"status": "ok"},
     )
     monkeypatch.setattr(
-        "chatbot.generation.response.ticket_completion.delete_qa_ticket",
+        "generation.response.ticket_completion.delete_qa_ticket",
         lambda payload: payloads["delete"].append(payload) or {"status": "ok", "deleted": True},
     )
 
@@ -770,7 +774,7 @@ def test_ticket_completion_deletes_category_redirect_ticket(monkeypatch) -> None
     assert payloads["notification"] == []
 
 
-def test_ticket_completion_stores_collecting_bug_form(monkeypatch) -> None:
+def test_ticket_completion_resolves_bug_form_prompt_without_user_reproduction(monkeypatch) -> None:
     payloads = _patch_ticket_completion_writes(monkeypatch)
 
     result = ticket_completion_node({
@@ -779,13 +783,12 @@ def test_ticket_completion_stores_collecting_bug_form(monkeypatch) -> None:
         "reasoning_node": "bug_agent",
         "raw_query": "게임이 튕겨요",
         "initial_bug_query": "게임이 튕겨요",
-        "bug_collection_status": "collecting",
         "draft_text": "문제 확인을 위해 아래 형식으로 알려주세요.",
         "review_required": False,
     })
 
     assert result["final_text"] == "문제 확인을 위해 아래 형식으로 알려주세요."
-    assert payloads["ticket"][0]["status"] == "collecting"
+    assert payloads["ticket"][0]["status"] == "resolved"
     assert payloads["ticket"][0]["raw_query"] == (
         "User: 게임이 튕겨요\n"
         "AI: 문제 확인을 위해 아래 형식으로 알려주세요."
@@ -793,60 +796,62 @@ def test_ticket_completion_stores_collecting_bug_form(monkeypatch) -> None:
 
 
 def test_ticket_completion_stores_ready_bug_form_for_github(monkeypatch) -> None:
-    payloads = {"ticket": [], "notification": []}
+    payloads = {"ticket": [], "notification": [], "session": []}
 
     monkeypatch.setattr(
-        "chatbot.generation.response.ticket_completion.update_qa_ticket_raw_query",
+        "generation.response.ticket_completion.update_qa_ticket_raw_query",
         lambda payload: payloads["ticket"].append(payload) or {"stored": True, "ticket_id": payload["ticket_id"]},
     )
     monkeypatch.setattr(
-        "chatbot.generation.response.ticket_completion.dispatch_github_issue_notification",
+        "generation.response.ticket_completion.dispatch_github_issue_notification",
         lambda state: payloads["notification"].append(state) or {"status": "ok"},
+    )
+    monkeypatch.setattr(
+        "generation.response.ticket_completion.update_session_qa_tickets_status",
+        lambda payload: payloads["session"].append(payload) or {"stored": True, "updated_count": 2},
     )
 
     result = ticket_completion_node({
         **_final_state("bug", "REVIEW_REQUIRED"),
         "routing_target": "bug_agent",
         "reasoning_node": "bug_agent",
-        "raw_query": "발생 시점: 로그인 화면",
-        "initial_bug_query": "게임이 튕겨요",
-        "bug_report_form": "발생 시점: 로그인 화면\n오류 메시지: 없음",
-        "bug_collection_status": "ready_for_review",
+        "raw_query": "?? ??: ??? ??",
+        "initial_bug_query": "??? ???",
+        "bug_report_form": "?? ??: ??? ??\n?? ???: ??",
         "draft_text": "제공해주신 내용 기준으로 오류 문의가 접수되었습니다.",
         "review_required": True,
     })
 
     assert result["final_text"] == "제공해주신 내용 기준으로 오류 문의가 접수되었습니다."
     assert payloads["ticket"][0]["status"] == "pending"
-    assert payloads["ticket"][0]["raw_query"] == (
-        "User: 게임이 튕겨요\n\n"
-        "발생 시점: 로그인 화면\n"
-        "오류 메시지: 없음\n"
-        "AI: 제공해주신 내용 기준으로 오류 문의가 접수되었습니다."
-    )
-    assert payloads["notification"][0]["github_issue_content"] == (
-        "게임이 튕겨요\n\n"
-        "발생 시점: 로그인 화면\n"
-        "오류 메시지: 없음"
-    )
+    assert "[\ucd08\uae30 \ubb38\uc758]" in payloads["ticket"][0]["raw_query"]
+    assert "[\uc7ac\ud604 \uc815\ubcf4]" in payloads["ticket"][0]["raw_query"]
+    assert payloads["ticket"][0]["raw_query"].endswith("AI: 제공해주신 내용 기준으로 오류 문의가 접수되었습니다.")
+    assert "[\ucd08\uae30 \ubb38\uc758]" in payloads["notification"][0]["github_issue_content"]
+    assert "[\uc7ac\ud604 \uc815\ubcf4]" in payloads["notification"][0]["github_issue_content"]
+    assert payloads["session"][0]["status"] == "pending"
 
 
 def test_ticket_completion_deduplicates_ready_bug_form_before_db_and_github(monkeypatch) -> None:
-    payloads = {"ticket": [], "notification": []}
+    payloads = {"ticket": [], "notification": [], "session": []}
     form_text = (
-        "발생 시점: 이상민\n"
-        "오류 메시지: 이상민\n"
-        "사용 기기/OS: 이상민\n"
-        "오류 내용: 이상만"
+        "?? ??: ???\n"
+        "?? ???: ???\n"
+        "?? ??/OS: ???\n"
+        "?? ??: ???"
     )
 
     monkeypatch.setattr(
-        "chatbot.generation.response.ticket_completion.update_qa_ticket_raw_query",
+        "generation.response.ticket_completion.update_qa_ticket_raw_query",
         lambda payload: payloads["ticket"].append(payload) or {"stored": True, "ticket_id": payload["ticket_id"]},
     )
     monkeypatch.setattr(
-        "chatbot.generation.response.ticket_completion.dispatch_github_issue_notification",
+        "generation.response.ticket_completion.dispatch_github_issue_notification",
         lambda state: payloads["notification"].append(state) or {"status": "ok"},
+    )
+    monkeypatch.setattr(
+        "generation.response.ticket_completion.update_session_qa_tickets_status",
+        lambda payload: payloads["session"].append(payload) or {"stored": True, "updated_count": 1},
     )
 
     ticket_completion_node({
@@ -856,16 +861,13 @@ def test_ticket_completion_deduplicates_ready_bug_form_before_db_and_github(monk
         "raw_query": form_text,
         "initial_bug_query": form_text,
         "bug_report_form": form_text,
-        "bug_collection_status": "ready_for_review",
         "draft_text": "제공해주신 내용 기준으로 오류 문의가 접수되었습니다.",
         "review_required": True,
     })
 
-    assert payloads["ticket"][0]["raw_query"] == (
-        f"User: {form_text}\n"
-        "AI: 제공해주신 내용 기준으로 오류 문의가 접수되었습니다."
-    )
-    assert payloads["notification"][0]["github_issue_content"] == form_text
+    assert payloads["ticket"][0]["raw_query"] == f"User: [\uc7ac\ud604 \uc815\ubcf4]\n{form_text}\nAI: 제공해주신 내용 기준으로 오류 문의가 접수되었습니다."
+    assert payloads["notification"][0]["github_issue_content"] == f"[\uc7ac\ud604 \uc815\ubcf4]\n{form_text}"
+    assert payloads["session"][0]["status"] == "pending"
 
 
 def test_ticket_completion_does_not_write_chatbot_insight(monkeypatch) -> None:
@@ -1020,16 +1022,14 @@ def test_route_after_draft_persistence_skips_safety_for_voc() -> None:
     assert route_after_draft_persistence({"category": "faq"}) == "safety_layer"
 
 
-def test_route_after_draft_persistence_skips_safety_for_bug_collection() -> None:
+def test_route_after_draft_persistence_sends_bug_fallback_to_safety_without_collection_status() -> None:
     assert route_after_draft_persistence({
         "reasoning_node": "bug_agent",
-        "bug_collection_status": "collecting",
-    }) == "ticket_completion"
+    }) == "safety_layer"
 
 
-def test_route_after_draft_persistence_sends_bug_faq_rag_to_safety() -> None:
+def test_route_after_draft_persistence_sends_bug_rag_answer_to_safety() -> None:
     assert route_after_draft_persistence({
         "reasoning_node": "bug_agent",
-        "bug_collection_status": "collecting",
         "retrieved_documents": [{"chunk_text": "게임 튕김 FAQ"}],
     }) == "safety_layer"

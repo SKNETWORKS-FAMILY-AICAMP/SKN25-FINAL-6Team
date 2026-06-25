@@ -1,27 +1,43 @@
 from __future__ import annotations
 
-# workflow와 safety layer가 공유하는 기준값이다.
-MAX_SAFETY_RETRY = 2
-MAX_MASKING_RETRY = 2
+from utils.config_loader import load_chatbot_yaml
+
+
+_SAFETY_POLICY = load_chatbot_yaml("safety_policy.yaml")
+_THRESHOLDS = _SAFETY_POLICY.get("thresholds") or {}
+if not isinstance(_THRESHOLDS, dict):
+    raise ValueError("safety_policy.yaml:thresholds must be a mapping")
+
+
+def _int_policy(key: str) -> int:
+    value = _SAFETY_POLICY.get(key)
+    if not isinstance(value, int):
+        raise ValueError(f"safety_policy.yaml:{key} must be an integer")
+    return value
+
+
+def _float_threshold(key: str) -> float:
+    value = _THRESHOLDS.get(key)
+    if not isinstance(value, (int, float)):
+        raise ValueError(f"safety_policy.yaml:thresholds.{key} must be a number")
+    return float(value)
+
 
 # Development/demo fallback used only when a caller does not provide an authenticated user_id.
 # Production clients should pass the logged-in user's real user_id from the login flow.
 DEFAULT_DEMO_USER_ID = 1
 
-ROUTING_TARGET = ["rag_reply", "payment_agent", "bug_agent", "faq_agent", "voc_agent"]
-CATEGORY = ["payment", "bug", "faq", "voc"]
+MAX_SAFETY_RETRY = _int_policy("max_safety_retry")
+MAX_MASKING_RETRY = _int_policy("max_masking_retry")
 
-# Safety thresholds are conservative operating guardrails for the rule-based grounding check
-# plus OpenAI moderation. They should be recalibrated with regression/eval datasets before
-# being treated as product-quality policy limits.
-FACTUALITY_THRESHOLD = 0.8
-HALLUCINATION_THRESHOLD = 0.3
-FACTUALITY_WARN_THRESHOLD = 0.5
-HALLUCINATION_WARN_THRESHOLD = 0.5
-FACTUALITY_BLOCK_THRESHOLD = 0.3
-HALLUCINATION_BLOCK_THRESHOLD = 0.7
-TOXICITY_THRESHOLD = 0.7
+FACTUALITY_THRESHOLD = _float_threshold("factuality")
+HALLUCINATION_THRESHOLD = _float_threshold("hallucination")
+FACTUALITY_WARN_THRESHOLD = _float_threshold("factuality_warn")
+HALLUCINATION_WARN_THRESHOLD = _float_threshold("hallucination_warn")
+FACTUALITY_BLOCK_THRESHOLD = _float_threshold("factuality_block")
+HALLUCINATION_BLOCK_THRESHOLD = _float_threshold("hallucination_block")
+TOXICITY_THRESHOLD = _float_threshold("toxicity")
 
-VOC_FIXED_RESPONSE = (
-    "소중한 의견 감사합니다. 의견 반영하여 더 나은 서비스를 제공하도록 하겠습니다."
-)
+VOC_FIXED_RESPONSE = str(_SAFETY_POLICY.get("voc_fixed_response") or "").strip()
+if not VOC_FIXED_RESPONSE:
+    raise ValueError("safety_policy.yaml:voc_fixed_response must be a non-empty string")

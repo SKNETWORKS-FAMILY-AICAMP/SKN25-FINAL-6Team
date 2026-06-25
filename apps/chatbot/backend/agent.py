@@ -1,13 +1,13 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import os
 from typing import Any
 
 from collections.abc import Sequence
 
-from chatbot.generation.policies import BUG_POLICY, PAYMENT_POLICY
-from chatbot.observability.langfuse import link_chatbot_trace
-from chatbot.schemas import ChatbotState
+from generation.policies import BUG_POLICY, PAYMENT_POLICY
+from observability.langfuse import link_chatbot_trace
+from schemas import ChatbotState
 from common.observability.langfuse import get_langchain_config, observe_if_enabled
 from common.observability.logger import record_chat_model_usage
 
@@ -109,7 +109,7 @@ def invoke_bug_agent(
         input_payload={
             "ticket_id": state.get("ticket_id"),
             "routing_target": state.get("routing_target"),
-            "bug_collection_status": state.get("bug_collection_status"),
+            "bug_report_form_present": bool(state.get("bug_report_form")),
             "retrieved_count": len(state.get("retrieved_documents") or []),
         },
     )

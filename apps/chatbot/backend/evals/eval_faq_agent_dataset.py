@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import argparse
 import asyncio
@@ -22,8 +22,8 @@ for path in (PROJECT_ROOT, REPO_ROOT):
     if path_str not in sys.path:
         sys.path.insert(0, path_str)
 
-from chatbot.generation.faq_agent import run_faq_rag
-from chatbot.generation.response.fixed_responses import SAFE_FALLBACK_RESPONSE
+from generation.faq_agent import run_faq_rag
+from generation.response.fixed_responses import SAFE_FALLBACK_RESPONSE
 from common.observability.logger import estimate_tokens, record_usage, summarize_usage, usage_tracking_context
 
 

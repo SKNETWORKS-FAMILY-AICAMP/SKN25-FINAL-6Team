@@ -1,10 +1,10 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from typing import Any
 
 from common.db.connection import db_connection
 
-from chatbot.repository.base import safe_write
+from repository.base import safe_write
 
 
 # FAQ/RAG 검색 실패나 fallback 사유를 운영 분석용으로 저장한다.

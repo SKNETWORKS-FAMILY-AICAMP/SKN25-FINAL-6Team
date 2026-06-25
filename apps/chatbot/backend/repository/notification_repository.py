@@ -1,10 +1,10 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from typing import Any
 
 from common.db.connection import db_connection
 
-from chatbot.repository.base import safe_read, safe_write
+from repository.base import safe_read, safe_write
 
 
 # 같은 ticket/channel 조합으로 이미 알림을 보냈는지 확인해 중복 발송을 막는다.

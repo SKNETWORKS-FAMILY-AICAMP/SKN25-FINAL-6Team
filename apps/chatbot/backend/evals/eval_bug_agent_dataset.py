@@ -20,14 +20,16 @@ for path in (PROJECT_ROOT, REPO_ROOT):
     if path_str not in sys.path:
         sys.path.insert(0, path_str)
 
-from chatbot.generation.bug_agent import BUG_ACCEPTED_RESPONSE, BUG_REPRODUCTION_FORM_RESPONSE, bug_agent_node
+from generation.bug_agent import BUG_ACCEPTED_RESPONSE, bug_agent_node
 from common.observability.logger import summarize_usage, usage_tracking_context
+from utils.config_loader import get_text_config
 
 
 DATASET_DIR = Path(__file__).parent / "datasets"
 OUTPUT_DIR = Path(__file__).parent / "outputs"
 DEFAULT_DATASET = DATASET_DIR / "gameops-chatbot-bug-agent-synthetic-20-v1.json"
 DEFAULT_OUTPUT = OUTPUT_DIR / "gameops_bug_agent_eval_v1.json"
+BUG_REPRODUCTION_FORM_RESPONSE = get_text_config("responses_bug.yaml", "reproduction_form")
 
 REVIEW_TERMS = (
     "접수",
@@ -92,7 +94,7 @@ def load_dataset(path: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     return payload if isinstance(payload, dict) else {}, examples
 
 
-def make_state(example: dict[str, Any], *, bug_collection_status: str | None = None) -> dict[str, Any]:
+def make_state(example: dict[str, Any], *, with_bug_report_form: bool = False) -> dict[str, Any]:
     inputs = example.get("inputs") or {}
     message = str(inputs.get("user_message") or "")
     state = {
@@ -108,11 +110,9 @@ def make_state(example: dict[str, Any], *, bug_collection_status: str | None = N
         "retry_count": 0,
         # Intentionally omit ticket_id so eval runs do not write production tickets.
     }
-    if bug_collection_status:
-        state["bug_collection_status"] = bug_collection_status
-        if bug_collection_status == "ready_for_review":
-            state["initial_bug_query"] = message
-            state["bug_report_form"] = message
+    if with_bug_report_form:
+        state["initial_bug_query"] = message
+        state["bug_report_form"] = message
     return state
 
 
@@ -231,7 +231,7 @@ def write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
         "total_cost_usd",
         "has_estimated_usage",
         "usage_by_component",
-        "bug_collection_status",
+        "with_bug_report_form",
         "answer",
         "error",
     ]
@@ -255,10 +255,9 @@ def main() -> None:
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--limit", type=int)
     parser.add_argument(
-        "--bug-collection-status",
-        choices=["collecting", "ready_for_review"],
-        default=None,
-        help="Optional runtime mode override. Omit it to evaluate the full LLM bug agent path.",
+        "--with-bug-report-form",
+        action="store_true",
+        help="Evaluate submitted bug report form handling instead of first-turn bug inquiry handling.",
     )
     args = parser.parse_args()
 
@@ -278,7 +277,7 @@ def main() -> None:
         started_at = time.perf_counter()
         try:
             with usage_tracking_context() as usage_tracker:
-                result = bug_agent_node(make_state(example, bug_collection_status=args.bug_collection_status))
+                result = bug_agent_node(make_state(example, with_bug_report_form=args.with_bug_report_form))
                 token_usage = summarize_usage(usage_tracker)
             error = None
         except Exception as exc:
@@ -322,7 +321,7 @@ def main() -> None:
             "total_cost_usd": token_usage.get("total_cost_usd"),
             "has_estimated_usage": token_usage.get("has_estimated_usage"),
             "usage_by_component": token_usage.get("components"),
-            "bug_collection_status": args.bug_collection_status,
+            "with_bug_report_form": args.with_bug_report_form,
             "answer": answer,
             "error": error,
         }

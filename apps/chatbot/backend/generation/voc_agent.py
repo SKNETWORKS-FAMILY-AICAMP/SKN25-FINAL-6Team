@@ -1,8 +1,8 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-from chatbot.constants import VOC_FIXED_RESPONSE
-from chatbot.observability.langfuse import link_chatbot_trace
-from chatbot.schemas import ChatbotState
+from constants import VOC_FIXED_RESPONSE
+from observability.langfuse import link_chatbot_trace
+from schemas import ChatbotState
 from common.observability.langfuse import observe_if_enabled
 
 

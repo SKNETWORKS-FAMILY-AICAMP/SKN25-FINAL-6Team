@@ -1381,252 +1381,26 @@
     const bugReportForm = document.getElementById("bugReportForm");
     const chatSubmitButton = chatForm.querySelector('button[type="submit"]');
     const chatMessages = document.getElementById("chatMessages");
-    const CATEGORY_TREE = {
-      payment: {
-        label: "결제/환불",
-        children: {
-          payment_history: {
-            label: "결제 내역 확인",
-            backend_category: "payment",
-            routing_target: "payment_agent",
-            message: "결제 내역 확인을 도와드릴게요.\n결제 일시, 결제 상품명, 결제 플랫폼, 주문번호를 함께 입력해 주세요.",
-          },
-          missing_item: {
-            label: "아이템 미지급",
-            backend_category: "payment",
-            routing_target: "payment_agent",
-            message: "결제 후 아이템이 지급되지 않은 경우 확인을 도와드릴게요.\n결제 상품명, 결제 일시, 주문번호, 지급되지 않은 아이템명을 입력해 주세요.",
-          },
-          duplicate_payment: {
-            label: "중복 결제",
-            backend_category: "payment",
-            routing_target: "payment_agent",
-            message: "중복 결제가 의심되는 경우 확인을 도와드릴게요.\n같은 상품을 몇 번 결제했는지, 결제 일시, 주문번호, 결제 플랫폼을 입력해 주세요.",
-          },
-          payment_method: {
-            label: "결제 방법 안내",
-            backend_category: "faq",
-            routing_target: "faq_agent",
-            message: "결제 방법에 대한 안내를 도와드릴게요.\n궁금한 결제 수단이나 결제하려는 상품명을 입력해 주세요.",
-          },
-          refund_policy: {
-            label: "환불 정책 안내",
-            backend_category: "faq",
-            routing_target: "faq_agent",
-            message: "환불 가능 여부와 절차를 안내해 드릴게요.\n결제 상품명, 사용 여부, 지급 여부, 결제 플랫폼을 함께 입력해 주세요.",
-          },
-        },
+    const bugReportFormHome = bugReportForm.parentElement;
+    let activeBugReportFormRow = null;
+    let activeBugReportFormMount = null;
+    let activeBugReportFormOwnsRow = false;
+    let CATEGORY_TREE = {};
+
+    let RECOMMENDED_FAQ = {};
+    let BUG_REPORT_FORM_CONFIG = {
+      labels: ["Occurred at", "Error message", "Device/OS", "Details"],
+      placeholders: {
+        "Occurred at": "Example: login screen, loading, after combat starts",
+        "Error message": "If none, enter 'none'",
+        "Device/OS": "Example: iPhone 15 Pro / iOS 18",
+        "Details": "Describe what happened",
       },
-      account: {
-        label: "계정/로그인",
-        children: {
-          login_issue: {
-            label: "로그인 문제",
-            backend_category: "faq",
-            routing_target: "faq_agent",
-            message: "로그인 문제 확인을 도와드릴게요.\n로그인이 되지 않는 상황, 오류 메시지, 사용 중인 로그인 방식을 입력해 주세요.",
-          },
-          account_recovery: {
-            label: "계정 복구 문의",
-            backend_category: "faq",
-            routing_target: "faq_agent",
-            message: "계정 복구 관련 안내를 도와드릴게요.\n계정을 잃어버린 상황, 기억하는 계정 정보, 마지막 접속 시점, 연동 정보가 있다면 입력해 주세요.",
-          },
-          account_linking: {
-            label: "계정 연동 안내",
-            backend_category: "faq",
-            routing_target: "faq_agent",
-            message: "계정 연동 방법을 안내해 드릴게요.\n연동하려는 플랫폼이나 계정 종류를 입력해 주세요.",
-          },
-          phone_change: {
-            label: "번호 변경 방법",
-            backend_category: "faq",
-            routing_target: "faq_agent",
-            message: "휴대폰 번호 변경 방법을 안내해 드릴게요.\n현재 로그인이 가능한지와 변경하려는 상황을 입력해 주세요.",
-          },
-        },
-      },
-      reward: {
-        label: "아이템 보상",
-        children: {
-          product_not_delivered: {
-            label: "상품 미배송",
-            backend_category: "payment",
-            routing_target: "payment_agent",
-            message: "구매한 상품이 지급되지 않은 경우 확인을 도와드릴게요.\n상품명, 결제 일시, 주문번호, 지급되지 않은 아이템명을 입력해 주세요.",
-          },
-          mail_reward: {
-            label: "우편 보상",
-            backend_category: "faq",
-            routing_target: "faq_agent",
-            message: "우편 보상 관련 안내를 도와드릴게요.\n받지 못한 보상의 이름, 이벤트명, 우편함 확인 여부를 입력해 주세요.",
-          },
-          coupon_usage: {
-            label: "쿠폰 사용 안내",
-            backend_category: "faq",
-            routing_target: "faq_agent",
-            message: "쿠폰 사용 방법과 사용 내역 관련 안내를 도와드릴게요.\n쿠폰 코드, 사용 시도 시간, 오류 메시지가 있다면 입력해 주세요.",
-          },
-        },
-      },
-      bug: {
-        label: "버그/오류",
-        children: {
-          launch_access_error: {
-            label: "실행/접속 오류",
-            backend_category: "bug",
-            routing_target: "bug_agent",
-            message: "실행 또는 접속 오류 확인을 위해 아래 항목을 작성해 주세요.\n\n발생 시점:\n오류 메시지:\n사용 기기/OS:\n오류 내용:",
-          },
-          gameplay_progress_error: {
-            label: "게임 진행 오류",
-            backend_category: "bug",
-            routing_target: "bug_agent",
-            message: "게임 진행 오류 확인을 위해 아래 항목을 작성해 주세요.\n\n발생 시점:\n오류 메시지:\n사용 기기/OS:\n오류 내용:",
-          },
-          graphics_sound_error: {
-            label: "그래픽/사운드 오류",
-            backend_category: "bug",
-            routing_target: "bug_agent",
-            message: "그래픽 또는 사운드 오류 확인을 위해 아래 항목을 작성해 주세요.\n\n발생 시점:\n오류 메시지:\n사용 기기/OS:\n오류 내용:",
-          },
-          crash_error_message: {
-            label: "오류 메시지/크래시",
-            backend_category: "bug",
-            routing_target: "bug_agent",
-            message: "오류 메시지 또는 크래시 확인을 위해 아래 항목을 작성해 주세요.\n\n발생 시점:\n오류 메시지:\n사용 기기/OS:\n오류 내용:",
-          },
-          paid_item_missing: {
-            label: "결제 후 아이템 미지급",
-            backend_category: "payment",
-            routing_target: "payment_agent",
-            message: "결제 후 아이템 미지급 확인을 위해 아래 형식으로 알려주세요.\n\n결제 상품명:\n결제 일시:\n주문번호:\n지급되지 않은 아이템:\n결제 플랫폼:",
-          },
-          reward_mail_missing: {
-            label: "보상/우편 미수령",
-            backend_category: "payment",
-            routing_target: "payment_agent",
-            message: "보상 또는 우편 미수령 확인을 위해 아래 형식으로 알려주세요.\n\n보상명:\n이벤트명:\n우편함 확인 여부:\n받지 못한 시점:\n수령을 시도한 시간:",
-          },
-          gacha_log_issue: {
-            label: "가챠/뽑기 기록 이상",
-            backend_category: "payment",
-            routing_target: "payment_agent",
-            message: "가챠 또는 뽑기 기록 이상 확인을 위해 아래 형식으로 알려주세요.\n\n뽑기 시점:\n배너명:\n기대한 결과:\n실제 결과:\n사용한 재화/횟수:",
-          },
-          bug_etc: {
-            label: "기타 오류 제보",
-            backend_category: "bug",
-            routing_target: "bug_agent",
-            message: "기타 오류 확인을 위해 아래 항목을 작성해 주세요.\n\n발생 시점:\n오류 메시지:\n사용 기기/OS:\n오류 내용:",
-          },
-        },
-      },
-      notice: {
-        label: "공지/이벤트",
-        children: {
-          notice_event: {
-            label: "공지/이벤트",
-            backend_category: "faq",
-            routing_target: "faq_agent",
-            message: "공지사항 또는 이벤트 관련 내용을 찾아 안내해 드릴게요.\n확인하고 싶은 공지 제목, 이벤트명, 보상명, 추가 내용을 입력해 주세요.",
-          },
-        },
-      },
-      voc: {
-        label: "건의/기타",
-        children: {
-          voc_etc: {
-            label: "건의/기타",
-            backend_category: "voc",
-            routing_target: "voc_agent",
-            message: "건의 사항이나 기타 의견을 남겨주시면 운영 검토에 참고하겠습니다.\n개선이 필요한 점, 불편했던 점, 기타 문의 내용을 자유롭게 입력해 주세요.",
-          },
-        },
-      },
+      title: "Bug report details",
+      description: "Fill in the details you know.",
+      badge: "Required",
     };
-    const RECOMMENDED_FAQ = {
-          "payment": [
-                {
-                      "question": "결제 후 아이템이 지급되지 않았습니다.",
-                      "answer": "결제 후 아이템이 지급되지 않았다면 결제 처리가 지연될 수 있으니 1~2시간 후에 다시 확인해 주세요.\n2시간이 지나도 아이템이 지급되지 않는 경우, 결제한 플랫폼에 따라 다음 방법을 시도해 주세요.\n\n1. Google Play Store 또는 Apple App Store\n   게임을 종료하고 백그라운드에서 실행 중인 게임도 종료한 후 다시 로그인하여 상점에 들어가 이전에 구입한 패키지를 선택해 주세요.\n   단, 결제를 다시 진행하지 마세요.\n\n2. PlayStation™Store\n   정확한 UID 계정에 충전되었는지 확인한 후, 게임을 종료하고 다시 로그인하여 상점 화면을 열어주세요.\n\n3. 기타 결제 경로\n   정확한 UID 계정에 충전되었는지, 환불 처리되지 않고 결제가 완료되었는지 확인해 주세요.\n\n위 방법으로도 문제가 해결되지 않으면 고객센터에 문의해 주세요."
-                },
-                {
-                      "question": "결제를 했는데 계정에 반영이 되지 않아요. 어떻게 해야 하나요?",
-                      "answer": "결제가 계정에 반영되지 않았을 경우, 사용한 결제 경로에 따라 다음 방법을 시도해 주세요.\n\n1. Google Play 또는 Apple Pay\n   결제 시 사용한 디바이스로 게임에 로그인한 후, 결제했으나 계정으로 지급되지 않은 상품을 선택하여 주문을 활성화해 주세요. 이때 결제를 다시 진행하지 않도록 주의해 주세요.\n\n2. Galaxy Store\n   결제 시 사용한 디바이스로 게임에 로그인한 후, 게임 내 상점으로 이동하여 주문을 활성화해 주세요.\n\n3. PlayStation™Store\n   결제 시 사용한 PlayStation™Network 계정과 연동된 HoYoverse 통행증이 맞는지, 계정이 소속된 지역과 서버가 일치하는지 확인해 주세요. 문제가 없으면 PlayStation® 디바이스를 재부팅하거나 게임 내 상점으로 이동하여 주문을 활성화해 주세요.\n\n4. Epic Games Center\n   결제 시 사용했던 Epic Games 계정으로 로그인한 후, Epic Games Center에서 게임에 로그인하여 주문을 활성화해 주세요.\n\n위 방법으로도 문제가 해결되지 않을 경우, 게임 타이틀 및 UID, 결제 경로, 주문서 번호 등의 정보를 기재하여 고객센터로 문의해 주세요."
-                },
-                {
-                      "question": "직접 승인하지 않은 결제에 대한 환불은 어떻게 신청하나요?",
-                      "answer": "직접 승인하지 않은 결제에 대한 환불은 결제를 진행한 플랫폼에 따라 절차가 다릅니다.\n\nApp Store, Google Play 등 제삼자 플랫폼에서 결제한 경우 해당 플랫폼 고객센터에 환불 문의를 해 주세요.\n기타 제삼자 앱스토어의 경우에도 해당 앱스토어 고객센터로 문의해야 합니다.\n\nPC 클라이언트, 공식 홈페이지, PlayStation™Store 또는 기타 경로를 통해 결제한 경우에는 고객센터로 문의하거나 이메일로 연락해 주세요.\n\n일상: support@ilsang-game.com\n\n환불 정책은 이용자의 소재지, 연령, 결제 플랫폼 정책에 따라 다르게 적용될 수 있습니다."
-                },
-                {
-                      "question": "웹페이지에서 결제를 하려면 어떻게 해야 하나요?",
-                      "answer": "아래 충전 페이지에서 본인의 계정으로 로그인하면 결제를 진행할 수 있습니다.\n\n결제 시 올바른 서버와 계정을 선택했는지 확인해 주세요.\n\n일상: https://support.ilsang-game.com\n\n궁금한 점이 있으면 고객센터로 문의해 주세요."
-                }
-          ],
-          "account": [
-                {
-                      "question": "제 계정에 로그인할 수 없어요. 어떻게 해야 하나요?",
-                      "answer": "계정에 로그인할 수 없는 경우 다음 방법을 시도해 주세요.\n\n1. HoYoverse 통행증 공식 홈페이지에 방문하여 이메일이나 아이디를 정확하게 입력했는지 확인해 주세요.\n2. 비밀번호를 잊은 경우 비밀번호 찾기를 통해 비밀번호를 재설정해 주세요.\n3. Google, Apple ID, Facebook, X(Twitter) 등 제삼자 계정으로 로그인해 보세요.\n\n위 방법으로도 문제가 해결되지 않는다면 고객센터로 문의해 주세요."
-                },
-                {
-                      "question": "계정에 로그인할 때 오류가 뜨는데 어떻게 해야 하나요?",
-                      "answer": "로그인 오류가 발생한 경우 오류 메시지에 따라 다음 방법을 시도해 주세요.\n\n1. “요청이 너무 빈번합니다. 잠시 후 다시 시도해 주세요” 오류\n   일정 시간 후 다시 시도해 주세요.\n\n2. “요청 실패, 현재 네트워크 환경이 위험합니다” 오류\n   네트워크 환경을 조정한 후 다시 시도해 주세요.\n\n3. “위험할 수 있는 조작입니다. 이메일을 통해 본인 인증을 해주세요” 오류\n   연동된 이메일에서 관련 메일을 확인해 주세요.\n\n위 방법으로도 문제가 해결되지 않는다면, 고객센터에 연락하여 시도한 방법을 알려주세요."
-                },
-                {
-                      "question": "계정에 로그인하고 보니 게임 진행도가 초기화됐는데 어떻게 해야 하나요?",
-                      "answer": "게임 진행도가 초기화된 것처럼 보이는 경우 다음 사항을 확인해 주세요.\n\n1. 올바른 서버 선택 확인\n   로그인 화면에서 올바른 서버가 선택되었는지 확인해 주세요. PlayStation®에서 접속할 경우 PlayStation™Network 계정의 지역 설정에 따라 다른 서버에 로그인될 수 있습니다.\n\n2. 올바른 계정으로 로그인했는지 확인\n   이메일 주소, 아이디, Google, X(Twitter), Facebook, Apple ID, Game Center, PlayStation™Network 등 로그인 방식이 정확한지 확인해 주세요.\n\n위 방법으로도 문제가 해결되지 않는다면 고객센터에 문의해 주세요."
-                },
-                {
-                      "question": "어떻게 하면 계정 보안을 강화할 수 있나요?",
-                      "answer": "계정 보안을 강화하려면 다음 방법을 권장합니다.\n\n1. 다른 계정과 중복되지 않는 보안성이 높은 비밀번호를 사용해 주세요.\n2. 장기간 사용할 수 있는 메일 주소를 계정에 연동해 주세요.\n3. Facebook, Google, Game Center, Apple, X(Twitter), PlayStation™Network 등 SNS 계정을 연동해 주세요.\n4. 계정 구매, 판매, 공유를 하지 마세요.\n5. 인증되지 않은 비공식 채널에서 결제하지 마세요."
-                },
-                {
-                      "question": "낯선 사람이 제 계정에 로그인한 것 같아요. 어떻게 해야 하나요?",
-                      "answer": "낯선 사람이 계정에 로그인한 것 같다면 다음 조치를 진행해 주세요.\n\n1. HoYoverse 통행증 공식 홈페이지에서 비밀번호 찾기를 통해 비밀번호를 변경해 주세요.\n2. 연동된 메일과 휴대폰 번호가 변경되었는지 확인하고, 변경되었다면 본인의 정보로 다시 연동해 주세요.\n3. 로그인 디바이스 목록에서 타인의 디바이스가 등록되어 있는지 확인하고, 발견 시 삭제해 주세요.\n4. 위 작업을 할 수 없는 경우 계정 복구를 신청해 주세요.\n\n추가 도움이 필요하면 고객센터에 문의해 주세요."
-                }
-          ],
-          "reward": [
-                {
-                      "question": "공월 축복 보상 원석을 받지 못했습니다.",
-                      "answer": "공월 축복 보상 원석을 받지 못한 경우, 먼저 공월 축복의 유효 시간을 확인해 주세요.\n\n유효 기간 내에 로그인하지 않으면 원석을 돌려받을 수 없습니다.\n유효 시간이 충분히 남아 있는데도 보상을 받지 못했다면 문제 피드백을 통해 문제를 보고해 주세요."
-                }
-          ],
-          "bug": [
-                {
-                      "question": "버그, 튕김 관련 FAQ",
-                      "answer": "버그나 튕김 문제가 발생한 경우 다음 방법을 시도해 주세요.\n\n1. 게임 튕김 문제\n\n* 사용 중인 디바이스가 게임을 지원하는지 확인해 주세요.\n* 안정적인 네트워크 환경에서 게임 설치 파일을 다시 다운로드해 주세요.\n* 모바일 버전의 경우 공식 배포된 정식 운영체제를 사용 중인지 확인해 주세요.\n* PC 버전의 경우 그래픽카드 드라이버를 최신 버전으로 업데이트해 주세요.\n\n2. 로그 파일 제출\n\n* output_log.txt 및 output_log.txt.last 파일은 `%USERPROFILE%\\AppData\\LocalLow\\miHoYo\\ilsang-game` 경로에 저장됩니다.\n* DriverError.log 파일은 게임 설치 목록의 `ilsang-game\\ilsang` 폴더에서 찾을 수 있습니다.\n\n문제가 지속될 경우 PC 버전 사용자는 output_log.txt 및 DriverError.log 파일을 첨부하고, 정확한 문제 발생 시간을 명시하여 고객센터로 문의해 주세요.\n모바일 버전 사용자는 문제가 발생한 디바이스를 사용해 고객센터로 문의해 주세요."
-                },
-                {
-                      "question": "왜 접속이 끊기나요?",
-                      "answer": "접속이 끊기는 원인은 주로 네트워크 불안정이나 서버 상태와 관련될 수 있습니다.\n\n네트워크가 안정적인지 확인하고 서버 상태를 점검해 주세요.\n문제가 지속될 경우 문제 피드백을 통해 보고해 주세요."
-                }
-          ],
-          "notice": [
-                {
-                      "question": "기원 이벤트 공용 FAQ",
-                      "answer": "기원 이벤트와 관련된 주요 안내는 다음과 같습니다.\n\n1. 중복 캐릭터 획득 시\n   동일한 ★5 캐릭터를 2번째부터 7번째까지 획득하면 운명의 별 1개와 주인 없는 스타라이트 10개를 받습니다.\n   8번째 이후부터는 주인 없는 운명의 별 1개와 주인 없는 스타라이트 25개로 전환됩니다.\n\n★4 캐릭터의 경우 2번째부터 7번째까지는 운명의 별 1개와 주인 없는 스타라이트 2개를 받고, 8번째 이후부터는 주인 없는 스타라이트 5개를 받습니다.\n\n2. 기원 확률 확인\n   기원 이벤트 화면의 왼쪽 하단에 있는 상세 버튼을 통해 확률 정보를 확인할 수 있으며, 공식 홈페이지에서도 관련 정보를 확인할 수 있습니다.\n\n3. 부산물 획득 및 사용\n   ★5 무기 획득 시 주인 없는 스타라이트 10개, ★4 무기 획득 시 2개, ★3 무기 획득 시 주인 없는 스타더스트 15개를 획득합니다.\n   주인 없는 스타더스트와 스타라이트는 상점에서 아이템 교환에 사용할 수 있습니다.\n\n4. 주인 없는 운명의 별\n   모든 운명의 자리가 활성화된 ★5 캐릭터의 운명의 별을 획득할 경우 주인 없는 운명의 별을 얻으며, 이를 사용해 캐릭터의 최대 레벨을 돌파할 수 있습니다.\n\n기타 자세한 사항은 각 기원 이벤트 공지를 참고해 주세요."
-                }
-          ],
-          "voc": [
-                {
-                      "question": "「기원」 뽑기 기록은 어떻게 확인하나요?",
-                      "answer": "기원 뽑기 기록은 게임 내에서 기원 메뉴로 이동한 후 뽑기 기록을 선택하면 확인할 수 있습니다.\n\n최근 1년 동안의 기원 기록을 확인할 수 있으며, 기록 반영에는 약 1시간의 딜레이가 있을 수 있습니다.\n1년 이전의 기록은 확인할 수 없지만, 이는 기원 천장 횟수에는 영향을 주지 않습니다.\n\n데이터가 로딩되지 않을 경우 잠시 후 다시 시도해 주세요."
-                },
-                {
-                      "question": "월드 레벨/모험 등급 관련 FAQ",
-                      "answer": "월드 레벨과 모험 등급은 게임 내에서 서로 다른 개념입니다.\n\n1. 모험 등급\n   모험 등급은 게임 내 플레이어의 경험을 나타냅니다. 특정 레벨에 도달하면 모험 등급 돌파 임무를 완료해야 다음 레벨로 올라갈 수 있습니다.\n   모험 등급 Lv.60에 도달한 후에는 추가로 획득한 모험 경력이 모라로 전환됩니다.\n\n2. 월드 레벨\n   월드 레벨은 게임의 난이도를 조정하는 요소입니다. 월드 레벨 Lv.3에 도달한 후에는 페이몬 화면에서 월드 레벨을 1단계 하향 조정할 수 있습니다.\n   하향 후 24시간이 지나야 복원이 가능하며, 조정 후 24시간 동안은 다시 조정할 수 없습니다."
-                },
-                {
-                      "question": "PC에서는 컨트롤러를 어떻게 연결하나요?",
-                      "answer": "PC에서 컨트롤러를 연결하는 방법은 두 가지입니다.\n\n1. USB를 이용한 유선 연결\n2. 블루투스 또는 무선 어댑터를 이용한 무선 연결\n\n게임을 시작하기 전에 컨트롤러를 PC에 연결해야 합니다.\nXbox 무선 컨트롤러, DualSense™ 무선 컨트롤러, DUALSHOCK®4 무선 컨트롤러가 PC에서 지원됩니다.\n\n자세한 연결 방법은 Xbox Support 또는 PlayStation Support를 참고해 주세요."
-                },
-                {
-                      "question": "게임 최저 사양 및 권장 사양",
-                      "answer": "게임의 최소 사양 및 권장 사양은 플랫폼별로 다릅니다.\n\n안드로이드, iOS, PC, PlayStation®, Xbox 등 각 플랫폼의 최소 사양과 권장 사양을 확인해야 합니다.\n디바이스 성능이 낮거나 저장 공간이 부족한 경우 게임 설치 및 실행에 문제가 발생할 수 있습니다.\n\nPC 기준으로는 Windows 10 64-bit 이상, 충분한 RAM, 그래픽카드, DirectX 11, 저장 공간이 필요합니다.\n보다 원활한 실행을 위해 권장 사양을 충족하는 환경에서 플레이하는 것이 좋습니다."
-                }
-          ]
-    };
+
 
     const submittedInquiries = [
       {
@@ -2116,6 +1890,28 @@
       return response.json();
     }
 
+    async function loadUiConfig() {
+      try {
+        const payload = await apiFetch("/config");
+        CATEGORY_TREE = payload.category_tree || {};
+        RECOMMENDED_FAQ = payload.recommended_faq || {};
+        BUG_REPORT_FORM_CONFIG = {
+          ...BUG_REPORT_FORM_CONFIG,
+          ...(payload.bug_report_form || {}),
+          placeholders: {
+            ...(BUG_REPORT_FORM_CONFIG.placeholders || {}),
+            ...((payload.bug_report_form || {}).placeholders || {}),
+          },
+        };
+      } catch (error) {
+        console.warn("failed to load chatbot ui config", error);
+      }
+    }
+
+    function escapeRegExp(value) {
+      return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    }
+
     function formatTicketTime(value) {
       if (!value) return "-";
       const date = new Date(value);
@@ -2328,6 +2124,7 @@
       `;
       chatMessages.appendChild(row);
       chatMessages.scrollTop = chatMessages.scrollHeight;
+      return row;
     }
 
     function addAssistantLoadingMessage() {
@@ -2356,6 +2153,7 @@
       chatMessages.scrollTop = chatMessages.scrollHeight;
 
       return {
+        row,
         finish(answerText, options = {}) {
           const article = row.querySelector("article");
           if (!article) return;
@@ -2383,6 +2181,7 @@
       `;
       chatMessages.appendChild(row);
       chatMessages.scrollTop = chatMessages.scrollHeight;
+      return row;
     }
 
     function openInfoModal(titleText, bodyHtml) {
@@ -2615,28 +2414,75 @@
       return `${intro}\n더 자세한 확인이 필요하면 아래 양식에 맞게 입력해 주세요.\n입력창에 양식을 넣어두었어요. 각 항목의 콜론 뒤에 내용을 작성한 뒤 전송해 주세요.`;
     }
 
+    function appendBugReproductionPrompt(answerText, categoryInfo) {
+      const answer = String(answerText || "").trim();
+      const prompt = getBugReproductionPrompt(categoryInfo).trim();
+      if (!answer) return prompt;
+      if (!prompt || answer.includes(prompt)) return answer;
+      return `${answer}\n\n${prompt}`;
+    }
+
     function isBugReproductionFormAnswer(answerText) {
       const text = String(answerText || "");
-      return (
-        text.includes("발생 시점:") &&
-        text.includes("오류 메시지:") &&
-        text.includes("사용 기기/OS:") &&
-        text.includes("오류 내용:")
-      );
+      const labels = BUG_REPORT_FORM_CONFIG.labels || [];
+      return labels.length > 0 && labels.every((label) => text.includes(`${label}:`));
     }
+
 
     function stripBugReproductionFormAnswer(answerText) {
       const text = String(answerText || "").replace(/\\n/g, "\n").trim();
-      const formStart = text.search(/발생 시점:/);
+      const firstLabel = (BUG_REPORT_FORM_CONFIG.labels || [])[0] || "";
+      const formStart = text.search(new RegExp(`${escapeRegExp(firstLabel)}:`));
       const intro = formStart === -1 ? text : text.slice(0, formStart).trim();
-      return intro || "문제 확인을 위해 아래 항목을 작성해 주세요.";
+      return intro || "Please fill out the bug reproduction form below.";
     }
+
+
 
     function clearCategoryInputTemplate() {
       clientState.activeInputTemplate = null;
+      if (activeBugReportFormMount) {
+        activeBugReportFormMount.remove();
+        activeBugReportFormMount = null;
+      }
+      if (activeBugReportFormOwnsRow && activeBugReportFormRow) {
+        activeBugReportFormRow.remove();
+      }
+      activeBugReportFormRow = null;
+      activeBugReportFormOwnsRow = false;
+      if (bugReportForm.parentElement !== bugReportFormHome) {
+        bugReportFormHome.insertBefore(bugReportForm, chatInput);
+      }
       bugReportForm.classList.add("hidden");
       bugReportForm.innerHTML = "";
       chatInput.classList.remove("hidden");
+      chatInput.placeholder = "궁금한 내용을 입력해주세요.";
+    }
+
+    function mountBugReportFormInAssistantMessage(targetRow = null) {
+      if (activeBugReportFormMount) {
+        activeBugReportFormMount.remove();
+        activeBugReportFormMount = null;
+      }
+      if (activeBugReportFormOwnsRow && activeBugReportFormRow) {
+        activeBugReportFormRow.remove();
+      }
+      const row = targetRow || addAssistantHtmlMessage(`<div class="bugReportFormMount"></div>`);
+      let mount = row.querySelector(".bugReportFormMount");
+      if (!mount) {
+        const article = row.querySelector("article");
+        mount = document.createElement("div");
+        mount.className = "bugReportFormMount mt-4";
+        if (article) article.appendChild(mount);
+      }
+      if (mount) {
+        mount.appendChild(bugReportForm);
+      }
+      activeBugReportFormRow = row;
+      activeBugReportFormMount = mount;
+      activeBugReportFormOwnsRow = !targetRow;
+      bugReportForm.classList.remove("hidden");
+      chatMessages.scrollTop = chatMessages.scrollHeight;
     }
 
     function parseInputTemplate(template) {
@@ -2647,7 +2493,7 @@
         .filter(Boolean);
     }
 
-    function applyCategoryInputTemplate(categoryInfo) {
+    function applyCategoryInputTemplate(categoryInfo, targetRow = null) {
       const template = getCategoryInputTemplate(categoryInfo);
       const labels = parseInputTemplate(template);
       if (!labels.length) {
@@ -2658,27 +2504,26 @@
       clientState.activeInputTemplate = labels;
       chatInput.value = "";
       chatInput.rows = 1;
-      chatInput.classList.add("hidden");
-      bugReportForm.classList.remove("hidden");
-      const placeholderByLabel = {
-        "발생 시점": "예: 로그인 화면, 로딩 중, 전투 시작 직후",
-        "오류 메시지": "없으면 '없음'이라고 적어주세요",
-        "사용 기기/OS": "예: iPhone 15 Pro / iOS 18",
-        "오류 내용": "어떤 상황에서 어떤 문제가 발생했는지 적어주세요",
-      };
+      chatInput.classList.remove("hidden");
+      chatInput.placeholder = "재현정보를 입력하거나 새 대화창을 눌러 새 대화를 시작해주세요.";
+      const placeholderByLabel = BUG_REPORT_FORM_CONFIG.placeholders || {};
+      const formTitle = BUG_REPORT_FORM_CONFIG.title || "Bug report details";
+      const formDescription = BUG_REPORT_FORM_CONFIG.description || "Fill in the details you know.";
+      const formBadge = BUG_REPORT_FORM_CONFIG.badge || "Required";
       bugReportForm.innerHTML = `
         <div class="mb-3 flex items-start justify-between gap-4">
           <div>
-            <p class="text-[15px] font-black text-[#153958]">오류 문의 접수 정보</p>
-            <p class="mt-1 text-xs font-bold leading-5 text-[#6c8799]">확인 가능한 내용만 작성해도 접수할 수 있어요.</p>
+            <p class="text-[15px] font-black text-[#153958]">${escapeHtml(formTitle)}</p>
+            <p class="mt-1 text-xs font-bold leading-5 text-[#6c8799]">${escapeHtml(formDescription)}</p>
           </div>
-          <span class="shrink-0 rounded-full bg-brand-mist/45 px-3 py-1 text-[11px] font-black text-brand-blue">필수 확인</span>
+          <span class="shrink-0 rounded-full bg-brand-mist/45 px-3 py-1 text-[11px] font-black text-brand-blue">${escapeHtml(formBadge)}</span>
         </div>
         <div class="grid gap-3 md:grid-cols-2">
           ${labels.map((label) => {
-            const isLongField = label === "오류 내용";
+            const configuredLabels = BUG_REPORT_FORM_CONFIG.labels || [];
+            const isLongField = label === configuredLabels[configuredLabels.length - 1];
             const fieldClass = "bugReportField w-full rounded-xl border border-brand-blue/14 bg-[#fffdf8] px-4 py-3 text-[14px] font-bold leading-6 text-[#153958] outline-none transition focus:border-brand-blue/45 focus:bg-white focus:shadow-[0_0_0_3px_rgba(96,150,180,0.12)] placeholder:text-[#9aaebc]";
-            const placeholder = placeholderByLabel[label] || "내용을 입력해 주세요";
+            const placeholder = placeholderByLabel[label] || "Enter details";
             const field = isLongField
               ? `<textarea class="${fieldClass} min-h-[86px] resize-none" data-label="${escapeHtml(label)}" placeholder="${escapeHtml(placeholder)}" rows="3"></textarea>`
               : `<input class="${fieldClass}" data-label="${escapeHtml(label)}" type="text" autocomplete="off" placeholder="${escapeHtml(placeholder)}" />`;
@@ -2691,19 +2536,32 @@
           }).join("")}
         </div>
       `;
+      mountBugReportFormInAssistantMessage(targetRow);
       const firstField = bugReportForm.querySelector(".bugReportField");
       if (firstField) firstField.focus();
     }
+
 
     function collectChatInputMessage() {
       if (!clientState.activeInputTemplate) {
         return chatInput.value.trim();
       }
       const fields = Array.from(bugReportForm.querySelectorAll(".bugReportField"));
+      const hasFormValue = fields.some((field) => field.value.trim());
+      if (!hasFormValue) {
+        return "";
+      }
       return fields.map((field) => {
         const label = field.dataset.label || "";
         return `${label}: ${field.value.trim()}`;
       }).join("\n").trim();
+    }
+
+    function showBugReproductionInputGuide() {
+      openInfoModal(
+        "재현정보 입력 필요",
+        "<p>오류 확인을 위해 위 재현정보 입력 폼을 작성해 주세요.</p><p class=\"mt-2\">다른 문의를 시작하려면 새 대화창 버튼을 눌러 새 대화를 시작해 주세요.</p>"
+      );
     }
 
     function buildWelcomeMessage(timeLabel = "새 대화 시작") {
@@ -2926,8 +2784,17 @@
         openInfoModal("새 문의 시작", "<p>접수된 문의입니다. 새 문의 시작 버튼을 눌러 다음 문의를 작성해 주세요.</p>");
         return;
       }
+      if (clientState.activeInputTemplate && chatInput.value.trim()) {
+        showBugReproductionInputGuide();
+        return;
+      }
       const message = collectChatInputMessage();
-      if (!message) return;
+      if (!message) {
+        if (clientState.activeInputTemplate) {
+          showBugReproductionInputGuide();
+        }
+        return;
+      }
       if (!clientState.login?.user_id) {
         openInfoModal("로그인 필요", "<p>먼저 계정을 연동한 뒤 문의를 전송해 주세요.</p>");
         return;
@@ -2972,19 +2839,20 @@
         clientState.activeDraftId = payload.draft_id || null;
         const isFormAnswer = isBugReproductionFormAnswer(payload.answer);
         const displayAnswer = isFormAnswer ? stripBugReproductionFormAnswer(payload.answer) : payload.answer;
+        const shouldLockSession = isBugIssueAccepted(payload);
+        const shouldShowBugForm = !shouldLockSession && isBugCategoryInfo(categoryInfo) && getCategoryInputTemplate(categoryInfo);
+        const assistantAnswer = shouldShowBugForm && !isFormAnswer
+          ? appendBugReproductionPrompt(displayAnswer, categoryInfo)
+          : displayAnswer;
         clientState.previousMessages.push(
           { role: "user", content: message },
-          { role: "assistant", content: displayAnswer }
+          { role: "assistant", content: assistantAnswer }
         );
-        const shouldLockSession = isBugIssueAccepted(payload);
-        loadingMessage.finish(displayAnswer, {
+        loadingMessage.finish(assistantAnswer, {
           showNewInquiryAction: shouldLockSession,
         });
-        if (!shouldLockSession && isBugCategoryInfo(categoryInfo) && getCategoryInputTemplate(categoryInfo)) {
-          if (!isFormAnswer) {
-            addAssistantMessage(getBugReproductionPrompt(categoryInfo));
-          }
-          applyCategoryInputTemplate(categoryInfo);
+        if (shouldShowBugForm) {
+          applyCategoryInputTemplate(categoryInfo, loadingMessage.row);
         }
         if (shouldLockSession) {
           setChatLocked(true);
@@ -2998,9 +2866,15 @@
       addAssistantMessage("문의 내용을 확인했어요. 데모 화면에서는 실제 API 호출 대신 답변 흐름만 보여드리고 있습니다.");
       chatInput.value = "";
     });
-    bindCategoryButtons();
-    renderCategoryFaq();
-    loadServerRegions();
+    async function initializeApp() {
+      await loadUiConfig();
+      chatMessages.innerHTML = buildWelcomeMessage();
+      bindCategoryButtons();
+      renderCategoryFaq();
+      loadServerRegions();
+    }
+
+    initializeApp();
   </script>
 </body>
 </html>

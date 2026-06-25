@@ -5,9 +5,9 @@ import json
 
 import pytest
 
-from chatbot.chains import persistence
-from chatbot.generation import faq_agent
-from chatbot.retrieval import cache_store
+from chains import persistence
+from generation import faq_agent
+from common.retrieval import cache_store
 from common.retrieval import vector_tools
 from common.retrieval.vector_tools import RetrievalQuery, hybrid_rank_documents, refine_query_text, search_document_chunks
 
@@ -48,7 +48,7 @@ def test_rerank_documents_serializes_datetime_fields(monkeypatch) -> None:
     captured_payload = {}
 
     class FakeRerankTool:
-        def invoke(self, payload):
+        def invoke(self, payload, **kwargs):
             captured_payload.update(payload)
             return json.dumps([{"chunk_id": "doc-1"}])
 
@@ -587,10 +587,10 @@ def test_search_document_chunks_can_broaden_with_category_filter(monkeypatch) ->
         calls.append((faq_only, use_query_filter, list(enrichment.preferred_categories or []) if enrichment else []))
         return [
             {
-                "chunk_id": "bug-faq",
+                "chunk_id": "client-issue-faq",
                 "document_id": "QNA-GSN-51",
                 "source_type": "hoyoverse_qna_common",
-                "category": "bug_faq",
+                "category": "클라이언트_문제",
                 "title": "버그, 튕김 관련 FAQ",
                 "chunk_text": "게임을 켜자마자 튕기는 경우 그래픽카드 드라이버를 업데이트합니다.",
                 "embedding_vector": "[1.0,0.0]",
@@ -608,15 +608,15 @@ def test_search_document_chunks_can_broaden_with_category_filter(monkeypatch) ->
         enrichment=RetrievalQuery(
             query_text="게임 켜자마자 튕겨요",
             preferred_source_types=[],
-            preferred_categories=["bug_faq"],
+            preferred_categories=["클라이언트_문제"],
         ),
     )
 
     assert calls == [
-        (False, True, ["bug_faq"]),
-        (False, False, ["bug_faq"]),
+        (False, True, ["클라이언트_문제"]),
+        (False, False, ["클라이언트_문제"]),
     ]
-    assert results[0]["category"] == "bug_faq"
+    assert results[0]["category"] == "클라이언트_문제"
     assert results[0]["candidate_scope"] == "filtered_broad"
 
 

@@ -1,0 +1,14 @@
+max_safety_retry: 2
+max_masking_retry: 2
+
+thresholds:
+  factuality: 0.8
+  hallucination: 0.3
+  factuality_warn: 0.5
+  hallucination_warn: 0.5
+  factuality_block: 0.3
+  hallucination_block: 0.7
+  toxicity: 0.7
+
+voc_fixed_response: >-
+  소중한 의견 감사합니다. 의견 반영하여 더 나은 서비스를 제공하도록 하겠습니다.

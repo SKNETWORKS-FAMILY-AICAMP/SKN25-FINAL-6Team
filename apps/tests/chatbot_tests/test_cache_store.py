@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import time
 
-from chatbot.retrieval import cache_store
+from common.retrieval import cache_store
 
 
 class FakeRedis:

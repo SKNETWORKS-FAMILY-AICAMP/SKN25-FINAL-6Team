@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 
@@ -20,7 +20,7 @@ def read_item_delivery_logs(user_id: int, account_id: int) -> str:
         user_id: Logged-in community user ID. This is the ownership boundary.
         account_id: Game account ID to look up delivery logs for, only if it belongs to user_id.
     """
-    from chatbot.repository.operation_log_repository import read_item_delivery_logs_by_account
+    from repository.operation_log_repository import read_item_delivery_logs_by_account
 
     return _json(read_item_delivery_logs_by_account(user_id=user_id, account_id=account_id))
 
@@ -34,7 +34,7 @@ def read_gacha_logs(user_id: int, account_id: int) -> str:
         user_id: Logged-in community user ID. This is the ownership boundary.
         account_id: Game account ID to look up gacha logs, only if it belongs to user_id.
     """
-    from chatbot.repository.operation_log_repository import read_gacha_logs_by_account
+    from repository.operation_log_repository import read_gacha_logs_by_account
 
     return _json(read_gacha_logs_by_account(user_id=user_id, account_id=account_id))
 
@@ -53,6 +53,6 @@ def collect_user_payment_context(
         account_id: Optional game account ID to narrow the lookup, only if it belongs to user_id.
         query_text: Optional user question text used to prioritize matching payment records.
     """
-    from chatbot.repository.operation_log_repository import collect_payment_context_by_user
+    from repository.operation_log_repository import collect_payment_context_by_user
 
     return _json(collect_payment_context_by_user(user_id=user_id, account_id=account_id, query_text=query_text))

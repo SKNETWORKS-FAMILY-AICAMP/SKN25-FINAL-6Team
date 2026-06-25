@@ -1,10 +1,10 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 import re
 from typing import Any
 
-from chatbot.repository.base import read_response, safe_read
+from repository.base import read_response, safe_read
 
 
 PAYMENT_CONTEXT_LIMIT = 20

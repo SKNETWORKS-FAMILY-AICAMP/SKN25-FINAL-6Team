@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from chatbot.chains.routing import route_by_category
-from chatbot.generation.ticket_preprocess import ticket_preprocess_node
+from chains.routing import route_by_category
+from generation.ticket_preprocess import ticket_preprocess_node
 
 
 class FakeWriteQaTicket:
@@ -24,7 +24,7 @@ def _base_state(category: str) -> dict:
 
 
 def test_preprocess_defaults_payment_category_to_payment_agent(monkeypatch) -> None:
-    from chatbot.generation import ticket_preprocess
+    from generation import ticket_preprocess
 
     monkeypatch.setattr(ticket_preprocess, "write_qa_ticket", FakeWriteQaTicket)
 
@@ -35,7 +35,7 @@ def test_preprocess_defaults_payment_category_to_payment_agent(monkeypatch) -> N
 
 
 def test_preprocess_defaults_faq_category_to_faq_agent(monkeypatch) -> None:
-    from chatbot.generation import ticket_preprocess
+    from generation import ticket_preprocess
 
     monkeypatch.setattr(ticket_preprocess, "write_qa_ticket", FakeWriteQaTicket)
 
@@ -46,7 +46,7 @@ def test_preprocess_defaults_faq_category_to_faq_agent(monkeypatch) -> None:
 
 
 def test_preprocess_preserves_frontend_routing_target(monkeypatch) -> None:
-    from chatbot.generation import ticket_preprocess
+    from generation import ticket_preprocess
 
     monkeypatch.setattr(ticket_preprocess, "write_qa_ticket", FakeWriteQaTicket)
     state = _base_state("payment") | {"routing_target": "faq_agent"}

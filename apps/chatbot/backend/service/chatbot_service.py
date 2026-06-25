@@ -1,12 +1,12 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import os
 from typing import Any
 
-from chatbot.constants import DEFAULT_DEMO_USER_ID
-from chatbot.observability.langfuse import build_chatbot_trace_metadata
-from chatbot.observability.logger import EVENT_NODE_COMPLETED, log_event
-from chatbot.utils.input_preprocessing import preprocess_user_input
+from constants import DEFAULT_DEMO_USER_ID
+from observability.langfuse import build_chatbot_trace_metadata
+from observability.logger import EVENT_NODE_COMPLETED, log_event
+from utils.input_preprocessing import preprocess_user_input
 from common.observability.langfuse import get_langchain_config, link_current_trace, observe_if_enabled, trace_attributes
 
 
@@ -25,7 +25,6 @@ def build_state(
     previous_messages: list[dict[str, str]] | None = None,
     conversation_summary: str | None = None,
     initial_bug_query: str | None = None,
-    bug_collection_status: str | None = None,
     bug_report_form: str | None = None,
 ) -> dict[str, Any]:
     # 1단계: 사용자 입력을 마스킹/정규화 준비하고 LangGraph가 공유할 초기 state를 만든다.
@@ -47,6 +46,7 @@ def build_state(
 
     return {
         "messages": messages,
+        "previous_messages": list(previous_messages or []),
         "user_id": user_id,
         "session_id": session_id,
         "account_id": account_id,
@@ -73,7 +73,6 @@ def build_state(
         "retry_count": 0,
         "conversation_summary": conversation_summary,
         "initial_bug_query": initial_bug_query,
-        "bug_collection_status": bug_collection_status,
         "bug_report_form": bug_report_form,
         "github_issue_content": None,
         "turn_count": len([message for message in messages if message.get("role") == "user"]),
@@ -188,11 +187,10 @@ def run_chatbot(
     previous_messages: list[dict[str, str]] | None = None,
     conversation_summary: str | None = None,
     initial_bug_query: str | None = None,
-    bug_collection_status: str | None = None,
     bug_report_form: str | None = None,
 ) -> dict[str, Any]:
     # 동기 실행 경로: 초기 state 생성 -> graph.invoke -> 최종 답변 반환.
-    from chatbot.chains.workflow import graph
+    from chains.workflow import graph
 
     state = build_state(
         ticket_id=ticket_id,
@@ -209,7 +207,6 @@ def run_chatbot(
         previous_messages=previous_messages,
         conversation_summary=conversation_summary,
         initial_bug_query=initial_bug_query,
-        bug_collection_status=bug_collection_status,
         bug_report_form=bug_report_form,
     )
     trace_metadata = build_chatbot_trace_metadata(state)
@@ -275,11 +272,10 @@ def stream_chatbot(
     previous_messages: list[dict[str, str]] | None = None,
     conversation_summary: str | None = None,
     initial_bug_query: str | None = None,
-    bug_collection_status: str | None = None,
     bug_report_form: str | None = None,
 ):
     # 스트리밍 실행 경로: graph.stream의 노드별 update를 누적하면서 진행 상황을 기록한다.
-    from chatbot.chains.workflow import graph
+    from chains.workflow import graph
 
     state = build_state(
         ticket_id=ticket_id,
@@ -296,7 +292,6 @@ def stream_chatbot(
         previous_messages=previous_messages,
         conversation_summary=conversation_summary,
         initial_bug_query=initial_bug_query,
-        bug_collection_status=bug_collection_status,
         bug_report_form=bug_report_form,
     )
     trace_metadata = build_chatbot_trace_metadata(state)

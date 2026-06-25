@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from dataclasses import dataclass
 import os
@@ -7,7 +7,7 @@ from typing import Any
 
 import yaml
 
-from chatbot.tools.db_tools import read_gacha_logs, read_item_delivery_logs
+from tools.db_tools import read_gacha_logs, read_item_delivery_logs
 
 
 PROMPT_ROOT = Path(

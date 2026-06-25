@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import hashlib
 import json
@@ -11,20 +11,22 @@ from langchain_openai import ChatOpenAI
 from common.db.connection import db_connection
 from common.observability.logger import record_chat_model_usage
 from common.retrieval.cache_store import get_cached_retrieval, set_cached_retrieval
-from chatbot.generation.policies import FAQ_POLICY
-from chatbot.generation.response.fixed_responses import SAFE_FALLBACK_RESPONSE
-from chatbot.observability.langfuse import link_chatbot_trace
-from chatbot.observability.logger import EVENT_NODE_COMPLETED, EVENT_NODE_STARTED, EVENT_TOOL_COMPLETED, log_event
-from chatbot.repository.failed_query_repository import save_failed_query
+from generation.policies import FAQ_POLICY
+from generation.response.fixed_responses import SAFE_FALLBACK_RESPONSE
+from observability.langfuse import link_chatbot_trace
+from observability.logger import EVENT_NODE_COMPLETED, EVENT_NODE_STARTED, EVENT_TOOL_COMPLETED, log_event
+from repository.failed_query_repository import save_failed_query
 from common.retrieval.vector_tools import embed_query, enrich_retrieval_query, rerank_documents, search_document_chunks
-from chatbot.schemas import ChatbotState
-from chatbot.utils.query_enrichment import rewrite_query_with_llm
+from schemas import ChatbotState
+from utils.config_loader import get_list_config
+from utils.query_enrichment import rewrite_query_with_llm
 from common.observability.langfuse import get_langchain_config, observe_if_enabled
 
 
-NOTICE_SOURCE_TYPES = ("naver_cafe_notice",)
-LATEST_NOTICE_KEYWORDS = ("최근", "최신", "새로운", "가장 최근", "마지막")
-NOTICE_QUERY_KEYWORDS = ("공지", "공지사항", "이벤트", "업데이트", "점검", "버전")
+NOTICE_KEYWORDS = "retrieval/notice_keywords.yaml"
+NOTICE_SOURCE_TYPES = get_list_config(NOTICE_KEYWORDS, "source_types")
+LATEST_NOTICE_KEYWORDS = get_list_config(NOTICE_KEYWORDS, "latest_keywords")
+NOTICE_QUERY_KEYWORDS = get_list_config(NOTICE_KEYWORDS, "query_keywords")
 
 
 def _active_query(state: ChatbotState) -> str:
@@ -716,7 +718,7 @@ def _handle_retryable_retrieval_failure(
     }
 
 
-def run_faq_rag(state: ChatbotState) -> dict[str, Any]:
+def run_faq_rag(state: ChatbotState, *, retry_on_low_evidence: bool = True) -> dict[str, Any]:
     # FAQ/RAG 전체 실행 흐름을 관리한다.
     current_query = _active_query(state)
     conversation_context = _recent_conversation_context(state)
@@ -800,6 +802,16 @@ def run_faq_rag(state: ChatbotState) -> dict[str, Any]:
 
     low_evidence, reason = _is_low_evidence(documents)
     if low_evidence:
+        if not retry_on_low_evidence:
+            failure_reason = reason or "low_evidence"
+            _record_failed_query(state, retrieval_query, failure_reason)
+            return {
+                "draft_text": SAFE_FALLBACK_RESPONSE,
+                "retrieved_documents": documents,
+                "retrieval_query": retrieval_query,
+                "retrieval_enrichment": enriched_dump,
+                "faq_failure_reason": failure_reason,
+            }
         return _handle_retryable_retrieval_failure(
             state=state,
             current_query=current_query,
@@ -814,6 +826,16 @@ def run_faq_rag(state: ChatbotState) -> dict[str, Any]:
 
     relevance_ok, relevance_reason = _passes_relevance_gate(documents)
     if not relevance_ok:
+        if not retry_on_low_evidence:
+            failure_reason = relevance_reason or "retrieval_relevance_gate_failed"
+            _record_failed_query(state, retrieval_query, failure_reason)
+            return {
+                "draft_text": SAFE_FALLBACK_RESPONSE,
+                "retrieved_documents": documents,
+                "retrieval_query": retrieval_query,
+                "retrieval_enrichment": enriched_dump,
+                "faq_failure_reason": failure_reason,
+            }
         return _handle_retryable_retrieval_failure(
             state=state,
             current_query=current_query,
@@ -892,7 +914,7 @@ _original_run_faq_rag = run_faq_rag
     as_type="chain",
     tags=["chatbot", "feature:retrieval", "faq", "rag"],
 )
-def run_faq_rag(state: ChatbotState) -> dict[str, Any]:
+def run_faq_rag(state: ChatbotState, *, retry_on_low_evidence: bool = True) -> dict[str, Any]:
     link_chatbot_trace(
         state,
         tags=["feature:retrieval", "faq", "rag"],
@@ -903,7 +925,7 @@ def run_faq_rag(state: ChatbotState) -> dict[str, Any]:
             "conversation_summary_present": bool(state.get("conversation_summary")),
         },
     )
-    result = _original_run_faq_rag(state)
+    result = _original_run_faq_rag(state, retry_on_low_evidence=retry_on_low_evidence)
     link_chatbot_trace(
         state,
         tags=["feature:retrieval", "faq", "rag"],
