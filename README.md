@@ -1028,10 +1028,10 @@ CS 자동화 평가는 분석 단계와 답변 생성 단계를 분리해 측정
   </tr>
   <tr>
     <td align="center">팀장<br>CS 자동화 전체 설계 및 구현</td>
-    <td align="center">챗봇 RAG 파이프라인<br>공통 모듈</td>
+    <td align="center">챗봇 시스템 설계<br>LangGraph 에이전트 구현</td>
+    <td align="center">챗봇 백엔드<br>DB 설계 / Redis</td>
+    <td align="center">RAG 성능 개선<br>평가 / Latency 최적화</td>
     <td align="center">주간 운영 리포트<br>Airflow / Slack</td>
-    <td align="center">챗봇 프론트엔드<br>DB 설계</td>
-    <td align="center">CS 자동화 에이전트<br>인프라 배포</td>
   </tr>
   <tr>
     <td align="center">
