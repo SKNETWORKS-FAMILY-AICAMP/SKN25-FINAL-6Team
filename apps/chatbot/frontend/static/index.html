@@ -1849,6 +1849,11 @@
       bugReportForm.querySelectorAll("input, textarea").forEach((field) => {
         field.disabled = locked;
       });
+      bugReportForm.querySelectorAll(".bugReportSubmitButton").forEach((button) => {
+        button.disabled = locked;
+        button.classList.toggle("opacity-45", locked);
+        button.classList.toggle("cursor-not-allowed", locked);
+      });
     }
 
     function formatApiErrorDetail(value) {
@@ -2535,7 +2540,19 @@
             `;
           }).join("")}
         </div>
+        <div class="mt-4 flex justify-end">
+          <button class="bugReportSubmitButton inline-flex items-center justify-center rounded-xl bg-brand-blue px-5 py-3 text-sm font-black text-white shadow-[0_14px_26px_rgba(96,150,180,0.24)] transition hover:bg-[#4f86aa]" type="button">
+            접수하기
+          </button>
+        </div>
       `;
+      const bugReportSubmitButton = bugReportForm.querySelector(".bugReportSubmitButton");
+      if (bugReportSubmitButton) {
+        bugReportSubmitButton.addEventListener("click", () => {
+          if (bugReportSubmitButton.disabled) return;
+          chatForm.requestSubmit();
+        });
+      }
       mountBugReportFormInAssistantMessage(targetRow);
       const firstField = bugReportForm.querySelector(".bugReportField");
       if (firstField) firstField.focus();
