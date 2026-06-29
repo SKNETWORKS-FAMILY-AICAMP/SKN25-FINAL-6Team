@@ -3,7 +3,8 @@
 # GameOps Support Platform
 
 게임 유저 문의 관리 및 맞춤형 응대 자동화 솔루션<br>응대 최적화와 데이터 중심 운영 혁신을 위한 AI 기반 CS 운영 플랫폼
-
+<br>
+https://www.youtube.com/watch?v=HQQmrwhDTqo
 <br>
 
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=flat-square&logo=python&logoColor=white)
